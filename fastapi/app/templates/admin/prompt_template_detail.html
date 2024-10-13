@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Template Detail</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        h1 { color: #333; }
+        p { margin: 5px 0; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>Prompt Template Detail</h1>
+    <p><strong>Title:</strong> {{ prompt_template.title }}</p>
+    <p><strong>Prompt:</strong> {{ prompt_template.prompt }}</p>
+    <p><strong>Is Complex:</strong> {{ prompt_template.is_complex }}</p>
+    <p><strong>Default Persona:</strong> {{ prompt_template.default_persona.role }}</p>
+    
+    <h2>Categories</h2>
+    <ul>
+        {% for category in prompt_template.categories %}
+        <li>{{ category.name }}</li>
+        {% endfor %}
+    </ul>
+    
+    <h2>Tags</h2>
+    <ul>
+        {% for tag in prompt_template.tags %}
+        <li>{{ tag.name }}</li>
+        {% endfor %}
+    </ul>
+    
+    <a href="/admin/prompt_templates/{{ prompt_template.id }}/edit">Edit Prompt Template</a>
+    <br>
+    <a href="/admin/prompt_templates/{{ prompt_template.id }}/delete" onclick="return confirm('Are you sure you want to delete this prompt template?')">Delete Prompt Template</a>
+    <br>
+    <a href="/admin/">Back to Dashboard</a>
+</body>
+</html>

@@ -1,0 +1,185 @@
+modules = ["python-3.11"]
+
+[nix]
+channel = "stable-24_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start FastAPI server"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Seed Database"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Generate Alembic Migration"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Apply Alembic Migration"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Initialize Alembic"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Generate ChatModel Migration"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Apply ChatModel Migration"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Apply Pending Migrations"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Drop ChatModel Table"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Remove Old Migrations"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Apply Combined Migration"
+
+[[workflows.workflow]]
+name = "Start FastAPI server"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
+waitForPort = 8000
+
+[[workflows.workflow]]
+name = "Seed Database"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python -m app.seed"
+
+[[workflows.workflow]]
+name = "Generate Alembic Migration"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "alembic revision --autogenerate -m 'Add ChatModel table'"
+
+[[workflows.workflow]]
+name = "Apply Alembic Migration"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "alembic upgrade head"
+
+[[workflows.workflow]]
+name = "Initialize Alembic"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "alembic init alembic"
+
+[[workflows.workflow]]
+name = "Generate ChatModel Migration"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "alembic revision --autogenerate -m 'Create ChatModel table'"
+
+[[workflows.workflow]]
+name = "Apply ChatModel Migration"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "alembic upgrade head"
+
+[[workflows.workflow]]
+name = "Apply Pending Migrations"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "alembic upgrade head"
+
+[[workflows.workflow]]
+name = "Drop ChatModel Table"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "psql $DATABASE_URL -c 'DROP TABLE IF EXISTS chatmodel CASCADE; DROP SEQUENCE IF EXISTS chatmodel_id_seq CASCADE;'"
+
+[[workflows.workflow]]
+name = "Remove Old Migrations"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python remove_old_migrations.py"
+
+[[workflows.workflow]]
+name = "Apply Combined Migration"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "alembic upgrade head"
+
+[deployment]
+run = ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+
+[[ports]]
+localPort = 8000
+externalPort = 80

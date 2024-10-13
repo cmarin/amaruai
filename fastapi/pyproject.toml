@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "amaruai-api"
+version = "0.1.0"
+description = ""
+authors = ["Christopher Marin <christopher.marin@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115.2"
+sqlalchemy = "^2.0.35"
+alembic = "^1.13.3"
+psycopg2-binary = "^2.9.9"
+python-dotenv = "^1.0.1"
+uvicorn = "^0.31.1"
+langchain-openai = "^0.2.2"
+jinja2 = "^3.1.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

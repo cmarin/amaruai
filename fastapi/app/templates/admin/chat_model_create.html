@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Chat Model</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        h1 { color: #333; }
+        form { max-width: 500px; }
+        label { display: block; margin-top: 10px; }
+        input[type="text"], textarea { width: 100%; padding: 5px; }
+        input[type="submit"] { margin-top: 20px; padding: 10px; background-color: #007bff; color: white; border: none; cursor: pointer; }
+        input[type="submit"]:hover { background-color: #0056b3; }
+        .error { color: red; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Create Chat Model</h1>
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    <form action="/admin/chat_models/create" method="post">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required maxlength="100">
+        
+        <label for="description">Description:</label>
+        <textarea id="description" name="description" rows="3" maxlength="500"></textarea>
+        
+        <label for="api_key">API Key:</label>
+        <input type="text" id="api_key" name="api_key" maxlength="200">
+        
+        <label for="model">Model:</label>
+        <input type="text" id="model" name="model" required maxlength="100">
+        
+        <label for="provider">Provider:</label>
+        <input type="text" id="provider" name="provider" required maxlength="100">
+        
+        <label>
+            <input type="checkbox" name="default">
+            Default
+        </label>
+        
+        <input type="submit" value="Create Chat Model">
+    </form>
+    <a href="/admin/chat_models">Back to Chat Models</a>
+    <br>
+    <a href="/admin/">Back to Dashboard</a>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        h1 { color: #333; }
+        h2 { color: #666; }
+        ul { list-style-type: none; padding: 0; }
+        li { margin-bottom: 10px; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>Admin Dashboard</h1>
+
+    <h2>Personas</h2>
+    <ul>
+        {% for persona in personas %}
+        <li>
+            {{ persona.role }} - 
+            <a href="/admin/personas/{{ persona.id }}">View</a> | 
+            <a href="/admin/personas/{{ persona.id }}/edit">Edit</a> | 
+            <a href="/admin/personas/{{ persona.id }}/delete">Delete</a>
+        </li>
+        {% endfor %}
+    </ul>
+    <a href="/admin/personas/create">Create New Persona</a>
+
+    <h2>Tools</h2>
+    <ul>
+        {% for tool in tools %}
+        <li>
+            {{ tool.name }} - 
+            <a href="/admin/tools/{{ tool.id }}">View</a> | 
+            <a href="/admin/tools/{{ tool.id }}/edit">Edit</a> | 
+            <a href="/admin/tools/{{ tool.id }}/delete">Delete</a>
+        </li>
+        {% endfor %}
+    </ul>
+    <a href="/admin/tools/create">Create New Tool</a>
+
+    <h2>Prompt Templates</h2>
+    <ul>
+        {% for template in prompt_templates %}
+        <li>
+            {{ template.title }} - 
+            <a href="/admin/prompt_templates/{{ template.id }}">View</a> | 
+            <a href="/admin/prompt_templates/{{ template.id }}/edit">Edit</a> | 
+            <a href="/admin/prompt_templates/{{ template.id }}/delete">Delete</a>
+        </li>
+        {% endfor %}
+    </ul>
+    <a href="/admin/prompt_templates/create">Create New Prompt Template</a>
+
+    <h2>Categories</h2>
+    <ul>
+        {% for category in categories %}
+        <li>
+            {{ category.name }} - 
+            <a href="/admin/categories/{{ category.id }}">View</a> | 
+            <a href="/admin/categories/{{ category.id }}/edit">Edit</a> | 
+            <a href="/admin/categories/{{ category.id }}/delete">Delete</a>
+        </li>
+        {% endfor %}
+    </ul>
+    <a href="/admin/categories/create">Create New Category</a>
+
+    <h2>Tags</h2>
+    <ul>
+        {% for tag in tags %}
+        <li>
+            {{ tag.name }} - 
+            <a href="/admin/tags/{{ tag.id }}">View</a> | 
+            <a href="/admin/tags/{{ tag.id }}/edit">Edit</a> | 
+            <a href="/admin/tags/{{ tag.id }}/delete">Delete</a>
+        </li>
+        {% endfor %}
+    </ul>
+    <a href="/admin/tags/create">Create New Tag</a>
+
+    <h2>Chat Models</h2>
+    <ul>
+        {% for chat_model in chat_models %}
+        <li>
+            {{ chat_model.name }} - 
+            <a href="/admin/chat_models/{{ chat_model.id }}">View</a> | 
+            <a href="/admin/chat_models/{{ chat_model.id }}/edit">Edit</a> | 
+            <a href="/admin/chat_models/{{ chat_model.id }}/delete">Delete</a>
+        </li>
+        {% endfor %}
+    </ul>
+    <a href="/admin/chat_models/create">Create New Chat Model</a>
+
+    <h2>Admin Tools</h2>
+    <ul>
+        <li><a href="/admin/chat">Chat Interface</a></li>
+    </ul>
+</body>
+</html>

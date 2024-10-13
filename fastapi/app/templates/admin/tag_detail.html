@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tag Detail</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        h1 { color: #333; }
+        p { margin: 5px 0; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>Tag Detail</h1>
+    <p><strong>Name:</strong> {{ tag.name }}</p>
+    
+    <h2>Associated Personas</h2>
+    <ul>
+        {% for persona in tag.personas %}
+        <li>{{ persona.role }}</li>
+        {% endfor %}
+    </ul>
+    
+    <h2>Associated Prompt Templates</h2>
+    <ul>
+        {% for prompt_template in tag.prompt_templates %}
+        <li>{{ prompt_template.title }}</li>
+        {% endfor %}
+    </ul>
+    
+    <a href="/admin/tags/{{ tag.id }}/edit">Edit Tag</a>
+    <br>
+    <a href="/admin/tags/{{ tag.id }}/delete" onclick="return confirm('Are you sure you want to delete this tag?')">Delete Tag</a>
+    <br>
+    <a href="/admin/">Back to Dashboard</a>
+</body>
+</html>

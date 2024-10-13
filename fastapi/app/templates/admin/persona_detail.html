@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Persona Detail</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        h1 { color: #333; }
+        p { margin: 5px 0; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>Persona Detail</h1>
+    <p><strong>Role:</strong> {{ persona.role }}</p>
+    <p><strong>Goal:</strong> {{ persona.goal }}</p>
+    <p><strong>Backstory:</strong> {{ persona.backstory }}</p>
+    <p><strong>Allow Delegation:</strong> {{ persona.allow_delegation }}</p>
+    <p><strong>Verbose:</strong> {{ persona.verbose }}</p>
+    <p><strong>Memory:</strong> {{ persona.memory }}</p>
+    <p><strong>Avatar:</strong> {{ persona.avatar or "N/A" }}</p>
+    <p><strong>Is Favorite:</strong> {{ persona.is_favorite }}</p>
+    
+    <h2>Tools</h2>
+    <ul>
+        {% for tool in persona.tools %}
+        <li>{{ tool.name }}</li>
+        {% endfor %}
+    </ul>
+    
+    <h2>Categories</h2>
+    <ul>
+        {% for category in persona.categories %}
+        <li>{{ category.name }}</li>
+        {% endfor %}
+    </ul>
+    
+    <h2>Tags</h2>
+    <ul>
+        {% for tag in persona.tags %}
+        <li>{{ tag.name }}</li>
+        {% endfor %}
+    </ul>
+    
+    <a href="/admin/personas/{{ persona.id }}/edit">Edit Persona</a>
+    <br>
+    <a href="/admin/">Back to Dashboard</a>
+</body>
+</html>
