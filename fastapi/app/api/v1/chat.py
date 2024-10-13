@@ -7,7 +7,8 @@ from app import crud, models, schemas
 from app.database import get_db
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
-from langchain_openai import ChatOpenAI
+from langchain.chat_models import ChatOpenAI
+from langchain.schema import AIMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableWithMessageHistory, ConfigurableFieldSpec
 from langchain_core.chat_history import BaseChatMessageHistory
@@ -65,21 +66,15 @@ def create_chain_with_message_history(model_name: str, system_message: str):
         )
 
         prompt = ChatPromptTemplate.from_messages([
-            ("system", system_message),
+            SystemMessage(content=system_message),
             MessagesPlaceholder(variable_name="history"),
-            ("human", "{input}"),
+            HumanMessage(content="{input}"),
         ])
 
         chain = prompt | llm
 
-        trimmer = trim_messages(
-            max_tokens=65,
-            strategy="last",
-            token_counter=llm,
-            include_system=True,
-            allow_partial=False,
-            start_on="human",
-        )
+        # Remove the trimmer as it might be using InputTokenDetails
+        # We'll handle message history differently
 
         return RunnableWithMessageHistory(
             chain,
@@ -104,7 +99,7 @@ def create_chain_with_message_history(model_name: str, system_message: str):
                     is_shared=True,
                 ),
             ],
-        ).with_config({"memory": {"return_messages": trimmer}})
+        )
     except Exception as e:
         logging.error(f"Error creating chain: {str(e)}")
         raise
