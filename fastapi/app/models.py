@@ -13,12 +13,12 @@ persona_tag = Table('persona_tag', Base.metadata,
 )
 
 prompt_template_category = Table('prompt_template_category', Base.metadata,
-    Column('prompt_template_id', Integer, ForeignKey('prompttemplate.id'), primary_key=True),
+    Column('prompt_template_id', Integer, ForeignKey('prompt_template.id'), primary_key=True),
     Column('category_id', Integer, ForeignKey('category.id'), primary_key=True)
 )
 
 prompt_template_tag = Table('prompt_template_tag', Base.metadata,
-    Column('prompt_template_id', Integer, ForeignKey('prompttemplate.id'), primary_key=True),
+    Column('prompt_template_id', Integer, ForeignKey('prompt_template.id'), primary_key=True),
     Column('tag_id', Integer, ForeignKey('tag.id'), primary_key=True)
 )
 
@@ -54,13 +54,13 @@ class Tool(Base):
     personas = relationship("Persona", secondary=tool_persona, back_populates="tools")
 
 class PromptTemplate(Base):
-    __tablename__ = 'prompttemplate'
+    __tablename__ = 'prompt_template'
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
     prompt = Column(String, nullable=False)
     is_complex = Column(Boolean, nullable=False)
-    default_persona_id = Column(Integer, ForeignKey('persona.id'), nullable=True)  # Allow null values
+    default_persona_id = Column(Integer, ForeignKey('persona.id'), nullable=True)
 
     default_persona = relationship("Persona", back_populates="prompt_templates")
     categories = relationship("Category", secondary=prompt_template_category, back_populates="prompt_templates")
@@ -85,7 +85,7 @@ class Tag(Base):
     prompt_templates = relationship("PromptTemplate", secondary=prompt_template_tag, back_populates="tags")
 
 class ChatModel(Base):
-    __tablename__ = "chat_models"
+    __tablename__ = "chat_model"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
