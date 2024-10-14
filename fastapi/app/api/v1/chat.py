@@ -68,7 +68,7 @@ def create_chain_with_message_history(model_name: str, system_message: str):
         prompt = ChatPromptTemplate.from_messages([
             SystemMessage(content=system_message),
             MessagesPlaceholder(variable_name="history"),
-            HumanMessage(content="{input}"),
+            ("human", "{input}"),  # Changed this line
         ])
 
         chain = prompt | llm
@@ -143,7 +143,7 @@ async def chat_endpoint(chat_input: ChatInput, db: Session = Depends(get_db)):
             logging.info(f"Streaming response with config: {config}")
             try:
                 for chunk in chain_with_message_history.stream(
-                    {"input": chat_input.message},
+                    {"input": chat_input.message},  # Make sure this is correct
                     config=config,
                 ):
                     logging.debug(f"Streaming chunk: {chunk.content}")
