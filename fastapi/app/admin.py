@@ -391,3 +391,22 @@ async def admin_chat(request: Request, db: Session = Depends(get_db)):
         "chat_models": chat_models,
         "personas": personas
     })
+
+@admin_router.get("/personas/create", response_class=HTMLResponse)
+async def create_persona_form(request: Request):
+    return templates.TemplateResponse("create_persona.html", {"request": request})
+
+@admin_router.post("/personas/create", response_class=HTMLResponse)
+async def create_persona(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    # Extract form data
+    name = form.get("name")
+    description = form.get("description")
+    prompt = form.get("prompt")
+    
+    # Create new persona
+    new_persona = Persona(name=name, description=description, prompt=prompt)
+    db.add(new_persona)
+    db.commit()
+    
+    return RedirectResponse(url="/admin/personas", status_code=303)
