@@ -23,7 +23,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { PromptTemplate, VariableType, fetchPromptTemplates, createPromptTemplate, updatePromptTemplate, deletePromptTemplate } from './promptTemplateService';
+import { PromptTemplate, VariableType, createPromptTemplate, updatePromptTemplate, deletePromptTemplate } from './promptTemplateService';
 import { Category, fetchCategories } from './categoryService';
 import { ComplexPromptEditor, PromptContent } from './complex-prompt-editor';
 import CodeMirror from '@uiw/react-codemirror';
@@ -35,15 +35,16 @@ import { Tag } from './tagService';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 type PromptLibraryProps = {
-  onBack: () => void
-  onSelectPrompt: (prompt: PromptTemplate) => void
+  onBack: () => void;
+  onSelectPrompt: (prompt: PromptTemplate) => void;
+  prompts: PromptTemplate[];
+  onUpdatePrompts: () => Promise<void>;
 }
 
 // Add this type definition at the top of the file
 type PromptTemplateWithId = PromptTemplate & { id: number };
 
-export default function PromptLibrary({ onBack, onSelectPrompt }: PromptLibraryProps) {
-  const [prompts, setPrompts] = useState<PromptTemplate[]>([])
+export default function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdatePrompts }: PromptLibraryProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [isNewSimplePromptDialogOpen, setIsNewSimplePromptDialogOpen] = useState(false)
@@ -63,19 +64,8 @@ export default function PromptLibrary({ onBack, onSelectPrompt }: PromptLibraryP
   const [templateToDelete, setTemplateToDelete] = useState<PromptTemplateWithId | null>(null)
 
   useEffect(() => {
-    loadPromptTemplates()
-    loadCategories()
-  }, [])
-
-  const loadPromptTemplates = async () => {
-    try {
-      const fetchedPrompts = await fetchPromptTemplates()
-      setPrompts(fetchedPrompts)
-    } catch (error) {
-      console.error('Error loading prompt templates:', error)
-      // Handle error (e.g., show error message to user)
-    }
-  }
+    loadCategories();
+  }, []);
 
   const loadCategories = async () => {
     try {
@@ -148,8 +138,6 @@ export default function PromptLibrary({ onBack, onSelectPrompt }: PromptLibraryP
       };
 
       const createdPrompt = await createPromptTemplate(promptToAdd);
-      setPrompts(prevPrompts => [...prevPrompts, createdPrompt]);
-
       setNewSimplePrompt({
         title: '',
         prompt: '',
@@ -158,6 +146,7 @@ export default function PromptLibrary({ onBack, onSelectPrompt }: PromptLibraryP
       });
       setIsNewSimplePromptDialogOpen(false);
       // TODO: Add success message here
+      await onUpdatePrompts();
     } catch (error) {
       console.error('Error saving new prompt:', error);
       // TODO: Add user-facing error message here
@@ -179,9 +168,9 @@ export default function PromptLibrary({ onBack, onSelectPrompt }: PromptLibraryP
 
       const updatedPrompt = await updatePromptTemplate(editingPrompt.id, updatedPromptData);
 
-      setPrompts(prompts.map(p => p.id === updatedPrompt.id ? updatedPrompt : p));
       setIsEditPromptDialogOpen(false);
       setEditingPrompt(null);
+      await onUpdatePrompts();
     } catch (error) {
       console.error('Error updating prompt:', error);
       // Handle error (e.g., show error message to user)
@@ -191,7 +180,7 @@ export default function PromptLibrary({ onBack, onSelectPrompt }: PromptLibraryP
   const handleDeletePrompt = async (promptId: number) => {
     try {
       await deletePromptTemplate(promptId);
-      setPrompts(prompts.filter(p => p.id !== promptId));
+      await onUpdatePrompts();
     } catch (error) {
       console.error('Error deleting prompt:', error);
       // Handle error (e.g., show error message to user)
@@ -222,14 +211,10 @@ export default function PromptLibrary({ onBack, onSelectPrompt }: PromptLibraryP
           tag_ids: tags.map(t => t.id || t.name),
         });
       }
-      setPrompts(prevPrompts => 
-        promptToUpdate
-          ? prevPrompts.map(p => p.id === savedPrompt.id ? savedPrompt : p)
-          : [...prevPrompts, savedPrompt]
-      );
       setIsComplexEditorOpen(false);
       setSelectedComplexPrompt(null);
       setEditingComplexPrompt(null);
+      await onUpdatePrompts();
     } catch (error) {
       console.error('Error saving complex prompt:', error);
       // Handle error (e.g., show error message to user)
@@ -250,9 +235,9 @@ export default function PromptLibrary({ onBack, onSelectPrompt }: PromptLibraryP
       try {
         await deletePromptTemplate(templateToDelete.id);
         // Remove the deleted template from the list
-        setPrompts(prompts.filter(t => t.id !== templateToDelete.id));
         setShowDeleteAlert(false);
         setTemplateToDelete(null);
+        await onUpdatePrompts();
       } catch (error) {
         console.error('Error deleting prompt template:', error);
         // Handle error (e.g., show an error message to the user)

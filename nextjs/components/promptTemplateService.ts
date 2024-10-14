@@ -37,59 +37,6 @@ export interface PromptTemplate {
   category?: string;
 }
 
-export async function fetchPromptTemplates(): Promise<PromptTemplate[]> {
-  try {
-    if (!API_URL) {
-      throw new Error('API_URL is not defined');
-    }
-    const response = await fetch(`${API_URL}/prompt_templates`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch prompt templates');
-    }
-    const data: PromptTemplate[] = await response.json();
-    console.log('Fetched prompt templates data:', data);
-
-    const parsedData = data.map((promptTemplate: PromptTemplate) => {
-      let content = promptTemplate.content;
-
-      if (promptTemplate.is_complex) {
-        if (!content && typeof promptTemplate.prompt === 'string') {
-          try {
-            // Try to parse promptTemplate.prompt as JSON
-            const parsedPrompt = JSON.parse(promptTemplate.prompt);
-            content = parsedPrompt.content || parsedPrompt;
-          } catch (error) {
-            // If parsing fails, set content to undefined
-            content = undefined;
-            // Suppress the error log or use console.warn instead
-            console.warn(`Prompt ID ${promptTemplate.id} marked as complex but has invalid JSON. Marking as non-complex.`);
-          }
-        } else if (!content && typeof promptTemplate.prompt === 'object') {
-          content = promptTemplate.prompt as PromptContent;
-        }
-
-        // If after parsing, content is still undefined, set is_complex to false
-        if (!content) {
-          promptTemplate.is_complex = false;
-        }
-      } else {
-        // For non-complex prompts, content remains undefined
-        content = undefined;
-      }
-
-      return {
-        ...promptTemplate,
-        content,
-      };
-    });
-
-    return parsedData;
-  } catch (error) {
-    console.error('Error fetching prompt templates:', error);
-    throw error;
-  }
-}
-
 export async function createPromptTemplate(promptTemplate: {
   title: string;
   prompt: string | PromptContent;
@@ -214,6 +161,54 @@ export async function deletePromptTemplate(promptTemplateId: number): Promise<vo
     }
   } catch (error) {
     console.error('Error deleting prompt template:', error);
+    throw error;
+  }
+}
+
+export async function fetchPromptTemplates(): Promise<PromptTemplate[]> {
+  try {
+    if (!API_URL) {
+      throw new Error('API_URL is not defined');
+    }
+    const response = await fetch(`${API_URL}/prompt_templates`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch prompt templates');
+    }
+    const data: PromptTemplate[] = await response.json();
+    console.log('Fetched prompt templates data:', data);
+
+    const parsedData = data.map((promptTemplate: PromptTemplate) => {
+      let content = promptTemplate.content;
+
+      if (promptTemplate.is_complex) {
+        if (!content && typeof promptTemplate.prompt === 'string') {
+          try {
+            const parsedPrompt = JSON.parse(promptTemplate.prompt);
+            content = parsedPrompt.content || parsedPrompt;
+          } catch (error) {
+            content = undefined;
+            console.warn(`Prompt ID ${promptTemplate.id} marked as complex but has invalid JSON. Marking as non-complex.`);
+          }
+        } else if (!content && typeof promptTemplate.prompt === 'object') {
+          content = promptTemplate.prompt as PromptContent;
+        }
+
+        if (!content) {
+          promptTemplate.is_complex = false;
+        }
+      } else {
+        content = undefined;
+      }
+
+      return {
+        ...promptTemplate,
+        content,
+      };
+    });
+
+    return parsedData;
+  } catch (error) {
+    console.error('Error fetching prompt templates:', error);
     throw error;
   }
 }
