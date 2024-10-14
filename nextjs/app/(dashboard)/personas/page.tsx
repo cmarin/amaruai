@@ -1,8 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react'
-import { fetchPersonas, Persona } from '@/components/personaService'
+import React, { useState, useEffect } from 'react'
+import { fetchPersonas, Persona, deletePersona } from '@/components/personaService'
 import PersonaLibrary from '@/components/persona-library'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { ChevronLeft, Plus, Edit, Trash2 } from 'lucide-react'
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
+import PersonaManager from '@/components/persona-manager'
+import { Badge } from "@/components/ui/badge"
 
 export default function PersonaPage() {
   const [personas, setPersonas] = useState<Persona[]>([])
