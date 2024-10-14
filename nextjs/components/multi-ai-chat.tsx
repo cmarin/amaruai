@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef, ReactNode } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -12,7 +12,6 @@ import { PromptSelector } from './prompt-selector'
 import PromptLibrary from './prompt-library'
 import { ComplexPromptModal } from './complex-prompt-modal'
 import PersonaLibrary from './persona-library'
-//import { toast } from "@/components/ui/use-toast"
 import ScratchPad from './scratch-pad'
 import { PromptTemplate, fetchPromptTemplates } from './promptTemplateService'
 import ReactMarkdown from 'react-markdown'
@@ -109,6 +108,12 @@ export function MultiAiChat() {
       setLocalPersonas(personas)
     }
   }, [personas])
+
+  useEffect(() => {
+    if (!dataLoading && !error && promptTemplates.length > 0) {
+      setPrompts(promptTemplates)
+    }
+  }, [dataLoading, error, promptTemplates])
 
   const handleSend = async () => {
     if (input.trim()) {
@@ -422,6 +427,15 @@ export function MultiAiChat() {
     }
   }, [])
 
+  const handleUpdatePrompts = useCallback(async () => {
+    try {
+      const updatedPrompts = await fetchPromptTemplates()
+      setPrompts(updatedPrompts)
+    } catch (error) {
+      console.error('Error fetching updated prompts:', error)
+    }
+  }, [])
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">
       {/* Left Sidebar */}
@@ -507,7 +521,12 @@ export function MultiAiChat() {
         )}
 
         {showPromptLibrary ? (
-          <PromptLibrary onBack={handleBackFromPromptLibrary} onSelectPrompt={handleSelectPrompt} />
+          <PromptLibrary 
+            onBack={handleBackFromPromptLibrary} 
+            onSelectPrompt={handleSelectPrompt}
+            prompts={prompts}
+            onUpdatePrompts={handleUpdatePrompts}
+          />
         ) : showPersonaLibrary ? (
           <PersonaLibrary
             onBack={handleBackFromPersonaLibrary}
