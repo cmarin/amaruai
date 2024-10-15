@@ -67,6 +67,7 @@ export default function ChatPage() {
   const [showPersonaLibrary, setShowPersonaLibrary] = useState(false)
   const [showScratchPad, setShowScratchPad] = useState(false)
   const [scratchPadContent, setScratchPadContent] = useState('')
+  const [scratchPadCopied, setScratchPadCopied] = useState(false)
   const [prompts, setPrompts] = useState<PromptTemplate[]>([])
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<PromptTemplate | null>(null)
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
@@ -364,6 +365,15 @@ export default function ChatPage() {
     }
   }, [])
 
+  const handleScratchPadCopy = () => {
+    navigator.clipboard.writeText(scratchPadContent).then(() => {
+      setScratchPadCopied(true)
+      setTimeout(() => setScratchPadCopied(false), 2000)
+    }).catch(err => {
+      console.error('Failed to copy text: ', err)
+    })
+  }
+
   return (
     <div className="h-screen">
       <div className="flex h-screen overflow-hidden bg-gray-100">
@@ -458,7 +468,13 @@ export default function ChatPage() {
             />
           ) : showScratchPad ? (
             <div className="w-full h-full">
-              <ScratchPad content={scratchPadContent} onContentChange={setScratchPadContent} onBack={() => setShowScratchPad(false)} />
+              <ScratchPad 
+                content={scratchPadContent} 
+                onContentChange={setScratchPadContent} 
+                onBack={() => setShowScratchPad(false)}
+                copied={scratchPadCopied}
+                onCopy={handleScratchPadCopy}
+              />
             </div>
           ) : showMainDisplay ? (
             <>

@@ -1,30 +1,17 @@
-import { useState } from 'react'
+import React from 'react'
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ChevronLeft, Copy, Check } from 'lucide-react'
-//import { toast } from "@/components/ui/use-toast"
-//import { useToast } from "@/hooks/use-toast"
-
-//const { toast } = useToast()
 
 type ScratchPadProps = {
   content: string
   onContentChange: (content: string) => void
   onBack: () => void
+  copied: boolean
+  onCopy: () => void
 }
 
-export default function ScratchPad({ content, onContentChange, onBack }: ScratchPadProps) {
-  const [copied, setCopied] = useState(false)
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(content).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }).catch(err => {
-      console.error('Failed to copy text: ', err)
-    })
-  }
-
+export default function ScratchPad({ content, onContentChange, onBack, copied, onCopy }: ScratchPadProps) {
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col h-screen">
       <div className="flex items-center justify-between p-4 border-b">
@@ -36,7 +23,7 @@ export default function ScratchPad({ content, onContentChange, onBack }: Scratch
         <Button
           variant="outline"
           size="icon"
-          onClick={copyToClipboard}
+          onClick={onCopy}
           className="w-10 h-10 p-0"
           title={copied ? "Copied!" : "Copy to clipboard"}
         >
