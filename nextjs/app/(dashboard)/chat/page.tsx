@@ -22,6 +22,7 @@ import { Category, fetchCategories } from '@/components/categoryService'
 import { ChatModel, fetchChatModels } from '@/components/chatModelService'
 import { fetchWithRetry } from '@/components/apiUtils'
 import { useData } from '@/components/DataContext'
+import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -57,6 +58,7 @@ interface ChatPayload {
 
 export default function ChatPage() {
   const { chatModels, personas, promptTemplates, categories, isLoading: dataLoading, error, refetchData } = useData()
+  const router = useRouter();
 
   const [allModels, setAllModels] = useState<ChatModel[]>([])
   const [chatbots, setChatbots] = useState<ChatBot[]>([])
@@ -374,6 +376,18 @@ export default function ChatPage() {
     })
   }
 
+  const navigateToScratchPad = () => {
+    router.push('/scratch-pad');
+  };
+
+  const navigateToPromptLibrary = () => {
+    router.push('/prompt-templates');
+  };
+
+  const navigateToPersonaLibrary = () => {
+    router.push('/personas');
+  };
+
   return (
     <div className="h-screen">
       <div className="flex h-screen overflow-hidden bg-gray-100">
@@ -406,27 +420,21 @@ export default function ChatPage() {
             <Button 
               variant="ghost"
               className="justify-start w-full"
-              onClick={() => {
-                setShowScratchPad(true)
-                setSelectedTool(null)
-              }}
+              onClick={navigateToScratchPad}
             >
               <FileText className="mr-2" size={18} /> Scratch Pad
             </Button>
             <Button 
               variant="ghost"
               className="justify-start w-full"
-              onClick={() => {
-                setShowPromptLibrary(true)
-                setSelectedTool(null)
-              }}
+              onClick={navigateToPromptLibrary}
             >
               <BookOpen className="mr-2" size={18} /> Prompt Library
             </Button>
             <Button 
               variant="ghost"
               className="justify-start w-full"
-              onClick={() => setShowPersonaLibrary(true)}
+              onClick={navigateToPersonaLibrary}
             >
               <Brain className="mr-2" size={18} /> Persona Library
             </Button>

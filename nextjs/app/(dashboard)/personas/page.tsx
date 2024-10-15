@@ -1,17 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation';
 import { fetchPersonas, Persona, deletePersona } from '@/components/personaService'
 import PersonaLibrary from '@/components/persona-library'
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { ChevronLeft, Plus, Edit, Trash2 } from 'lucide-react'
-import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import PersonaManager from '@/components/persona-manager'
-import { Badge } from "@/components/ui/badge"
 
 export default function PersonaPage() {
+  const router = useRouter();
   const [personas, setPersonas] = useState<Persona[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -39,12 +34,16 @@ export default function PersonaPage() {
     }
   }
 
+  const handleBack = () => {
+    router.push('/chat');
+  };
+
   if (isLoading) return <div>Loading personas...</div>
   if (error) return <div>Error: {error}</div>
 
   return (
     <PersonaLibrary
-      onBack={() => {/* Implement your back logic here */}}
+      onBack={handleBack}
       personas={personas}
       onUpdatePersonas={handleUpdatePersonas}
     />

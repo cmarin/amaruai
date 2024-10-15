@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { fetchPromptTemplates, PromptTemplate } from '@/components/promptTemplateService';
 import PromptLibrary from '@/components/prompt-library';
 
 export default function PromptTemplatesPage() {
+  const router = useRouter();
   const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,12 +28,16 @@ export default function PromptTemplatesPage() {
     }
   };
 
+  const handleBack = () => {
+    router.push('/chat');
+  };
+
   if (isLoading) return <div>Loading prompt templates...</div>;
   if (error) return <div>Error: {error}</div>;
 
   return (
     <PromptLibrary
-      onBack={() => {/* Implement your back logic here */}}
+      onBack={handleBack}
       onSelectPrompt={(prompt) => {/* Implement your select prompt logic here */}}
       prompts={prompts}
       onUpdatePrompts={loadPromptTemplates}
