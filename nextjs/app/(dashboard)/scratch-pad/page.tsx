@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ChevronLeft, Copy, Check } from 'lucide-react'
 import { useRouter } from 'next/navigation';
+import { getScratchPadContent, setScratchPadContent } from '@/components/scratchPadService'
 
 export default function ScratchPadPage() {
   const [content, setContent] = useState('')
@@ -12,17 +13,16 @@ export default function ScratchPadPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Load content from localStorage when the component mounts
-    const savedContent = localStorage.getItem('scratchPadContent');
-    if (savedContent) {
-      setContent(savedContent);
-    }
+    const fetchedContent = getScratchPadContent();
+    console.log('Fetched Scratch Pad content:', fetchedContent); // Debug log
+    setContent(fetchedContent);
   }, []);
 
-  useEffect(() => {
-    // Save content to localStorage whenever it changes
-    localStorage.setItem('scratchPadContent', content);
-  }, [content]);
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    setContent(newContent);
+    setScratchPadContent(newContent);
+  };
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(content).then(() => {
@@ -63,7 +63,7 @@ export default function ScratchPadPage() {
       <div className="flex-grow p-4 overflow-hidden">
         <Textarea
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={handleContentChange}
           className="w-full h-full resize-none"
           placeholder="Your notes and collected conversations will appear here..."
         />

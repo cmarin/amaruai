@@ -12,7 +12,6 @@ import { PromptSelector } from '@/components/prompt-selector'
 import PromptLibrary from '@/components/prompt-library'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 import PersonaLibrary from '@/components/persona-library'
-import ScratchPad from '@/components/scratch-pad'
 import { PromptTemplate, fetchPromptTemplates } from '@/components/promptTemplateService'
 import ReactMarkdown from 'react-markdown'
 import { createParser, ParsedEvent, ReconnectInterval } from 'eventsource-parser';
@@ -23,6 +22,7 @@ import { ChatModel, fetchChatModels } from '@/components/chatModelService'
 import { fetchWithRetry } from '@/components/apiUtils'
 import { useData } from '@/components/DataContext'
 import { useRouter } from 'next/navigation';
+import { addToScratchPad as addToScratchPadService } from '@/components/scratchPadService'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -67,9 +67,6 @@ export default function ChatPage() {
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('single')
   const [showPromptLibrary, setShowPromptLibrary] = useState(false)
   const [showPersonaLibrary, setShowPersonaLibrary] = useState(false)
-  const [showScratchPad, setShowScratchPad] = useState(false)
-  const [scratchPadContent, setScratchPadContent] = useState('')
-  const [scratchPadCopied, setScratchPadCopied] = useState(false)
   const [prompts, setPrompts] = useState<PromptTemplate[]>([])
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<PromptTemplate | null>(null)
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
@@ -336,7 +333,8 @@ export default function ChatPage() {
     const bot = chatbots.find(b => b.id === botId)
     if (bot) {
       const chatContent = bot.messages.map(msg => `${msg.role}: ${msg.content}`).join('\n')
-      setScratchPadContent(prev => prev + (prev ? '\n\n' : '') + `--- ${bot.name} Chat ---\n` + chatContent)
+      addToScratchPadService(`--- ${bot.name} Chat ---\n${chatContent}`)
+      console.log('Added to Scratch Pad:', chatContent) // Add this line for debugging
     }
   }
 
@@ -354,7 +352,6 @@ export default function ChatPage() {
     setLayoutMode('quad')
     setShowPromptLibrary(false)
     setShowPersonaLibrary(false)
-    setShowScratchPad(false)
     setShowMainDisplay(true)
   }
 
@@ -366,15 +363,6 @@ export default function ChatPage() {
       console.error('Error fetching updated personas:', error)
     }
   }, [])
-
-  const handleScratchPadCopy = () => {
-    navigator.clipboard.writeText(scratchPadContent).then(() => {
-      setScratchPadCopied(true)
-      setTimeout(() => setScratchPadCopied(false), 2000)
-    }).catch(err => {
-      console.error('Failed to copy text: ', err)
-    })
-  }
 
   const navigateToScratchPad = () => {
     router.push('/scratch-pad');
@@ -474,16 +462,6 @@ export default function ChatPage() {
               personas={localPersonas}
               onUpdatePersonas={handleUpdatePersonas}
             />
-          ) : showScratchPad ? (
-            <div className="w-full h-full">
-              <ScratchPad 
-                content={scratchPadContent} 
-                onContentChange={setScratchPadContent} 
-                onBack={() => setShowScratchPad(false)}
-                copied={scratchPadCopied}
-                onCopy={handleScratchPadCopy}
-              />
-            </div>
           ) : showMainDisplay ? (
             <>
               <div className={`flex-1 grid gap-4 p-4 overflow-hidden ${
