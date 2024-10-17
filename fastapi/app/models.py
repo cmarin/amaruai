@@ -1,7 +1,8 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, Text, Enum
-from sqlalchemy.orm import relationship
-from app.database import Base
+from sqlalchemy.orm import relationship, declarative_base
 import enum
+
+Base = declarative_base()
 
 persona_category = Table('persona_category', Base.metadata,
     Column('persona_id', Integer, ForeignKey('persona.id'), primary_key=True),
