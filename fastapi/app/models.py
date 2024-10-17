@@ -30,8 +30,8 @@ tool_persona = Table('tool_persona', Base.metadata,
 )
 
 class ProcessType(enum.Enum):
-    SEQUENTIAL = "sequential"
-    PARALLEL = "parallel"
+    SEQUENTIAL = "SEQUENTIAL"
+    PARALLEL = "PARALLEL"
 
 class Persona(Base):
     __tablename__ = 'persona'

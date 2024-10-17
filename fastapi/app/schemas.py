@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
+from enum import Enum
 
 class ToolBase(BaseModel):
     name: str
@@ -101,3 +102,46 @@ class Persona(PersonaBase):
 
     class Config:
         from_attributes = True  # Use from_attributes instead of orm_mode
+
+class ProcessType(str, Enum):
+    SEQUENTIAL = "SEQUENTIAL"
+    PARALLEL = "PARALLEL"
+
+class WorkflowBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    process_type: ProcessType = ProcessType.SEQUENTIAL
+
+class WorkflowCreate(WorkflowBase):
+    pass
+
+class WorkflowUpdate(WorkflowBase):
+    pass
+
+class Workflow(WorkflowBase):
+    id: int
+    steps: List["WorkflowStep"] = []
+
+    class Config:
+        from_attributes = True
+
+class WorkflowStepBase(BaseModel):
+    prompt_template_id: int
+    chat_model_id: int
+    persona_id: int
+
+class WorkflowStepCreate(WorkflowStepBase):
+    pass
+
+class WorkflowStepUpdate(WorkflowStepBase):
+    pass
+
+class WorkflowStep(WorkflowStepBase):
+    id: int
+    workflow_id: int
+    order: int
+
+    class Config:
+        from_attributes = True
+
+Workflow.update_forward_refs()

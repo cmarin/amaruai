@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session, joinedload, load_only  # Add load_only to the import
 from . import models, schemas
+from sqlalchemy import desc, Enum as SQLAlchemyEnum, asc
 
 def get_persona(db: Session, persona_id: int):
     return db.query(models.Persona).filter(models.Persona.id == persona_id).first()
@@ -259,3 +260,130 @@ def get_chat_model_by_model(db: Session, model: str):
 
 def get_default_chat_model(db: Session):
     return db.query(models.ChatModel).filter(models.ChatModel.default == True).first()
+
+def get_workflow(db: Session, workflow_id: int):
+    return db.query(models.Workflow).options(
+        joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.prompt_template),
+        joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
+        joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona)
+    ).filter(models.Workflow.id == workflow_id).first()
+
+def get_workflows(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Workflow).offset(skip).limit(limit).all()
+
+def create_workflow(db: Session, workflow: schemas.WorkflowCreate):
+    db_workflow = models.Workflow(
+        name=workflow.name,
+        description=workflow.description,
+        process_type=models.ProcessType[workflow.process_type.upper()]
+    )
+    db.add(db_workflow)
+    db.commit()
+    db.refresh(db_workflow)
+    return db_workflow
+
+def update_workflow(db: Session, workflow_id: int, workflow: schemas.WorkflowUpdate):
+    db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id).first()
+    if db_workflow:
+        update_data = workflow.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_workflow, key, value)
+        db.commit()
+        db.refresh(db_workflow)
+    return db_workflow
+
+def delete_workflow(db: Session, workflow_id: int):
+    db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id).first()
+    if db_workflow:
+        db.delete(db_workflow)
+        db.commit()
+    return db_workflow
+
+def get_workflow_step(db: Session, step_id: int):
+    return db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
+
+def get_workflow_steps(db: Session, workflow_id: int):
+    return db.query(models.WorkflowStep).filter(models.WorkflowStep.workflow_id == workflow_id).order_by(models.WorkflowStep.order).all()
+
+def create_workflow_step(db: Session, workflow_id: int, step: schemas.WorkflowStepCreate):
+    # Get the highest order number for the current workflow
+    max_order = db.query(models.WorkflowStep).filter(models.WorkflowStep.workflow_id == workflow_id).order_by(desc(models.WorkflowStep.order)).first()
+    new_order = (max_order.order + 1) if max_order else 1
+
+    db_step = models.WorkflowStep(**step.dict(), workflow_id=workflow_id, order=new_order)
+    db.add(db_step)
+    db.commit()
+    db.refresh(db_step)
+    return db_step
+
+def update_workflow_step(db: Session, step_id: int, step: schemas.WorkflowStepUpdate):
+    db_step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
+    if db_step:
+        update_data = step.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_step, key, value)
+        db.commit()
+        db.refresh(db_step)
+    return db_step
+
+def delete_workflow_step(db: Session, step_id: int):
+    db_step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
+    if db_step:
+        # Reorder remaining steps
+        remaining_steps = db.query(models.WorkflowStep).filter(
+            models.WorkflowStep.workflow_id == db_step.workflow_id,
+            models.WorkflowStep.order > db_step.order
+        ).all()
+        for step in remaining_steps:
+            step.order -= 1
+        
+        db.delete(db_step)
+        db.commit()
+    return db_step
+
+def reorder_workflow_step(db: Session, step_id: int, new_order: int):
+    db_step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
+    if db_step:
+        old_order = db_step.order
+        if new_order > old_order:
+            # Moving down, shift intermediate steps up
+            db.query(models.WorkflowStep).filter(
+                models.WorkflowStep.workflow_id == db_step.workflow_id,
+                models.WorkflowStep.order > old_order,
+                models.WorkflowStep.order <= new_order
+            ).update({models.WorkflowStep.order: models.WorkflowStep.order - 1})
+        elif new_order < old_order:
+            # Moving up, shift intermediate steps down
+            db.query(models.WorkflowStep).filter(
+                models.WorkflowStep.workflow_id == db_step.workflow_id,
+                models.WorkflowStep.order >= new_order,
+                models.WorkflowStep.order < old_order
+            ).update({models.WorkflowStep.order: models.WorkflowStep.order + 1})
+        
+        db_step.order = new_order
+        db.commit()
+    return db_step
+
+def move_workflow_step_up(db: Session, step_id: int):
+    step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
+    if step and step.order > 1:
+        previous_step = db.query(models.WorkflowStep).filter(
+            models.WorkflowStep.workflow_id == step.workflow_id,
+            models.WorkflowStep.order == step.order - 1
+        ).first()
+        if previous_step:
+            step.order, previous_step.order = previous_step.order, step.order
+            db.commit()
+    return step
+
+def move_workflow_step_down(db: Session, step_id: int):
+    step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
+    if step:
+        next_step = db.query(models.WorkflowStep).filter(
+            models.WorkflowStep.workflow_id == step.workflow_id,
+            models.WorkflowStep.order == step.order + 1
+        ).first()
+        if next_step:
+            step.order, next_step.order = next_step.order, step.order
+            db.commit()
+    return step

@@ -95,9 +95,23 @@
     </ul>
     <a href="/admin/chat_models/create">Create New Chat Model</a>
 
+    <h2>Workflows</h2>
+    <ul>
+        {% for workflow in workflows %}
+        <li>
+            {{ workflow.name }} - 
+            <a href="/admin/workflows/{{ workflow.id }}">View</a> | 
+            <a href="/admin/workflows/{{ workflow.id }}/edit">Edit</a> | 
+            <a href="/admin/workflows/{{ workflow.id }}/delete">Delete</a>
+        </li>
+        {% endfor %}
+    </ul>
+    <a href="/admin/workflows/create">Create New Workflow</a>
+
     <h2>Admin Tools</h2>
     <ul>
         <li><a href="/admin/chat">Chat Interface</a></li>
+        <li><a href="/admin/workflows">Manage Workflows</a></li>
     </ul>
 </body>
 </html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflows</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        h1 { color: #333; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>Workflows</h1>
+    <a href="/admin/workflows/create">Create New Workflow</a>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Process Type</th>
+            <th>Actions</th>
+        </tr>
+        {% for workflow in workflows %}
+        <tr>
+            <td>{{ workflow.id }}</td>
+            <td>{{ workflow.name }}</td>
+            <td>{{ workflow.process_type }}</td>
+            <td>
+                <a href="/admin/workflows/{{ workflow.id }}">View</a> |
+                <a href="/admin/workflows/{{ workflow.id }}/edit">Edit</a> |
+                <a href="/admin/workflows/{{ workflow.id }}/delete" onclick="return confirm('Are you sure you want to delete this workflow?')">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    <br>
+    <a href="/admin/">Back to Dashboard</a>
+</body>
+</html>

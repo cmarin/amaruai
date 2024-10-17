@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app import crud, models, schemas
 from app.database import get_db
 from fastapi.templating import Jinja2Templates
+from app.models import ProcessType
 
 admin_router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -17,6 +18,7 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     categories = crud.get_categories(db)
     tags = crud.get_tags(db)
     chat_models = crud.get_chat_models(db)
+    workflows = crud.get_workflows(db)  # Add this line
 
     return templates.TemplateResponse("admin/dashboard.html", {
         "request": request,
@@ -25,7 +27,8 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "prompt_templates": prompt_templates,
         "categories": categories,
         "tags": tags,
-        "chat_models": chat_models
+        "chat_models": chat_models,
+        "workflows": workflows  # Add this line
     })
 
 @admin_router.get("/personas/{persona_id}", response_class=HTMLResponse)
@@ -410,3 +413,154 @@ async def create_persona(request: Request, db: Session = Depends(get_db)):
     db.commit()
     
     return RedirectResponse(url="/admin/personas", status_code=303)
+
+@admin_router.get("/workflows", response_class=HTMLResponse)
+async def list_workflows(request: Request, db: Session = Depends(get_db)):
+    workflows = crud.get_workflows(db)
+    return templates.TemplateResponse("admin/workflow_list.html", {
+        "request": request,
+        "workflows": workflows
+    })
+
+@admin_router.get("/workflows/create", response_class=HTMLResponse)
+async def create_workflow_form(request: Request):
+    return templates.TemplateResponse("admin/workflow_create.html", {
+        "request": request,
+        "process_types": ProcessType
+    })
+
+@admin_router.post("/workflows/create", response_class=HTMLResponse)
+async def create_workflow(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    workflow_data = {
+        "name": form.get("name"),
+        "description": form.get("description"),
+        "process_type": form.get("process_type")
+    }
+    new_workflow = crud.create_workflow(db, schemas.WorkflowCreate(**workflow_data))
+    return RedirectResponse(url=f"/admin/workflows/{new_workflow.id}", status_code=302)
+
+@admin_router.get("/workflows/{workflow_id}", response_class=HTMLResponse)
+async def view_workflow(request: Request, workflow_id: int, db: Session = Depends(get_db)):
+    workflow = crud.get_workflow(db, workflow_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    steps = crud.get_workflow_steps(db, workflow_id)
+    return templates.TemplateResponse("admin/workflow_detail.html", {
+        "request": request,
+        "workflow": workflow,
+        "steps": steps
+    })
+
+@admin_router.get("/workflows/{workflow_id}/edit", response_class=HTMLResponse)
+async def edit_workflow(request: Request, workflow_id: int, db: Session = Depends(get_db)):
+    workflow = crud.get_workflow(db, workflow_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return templates.TemplateResponse("admin/workflow_edit.html", {
+        "request": request,
+        "workflow": workflow,
+        "process_types": ProcessType
+    })
+
+@admin_router.post("/workflows/{workflow_id}/edit", response_class=HTMLResponse)
+async def update_workflow(request: Request, workflow_id: int, db: Session = Depends(get_db)):
+    form = await request.form()
+    workflow_data = {
+        "name": form.get("name"),
+        "description": form.get("description"),
+        "process_type": form.get("process_type")
+    }
+    updated_workflow = crud.update_workflow(db, workflow_id, schemas.WorkflowUpdate(**workflow_data))
+    if updated_workflow:
+        return RedirectResponse(url=f"/admin/workflows/{workflow_id}", status_code=302)
+    raise HTTPException(status_code=404, detail="Workflow not found")
+
+@admin_router.get("/workflows/{workflow_id}/delete", response_class=HTMLResponse)
+async def delete_workflow(request: Request, workflow_id: int, db: Session = Depends(get_db)):
+    deleted_workflow = crud.delete_workflow(db, workflow_id)
+    if deleted_workflow:
+        return RedirectResponse(url="/admin/workflows", status_code=302)
+    raise HTTPException(status_code=404, detail="Workflow not found")
+
+@admin_router.get("/workflows/{workflow_id}/steps/create", response_class=HTMLResponse)
+async def create_workflow_step_form(request: Request, workflow_id: int, db: Session = Depends(get_db)):
+    workflow = crud.get_workflow(db, workflow_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    prompt_templates = crud.get_prompt_templates(db)
+    chat_models = crud.get_chat_models(db)
+    personas = crud.get_personas(db)
+    return templates.TemplateResponse("admin/workflow_step_create.html", {
+        "request": request,
+        "workflow": workflow,
+        "prompt_templates": prompt_templates,
+        "chat_models": chat_models,
+        "personas": personas
+    })
+
+@admin_router.post("/workflows/{workflow_id}/steps/create", response_class=HTMLResponse)
+async def create_workflow_step(request: Request, workflow_id: int, db: Session = Depends(get_db)):
+    form = await request.form()
+    step_data = {
+        "prompt_template_id": int(form.get("prompt_template_id")),
+        "chat_model_id": int(form.get("chat_model_id")),
+        "persona_id": int(form.get("persona_id"))
+    }
+    new_step = crud.create_workflow_step(db, workflow_id, schemas.WorkflowStepCreate(**step_data))
+    return RedirectResponse(url=f"/admin/workflows/{workflow_id}", status_code=302)
+
+@admin_router.get("/workflows/{workflow_id}/steps/{step_id}/edit", response_class=HTMLResponse)
+async def edit_workflow_step(request: Request, workflow_id: int, step_id: int, db: Session = Depends(get_db)):
+    step = crud.get_workflow_step(db, step_id)
+    if not step:
+        raise HTTPException(status_code=404, detail="Workflow step not found")
+    prompt_templates = crud.get_prompt_templates(db)
+    chat_models = crud.get_chat_models(db)
+    personas = crud.get_personas(db)
+    return templates.TemplateResponse("admin/workflow_step_edit.html", {
+        "request": request,
+        "step": step,
+        "prompt_templates": prompt_templates,
+        "chat_models": chat_models,
+        "personas": personas
+    })
+
+@admin_router.post("/workflows/{workflow_id}/steps/{step_id}/edit", response_class=HTMLResponse)
+async def update_workflow_step(request: Request, workflow_id: int, step_id: int, db: Session = Depends(get_db)):
+    form = await request.form()
+    step_data = {
+        "prompt_template_id": int(form.get("prompt_template_id")),
+        "chat_model_id": int(form.get("chat_model_id")),
+        "persona_id": int(form.get("persona_id"))
+    }
+    updated_step = crud.update_workflow_step(db, step_id, schemas.WorkflowStepUpdate(**step_data))
+    if updated_step:
+        return RedirectResponse(url=f"/admin/workflows/{workflow_id}", status_code=302)
+    raise HTTPException(status_code=404, detail="Workflow step not found")
+
+@admin_router.get("/workflows/{workflow_id}/steps/{step_id}/delete", response_class=HTMLResponse)
+async def delete_workflow_step(request: Request, workflow_id: int, step_id: int, db: Session = Depends(get_db)):
+    deleted_step = crud.delete_workflow_step(db, step_id)
+    if deleted_step:
+        return RedirectResponse(url=f"/admin/workflows/{workflow_id}", status_code=302)
+    raise HTTPException(status_code=404, detail="Workflow step not found")
+
+@admin_router.post("/workflows/{workflow_id}/steps/{step_id}/reorder", response_class=HTMLResponse)
+async def reorder_workflow_step(request: Request, workflow_id: int, step_id: int, db: Session = Depends(get_db)):
+    form = await request.form()
+    new_order = int(form.get("new_order"))
+    reordered_step = crud.reorder_workflow_step(db, step_id, new_order)
+    if reordered_step:
+        return RedirectResponse(url=f"/admin/workflows/{workflow_id}", status_code=302)
+    raise HTTPException(status_code=404, detail="Workflow step not found")
+
+@admin_router.get("/workflows/{workflow_id}/steps/{step_id}/move-up", response_class=HTMLResponse)
+async def move_workflow_step_up(workflow_id: int, step_id: int, db: Session = Depends(get_db)):
+    crud.move_workflow_step_up(db, step_id)
+    return RedirectResponse(url=f"/admin/workflows/{workflow_id}", status_code=302)
+
+@admin_router.get("/workflows/{workflow_id}/steps/{step_id}/move-down", response_class=HTMLResponse)
+async def move_workflow_step_down(workflow_id: int, step_id: int, db: Session = Depends(get_db)):
+    crud.move_workflow_step_down(db, step_id)
+    return RedirectResponse(url=f"/admin/workflows/{workflow_id}", status_code=302)
