@@ -9,10 +9,13 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Workflow, fetchWorkflows, deleteWorkflow } from '@/components/workflowService'
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from 'next/navigation'
+import { WorkflowManagerComponent } from '@/components/workflow-manager'
 
 export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [showWorkflowManager, setShowWorkflowManager] = useState(false)
+  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -28,7 +31,11 @@ export default function WorkflowsPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string | undefined) => {
+    if (!id) {
+      console.error('Cannot delete workflow: id is undefined');
+      return;
+    }
     try {
       await deleteWorkflow(id)
       setWorkflows(workflows.filter(workflow => workflow.id !== id))
@@ -46,6 +53,31 @@ export default function WorkflowsPage() {
     router.push('/chat')
   }
 
+  const handleNewWorkflow = () => {
+    setSelectedWorkflow(null)
+    setShowWorkflowManager(true)
+  }
+
+  const handleEditWorkflow = (workflow: Workflow) => {
+    setSelectedWorkflow(workflow)
+    setShowWorkflowManager(true)
+  }
+
+  const handleWorkflowSaved = () => {
+    setShowWorkflowManager(false)
+    loadWorkflows()
+  }
+
+  if (showWorkflowManager) {
+    return (
+      <WorkflowManagerComponent
+        workflow={selectedWorkflow}
+        onSave={handleWorkflowSaved}
+        onCancel={() => setShowWorkflowManager(false)}
+      />
+    )
+  }
+
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col h-screen">
       <div className="flex items-center justify-between p-4 border-b">
@@ -56,7 +88,7 @@ export default function WorkflowsPage() {
           </Button>
           <h1 className="text-2xl font-bold">Workflows</h1>
         </div>
-        <Button onClick={() => {/* TODO: Implement create workflow */}} className="bg-blue-600 hover:bg-blue-700 text-white">
+        <Button onClick={handleNewWorkflow} className="bg-blue-600 hover:bg-blue-700 text-white">
           <Plus className="mr-2 h-4 w-4" /> New Workflow
         </Button>
       </div>
@@ -78,10 +110,15 @@ export default function WorkflowsPage() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold">{workflow.name}</h3>
                     <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm" onClick={() => {/* TODO: Implement edit workflow */}} className="text-blue-600 hover:text-blue-700 hover:bg-blue-100">
+                      <Button variant="ghost" size="sm" onClick={() => handleEditWorkflow(workflow)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-100">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(workflow.id)} className="text-red-500 hover:text-red-700 hover:bg-red-100">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleDelete(workflow.id)} 
+                        className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>

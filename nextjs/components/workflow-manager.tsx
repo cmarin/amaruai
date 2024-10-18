@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -10,56 +10,63 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-// Mock data for dropdowns
-const promptTemplates = ["Template 1", "Template 2", "Template 3"]
-const chatModels = ["GPT-3", "GPT-4", "Claude"]
-const personas = ["Customer Support", "Technical Expert", "Sales Representative"]
+import { Workflow, WorkflowStep, createWorkflow, updateWorkflow } from './workflowService'
+import { PromptTemplate, fetchPromptTemplates } from './promptTemplateService'
+import { ChatModel, fetchChatModels } from './chatModelService'
+import { Persona, fetchPersonas } from './personaService'
 
-interface WorkflowStep {
-  id: string
-  promptTemplate: string
-  chatModel: string
-  persona: string
-  order: number
+interface WorkflowManagerProps {
+  workflow?: Workflow | null;
+  onSave: () => void;
+  onCancel: () => void;
 }
 
-interface Workflow {
-  name: string
-  description: string
-  processType: "SEQUENTIAL" | "HIERARCHICAL"
-  steps: WorkflowStep[]
-}
-
-export function WorkflowManagerComponent() {
-  const [workflow, setWorkflow] = useState<Workflow>({
+export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, onCancel }: WorkflowManagerProps) {
+  const [workflow, setWorkflow] = useState<Workflow>(initialWorkflow || {
     name: "",
     description: "",
-    processType: "SEQUENTIAL",
+    process_type: "SEQUENTIAL",
     steps: [],
   })
+  const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([])
+  const [chatModels, setChatModels] = useState<ChatModel[]>([])
+  const [personas, setPersonas] = useState<Persona[]>([])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [fetchedPromptTemplates, fetchedChatModels, fetchedPersonas] = await Promise.all([
+        fetchPromptTemplates(),
+        fetchChatModels(),
+        fetchPersonas()
+      ])
+      setPromptTemplates(fetchedPromptTemplates)
+      setChatModels(fetchedChatModels)
+      setPersonas(fetchedPersonas)
+    }
+    fetchData()
+  }, [])
 
   const addStep = () => {
     const newStep: WorkflowStep = {
-      id: Date.now().toString(),
-      promptTemplate: promptTemplates[0],
-      chatModel: chatModels[0],
-      persona: personas[0],
+      prompt_template_id: promptTemplates[0]?.id.toString() || "",
+      chat_model_id: chatModels[0]?.id.toString() || "",
+      persona_id: personas[0]?.id.toString() || "",
       order: workflow.steps.length,
     }
     setWorkflow({ ...workflow, steps: [...workflow.steps, newStep] })
   }
 
-  const removeStep = (id: string) => {
+  const removeStep = (index: number) => {
     setWorkflow({
       ...workflow,
-      steps: workflow.steps.filter((step) => step.id !== id).map((step, index) => ({ ...step, order: index })),
+      steps: workflow.steps.filter((_, i) => i !== index).map((step, i) => ({ ...step, order: i })),
     })
   }
 
-  const updateStep = (id: string, field: keyof WorkflowStep, value: string) => {
+  const updateStep = (index: number, field: keyof WorkflowStep, value: string) => {
     setWorkflow({
       ...workflow,
-      steps: workflow.steps.map((step) => (step.id === id ? { ...step, [field]: value } : step)),
+      steps: workflow.steps.map((step, i) => (i === index ? { ...step, [field]: value } : step)),
     })
   }
 
@@ -72,6 +79,22 @@ export function WorkflowManagerComponent() {
     }
     setWorkflow({ ...workflow, steps: newSteps.map((step, i) => ({ ...step, order: i })) });
   };
+
+  const handleSave = async () => {
+    try {
+      console.log('Saving workflow:', workflow);
+      if (workflow.id) {
+        await updateWorkflow(workflow.id, workflow)
+      } else {
+        await createWorkflow(workflow)
+      }
+      console.log('Workflow saved successfully');
+      onSave()
+    } catch (error) {
+      console.error('Error saving workflow:', error)
+      // Handle error (e.g., show error message to user)
+    }
+  }
 
   return (
     <div className="container mx-auto p-4">
@@ -102,9 +125,9 @@ export function WorkflowManagerComponent() {
             <div>
               <Label htmlFor="processType">Process Type</Label>
               <Select
-                value={workflow.processType}
+                value={workflow.process_type}
                 onValueChange={(value: "SEQUENTIAL" | "HIERARCHICAL") =>
-                  setWorkflow({ ...workflow, processType: value })
+                  setWorkflow({ ...workflow, process_type: value })
                 }
               >
                 <SelectTrigger>
@@ -127,7 +150,7 @@ export function WorkflowManagerComponent() {
         <CardContent>
           <div className="space-y-4">
             {workflow.steps.map((step, index) => (
-              <div key={step.id} className="border p-4 rounded-md bg-muted mb-4">
+              <div key={index} className="border p-4 rounded-md bg-muted mb-4">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-lg font-semibold">Step {index + 1}</h3>
                   <div className="flex items-center space-x-2">
@@ -147,53 +170,53 @@ export function WorkflowManagerComponent() {
                     >
                       <ArrowDown className="h-4 w-4" />
                     </Button>
-                    <Button variant="destructive" size="icon" onClick={() => removeStep(step.id)}>
+                    <Button variant="destructive" size="icon" onClick={() => removeStep(index)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Select
-                    value={step.promptTemplate}
-                    onValueChange={(value) => updateStep(step.id, "promptTemplate", value)}
+                    value={step.prompt_template_id}
+                    onValueChange={(value) => updateStep(index, "prompt_template_id", value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select prompt template" />
                     </SelectTrigger>
                     <SelectContent>
                       {promptTemplates.map((template) => (
-                        <SelectItem key={template} value={template}>
-                          {template}
+                        <SelectItem key={template.id} value={template.id.toString()}>
+                          {template.title}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <Select
-                    value={step.chatModel}
-                    onValueChange={(value) => updateStep(step.id, "chatModel", value)}
+                    value={step.chat_model_id}
+                    onValueChange={(value) => updateStep(index, "chat_model_id", value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select chat model" />
                     </SelectTrigger>
                     <SelectContent>
                       {chatModels.map((model) => (
-                        <SelectItem key={model} value={model}>
-                          {model}
+                        <SelectItem key={model.id} value={model.id.toString()}>
+                          {model.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <Select
-                    value={step.persona}
-                    onValueChange={(value) => updateStep(step.id, "persona", value)}
+                    value={step.persona_id}
+                    onValueChange={(value) => updateStep(index, "persona_id", value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select persona" />
                     </SelectTrigger>
                     <SelectContent>
                       {personas.map((persona) => (
-                        <SelectItem key={persona} value={persona}>
-                          {persona}
+                        <SelectItem key={persona.id} value={persona.id.toString()}>
+                          {persona.role}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -207,6 +230,12 @@ export function WorkflowManagerComponent() {
           </Button>
         </CardContent>
       </Card>
+      <div className="flex justify-end space-x-4 mt-4">
+        <Button onClick={onCancel} variant="outline">Cancel</Button>
+        <Button onClick={handleSave} className="bg-green-500 hover:bg-green-600 text-white">
+          Save Workflow
+        </Button>
+      </div>
     </div>
   )
 }
