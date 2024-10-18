@@ -8,12 +8,14 @@ from langchain.chat_models import ChatOpenAI
 import logging
 import os
 from dotenv import load_dotenv
+import asyncio
 
 load_dotenv()  # This loads the variables from .env file
 
-
 router = APIRouter()
 
+# Global dictionary to store workflow results
+workflow_results = {}
 
 @router.post("/workflows/", response_model=schemas.Workflow)
 def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_db)):
@@ -53,53 +55,77 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
             raise HTTPException(status_code=404, detail="Workflow not found")
 
         async def run_workflow():
-            llm = ChatOpenAI(
-                model_name="gpt-4o-mini",
-                openai_api_key=os.environ["OPENAI_API_KEY"],
-            )
-
-            agents = []
-            tasks = []
-            for step in sorted(workflow.steps, key=lambda x: x.order):
-                prompt_template = step.prompt_template
-                chat_model = step.chat_model
-                persona = step.persona
-
-                agent = Agent(
-                    role=persona.role,
-                    goal=persona.goal,
-                    backstory=persona.backstory,
-                    allow_delegation=persona.allow_delegation,
-                    verbose=persona.verbose,
-                    llm=llm
+            try:
+                llm = ChatOpenAI(
+                    model_name="gpt-4o-mini",
+                    openai_api_key=os.environ["OPENAI_API_KEY"],
                 )
-                agents.append(agent)
 
-                task = Task(
-                    description=prompt_template.prompt.format(**user_input),
-                    expected_output="Task completion output",
-                    agent=agent
+                agents = []
+                tasks = []
+                for step in sorted(workflow.steps, key=lambda x: x.order):
+                    prompt_template = step.prompt_template
+                    chat_model = step.chat_model
+                    persona = step.persona
+
+                    agent = Agent(
+                        role=persona.role,
+                        goal=persona.goal,
+                        backstory=persona.backstory,
+                        allow_delegation=persona.allow_delegation,
+                        verbose=persona.verbose,
+                        llm=llm
+                    )
+                    agents.append(agent)
+
+                    task = Task(
+                        description=prompt_template.prompt.format(**user_input),
+                        agent=agent,
+                        expected_output="Task completion output"  # Add this line
+                    )
+                    tasks.append(task)
+
+                process = Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL else Process.hierarchical
+
+                crew = Crew(
+                    agents=agents,
+                    tasks=tasks,
+                    process=process,
+                    verbose=True
                 )
-                tasks.append(task)
 
-            process = Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL else Process.hierarchical
+                results = []
+                for i, task_result in enumerate(crew.kickoff()):
+                    logging.info(f"Task {i+1} result: {task_result}")
+                    results.append({
+                        "step": str(i + 1),  # Convert to string
+                        "prompt": tasks[i].description if i < len(tasks) else "Unknown prompt",
+                        "response": str(task_result)  # Convert to string
+                    })
+                    workflow_results[workflow_id] = results
+                    await asyncio.sleep(0)  # Allow other coroutines to run
 
-            crew = Crew(
-                agents=agents,
-                tasks=tasks,
-                process=process,
-                verbose=True
-            )
-
-            result = crew.kickoff()
-            logging.info(f"Workflow execution completed: {result}")
-            return {"result": result}
+                logging.info(f"Workflow execution completed: {results}")
+                return {"result": "Workflow execution completed"}
+            except Exception as e:
+                logging.error(f"Error during workflow execution: {str(e)}")
+                workflow_results[workflow_id] = [{
+                    "step": "Error",
+                    "prompt": "Error occurred",
+                    "response": str(e)
+                }]
+                return {"result": f"Error during workflow execution: {str(e)}"}
 
         background_tasks.add_task(run_workflow)
         return {"message": "Workflow execution started in the background"}
     except Exception as e:
         logging.error(f"Error executing workflow: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/workflows/{workflow_id}/results", response_model=List[Dict[str, str]])
+async def get_workflow_results(workflow_id: int):
+    results = workflow_results.get(workflow_id, [])
+    return results
 
 @router.post("/workflows/{workflow_id}/steps/", response_model=schemas.WorkflowStep)
 def create_workflow_step(workflow_id: int, step: schemas.WorkflowStepCreate, db: Session = Depends(get_db)):

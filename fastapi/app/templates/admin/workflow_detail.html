@@ -79,13 +79,31 @@
         .then(response => response.json())
         .then(data => {
             alert(data.message);
-            // You might want to implement a way to check the execution status
-            // and display results when they're ready
+            pollResults(workflowId);
         })
         .catch((error) => {
             console.error('Error:', error);
             alert('Error executing workflow');
         });
+    }
+
+    function pollResults(workflowId) {
+        const pollInterval = setInterval(() => {
+            fetch(`/api/v1/workflows/${workflowId}/results`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        displayExecutionResults(data);
+                        if (data[data.length - 1].step === "Error" || data.length === {{ workflow.steps|length }}) {
+                            clearInterval(pollInterval);
+                        }
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                    clearInterval(pollInterval);
+                });
+        }, 2000);  // Poll every 2 seconds
     }
 
     function displayExecutionResults(results) {
