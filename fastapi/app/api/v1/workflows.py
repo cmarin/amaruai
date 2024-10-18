@@ -1,10 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict
 from app import crud, schemas, models
 from app.database import get_db
+from crewai import Agent, Task, Crew
+from crewai.process import Process
+from langchain_openai import ChatOpenAI
+import httpx
+import asyncio
 
 router = APIRouter()
+
 
 @router.post("/workflows/", response_model=schemas.Workflow)
 def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_db)):
@@ -36,15 +42,67 @@ def delete_workflow(workflow_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Workflow not found")
     return db_workflow
 
-@router.post("/workflows/{workflow_id}/execute", response_model=dict)
-def execute_workflow(workflow_id: int, user_input: dict, db: Session = Depends(get_db)):
+async def execute_chat(chat_input: Dict[str, str]):
+    async with httpx.AsyncClient() as client:
+        response = await client.post("http://localhost:8000/api/v1/chat", json=chat_input)
+        return response.json()
+
+@router.post("/workflows/{workflow_id}/execute", response_model=Dict[str, str])
+async def execute_workflow(workflow_id: int, user_input: Dict[str, str], background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     try:
-        result = crud.execute_workflow(db, workflow_id, user_input)
-        return {"result": result}
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        workflow = crud.get_workflow(db, workflow_id=workflow_id)
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        async def run_workflow():
+            agents = []
+            tasks = []
+            for step in sorted(workflow.steps, key=lambda x: x.order):
+                prompt_template = step.prompt_template
+                chat_model = step.chat_model
+                persona = step.persona
+
+                llm = ChatOpenAI(
+                    model_name=chat_model.model,
+                    openai_api_key=chat_model.api_key,
+                    temperature=0.7
+                )
+
+                agent = Agent(
+                    role=persona.role,
+                    goal=persona.goal,
+                    backstory=persona.backstory,
+                    allow_delegation=persona.allow_delegation,
+                    verbose=persona.verbose,
+                    memory=persona.memory,
+                    llm=llm
+                )
+                agents.append(agent)
+
+                task = Task(
+                    description=prompt_template.prompt.format(**user_input),
+                    agent=agent,
+                    expected_output="Task completion output"
+                )
+                tasks.append(task)
+
+            # Map the database ProcessType to CrewAI's Process
+            process = Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL else Process.hierarchical
+
+            crew = Crew(
+                agents=agents,
+                tasks=tasks,
+                process=process,
+                verbose=True
+            )
+
+            result = crew.kickoff()
+            return {"result": result}
+
+        background_tasks.add_task(run_workflow)
+        return {"message": "Workflow execution started in the background"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/workflows/{workflow_id}/steps/", response_model=schemas.WorkflowStep)
 def create_workflow_step(workflow_id: int, step: schemas.WorkflowStepCreate, db: Session = Depends(get_db)):

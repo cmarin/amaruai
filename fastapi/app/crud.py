@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session, joinedload, load_only  # Add load_only to th
 from . import models, schemas
 from sqlalchemy import desc, Enum as SQLAlchemyEnum, asc
 
+
+
 def get_persona(db: Session, persona_id: int):
     return db.query(models.Persona).filter(models.Persona.id == persona_id).first()
 

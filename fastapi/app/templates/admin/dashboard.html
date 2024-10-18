@@ -10,7 +10,7 @@
         h2 { color: #666; }
         ul { list-style-type: none; padding: 0; }
         li { margin-bottom: 10px; }
-        a { color: #007bff; text-decoration: none; }
+        a { color: #007bff; text-decoration: none; margin-right: 10px; }
         a:hover { text-decoration: underline; }
     </style>
 </head>
@@ -102,7 +102,8 @@
             {{ workflow.name }} - 
             <a href="/admin/workflows/{{ workflow.id }}">View</a> | 
             <a href="/admin/workflows/{{ workflow.id }}/edit">Edit</a> | 
-            <a href="/admin/workflows/{{ workflow.id }}/delete">Delete</a>
+            <a href="/admin/workflows/{{ workflow.id }}/delete">Delete</a> |
+            <a href="#" onclick="executeWorkflow({{ workflow.id }})">Execute</a>
         </li>
         {% endfor %}
     </ul>
@@ -113,5 +114,29 @@
         <li><a href="/admin/chat">Chat Interface</a></li>
         <li><a href="/admin/workflows">Manage Workflows</a></li>
     </ul>
+
+    <script>
+    function executeWorkflow(workflowId) {
+        fetch(`/api/v1/workflows/${workflowId}/execute`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                user_id: 'admin',
+                conversation_id: 'dashboard_execution',
+                message: 'Execute workflow from dashboard'
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Workflow execution started: ' + data.message);
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+            alert('Error executing workflow');
+        });
+    }
+    </script>
 </body>
 </html>

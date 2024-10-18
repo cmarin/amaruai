@@ -20,6 +20,8 @@
     <p><strong>Description:</strong> {{ workflow.description }}</p>
     <p><strong>Process Type:</strong> {{ workflow.process_type }}</p>
     
+    <a href="#" onclick="executeWorkflow({{ workflow.id }})">Execute Workflow</a>
+    
     <h2>Workflow Steps</h2>
     <a href="/admin/workflows/{{ workflow.id }}/steps/create">Add New Step</a>
     <table>
@@ -54,5 +56,41 @@
     <a href="/admin/workflows/{{ workflow.id }}/edit">Edit Workflow</a>
     <a href="/admin/workflows/{{ workflow.id }}/delete" onclick="return confirm('Are you sure you want to delete this workflow?')">Delete Workflow</a>
     <a href="/admin/workflows">Back to Workflows</a>
+
+    <script>
+    function executeWorkflow(workflowId) {
+        fetch(`/api/v1/workflows/${workflowId}/execute`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                user_id: 'admin',
+                conversation_id: 'workflow_detail_execution',
+                message: 'Execute workflow from detail page'
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Workflow execution started: ' + data.message);
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+            alert('Error executing workflow');
+        });
+    }
+
+    function reorderStep(workflowId, stepId, newOrder) {
+        fetch(`/admin/workflows/${workflowId}/steps/${stepId}/reorder`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `new_order=${newOrder}`
+        }).then(() => {
+            location.reload();
+        });
+    }
+    </script>
 </body>
 </html>

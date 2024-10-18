@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import personas, tools, prompt_templates, categories, tags, chat_models, chat
+from app.api.v1 import personas, tools, prompt_templates, categories, tags, chat_models, chat, workflows
 from app.database import engine, Base
 from app.admin import admin_router
 
@@ -24,6 +24,7 @@ app.include_router(tags.router, prefix="/api/v1", tags=["tags"])
 app.include_router(chat_models.router, prefix="/api/v1", tags=["chat_models"])
 app.include_router(admin_router, prefix="/admin", tags=["admin"])
 app.include_router(chat.router, prefix="/api/v1", tags=["chat"])
+app.include_router(workflows.router, prefix="/api/v1", tags=["workflows"])
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
