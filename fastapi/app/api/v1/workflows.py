@@ -81,7 +81,7 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
                     task = Task(
                         description=prompt_template.prompt.format(**user_input),
                         agent=agent,
-                        expected_output="Task completion output"  # Add this line
+                        expected_output="Quality writing"
                     )
                     tasks.append(task)
 
@@ -91,20 +91,31 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
                     agents=agents,
                     tasks=tasks,
                     process=process,
-                    verbose=True
+                    verbose=True  # Set to True for more detailed logging
                 )
 
                 results = []
-                for i, task_result in enumerate(crew.kickoff()):
-                    logging.info(f"Task {i+1} result: {task_result}")
-                    results.append({
-                        "step": str(i + 1),  # Convert to string
-                        "prompt": tasks[i].description if i < len(tasks) else "Unknown prompt",
-                        "response": str(task_result)  # Convert to string
-                    })
-                    workflow_results[workflow_id] = results
-                    await asyncio.sleep(0)  # Allow other coroutines to run
+                crew_result = crew.kickoff()
+                for i, task in enumerate(tasks):
+                    try:
+                        task_result = task.output
+                        if task_result is None:
+                            raise ValueError(f"Task {i+1} output is None")
+                        task_raw_output = task_result.raw if hasattr(task_result, 'raw') else str(task_result)
+                        results.append({
+                            "step": str(i + 1),
+                            "prompt": task.description,
+                            "response": task_raw_output
+                        })
+                    except Exception as task_error:
+                        logging.error(f"Error processing task {i+1}: {str(task_error)}")
+                        results.append({
+                            "step": str(i + 1),
+                            "prompt": task.description,
+                            "response": f"Error: {str(task_error)}"
+                        })
 
+                workflow_results[workflow_id] = results
                 logging.info(f"Workflow execution completed: {results}")
                 return {"result": "Workflow execution completed"}
             except Exception as e:
@@ -125,7 +136,16 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
 @router.get("/workflows/{workflow_id}/results", response_model=List[Dict[str, str]])
 async def get_workflow_results(workflow_id: int):
     results = workflow_results.get(workflow_id, [])
-    return results
+    if not results:
+        return []
+    return [
+        {
+            "step": str(result.get("step", "Unknown")),
+            "prompt": str(result.get("prompt", "Unknown")),
+            "response": str(result.get("response", "No response"))
+        }
+        for result in results
+    ]
 
 @router.post("/workflows/{workflow_id}/steps/", response_model=schemas.WorkflowStep)
 def create_workflow_step(workflow_id: int, step: schemas.WorkflowStepCreate, db: Session = Depends(get_db)):
