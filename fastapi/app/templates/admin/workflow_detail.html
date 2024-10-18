@@ -12,6 +12,10 @@
         th { background-color: #f2f2f2; }
         a { color: #007bff; text-decoration: none; margin-right: 10px; }
         a:hover { text-decoration: underline; }
+        #executionResults { margin-top: 20px; }
+        .step { margin-bottom: 20px; border: 1px solid #ddd; padding: 10px; }
+        .prompt { background-color: #f0f0f0; padding: 10px; margin-bottom: 10px; }
+        .response { background-color: #e6f3ff; padding: 10px; }
     </style>
 </head>
 <body>
@@ -52,6 +56,8 @@
         {% endfor %}
     </table>
     
+    <div id="executionResults"></div>
+    
     <br>
     <a href="/admin/workflows/{{ workflow.id }}/edit">Edit Workflow</a>
     <a href="/admin/workflows/{{ workflow.id }}/delete" onclick="return confirm('Are you sure you want to delete this workflow?')">Delete Workflow</a>
@@ -72,11 +78,26 @@
         })
         .then(response => response.json())
         .then(data => {
-            alert('Workflow execution started: ' + data.message);
+            displayExecutionResults(data.results);
         })
         .catch((error) => {
             console.error('Error:', error);
             alert('Error executing workflow');
+        });
+    }
+
+    function displayExecutionResults(results) {
+        const resultsDiv = document.getElementById('executionResults');
+        resultsDiv.innerHTML = '<h2>Execution Results</h2>';
+        results.forEach(result => {
+            const stepDiv = document.createElement('div');
+            stepDiv.className = 'step';
+            stepDiv.innerHTML = `
+                <h3>Step ${result.step}</h3>
+                <div class="prompt"><strong>Prompt:</strong> ${result.prompt}</div>
+                <div class="response"><strong>Response:</strong> ${result.response}</div>
+            `;
+            resultsDiv.appendChild(stepDiv);
         });
     }
 

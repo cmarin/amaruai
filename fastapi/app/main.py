@@ -3,8 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import personas, tools, prompt_templates, categories, tags, chat_models, chat, workflows
 from app.database import engine, Base
 from app.admin import admin_router
+from dotenv import load_dotenv
+import logging
 
-app = FastAPI(title="ChatMatrix API", version="0.1.0")
+load_dotenv()  # Add this line to load environment variables
+
+# Configure logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    handlers=[logging.StreamHandler()])
+
+app = FastAPI(title="AmaruAI API", version="0.1.0")
 
 # CORS middleware
 app.add_middleware(

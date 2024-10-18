@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict
 from enum import Enum
 
 class ToolBase(BaseModel):
@@ -143,5 +143,13 @@ class WorkflowStep(WorkflowStepBase):
 
     class Config:
         from_attributes = True
+
+class WorkflowStepResult(BaseModel):
+    step: int
+    prompt: str
+    response: str
+
+class WorkflowExecutionResult(BaseModel):
+    results: List[WorkflowStepResult]
 
 Workflow.update_forward_refs()

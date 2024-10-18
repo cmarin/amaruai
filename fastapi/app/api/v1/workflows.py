@@ -6,8 +6,10 @@ from app.database import get_db
 from crewai import Agent, Task, Crew
 from crewai.process import Process
 from langchain_openai import ChatOpenAI
-import httpx
+import os
 import asyncio
+from app.utils import get_openai_client  # Add this import
+import logging
 
 router = APIRouter()
 
@@ -42,66 +44,48 @@ def delete_workflow(workflow_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Workflow not found")
     return db_workflow
 
-async def execute_chat(chat_input: Dict[str, str]):
-    async with httpx.AsyncClient() as client:
-        response = await client.post("http://localhost:8000/api/v1/chat", json=chat_input)
-        return response.json()
-
-@router.post("/workflows/{workflow_id}/execute", response_model=Dict[str, str])
-async def execute_workflow(workflow_id: int, user_input: Dict[str, str], background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+@router.post("/workflows/{workflow_id}/execute", response_model=schemas.WorkflowExecutionResult)
+async def execute_workflow(workflow_id: int, user_input: Dict[str, str], db: Session = Depends(get_db)):
     try:
         workflow = crud.get_workflow(db, workflow_id=workflow_id)
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
 
-        async def run_workflow():
-            agents = []
-            tasks = []
-            for step in sorted(workflow.steps, key=lambda x: x.order):
-                prompt_template = step.prompt_template
-                chat_model = step.chat_model
-                persona = step.persona
+        results = []
+        for step in sorted(workflow.steps, key=lambda x: x.order):
+            prompt_template = step.prompt_template
+            chat_model = step.chat_model
+            persona = step.persona
 
-                llm = ChatOpenAI(
-                    model_name=chat_model.model,
-                    openai_api_key=chat_model.api_key,
-                    temperature=0.7
-                )
+            client = get_openai_client(chat_model.api_key)
 
-                agent = Agent(
-                    role=persona.role,
-                    goal=persona.goal,
-                    backstory=persona.backstory,
-                    allow_delegation=persona.allow_delegation,
-                    verbose=persona.verbose,
-                    memory=persona.memory,
-                    llm=llm
-                )
-                agents.append(agent)
+            messages = [
+                {"role": "system", "content": f"You are {persona.role}. {persona.backstory}"},
+                {"role": "user", "content": prompt_template.prompt.format(**user_input)}
+            ]
 
-                task = Task(
-                    description=prompt_template.prompt.format(**user_input),
-                    agent=agent,
-                    expected_output="Task completion output"
-                )
-                tasks.append(task)
+            logging.info(f"Executing step: {step.order}")
+            logging.info(f"Prompt: {messages[-1]['content']}")
 
-            # Map the database ProcessType to CrewAI's Process
-            process = Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL else Process.hierarchical
-
-            crew = Crew(
-                agents=agents,
-                tasks=tasks,
-                process=process,
-                verbose=True
+            response = await client.chat.completions.create(
+                model=chat_model.model,
+                messages=messages,
+                temperature=0.7,
             )
 
-            result = crew.kickoff()
-            return {"result": result}
+            result = response.choices[0].message.content
+            logging.info(f"Step {step.order} result: {result}")
+            
+            results.append(schemas.WorkflowStepResult(
+                step=step.order,
+                prompt=messages[-1]['content'],
+                response=result
+            ))
 
-        background_tasks.add_task(run_workflow)
-        return {"message": "Workflow execution started in the background"}
+        logging.info(f"Workflow execution completed")
+        return schemas.WorkflowExecutionResult(results=results)
     except Exception as e:
+        logging.error(f"Error executing workflow: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/workflows/{workflow_id}/steps/", response_model=schemas.WorkflowStep)
