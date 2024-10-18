@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MessageSquare, FileText, Brain, ChevronDown, LayoutGrid, Columns, Square, BookOpen, Copy, Check, ChevronLeft, ChevronRight, Eraser, Trash2, Paperclip, X, File, Star } from 'lucide-react'
+import { MessageSquare, FileText, Brain, ChevronDown, LayoutGrid, Columns, Square, BookOpen, Copy, Check, ChevronLeft, ChevronRight, Eraser, Trash2, Paperclip, X, File, Star, Workflow } from 'lucide-react'
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { PromptSelector } from '@/components/prompt-selector'
@@ -55,6 +55,29 @@ interface ChatPayload {
   model?: string;
   persona_id?: number;
 }
+
+const sidebarNavItems = [
+  {
+    title: "Scratch Pad",
+    href: "/scratch-pad",
+    icon: FileText,
+  },
+  {
+    title: "Prompt Library",
+    href: "/prompt-templates",
+    icon: BookOpen,
+  },
+  {
+    title: "Persona Library",
+    href: "/personas",
+    icon: Brain,
+  },
+  {
+    title: "Workflows",
+    href: "/workflows",
+    icon: Workflow,
+  },
+]
 
 export default function ChatPage() {
   const { chatModels, personas, promptTemplates, categories, isLoading: dataLoading, error, refetchData } = useData()
@@ -395,37 +418,16 @@ export default function ChatPage() {
               </Button>
             </div>
             <h2 className="font-semibold mb-2">AI TOOLS</h2>
-            <Button 
-              variant="ghost"
-              className="justify-start w-full"
-              onClick={() => {
-                resetToPlayground()
-                setSelectedTool(null)
-              }}
-            >
-              <MessageSquare className="mr-2" size={18} /> Playground
-            </Button>
-            <Button 
-              variant="ghost"
-              className="justify-start w-full"
-              onClick={navigateToScratchPad}
-            >
-              <FileText className="mr-2" size={18} /> Scratch Pad
-            </Button>
-            <Button 
-              variant="ghost"
-              className="justify-start w-full"
-              onClick={navigateToPromptLibrary}
-            >
-              <BookOpen className="mr-2" size={18} /> Prompt Library
-            </Button>
-            <Button 
-              variant="ghost"
-              className="justify-start w-full"
-              onClick={navigateToPersonaLibrary}
-            >
-              <Brain className="mr-2" size={18} /> Persona Library
-            </Button>
+            {sidebarNavItems.map((item) => (
+              <Button 
+                key={item.title}
+                variant="ghost"
+                className="justify-start w-full"
+                onClick={() => router.push(item.href)}
+              >
+                <item.icon className="mr-2" size={18} /> {item.title}
+              </Button>
+            ))}
             <h2 className="font-semibold mt-4 mb-2">AI MODELS</h2>
             {allModels.map(model => (
               <Button 
