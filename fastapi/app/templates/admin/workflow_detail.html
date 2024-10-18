@@ -78,7 +78,9 @@
         })
         .then(response => response.json())
         .then(data => {
-            displayExecutionResults(data.results);
+            alert(data.message);
+            // You might want to implement a way to check the execution status
+            // and display results when they're ready
         })
         .catch((error) => {
             console.error('Error:', error);

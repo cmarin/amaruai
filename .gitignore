@@ -6,3 +6,6 @@ config.py
 code.tar.gz
 .env
 test_env.py
+test.py
+crewtest.py
+crewtestopen.py

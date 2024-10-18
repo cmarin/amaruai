@@ -3,13 +3,14 @@ from sqlalchemy.orm import Session
 from typing import List, Dict
 from app import crud, schemas, models
 from app.database import get_db
-from crewai import Agent, Task, Crew
-from crewai.process import Process
-from langchain_openai import ChatOpenAI
-import os
-import asyncio
-from app.utils import get_openai_client  # Add this import
+from crewai import Agent, Task, Crew, Process
+from langchain.chat_models import ChatOpenAI
 import logging
+import os
+from dotenv import load_dotenv
+
+load_dotenv()  # This loads the variables from .env file
+
 
 router = APIRouter()
 
@@ -44,46 +45,58 @@ def delete_workflow(workflow_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Workflow not found")
     return db_workflow
 
-@router.post("/workflows/{workflow_id}/execute", response_model=schemas.WorkflowExecutionResult)
-async def execute_workflow(workflow_id: int, user_input: Dict[str, str], db: Session = Depends(get_db)):
+@router.post("/workflows/{workflow_id}/execute", response_model=Dict[str, str])
+async def execute_workflow(workflow_id: int, user_input: Dict[str, str], background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     try:
         workflow = crud.get_workflow(db, workflow_id=workflow_id)
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
 
-        results = []
-        for step in sorted(workflow.steps, key=lambda x: x.order):
-            prompt_template = step.prompt_template
-            chat_model = step.chat_model
-            persona = step.persona
-
-            client = get_openai_client(chat_model.api_key)
-
-            messages = [
-                {"role": "system", "content": f"You are {persona.role}. {persona.backstory}"},
-                {"role": "user", "content": prompt_template.prompt.format(**user_input)}
-            ]
-
-            logging.info(f"Executing step: {step.order}")
-            logging.info(f"Prompt: {messages[-1]['content']}")
-
-            response = await client.chat.completions.create(
-                model=chat_model.model,
-                messages=messages,
-                temperature=0.7,
+        async def run_workflow():
+            llm = ChatOpenAI(
+                model_name="gpt-4o-mini",
+                openai_api_key=os.environ["OPENAI_API_KEY"],
             )
 
-            result = response.choices[0].message.content
-            logging.info(f"Step {step.order} result: {result}")
-            
-            results.append(schemas.WorkflowStepResult(
-                step=step.order,
-                prompt=messages[-1]['content'],
-                response=result
-            ))
+            agents = []
+            tasks = []
+            for step in sorted(workflow.steps, key=lambda x: x.order):
+                prompt_template = step.prompt_template
+                chat_model = step.chat_model
+                persona = step.persona
 
-        logging.info(f"Workflow execution completed")
-        return schemas.WorkflowExecutionResult(results=results)
+                agent = Agent(
+                    role=persona.role,
+                    goal=persona.goal,
+                    backstory=persona.backstory,
+                    allow_delegation=persona.allow_delegation,
+                    verbose=persona.verbose,
+                    llm=llm
+                )
+                agents.append(agent)
+
+                task = Task(
+                    description=prompt_template.prompt.format(**user_input),
+                    expected_output="Task completion output",
+                    agent=agent
+                )
+                tasks.append(task)
+
+            process = Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL else Process.hierarchical
+
+            crew = Crew(
+                agents=agents,
+                tasks=tasks,
+                process=process,
+                verbose=True
+            )
+
+            result = crew.kickoff()
+            logging.info(f"Workflow execution completed: {result}")
+            return {"result": result}
+
+        background_tasks.add_task(run_workflow)
+        return {"message": "Workflow execution started in the background"}
     except Exception as e:
         logging.error(f"Error executing workflow: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
