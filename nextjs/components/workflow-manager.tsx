@@ -33,6 +33,12 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   const [personas, setPersonas] = useState<Persona[]>([])
 
   useEffect(() => {
+    if (initialWorkflow) {
+      setWorkflow(initialWorkflow)
+    }
+  }, [initialWorkflow])
+
+  useEffect(() => {
     const fetchData = async () => {
       const [fetchedPromptTemplates, fetchedChatModels, fetchedPersonas] = await Promise.all([
         fetchPromptTemplates(),
@@ -177,7 +183,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
                 </div>
                 <div className="space-y-2">
                   <Select
-                    value={step.prompt_template_id}
+                    value={step.prompt_template_id?.toString()}
                     onValueChange={(value) => updateStep(index, "prompt_template_id", value)}
                   >
                     <SelectTrigger>
@@ -192,7 +198,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
                     </SelectContent>
                   </Select>
                   <Select
-                    value={step.chat_model_id}
+                    value={step.chat_model_id?.toString()}
                     onValueChange={(value) => updateStep(index, "chat_model_id", value)}
                   >
                     <SelectTrigger>
@@ -207,7 +213,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
                     </SelectContent>
                   </Select>
                   <Select
-                    value={step.persona_id}
+                    value={step.persona_id?.toString()}
                     onValueChange={(value) => updateStep(index, "persona_id", value)}
                   >
                     <SelectTrigger>
