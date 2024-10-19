@@ -63,7 +63,7 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
 
                 agents = []
                 tasks = []
-                for step in sorted(workflow.steps, key=lambda x: x.order):
+                for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.order)):
                     prompt_template = step.prompt_template
                     chat_model = step.chat_model
                     persona = step.persona
@@ -78,8 +78,13 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
                     )
                     agents.append(agent)
 
+                    if i == 0 and "message" in user_input:
+                        description = user_input["message"]
+                    else:
+                        description = prompt_template.prompt.format(**user_input)
+
                     task = Task(
-                        description=prompt_template.prompt.format(**user_input),
+                        description=description,
                         agent=agent,
                         expected_output="Quality writing"
                     )

@@ -102,7 +102,7 @@
 
     function pollResults(workflowId) {
         const resultsDiv = document.getElementById('executionResults');
-        const totalSteps = {{ workflow.steps|length }};
+        const totalSteps = {% if workflow.steps %}{{ workflow.steps|length }}{% else %}0{% endif %};
         
         const pollInterval = setInterval(() => {
             fetch(`/api/v1/workflows/${workflowId}/results`)
