@@ -102,7 +102,7 @@
 
     function pollResults(workflowId) {
         const resultsDiv = document.getElementById('executionResults');
-        const totalSteps = {% if workflow.steps %}{{ workflow.steps|length }}{% else %}0{% endif %};
+        const totalSteps = "{{ workflow.steps|length if workflow.steps else 0 }}";
         
         const pollInterval = setInterval(() => {
             fetch(`/api/v1/workflows/${workflowId}/results`)
@@ -115,7 +115,7 @@
                 .then(data => {
                     if (data.length > 0) {
                         displayExecutionResults(data);
-                        if (data[data.length - 1].step === "Error" || data.length === totalSteps) {
+                        if (data[data.length - 1].step === "Error" || data.length === parseInt(totalSteps)) {
                             clearInterval(pollInterval);
                         }
                     }
