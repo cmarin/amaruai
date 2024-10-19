@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ChevronLeft } from 'lucide-react'
-import { fetchWorkflow, Workflow, executeWorkflow, getWorkflowResults, WorkflowResult } from '@/components/workflowService'
+import { fetchWorkflow, Workflow, executeWorkflow, getWorkflowResults, WorkflowResult, WorkflowStep } from '@/components/workflowService'
+import { fetchPromptTemplate, PromptTemplate } from '@/components/promptTemplateService'
+import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 import ReactMarkdown from 'react-markdown'
 
 export default function WorkflowExecutionPage({ params }: { params: { workflowId: string } }) {
@@ -13,6 +15,8 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
   const [results, setResults] = useState<WorkflowResult[]>([])
   const [isExecuting, setIsExecuting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showComplexPromptModal, setShowComplexPromptModal] = useState(false)
+  const [complexPromptTemplate, setComplexPromptTemplate] = useState<PromptTemplate | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -20,7 +24,7 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
       try {
         const fetchedWorkflow = await fetchWorkflow(params.workflowId)
         setWorkflow(fetchedWorkflow)
-        executeWorkflowAndPollResults()
+        await checkFirstStep(fetchedWorkflow)
       } catch (error) {
         console.error('Error loading workflow:', error)
         setError('Failed to load workflow')
@@ -29,11 +33,37 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
     loadWorkflow()
   }, [params.workflowId])
 
-  const executeWorkflowAndPollResults = async () => {
+  const checkFirstStep = async (workflow: Workflow) => {
+    if (workflow.steps.length > 0) {
+      const firstStep = workflow.steps[0]
+      try {
+        const promptTemplate = await fetchPromptTemplate(parseInt(firstStep.prompt_template_id))
+        
+        if (promptTemplate.is_complex) {
+          setComplexPromptTemplate(promptTemplate)
+          setShowComplexPromptModal(true)
+        } else {
+          executeWorkflowAndPollResults()
+        }
+      } catch (error) {
+        console.error('Error fetching prompt template:', error)
+        setError('Failed to fetch prompt template')
+      }
+    } else {
+      setError('Workflow has no steps')
+    }
+  }
+
+  const handleComplexPromptSubmit = (generatedPrompt: string) => {
+    setShowComplexPromptModal(false)
+    executeWorkflowAndPollResults(generatedPrompt)
+  }
+
+  const executeWorkflowAndPollResults = async (message: string = 'Execute workflow') => {
     setIsExecuting(true)
     setError(null)
     try {
-      await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, 'Execute workflow')
+      await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, message)
       pollResults()
     } catch (error) {
       console.error('Error executing workflow:', error)
@@ -90,6 +120,14 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
           </div>
         ))}
       </ScrollArea>
+      {showComplexPromptModal && complexPromptTemplate && (
+        <ComplexPromptModal
+          prompt={complexPromptTemplate}
+          isOpen={showComplexPromptModal}
+          onClose={() => setShowComplexPromptModal(false)}
+          onSubmit={handleComplexPromptSubmit}
+        />
+      )}
     </div>
   )
 }

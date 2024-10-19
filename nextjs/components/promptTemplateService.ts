@@ -218,3 +218,31 @@ export async function fetchPromptTemplates(): Promise<PromptTemplate[]> {
     throw error;
   }
 }
+
+export async function fetchPromptTemplate(id: number): Promise<PromptTemplate> {
+  try {
+    if (!API_URL) {
+      throw new Error('API_URL is not defined');
+    }
+    const response = await fetch(`${API_URL}/prompt_templates/${id}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch prompt template');
+    }
+    const data: PromptTemplate = await response.json();
+    
+    if (data.is_complex && typeof data.prompt === 'string') {
+      try {
+        const parsedPrompt = JSON.parse(data.prompt);
+        data.content = parsedPrompt;
+      } catch (error) {
+        console.error('Error parsing complex prompt:', error);
+        data.is_complex = false;
+      }
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching prompt template:', error);
+    throw error;
+  }
+}
