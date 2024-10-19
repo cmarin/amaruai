@@ -8,6 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PromptTemplate, VariableType } from './promptTemplateService';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type ComplexPromptModalProps = {
   prompt: PromptTemplate;
@@ -17,7 +20,7 @@ type ComplexPromptModalProps = {
 };
 
 export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: ComplexPromptModalProps) {
-  const [values, setValues] = useState<{ [key: string]: string }>({});
+  const [values, setValues] = useState<{ [key: string]: string | string[] | number }>({});
 
   useEffect(() => {
     console.log('Prompt object:', prompt);
@@ -34,7 +37,7 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
     }
 
     // Initialize values with preselected options
-    const initialValues: { [key: string]: string } = {};
+    const initialValues: { [key: string]: string | string[] | number } = {};
     content.variables.forEach((variable: VariableType) => {
       if (variable.preselectedOption) {
         initialValues[variable.fieldName] = variable.preselectedOption;
@@ -43,7 +46,7 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
     setValues(initialValues);
   }, [prompt]);
 
-  const handleInputChange = (fieldName: string, value: string) => {
+  const handleInputChange = (fieldName: string, value: string | string[] | number) => {
     setValues(prev => ({ ...prev, [fieldName]: value }));
   };
 
@@ -74,6 +77,76 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
 
   const content = prompt.content;
 
+  const renderField = (variable: VariableType) => {
+    const commonProps = {
+      id: variable.fieldName,
+      placeholder: variable.placeholder,
+      className: "col-span-3 bg-white text-black border-gray-300",
+      required: variable.required,
+      value: values[variable.fieldName] || '',
+      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => 
+        handleInputChange(variable.fieldName, e.target.value),
+    };
+
+    switch (variable.controlType) {
+      case 'textarea':
+        return <Textarea {...commonProps} />;
+      case 'dropdown':
+        return (
+          <Select
+            value={values[variable.fieldName] as string}
+            onValueChange={(value) => handleInputChange(variable.fieldName, value)}
+          >
+            <SelectTrigger className="col-span-3 bg-white text-black border-gray-300">
+              <SelectValue placeholder="Select an option" />
+            </SelectTrigger>
+            <SelectContent className="bg-white text-black">
+              {variable.options?.map((option: string) => (
+                <SelectItem key={option} value={option} className="text-black">
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      case 'multiselect':
+        return (
+          <div className="col-span-3 space-y-2">
+            {variable.options?.map((option: string) => (
+              <div key={option} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`${variable.fieldName}-${option}`}
+                  checked={(values[variable.fieldName] as string[] || []).includes(option)}
+                  onCheckedChange={(checked) => {
+                    const currentValues = values[variable.fieldName] as string[] || [];
+                    const newValues = checked
+                      ? [...currentValues, option]
+                      : currentValues.filter(v => v !== option);
+                    handleInputChange(variable.fieldName, newValues);
+                  }}
+                />
+                <Label htmlFor={`${variable.fieldName}-${option}`}>{option}</Label>
+              </div>
+            ))}
+          </div>
+        );
+      case 'number':
+        return (
+          <Input
+            {...commonProps}
+            type="number"
+            min={(variable.validation as any)?.min}
+            max={(variable.validation as any)?.max}
+            step={(variable.validation as any)?.step}
+          />
+        );
+      case 'date':
+        return <Input {...commonProps} type="date" />;
+      default:
+        return <Input {...commonProps} />;
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px] bg-white text-black">
@@ -87,50 +160,28 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
           <div className="grid gap-4 py-4">
             {content.variables.map((variable: VariableType) => (
               <div key={variable.fieldName} className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor={variable.fieldName} className="text-right text-black"> {/* Add text-black class */}
-                  {variable.fieldName}
-                </label>
-                {variable.controlType === 'textarea' ? (
-                  <Textarea
-                    id={variable.fieldName}
-                    placeholder={variable.placeholder}
-                    className="col-span-3 bg-white text-black border-gray-300"
-                    required={variable.required}
-                    value={values[variable.fieldName] || ''}
-                    onChange={(e) => handleInputChange(variable.fieldName, e.target.value)}
-                  />
-                ) : variable.controlType === 'dropdown' ? (
-                  <Select
-                    value={values[variable.fieldName]}
-                    onValueChange={(value) => handleInputChange(variable.fieldName, value)}
-                  >
-                    <SelectTrigger className="col-span-3 bg-white text-black border-gray-300">
-                      <SelectValue placeholder="Select an option" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white text-black">
-                      {variable.options?.map((option: string) => (
-                        <SelectItem key={option} value={option} className="text-black">
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    id={variable.fieldName}
-                    placeholder={variable.placeholder}
-                    className="col-span-3 bg-white text-black border-gray-300"
-                    required={variable.required}
-                    value={values[variable.fieldName] || ''}
-                    onChange={(e) => handleInputChange(variable.fieldName, e.target.value)}
-                  />
-                )}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Label htmlFor={variable.fieldName} className="text-right text-black">
+                        {variable.fieldName}
+                        {variable.required && <span className="text-red-500 ml-1">*</span>}
+                      </Label>
+                    </TooltipTrigger>
+                    {variable.tooltip && (
+                      <TooltipContent>
+                        <p>{variable.tooltip}</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+                {renderField(variable)}
               </div>
             ))}
           </div>
         </ScrollArea>
         <DialogFooter>
-          <Button type="submit" onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700 text-white">Done</Button> {/* Add explicit button styling */}
+          <Button type="submit" onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700 text-white">Done</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
