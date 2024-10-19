@@ -65,7 +65,9 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
     setError(null);
     try {
       console.log('Executing workflow with message:', message);
-      await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, message);
+      // Trim the message to remove any leading or trailing whitespace
+      const trimmedMessage = message.trim();
+      await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, trimmedMessage);
       pollResults();
     } catch (error) {
       console.error('Error executing workflow:', error);

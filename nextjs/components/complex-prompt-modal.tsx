@@ -47,7 +47,14 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
   }, [prompt]);
 
   const handleInputChange = (fieldName: string, value: string | string[] | number) => {
-    setValues(prev => ({ ...prev, [fieldName]: value }));
+    if (value === '' || (Array.isArray(value) && value.length === 0)) {
+      // Remove empty values from the state
+      const newValues = { ...values };
+      delete newValues[fieldName];
+      setValues(newValues);
+    } else {
+      setValues(prev => ({ ...prev, [fieldName]: value }));
+    }
   };
 
   const handleSubmit = () => {
@@ -59,9 +66,18 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
     let generatedPrompt = prompt.content.prompt;
     prompt.content.variables.forEach((variable: VariableType) => {
       const value = values[variable.fieldName];
-      const stringValue = Array.isArray(value) ? value.join(', ') : String(value);
-      generatedPrompt = generatedPrompt.replace(new RegExp(`\\{${variable.fieldName}\\}`, 'g'), stringValue);
+      if (value !== undefined && value !== '') {
+        const stringValue = Array.isArray(value) ? value.join(', ') : String(value);
+        generatedPrompt = generatedPrompt.replace(new RegExp(`\\{${variable.fieldName}\\}`, 'g'), stringValue);
+      } else {
+        // Remove the placeholder for empty values
+        generatedPrompt = generatedPrompt.replace(new RegExp(`\\{${variable.fieldName}\\}`, 'g'), '');
+      }
     });
+    
+    // Trim any extra spaces that might have been left after removing empty placeholders
+    generatedPrompt = generatedPrompt.replace(/\s+/g, ' ').trim();
+    
     onSubmit(generatedPrompt);
     onClose();
   };
