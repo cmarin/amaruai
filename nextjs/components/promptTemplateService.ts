@@ -10,7 +10,13 @@ export interface VariableType {
   controlType: string;
   placeholder?: string;
   options?: string[];
-  preselectedOption?: string;
+  preselectedOption?: string | string[];
+  tooltip?: string;
+  validation?: {
+    min?: number;
+    max?: number;
+    step?: number;
+  };
 }
 
 export interface PromptContent {

@@ -51,21 +51,16 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
   };
 
   const handleSubmit = () => {
-    if (!prompt.is_complex) {
-      console.error('Prompt is not complex. This component should only be used for complex prompts.');
+    if (!prompt.is_complex || !prompt.content) {
+      console.error('Invalid prompt or content');
       return;
     }
 
-    const content = prompt.content;
-    if (!content) {
-      console.error(`No content found in prompt object for prompt ID ${prompt.id}.`);
-      return;
-    }
-
-    let generatedPrompt = content.prompt;
-    content.variables.forEach((variable: VariableType) => {
-      const value = values[variable.fieldName] || '';
-      generatedPrompt = generatedPrompt.replace(`{${variable.fieldName}}`, value);
+    let generatedPrompt = prompt.content.prompt;
+    prompt.content.variables.forEach((variable: VariableType) => {
+      const value = values[variable.fieldName];
+      const stringValue = Array.isArray(value) ? value.join(', ') : String(value);
+      generatedPrompt = generatedPrompt.replace(new RegExp(`\\{${variable.fieldName}\\}`, 'g'), stringValue);
     });
     onSubmit(generatedPrompt);
     onClose();
@@ -135,9 +130,9 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
           <Input
             {...commonProps}
             type="number"
-            min={(variable.validation as any)?.min}
-            max={(variable.validation as any)?.max}
-            step={(variable.validation as any)?.step}
+            min={variable.validation?.min}
+            max={variable.validation?.max}
+            step={variable.validation?.step}
           />
         );
       case 'date':
