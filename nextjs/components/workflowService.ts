@@ -51,7 +51,6 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>): Promise<Wo
       throw new Error('API_URL is not defined');
     }
 
-    // First, create the workflow without steps
     const workflowPayload = {
       name: workflow.name,
       description: workflow.description,
@@ -75,14 +74,13 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>): Promise<Wo
     const createdWorkflow = await response.json();
     console.log('Created workflow:', createdWorkflow);
 
-    // Then, create all workflow steps
+    // Create workflow steps
     const createdSteps = await Promise.all(workflow.steps.map(step => 
-      createWorkflowStep({ ...step, workflow_id: createdWorkflow.id })
+      createWorkflowStep(createdWorkflow.id, step)
     ));
 
     console.log('Created steps:', createdSteps);
 
-    // Return the workflow with the created steps
     return {
       ...createdWorkflow,
       steps: createdSteps,
@@ -96,26 +94,50 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>): P
       throw new Error('API_URL is not defined');
     }
 
-    // If steps are provided, update them first
-    if (workflow.steps) {
-      await Promise.all(workflow.steps.map(step => 
-        step.id ? updateWorkflowStep(id, step.id, step) : createWorkflowStep({ ...step, workflow_id: id })
-      ));
-    }
+    const workflowPayload = {
+      name: workflow.name,
+      description: workflow.description,
+      process_type: workflow.process_type,
+    };
 
+    console.log('Updating workflow with payload:', workflowPayload);
+
+    // Update workflow details
     const response = await fetch(`${API_URL}/workflows/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(workflow),
+      body: JSON.stringify(workflowPayload),
     });
 
     if (!response.ok) {
       throw new Error('Failed to update workflow');
     }
 
-    return await response.json();
+    const updatedWorkflow = await response.json();
+
+    // Fetch current steps
+    const currentSteps = await fetchWorkflowSteps(id);
+
+    // Delete all existing steps
+    await Promise.all(currentSteps.map(step => deleteWorkflowStep(id, step.id)));
+
+    // Create new steps
+    if (workflow.steps) {
+      const createdSteps = await Promise.all(workflow.steps.map(step => 
+        createWorkflowStep(id, {
+          prompt_template_id: step.prompt_template_id,
+          chat_model_id: step.chat_model_id,
+          persona_id: step.persona_id,
+          order: step.order
+        })
+      ));
+      updatedWorkflow.steps = createdSteps;
+    }
+
+    console.log('Updated workflow:', updatedWorkflow);
+    return updatedWorkflow;
   });
 }
 
@@ -133,13 +155,13 @@ export async function deleteWorkflow(id: string): Promise<void> {
   });
 }
 
-export async function createWorkflowStep(step: Omit<WorkflowStep, 'id'>): Promise<WorkflowStep> {
+export async function createWorkflowStep(workflowId: string, step: Omit<WorkflowStep, 'id' | 'workflow_id'>): Promise<WorkflowStep> {
   return fetchWithRetry(async () => {
     if (!API_URL) {
       throw new Error('API_URL is not defined');
     }
     console.log('Creating workflow step:', step);
-    const response = await fetch(`${API_URL}/workflows/${step.workflow_id}/steps`, {
+    const response = await fetch(`${API_URL}/workflows/${workflowId}/steps`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -162,6 +184,7 @@ export async function updateWorkflowStep(workflowId: string, stepId: string, ste
     if (!API_URL) {
       throw new Error('API_URL is not defined');
     }
+    console.log('Updating workflow step:', step);
     const response = await fetch(`${API_URL}/workflows/${workflowId}/steps/${stepId}`, {
       method: 'PUT',
       headers: {
@@ -170,7 +193,24 @@ export async function updateWorkflowStep(workflowId: string, stepId: string, ste
       body: JSON.stringify(step),
     });
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error updating workflow step:', errorText);
       throw new Error('Failed to update workflow step');
+    }
+    const updatedStep = await response.json();
+    console.log('Updated workflow step:', updatedStep);
+    return updatedStep;
+  });
+}
+
+export async function fetchWorkflowSteps(workflowId: string): Promise<WorkflowStep[]> {
+  return fetchWithRetry(async () => {
+    if (!API_URL) {
+      throw new Error('API_URL is not defined');
+    }
+    const response = await fetch(`${API_URL}/workflows/${workflowId}/steps`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch workflow steps');
     }
     return await response.json();
   });

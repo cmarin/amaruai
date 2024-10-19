@@ -158,14 +158,14 @@ def read_workflow_steps(workflow_id: int, db: Session = Depends(get_db)):
 
 @router.put("/workflows/{workflow_id}/steps/{step_id}", response_model=schemas.WorkflowStep)
 def update_workflow_step(workflow_id: int, step_id: int, step: schemas.WorkflowStepUpdate, db: Session = Depends(get_db)):
-    db_step = crud.update_workflow_step(db, workflow_id=workflow_id, step_id=step_id, step=step)
+    db_step = crud.update_workflow_step(db, step_id=step_id, step=step)
     if db_step is None:
         raise HTTPException(status_code=404, detail="Workflow step not found")
     return db_step
 
 @router.delete("/workflows/{workflow_id}/steps/{step_id}", response_model=schemas.WorkflowStep)
 def delete_workflow_step(workflow_id: int, step_id: int, db: Session = Depends(get_db)):
-    db_step = crud.delete_workflow_step(db, workflow_id=workflow_id, step_id=step_id)
+    db_step = crud.delete_workflow_step(db, step_id=step_id)
     if db_step is None:
         raise HTTPException(status_code=404, detail="Workflow step not found")
     return db_step

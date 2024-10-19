@@ -329,19 +329,11 @@ def update_workflow_step(db: Session, step_id: int, step: schemas.WorkflowStepUp
     return db_step
 
 def delete_workflow_step(db: Session, step_id: int):
-    db_step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
-    if db_step:
-        # Reorder remaining steps
-        remaining_steps = db.query(models.WorkflowStep).filter(
-            models.WorkflowStep.workflow_id == db_step.workflow_id,
-            models.WorkflowStep.order > db_step.order
-        ).all()
-        for step in remaining_steps:
-            step.order -= 1
-        
-        db.delete(db_step)
+    step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
+    if step:
+        db.delete(step)
         db.commit()
-    return db_step
+    return step
 
 def reorder_workflow_step(db: Session, step_id: int, new_order: int):
     db_step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
@@ -389,3 +381,4 @@ def move_workflow_step_down(db: Session, step_id: int):
             step.order, next_step.order = next_step.order, step.order
             db.commit()
     return step
+

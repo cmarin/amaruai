@@ -90,14 +90,21 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     try {
       console.log('Saving workflow:', workflow);
       if (workflow.id) {
-        await updateWorkflow(workflow.id, workflow)
+        const updatedWorkflow = await updateWorkflow(workflow.id, {
+          name: workflow.name,
+          description: workflow.description,
+          process_type: workflow.process_type,
+          steps: workflow.steps
+        });
+        setWorkflow(updatedWorkflow);
       } else {
-        await createWorkflow(workflow)
+        const createdWorkflow = await createWorkflow(workflow);
+        setWorkflow(createdWorkflow);
       }
       console.log('Workflow saved successfully');
-      onSave()
+      onSave();
     } catch (error) {
-      console.error('Error saving workflow:', error)
+      console.error('Error saving workflow:', error);
       // Handle error (e.g., show error message to user)
     }
   }

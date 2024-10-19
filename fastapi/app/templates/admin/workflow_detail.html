@@ -35,7 +35,7 @@
     <p><strong>Description:</strong> {{ workflow.description }}</p>
     <p><strong>Process Type:</strong> {{ workflow.process_type }}</p>
     
-    <a href="#" onclick="executeWorkflow({{ workflow.id }})">Execute Workflow</a>
+    <a href="#" onclick="executeWorkflow('{{ workflow.id }}')">Execute Workflow</a>
     
     <h2>Workflow Steps</h2>
     <a href="/admin/workflows/{{ workflow.id }}/steps/create">Add New Step</a>
