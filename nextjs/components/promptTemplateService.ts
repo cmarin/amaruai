@@ -230,16 +230,25 @@ export async function fetchPromptTemplate(id: number): Promise<PromptTemplate> {
     }
     const data: PromptTemplate = await response.json();
     
-    if (data.is_complex && typeof data.prompt === 'string') {
-      try {
-        const parsedPrompt = JSON.parse(data.prompt);
-        data.content = parsedPrompt;
-      } catch (error) {
-        console.error('Error parsing complex prompt:', error);
-        data.is_complex = false;
+    console.log('Fetched prompt template:', data);
+
+    if (data.is_complex) {
+      if (typeof data.prompt === 'string') {
+        try {
+          const parsedPrompt = JSON.parse(data.prompt);
+          data.content = parsedPrompt;
+          // Ensure the prompt field is also an object
+          data.prompt = parsedPrompt;
+        } catch (error) {
+          console.error('Error parsing complex prompt:', error);
+          data.is_complex = false;
+        }
+      } else if (typeof data.prompt === 'object') {
+        data.content = data.prompt as PromptContent;
       }
     }
     
+    console.log('Processed prompt template:', data);
     return data;
   } catch (error) {
     console.error('Error fetching prompt template:', error);

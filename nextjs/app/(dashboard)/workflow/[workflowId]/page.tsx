@@ -55,40 +55,43 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
   }
 
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
-    setShowComplexPromptModal(false)
-    executeWorkflowAndPollResults(generatedPrompt)
-  }
+    console.log('Complex prompt submitted:', generatedPrompt);
+    setShowComplexPromptModal(false);
+    executeWorkflowAndPollResults(generatedPrompt);
+  };
 
   const executeWorkflowAndPollResults = async (message: string = 'Execute workflow') => {
-    setIsExecuting(true)
-    setError(null)
+    setIsExecuting(true);
+    setError(null);
     try {
-      await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, message)
-      pollResults()
+      console.log('Executing workflow with message:', message);
+      await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, message);
+      pollResults();
     } catch (error) {
-      console.error('Error executing workflow:', error)
-      setError('Failed to execute workflow')
-      setIsExecuting(false)
+      console.error('Error executing workflow:', error);
+      setError(`Failed to execute workflow: ${error}`);
+      setIsExecuting(false);
     }
-  }
+  };
 
   const pollResults = async () => {
     const pollInterval = setInterval(async () => {
       try {
-        const fetchedResults = await getWorkflowResults(params.workflowId)
-        setResults(fetchedResults)
+        const fetchedResults = await getWorkflowResults(params.workflowId);
+        console.log('Fetched results:', fetchedResults);
+        setResults(fetchedResults);
         if (fetchedResults.length > 0 && (fetchedResults[fetchedResults.length - 1].step === "Error" || fetchedResults.length === workflow?.steps.length)) {
-          clearInterval(pollInterval)
-          setIsExecuting(false)
+          clearInterval(pollInterval);
+          setIsExecuting(false);
         }
       } catch (error) {
-        console.error('Error fetching results:', error)
-        setError('Failed to fetch workflow results')
-        clearInterval(pollInterval)
-        setIsExecuting(false)
+        console.error('Error fetching results:', error);
+        setError(`Failed to fetch workflow results: ${error}`);
+        clearInterval(pollInterval);
+        setIsExecuting(false);
       }
-    }, 2000)  // Poll every 2 seconds
-  }
+    }, 2000);  // Poll every 2 seconds
+  };
 
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col h-screen">

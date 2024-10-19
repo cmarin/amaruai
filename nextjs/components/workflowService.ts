@@ -240,19 +240,31 @@ export async function executeWorkflow(workflowId: string, userId: string, conver
     if (!API_URL) {
       throw new Error('API_URL is not defined');
     }
-    const response = await fetch(`${API_URL}/workflows/${workflowId}/execute`, {
+    const url = `${API_URL}/workflows/${workflowId}/execute`;
+    const payload = {
+      user_id: userId,
+      conversation_id: conversationId,
+      message: message,
+    };
+    
+    console.log('Executing workflow:');
+    console.log('URL:', url);
+    console.log('Payload:', JSON.stringify(payload, null, 2));
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        user_id: userId,
-        conversation_id: conversationId,
-        message: message,
-      }),
+      body: JSON.stringify(payload),
     });
+
+    console.log('Response status:', response.status);
+    const responseText = await response.text();
+    console.log('Response body:', responseText);
+
     if (!response.ok) {
-      throw new Error('Failed to execute workflow');
+      throw new Error(`Failed to execute workflow: ${response.status} ${response.statusText}\n${responseText}`);
     }
   });
 }
