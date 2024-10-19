@@ -406,7 +406,7 @@ export default function ChatPage() {
         <div className={`bg-white transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-64' : 'w-0'} flex flex-col overflow-hidden relative`}>
           <div className="p-4 flex-grow overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h1 className="text-2xl font-bold">ChatMatrix</h1>
+              <h1 className="text-2xl font-bold">AmaruAI</h1>
               <Button
                 variant="ghost"
                 size="icon"
