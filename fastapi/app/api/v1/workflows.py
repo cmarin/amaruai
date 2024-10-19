@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Dict
 from app import crud, schemas, models
 from app.database import get_db
-from crewai import Agent, Task, Crew, Process
+from crewai import Agent, Task, Crew, Process, LLM
 from langchain.chat_models import ChatOpenAI
 import logging
 import os
@@ -56,17 +56,19 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
 
         async def run_workflow():
             try:
-                llm = ChatOpenAI(
-                    model_name="gpt-4o-mini",
-                    openai_api_key=os.environ["OPENAI_API_KEY"],
-                )
-
                 agents = []
                 tasks = []
                 for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.order)):
                     prompt_template = step.prompt_template
                     chat_model = step.chat_model
                     persona = step.persona
+
+                    # Dynamically create LLM for each step
+                    llm = LLM(
+                        model=f"openrouter/{chat_model.model}",
+                        api_key=os.environ["OPENROUTER_API_KEY"],
+                        base_url=os.environ["OPENROUTER_API_BASE"]
+                    )
 
                     agent = Agent(
                         role=persona.role,
