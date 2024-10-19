@@ -1,8 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  publicRuntimeConfig: {
-    API_URL: process.env.API_URL,
+  experimental: {
+    appDir: true,
+  },
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/chat',
+        permanent: true,
+      },
+    ]
   },
 }
+
 module.exports = nextConfig

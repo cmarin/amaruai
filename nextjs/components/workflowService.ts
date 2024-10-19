@@ -234,3 +234,44 @@ export async function deleteWorkflowStep(workflowId: string, stepId: string): Pr
     }
   });
 }
+
+export async function executeWorkflow(workflowId: string, userId: string, conversationId: string, message: string): Promise<void> {
+  return fetchWithRetry(async () => {
+    if (!API_URL) {
+      throw new Error('API_URL is not defined');
+    }
+    const response = await fetch(`${API_URL}/workflows/${workflowId}/execute`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        conversation_id: conversationId,
+        message: message,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to execute workflow');
+    }
+  });
+}
+
+export interface WorkflowResult {
+  step: string;
+  prompt: string;
+  response: string;
+}
+
+export async function getWorkflowResults(workflowId: string): Promise<WorkflowResult[]> {
+  return fetchWithRetry(async () => {
+    if (!API_URL) {
+      throw new Error('API_URL is not defined');
+    }
+    const response = await fetch(`${API_URL}/workflows/${workflowId}/results`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch workflow results');
+    }
+    return await response.json();
+  });
+}

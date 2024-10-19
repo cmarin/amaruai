@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, ChevronLeft } from 'lucide-react'
+import { Plus, Edit, Trash2, ChevronLeft, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -110,6 +110,9 @@ export default function WorkflowsPage() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold">{workflow.name}</h3>
                     <div className="flex space-x-2">
+                      <Button variant="ghost" size="sm" onClick={() => router.push(`/workflow/${workflow.id}`)} className="text-green-600 hover:text-green-700 hover:bg-green-100">
+                        <Play className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleEditWorkflow(workflow)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-100">
                         <Edit className="h-4 w-4" />
                       </Button>
