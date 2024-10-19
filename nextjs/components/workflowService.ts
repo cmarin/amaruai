@@ -121,7 +121,12 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>): P
     const currentSteps = await fetchWorkflowSteps(id);
 
     // Delete all existing steps
-    await Promise.all(currentSteps.map(step => deleteWorkflowStep(id, step.id)));
+    await Promise.all(currentSteps.map(step => {
+      if (step.id) {
+        return deleteWorkflowStep(id, step.id);
+      }
+      return Promise.resolve(); // If step.id is undefined, return a resolved promise
+    }));
 
     // Create new steps
     if (workflow.steps) {

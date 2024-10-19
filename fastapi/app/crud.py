@@ -295,6 +295,10 @@ def update_workflow(db: Session, workflow_id: int, workflow: schemas.WorkflowUpd
     return db_workflow
 
 def delete_workflow(db: Session, workflow_id: int):
+    # First, delete all associated workflow steps
+    db.query(models.WorkflowStep).filter(models.WorkflowStep.workflow_id == workflow_id).delete(synchronize_session=False)
+    
+    # Then, delete the workflow
     db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id).first()
     if db_workflow:
         db.delete(db_workflow)
@@ -381,4 +385,5 @@ def move_workflow_step_down(db: Session, step_id: int):
             step.order, next_step.order = next_step.order, step.order
             db.commit()
     return step
+
 
