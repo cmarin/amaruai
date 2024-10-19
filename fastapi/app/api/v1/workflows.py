@@ -4,7 +4,6 @@ from typing import List, Dict
 from app import crud, schemas, models
 from app.database import get_db
 from crewai import Agent, Task, Crew, Process, LLM
-from langchain.chat_models import ChatOpenAI
 import logging
 import os
 from dotenv import load_dotenv
@@ -122,6 +121,8 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
                             "response": f"Error: {str(task_error)}"
                         })
 
+                # Add a completion flag to the results
+                results.append({"completed": True})
                 workflow_results[workflow_id] = results
                 logging.info(f"Workflow execution completed: {results}")
                 return {"result": "Workflow execution completed"}
@@ -131,7 +132,7 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
                     "step": "Error",
                     "prompt": "Error occurred",
                     "response": str(e)
-                }]
+                }, {"completed": True}]  # Add completion flag even for errors
                 return {"result": f"Error during workflow execution: {str(e)}"}
 
         background_tasks.add_task(run_workflow)
@@ -145,14 +146,21 @@ async def get_workflow_results(workflow_id: int):
     results = workflow_results.get(workflow_id, [])
     if not results:
         return []
-    return [
+    
+    formatted_results = [
         {
             "step": str(result.get("step", "Unknown")),
             "prompt": str(result.get("prompt", "Unknown")),
             "response": str(result.get("response", "No response"))
         }
-        for result in results
+        for result in results if "completed" not in result
     ]
+    
+    # Check if the workflow is completed
+    if any("completed" in result for result in results):
+        formatted_results.append({"completed": "true"})
+    
+    return formatted_results
 
 @router.post("/workflows/{workflow_id}/steps/", response_model=schemas.WorkflowStep)
 def create_workflow_step(workflow_id: int, step: schemas.WorkflowStepCreate, db: Session = Depends(get_db)):

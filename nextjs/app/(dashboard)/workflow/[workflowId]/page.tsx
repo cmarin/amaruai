@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -10,6 +10,8 @@ import { fetchPromptTemplate, PromptTemplate } from '@/components/promptTemplate
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 import ReactMarkdown from 'react-markdown'
 
+const MAX_EMPTY_POLLS = 5;
+
 export default function WorkflowExecutionPage({ params }: { params: { workflowId: string } }) {
   const [workflow, setWorkflow] = useState<Workflow | null>(null)
   const [results, setResults] = useState<WorkflowResult[]>([])
@@ -18,6 +20,9 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
   const [showComplexPromptModal, setShowComplexPromptModal] = useState(false)
   const [complexPromptTemplate, setComplexPromptTemplate] = useState<PromptTemplate | null>(null)
   const router = useRouter()
+  const emptyPollCount = useRef(0)
+  const hasReceivedResults = useRef(false)
+  const isPolling = useRef(false)
 
   useEffect(() => {
     const loadWorkflow = async () => {
@@ -31,6 +36,11 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
       }
     }
     loadWorkflow()
+
+    // Cleanup function to ensure polling stops when component unmounts
+    return () => {
+      isPolling.current = false;
+    }
   }, [params.workflowId])
 
   const checkFirstStep = async (workflow: Workflow) => {
@@ -61,12 +71,20 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
   };
 
   const executeWorkflowAndPollResults = async (message?: string) => {
+    if (isExecuting) {
+      console.log('Workflow is already executing. Ignoring this call.');
+      return;
+    }
+
     setIsExecuting(true);
     setError(null);
+    setResults([]);  // Clear previous results
+    emptyPollCount.current = 0;
+    hasReceivedResults.current = false;
+
     try {
       if (message) {
         console.log('Executing workflow with message:', message);
-        // Trim the message to remove any leading or trailing whitespace
         const trimmedMessage = message.trim();
         await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, trimmedMessage);
       } else {
@@ -82,22 +100,74 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
   };
 
   const pollResults = async () => {
+    if (isPolling.current) {
+      console.log('Already polling. Ignoring this call.');
+      return;
+    }
+
+    isPolling.current = true;
+    console.log('Starting to poll for results');
+
     const pollInterval = setInterval(async () => {
+      if (!isPolling.current) {
+        console.log('Polling stopped. Clearing interval.');
+        clearInterval(pollInterval);
+        return;
+      }
+
       try {
         const fetchedResults = await getWorkflowResults(params.workflowId);
         console.log('Fetched results:', fetchedResults);
-        setResults(fetchedResults);
-        if (fetchedResults.length > 0 && (fetchedResults[fetchedResults.length - 1].step === "Error" || fetchedResults.length === workflow?.steps.length)) {
+
+        if (fetchedResults.length > 0) {
+          hasReceivedResults.current = true;
+          emptyPollCount.current = 0;
+
+          // Check for completion message
+          const completionMessage = fetchedResults.find(result => 'completed' in result);
+          if (completionMessage) {
+            console.log('Received completion message. Workflow execution is complete.');
+            setResults(prevResults => [...prevResults, ...fetchedResults.filter(result => !('completed' in result))]);
+            clearInterval(pollInterval);
+            setIsExecuting(false);
+            isPolling.current = false;
+            return;
+          }
+
+          setResults(prevResults => {
+            const newResults = [...prevResults];
+            fetchedResults.forEach(result => {
+              if (!newResults.some(r => r.step === result.step)) {
+                newResults.push(result);
+              }
+            });
+            return newResults;
+          });
+        } else if (hasReceivedResults.current) {
+          emptyPollCount.current += 1;
+          console.log('Empty poll count:', emptyPollCount.current);
+        }
+
+        if (emptyPollCount.current >= MAX_EMPTY_POLLS) {
+          console.log('Reached maximum number of empty polls. Stopping.');
           clearInterval(pollInterval);
           setIsExecuting(false);
+          isPolling.current = false;
         }
       } catch (error) {
         console.error('Error fetching results:', error);
         setError(`Failed to fetch workflow results: ${error}`);
         clearInterval(pollInterval);
         setIsExecuting(false);
+        isPolling.current = false;
       }
     }, 2000);  // Poll every 2 seconds
+
+    // Ensure the interval is cleared if the component unmounts
+    return () => {
+      clearInterval(pollInterval);
+      isPolling.current = false;
+    };
   };
 
   return (
