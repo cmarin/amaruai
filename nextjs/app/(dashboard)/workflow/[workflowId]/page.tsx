@@ -60,14 +60,19 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
     executeWorkflowAndPollResults(generatedPrompt);
   };
 
-  const executeWorkflowAndPollResults = async (message: string = 'Execute workflow') => {
+  const executeWorkflowAndPollResults = async (message?: string) => {
     setIsExecuting(true);
     setError(null);
     try {
-      console.log('Executing workflow with message:', message);
-      // Trim the message to remove any leading or trailing whitespace
-      const trimmedMessage = message.trim();
-      await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, trimmedMessage);
+      if (message) {
+        console.log('Executing workflow with message:', message);
+        // Trim the message to remove any leading or trailing whitespace
+        const trimmedMessage = message.trim();
+        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, trimmedMessage);
+      } else {
+        console.log('Executing workflow without message');
+        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`);
+      }
       pollResults();
     } catch (error) {
       console.error('Error executing workflow:', error);

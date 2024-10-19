@@ -235,17 +235,20 @@ export async function deleteWorkflowStep(workflowId: string, stepId: string): Pr
   });
 }
 
-export async function executeWorkflow(workflowId: string, userId: string, conversationId: string, message: string): Promise<void> {
+export async function executeWorkflow(workflowId: string, userId: string, conversationId: string, message?: string): Promise<void> {
   return fetchWithRetry(async () => {
     if (!API_URL) {
       throw new Error('API_URL is not defined');
     }
     const url = `${API_URL}/workflows/${workflowId}/execute`;
-    const payload = {
+    const payload: any = {
       user_id: userId,
       conversation_id: conversationId,
-      message: message,
     };
+
+    if (message) {
+      payload.message = message;
+    }
     
     console.log('Executing workflow:');
     console.log('URL:', url);
