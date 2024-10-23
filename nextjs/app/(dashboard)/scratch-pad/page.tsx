@@ -3,14 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { ChevronLeft, Copy, Check } from 'lucide-react'
-import { useRouter } from 'next/navigation';
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { getScratchPadContent, setScratchPadContent } from '@/components/scratchPadService'
+import { Copy, Check } from 'lucide-react'
 
 export default function ScratchPadPage() {
-  const [content, setContent] = useState('')
-  const [copied, setCopied] = useState(false)
-  const router = useRouter();
+  const [content, setContent] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchedContent = getScratchPadContent();
@@ -24,31 +23,23 @@ export default function ScratchPadPage() {
     setScratchPadContent(newContent);
   };
 
-  const copyToClipboard = () => {
+  const handleCopy = () => {
     navigator.clipboard.writeText(content).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }).catch(err => {
-      console.error('Failed to copy text: ', err)
-    })
-  }
-
-  const handleBack = () => {
-    router.back();
-  }
+      console.error('Failed to copy text: ', err);
+    });
+  };
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col h-screen">
-      <div className="flex items-center justify-between p-4 border-b">
-        <Button variant="ghost" onClick={handleBack} className="mr-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100">
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-        <h2 className="text-2xl font-bold">Scratch Pad</h2>
+    <div className="h-full flex flex-col p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Scratch Pad</h1>
         <Button
           variant="outline"
           size="icon"
-          onClick={copyToClipboard}
+          onClick={handleCopy}
           className="w-10 h-10 p-0"
           title={copied ? "Copied!" : "Copy to clipboard"}
         >
@@ -60,14 +51,14 @@ export default function ScratchPadPage() {
           <span className="sr-only">{copied ? "Copied" : "Copy to clipboard"}</span>
         </Button>
       </div>
-      <div className="flex-grow p-4 overflow-hidden">
+      <ScrollArea className="flex-grow">
         <Textarea
           value={content}
           onChange={handleContentChange}
-          className="w-full h-full resize-none"
-          placeholder="Your notes and collected conversations will appear here..."
+          className="w-full h-full min-h-[calc(100vh-120px)]"
+          placeholder="Type your notes here..."
         />
-      </div>
+      </ScrollArea>
     </div>
-  )
+  );
 }

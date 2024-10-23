@@ -400,62 +400,10 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="h-screen">
-      <div className="flex h-screen overflow-hidden bg-gray-100">
-        {/* Left Sidebar */}
-        <div className={`bg-white transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-64' : 'w-0'} flex flex-col overflow-hidden relative`}>
-          <div className="p-4 flex-grow overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h1 className="text-2xl font-bold">AmaruAI</h1>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleSidebar}
-                className="hover:bg-gray-200 rounded-full"
-              >
-                <ChevronLeft size={18} />
-                <span className="sr-only">Toggle Sidebar</span>
-              </Button>
-            </div>
-            <h2 className="font-semibold mb-2">AI TOOLS</h2>
-            {sidebarNavItems.map((item) => (
-              <Button 
-                key={item.title}
-                variant="ghost"
-                className="justify-start w-full"
-                onClick={() => router.push(item.href)}
-              >
-                <item.icon className="mr-2" size={18} /> {item.title}
-              </Button>
-            ))}
-            <h2 className="font-semibold mt-4 mb-2">AI MODELS</h2>
-            {allModels.map(model => (
-              <Button 
-                key={model.id} 
-                variant="ghost"
-                className="justify-start mb-1 w-full"
-                onClick={() => toggleChatbot(model.id.toString())}
-              >
-                <MessageSquare className="mr-2" size={18} /> {model.name}
-              </Button>
-            ))}
-          </div>
-        </div>
-
+    <div className="h-full w-full">
+      <div className="flex h-full w-full overflow-hidden bg-gray-100">
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col overflow-hidden relative">
-          {!sidebarOpen && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleSidebar}
-              className="absolute top-4 left-0 z-10 hover:bg-gray-200 rounded-r-full"
-            >
-              <ChevronRight size={18} />
-              <span className="sr-only">Open Sidebar</span>
-            </Button>
-          )}
-
+        <div className="flex-1 flex flex-col overflow-hidden">
           {showPromptLibrary ? (
             <PromptLibrary onBack={handleBackFromPromptLibrary} onSelectPrompt={handleSelectPrompt} prompts={prompts} onUpdatePrompts={async () => {}} />
           ) : showPersonaLibrary ? (
