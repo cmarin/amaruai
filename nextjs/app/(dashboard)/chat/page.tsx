@@ -23,6 +23,7 @@ import { fetchWithRetry } from '@/components/apiUtils'
 import { useData } from '@/components/DataContext'
 import { useRouter } from 'next/navigation';
 import { addToScratchPad as addToScratchPadService } from '@/components/scratchPadService'
+import { AppSidebar } from '@/components/app-sidebar'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -402,6 +403,7 @@ export default function ChatPage() {
   return (
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-gray-100">
+        <AppSidebar toggleChatbot={toggleChatbot} />
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {showPromptLibrary ? (

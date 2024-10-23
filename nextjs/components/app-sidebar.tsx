@@ -13,7 +13,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { useData } from '@/components/DataContext'
@@ -46,7 +45,11 @@ const aiTools = [
   },
 ]
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  toggleChatbot: (modelId: string) => void;
+}
+
+export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
   const router = useRouter()
   const { chatModels } = useData()
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -97,7 +100,7 @@ export function AppSidebar() {
                       <Button 
                         variant="ghost"
                         className={`justify-start w-full ${sidebarOpen ? '' : 'px-2'}`}
-                        onClick={() => router.push(`/chat?model=${model.model}`)}
+                        onClick={() => toggleChatbot(model.id.toString())}
                       >
                         <MessageSquare className={sidebarOpen ? "mr-2" : ""} size={18} />
                         {sidebarOpen && <span>{model.name}</span>}
