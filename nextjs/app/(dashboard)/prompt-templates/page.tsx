@@ -191,7 +191,7 @@ export default function PromptTemplatesPage() {
 
   return (
     <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-gray-100">
+      <div className="flex h-full w-full overflow-hidden bg-white"> {/* Changed bg-gray-100 to bg-white */}
         <AppSidebar toggleChatbot={toggleChatbot} />
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <div className="flex items-center justify-between p-4 border-b bg-white">
