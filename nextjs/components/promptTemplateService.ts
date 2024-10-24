@@ -41,6 +41,8 @@ export interface PromptTemplate {
   isFavorite?: boolean;
   isComplex?: boolean;
   category?: string;
+  name?: string;
+  description?: string;
 }
 
 export async function createPromptTemplate(promptTemplate: {

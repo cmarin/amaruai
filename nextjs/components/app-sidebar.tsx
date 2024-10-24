@@ -65,7 +65,7 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
           <SidebarGroup>
             <div className="flex justify-between items-center p-4">
               {sidebarOpen && (
-                <h1 className="text-2xl font-bold">AmurAI</h1>
+                <h1 className="text-2xl font-bold">AmaruAI</h1>
               )}
               <Button
                 variant="ghost"
