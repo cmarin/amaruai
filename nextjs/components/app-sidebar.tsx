@@ -5,16 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useData } from '@/components/DataContext'
 import { useSidebar } from '@/components/SidebarContext'
 
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 
 const aiTools = [
@@ -55,48 +45,46 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
   const { sidebarOpen, toggleSidebar } = useSidebar()
 
   return (
-    <div className={`fixed top-0 left-0 h-full transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-16'} bg-gray-100 overflow-hidden`}>
+    <div className={`fixed top-0 left-0 h-full bg-gray-100 transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-16'} overflow-hidden`}>
       <div className="h-full flex flex-col">
         <div className="flex justify-between items-center p-4">
-          {sidebarOpen && (
-            <h1 className="text-2xl font-bold">AmaruAI</h1>
-          )}
+          {sidebarOpen && <h1 className="text-2xl font-bold">AmaruAI</h1>}
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleSidebar}
-            className="hover:bg-gray-200 rounded-full"
+            className={`hover:bg-gray-200 rounded-full ${sidebarOpen ? '' : 'ml-auto'}`}
           >
             {sidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
           </Button>
         </div>
         <div className="flex-grow overflow-y-auto">
-          <SidebarMenu>
+          <div className="space-y-2">
+            {sidebarOpen && <div className="px-4 py-2 text-sm font-semibold text-gray-500">AI Tools</div>}
             {aiTools.map((item) => (
-              <SidebarMenuItem key={item.title}>
-                <Button 
-                  variant="ghost"
-                  className={`justify-start w-full ${sidebarOpen ? 'px-4' : 'px-2'}`}
-                  onClick={() => router.push(item.href)}
-                >
-                  <item.icon className={sidebarOpen ? "mr-2" : ""} size={18} />
-                  {sidebarOpen && <span>{item.title}</span>}
-                </Button>
-              </SidebarMenuItem>
+              <Button 
+                key={item.title}
+                variant="ghost"
+                className={`w-full justify-start ${sidebarOpen ? 'px-4' : 'px-2'}`}
+                onClick={() => router.push(item.href)}
+              >
+                <item.icon className={sidebarOpen ? "mr-2" : ""} size={18} />
+                {sidebarOpen && <span>{item.title}</span>}
+              </Button>
             ))}
+            {sidebarOpen && <div className="px-4 py-2 text-sm font-semibold text-gray-500">AI Models</div>}
             {chatModels.map((model) => (
-              <SidebarMenuItem key={model.id}>
-                <Button 
-                  variant="ghost"
-                  className={`justify-start w-full ${sidebarOpen ? 'px-4' : 'px-2'}`}
-                  onClick={() => toggleChatbot(model.id.toString())}
-                >
-                  <MessageSquare className={sidebarOpen ? "mr-2" : ""} size={18} />
-                  {sidebarOpen && <span>{model.name}</span>}
-                </Button>
-              </SidebarMenuItem>
+              <Button 
+                key={model.id}
+                variant="ghost"
+                className={`w-full justify-start ${sidebarOpen ? 'px-4' : 'px-2'}`}
+                onClick={() => toggleChatbot(model.id.toString())}
+              >
+                <MessageSquare className={sidebarOpen ? "mr-2" : ""} size={18} />
+                {sidebarOpen && <span>{model.name}</span>}
+              </Button>
             ))}
-          </SidebarMenu>
+          </div>
         </div>
       </div>
     </div>
