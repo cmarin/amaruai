@@ -25,6 +25,7 @@ import { useRouter } from 'next/navigation';
 import { addToScratchPad as addToScratchPadService } from '@/components/scratchPadService'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/SidebarContext'
+import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon } from '@/components/icons/ai-provider-icons'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -80,6 +81,19 @@ const sidebarNavItems = [
     icon: Workflow,
   },
 ]
+
+const getProviderIcon = (modelId: string, modelName: string) => {
+  const nameLower = modelName.toLowerCase()
+  
+  if (nameLower.includes('gpt') || nameLower.includes('o1')) return OpenAIIcon
+  if (nameLower.includes('claude')) return AnthropicIcon
+  if (nameLower.includes('gemini')) return GeminiIcon
+  if (nameLower.includes('perplexity')) return PerplexityIcon
+  if (nameLower.includes('mistral') || nameLower.includes('mixtral')) return MistralIcon
+  if (nameLower.includes('llama')) return MetaIcon
+  if (nameLower.includes('zephyr')) return ZephyrIcon
+  return MessageSquare // fallback to default icon
+}
 
 export default function ChatPage() {
   const { chatModels, personas, promptTemplates, categories, isLoading: dataLoading, error, refetchData } = useData()
@@ -416,7 +430,10 @@ export default function ChatPage() {
                   <div key={bot.id} className="bg-white rounded-lg shadow flex flex-col overflow-hidden">
                     <div className="p-4 border-b flex justify-between items-center">
                       <div className="flex items-center">
-                        <MessageSquare className="mr-2" size={18} />
+                        {(() => {
+                          const IconComponent = getProviderIcon(bot.id, bot.name)
+                          return <IconComponent className="mr-2" size={18} />
+                        })()}
                         <span className="text-sm font-medium">{bot.name}</span>
                       </div>
                       <div className="flex items-center space-x-2">
