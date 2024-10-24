@@ -1,5 +1,6 @@
 'use client';  // Add this line at the top of the file
 
+import Image from 'next/image'
 import { FileText, BookOpen, Brain, Workflow, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react"
 import { useRouter } from 'next/navigation'
 import { useData } from '@/components/DataContext'
@@ -48,7 +49,17 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
     <div className={`fixed top-0 left-0 h-full bg-gray-100 transition-all duration-300 ${sidebarOpen ? 'w-56' : 'w-14'} overflow-hidden`}>
       <div className="h-full flex flex-col">
         <div className="flex justify-between items-center p-3">
-          {sidebarOpen && <h1 className="text-xl font-bold">AmaruAI</h1>}
+          {sidebarOpen && (
+            <div className="flex items-center gap-2">
+              <Image 
+                src="/images/amaruai_logo.svg"
+                alt="AmaruAI Logo"
+                width={36}
+                height={36}
+              />
+              <h1 className="text-xl font-bold">AmaruAI</h1>
+            </div>
+          )}
           <Button
             variant="ghost"
             size="icon"
