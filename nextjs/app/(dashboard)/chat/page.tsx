@@ -24,6 +24,7 @@ import { useData } from '@/components/DataContext'
 import { useRouter } from 'next/navigation';
 import { addToScratchPad as addToScratchPadService } from '@/components/scratchPadService'
 import { AppSidebar } from '@/components/app-sidebar'
+import { useSidebar } from '@/components/SidebarContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -83,6 +84,7 @@ const sidebarNavItems = [
 export default function ChatPage() {
   const { chatModels, personas, promptTemplates, categories, isLoading: dataLoading, error, refetchData } = useData()
   const router = useRouter();
+  const { sidebarOpen, toggleSidebar } = useSidebar()
 
   const [allModels, setAllModels] = useState<ChatModel[]>([])
   const [chatbots, setChatbots] = useState<ChatBot[]>([])
@@ -94,7 +96,6 @@ export default function ChatPage() {
   const [prompts, setPrompts] = useState<PromptTemplate[]>([])
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<PromptTemplate | null>(null)
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [showMainDisplay, setShowMainDisplay] = useState(true)
@@ -300,10 +301,6 @@ export default function ChatPage() {
     setShowPromptLibrary(false)
   }
 
-  const handleBackFromPersonaLibrary = () => {
-    setShowPersonaLibrary(false)
-  }
-
   const copyToClipboard = useCallback((botId: string) => {
     const bot = chatbots.find(b => b.id === botId)
     if (bot) {
@@ -329,10 +326,6 @@ export default function ChatPage() {
     setChatbots(chatbots.map(bot => ({ ...bot, messages: [], conversationId: uuidv4() })))
     setInput('')
   }, [chatbots])
-
-  const toggleSidebar = () => {
-    setSidebarOpen(prev => !prev)
-  }
 
   const handleFileUpload = () => {
     fileInputRef.current?.click()
@@ -404,13 +397,11 @@ export default function ChatPage() {
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-gray-100">
         <AppSidebar toggleChatbot={toggleChatbot} />
-        {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           {showPromptLibrary ? (
             <PromptLibrary onBack={handleBackFromPromptLibrary} onSelectPrompt={handleSelectPrompt} prompts={prompts} onUpdatePrompts={async () => {}} />
           ) : showPersonaLibrary ? (
             <PersonaLibrary
-              onBack={handleBackFromPersonaLibrary}
               personas={localPersonas}
               onUpdatePersonas={handleUpdatePersonas}
             />

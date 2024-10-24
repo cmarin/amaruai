@@ -4,12 +4,15 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation';
 import { fetchPersonas, Persona, deletePersona } from '@/components/personaService'
 import PersonaLibrary from '@/components/persona-library'
+import { AppSidebar } from '@/components/app-sidebar'
+import { useSidebar } from '@/components/SidebarContext'
 
 export default function PersonaPage() {
   const router = useRouter();
   const [personas, setPersonas] = useState<Persona[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { sidebarOpen } = useSidebar()
 
   useEffect(() => {
     fetchPersonas()
@@ -34,18 +37,24 @@ export default function PersonaPage() {
     }
   }
 
-  const handleBack = () => {
-    router.push('/chat');
-  };
+  const toggleChatbot = (modelId: string) => {
+    router.push(`/chat?model=${modelId}`);
+  }
 
   if (isLoading) return <div>Loading personas...</div>
   if (error) return <div>Error: {error}</div>
 
   return (
-    <PersonaLibrary
-      onBack={handleBack}
-      personas={personas}
-      onUpdatePersonas={handleUpdatePersonas}
-    />
+    <div className="h-full w-full">
+      <div className="flex h-full w-full overflow-hidden bg-gray-100">
+        <AppSidebar toggleChatbot={toggleChatbot} />
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+          <PersonaLibrary
+            personas={personas}
+            onUpdatePersonas={handleUpdatePersonas}
+          />
+        </div>
+      </div>
+    </div>
   )
 }

@@ -11,13 +11,17 @@ import { Badge } from "@/components/ui/badge"
 import { useRouter } from 'next/navigation'
 import { WorkflowManagerComponent } from '@/components/workflow-manager'
 import { AppSidebar } from '@/components/app-sidebar'
+import { useSidebar } from '@/components/SidebarContext'
 
 export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [showWorkflowManager, setShowWorkflowManager] = useState(false)
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const { sidebarOpen } = useSidebar()
 
   useEffect(() => {
     loadWorkflows()
@@ -25,10 +29,14 @@ export default function WorkflowsPage() {
 
   const loadWorkflows = async () => {
     try {
+      setIsLoading(true)
       const fetchedWorkflows = await fetchWorkflows()
       setWorkflows(fetchedWorkflows)
+      setIsLoading(false)
     } catch (error) {
       console.error('Error loading workflows:', error)
+      setError('Failed to load workflows')
+      setIsLoading(false)
     }
   }
 
@@ -70,6 +78,9 @@ export default function WorkflowsPage() {
     router.push(`/chat?model=${modelId}`)
   }
 
+  if (isLoading) return <div>Loading workflows...</div>
+  if (error) return <div>Error: {error}</div>
+
   if (showWorkflowManager) {
     return (
       <WorkflowManagerComponent
@@ -82,9 +93,9 @@ export default function WorkflowsPage() {
 
   return (
     <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-gray-100">
+      <div className="flex h-full w-full overflow-hidden bg-white">
         <AppSidebar toggleChatbot={toggleChatbot} />
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <div className="flex items-center justify-between p-4 border-b bg-white">
             <h1 className="text-2xl font-bold">Workflows</h1>
             <Button onClick={handleNewWorkflow} className="bg-blue-600 hover:bg-blue-700 text-white">

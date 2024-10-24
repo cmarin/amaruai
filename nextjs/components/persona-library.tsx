@@ -2,19 +2,18 @@ import { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { ChevronLeft, Plus, Edit, Trash2 } from 'lucide-react'
+import { Plus, Edit, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import PersonaManager from './persona-manager'
 import { Persona, deletePersona } from './personaService'
 import { Badge } from "@/components/ui/badge"
 
 type PersonaLibraryProps = {
-  onBack: () => void;
   personas: Persona[];
   onUpdatePersonas: () => Promise<void>;
 }
 
-export default function PersonaLibrary({ onBack, personas, onUpdatePersonas }: PersonaLibraryProps) {
+export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLibraryProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null)
   const [isCreating, setIsCreating] = useState(false)
@@ -67,12 +66,8 @@ export default function PersonaLibrary({ onBack, personas, onUpdatePersonas }: P
   }
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col h-screen">
-      <div className="flex items-center justify-between p-4 border-b">
-        <Button variant="ghost" onClick={onBack} className="mr-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100">
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between p-4 border-b bg-white">
         <h1 className="text-2xl font-bold">Persona Library</h1>
         <Button onClick={handleCreatePersona} className="bg-blue-600 hover:bg-blue-700 text-white">
           <Plus className="mr-2 h-4 w-4" />

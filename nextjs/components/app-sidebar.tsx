@@ -2,7 +2,8 @@
 
 import { FileText, BookOpen, Brain, Workflow, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react"
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useData } from '@/components/DataContext'
+import { useSidebar } from '@/components/SidebarContext'
 
 import {
   Sidebar,
@@ -15,7 +16,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { useData } from '@/components/DataContext'
 
 const aiTools = [
   {
@@ -52,67 +52,53 @@ interface AppSidebarProps {
 export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
   const router = useRouter()
   const { chatModels } = useData()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen)
-  }
+  const { sidebarOpen, toggleSidebar } = useSidebar()
 
   return (
-    <div className="relative">
-      <Sidebar className={`transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-16'}`}>
-        <SidebarContent>
-          <SidebarGroup>
-            <div className="flex justify-between items-center p-4">
-              {sidebarOpen && (
-                <h1 className="text-2xl font-bold">AmaruAI</h1>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleSidebar}
-                className={`hover:bg-gray-200 rounded-full ${sidebarOpen ? '' : 'ml-auto'}`}
-              >
-                {sidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-              </Button>
-            </div>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {sidebarOpen && <SidebarGroupLabel>AI Tools</SidebarGroupLabel>}
-                {aiTools.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <Button 
-                        variant="ghost"
-                        className={`justify-start w-full ${sidebarOpen ? '' : 'px-2'}`}
-                        onClick={() => router.push(item.href)}
-                      >
-                        <item.icon className={sidebarOpen ? "mr-2" : ""} size={18} />
-                        {sidebarOpen && <span>{item.title}</span>}
-                      </Button>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-                {sidebarOpen && <SidebarGroupLabel>AI Models</SidebarGroupLabel>}
-                {chatModels.map((model) => (
-                  <SidebarMenuItem key={model.id}>
-                    <SidebarMenuButton asChild>
-                      <Button 
-                        variant="ghost"
-                        className={`justify-start w-full ${sidebarOpen ? '' : 'px-2'}`}
-                        onClick={() => toggleChatbot(model.id.toString())}
-                      >
-                        <MessageSquare className={sidebarOpen ? "mr-2" : ""} size={18} />
-                        {sidebarOpen && <span>{model.name}</span>}
-                      </Button>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-      </Sidebar>
+    <div className={`fixed top-0 left-0 h-full transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-16'} bg-gray-100 overflow-hidden`}>
+      <div className="h-full flex flex-col">
+        <div className="flex justify-between items-center p-4">
+          {sidebarOpen && (
+            <h1 className="text-2xl font-bold">AmaruAI</h1>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="hover:bg-gray-200 rounded-full"
+          >
+            {sidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+          </Button>
+        </div>
+        <div className="flex-grow overflow-y-auto">
+          <SidebarMenu>
+            {aiTools.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <Button 
+                  variant="ghost"
+                  className={`justify-start w-full ${sidebarOpen ? 'px-4' : 'px-2'}`}
+                  onClick={() => router.push(item.href)}
+                >
+                  <item.icon className={sidebarOpen ? "mr-2" : ""} size={18} />
+                  {sidebarOpen && <span>{item.title}</span>}
+                </Button>
+              </SidebarMenuItem>
+            ))}
+            {chatModels.map((model) => (
+              <SidebarMenuItem key={model.id}>
+                <Button 
+                  variant="ghost"
+                  className={`justify-start w-full ${sidebarOpen ? 'px-4' : 'px-2'}`}
+                  onClick={() => toggleChatbot(model.id.toString())}
+                >
+                  <MessageSquare className={sidebarOpen ? "mr-2" : ""} size={18} />
+                  {sidebarOpen && <span>{model.name}</span>}
+                </Button>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </div>
+      </div>
     </div>
   )
 }

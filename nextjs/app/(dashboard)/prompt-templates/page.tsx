@@ -27,6 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useSidebar } from '@/components/SidebarContext'
 
 export default function PromptTemplatesPage() {
   const router = useRouter();
@@ -48,6 +49,7 @@ export default function PromptTemplatesPage() {
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<PromptTemplate | null>(null);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
   const [templateToDelete, setTemplateToDelete] = useState<PromptTemplate | null>(null)
+  const { sidebarOpen } = useSidebar()
 
   useEffect(() => {
     loadPromptTemplates();
@@ -191,7 +193,7 @@ export default function PromptTemplatesPage() {
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-gray-100">
         <AppSidebar toggleChatbot={toggleChatbot} />
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <div className="flex items-center justify-between p-4 border-b bg-white">
             <h1 className="text-2xl font-bold">Prompt Templates</h1>
             <div>
