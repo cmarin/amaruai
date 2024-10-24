@@ -50,6 +50,7 @@ export default function PromptTemplatesPage() {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
   const [templateToDelete, setTemplateToDelete] = useState<PromptTemplate | null>(null)
   const { sidebarOpen } = useSidebar()
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
     loadPromptTemplates();
@@ -83,9 +84,12 @@ export default function PromptTemplatesPage() {
   };
 
   const filteredPrompts = prompts.filter(prompt =>
-    prompt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (prompt.description || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (prompt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (prompt.description || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (!selectedCategory || prompt.categories.some(category => category.name === selectedCategory))
   );
+
+  const allCategories = Array.from(new Set(prompts.flatMap((prompt) => prompt.categories.map(category => category.name))));
 
   const handleNewSimplePrompt = () => {
     setIsNewSimplePromptDialogOpen(true);
@@ -98,10 +102,27 @@ export default function PromptTemplatesPage() {
 
   const handleEditPrompt = (prompt: PromptTemplate) => {
     if (prompt.is_complex) {
-      setSelectedComplexPrompt(prompt);
+      let complexPromptData: PromptContent;
+      if (typeof prompt.prompt === 'string') {
+        try {
+          complexPromptData = JSON.parse(prompt.prompt);
+        } catch (error) {
+          console.error('Error parsing complex prompt data:', error);
+          complexPromptData = { variables: [], prompt: prompt.prompt };
+        }
+      } else {
+        complexPromptData = prompt.prompt as PromptContent;
+      }
+      setSelectedComplexPrompt({
+        ...prompt,
+        prompt: complexPromptData,
+      });
       setIsComplexEditorOpen(true);
     } else {
-      setEditingPrompt(prompt);
+      setEditingPrompt({
+        ...prompt,
+        category: prompt.categories[0]?.id.toString() || ''
+      });
       setIsEditPromptDialogOpen(true);
     }
   };
@@ -213,6 +234,27 @@ export default function PromptTemplatesPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="mb-4"
             />
+            <ScrollArea className="h-16 mb-4">
+              <div className="flex space-x-2">
+                <Button
+                  variant={selectedCategory === null ? "default" : "outline"}
+                  onClick={() => setSelectedCategory(null)}
+                  className={`mb-2 ${selectedCategory === null ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'text-blue-600 border-blue-600 hover:bg-blue-100'}`}
+                >
+                  All
+                </Button>
+                {allCategories.map(category => (
+                  <Button
+                    key={category}
+                    variant={selectedCategory === category ? "default" : "outline"}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`mb-2 ${selectedCategory === category ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'text-blue-600 border-blue-600 hover:bg-blue-100'}`}
+                  >
+                    {category}
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
           </div>
           <ScrollArea className="flex-grow">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
@@ -236,7 +278,7 @@ export default function PromptTemplatesPage() {
                           </Button>
                         </div>
                       </div>
-                      <p className="text-sm mb-4">{prompt.description || 'No description available'}</p>
+                      <p className="text-sm text-gray-600 mb-2">Category: {prompt.categories.map(category => category.name).join(', ')}</p>
                       {prompt.is_complex ? (
                         <Button
                           variant="outline"
@@ -317,10 +359,10 @@ export default function PromptTemplatesPage() {
 
       {/* Edit Prompt Dialog */}
       <Dialog open={isEditPromptDialogOpen} onOpenChange={setIsEditPromptDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle>Edit Prompt</DialogTitle>
-            <DialogDescription>Make changes to your prompt here</DialogDescription>
+            <DialogTitle className="text-gray-900">Edit Prompt</DialogTitle>
+            <DialogDescription className="text-gray-600">Make changes to your prompt here</DialogDescription>
           </DialogHeader>
           {editingPrompt && (
             <div className="grid gap-4 py-4">
@@ -328,17 +370,19 @@ export default function PromptTemplatesPage() {
                 placeholder="Title"
                 value={editingPrompt.title}
                 onChange={(e) => setEditingPrompt({ ...editingPrompt, title: e.target.value })}
+                className="border-gray-300"
               />
               <Textarea
                 placeholder="Prompt content"
                 value={editingPrompt.prompt as string}
                 onChange={(e) => setEditingPrompt({ ...editingPrompt, prompt: e.target.value })}
+                className="border-gray-300"
               />
               <Select
                 value={editingPrompt.category}
                 onValueChange={(value) => setEditingPrompt({ ...editingPrompt, category: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="border-gray-300">
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -357,7 +401,7 @@ export default function PromptTemplatesPage() {
             </div>
           )}
           <DialogFooter>
-            <Button onClick={handleSaveEditedPrompt}>Save</Button>
+            <Button onClick={handleSaveEditedPrompt} className="bg-blue-600 hover:bg-blue-700 text-white">Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

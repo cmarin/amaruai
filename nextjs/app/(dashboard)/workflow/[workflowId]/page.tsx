@@ -219,13 +219,7 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
         <AppSidebar toggleChatbot={toggleChatbot} />
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
           <div className="flex items-center justify-between p-4 border-b">
-            <div className="flex items-center">
-              <Button variant="ghost" onClick={() => router.push('/workflows')} className="mr-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100">
-                <ChevronLeft className="mr-2 h-4 w-4" />
-                Back to Workflows
-              </Button>
-              <h1 className="text-2xl font-bold">{workflow?.name || 'Loading...'}</h1>
-            </div>
+            <h1 className="text-2xl font-bold">{workflow?.name || 'Loading...'}</h1>
             <div className="flex space-x-2">
               <Button
                 variant="outline"

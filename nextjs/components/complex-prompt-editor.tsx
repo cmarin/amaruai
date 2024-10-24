@@ -75,7 +75,7 @@ type VariableFieldValue =
   | undefined;
 
 export function ComplexPromptEditor({ initialData, initialTitle, initialCategory, initialTags, onSave, onClose, categories }: ComplexPromptEditorProps) {
-  const [promptContent, setPromptContent] = useState<PromptContent>(initialData || {
+  const [promptContent, setPromptContent] = useState<PromptContent>({
     variables: [],
     prompt: ""
   })
@@ -88,7 +88,21 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
 
   useEffect(() => {
     if (initialData) {
-      setPromptContent(initialData)
+      let parsedData: PromptContent;
+      if (typeof initialData === 'string') {
+        try {
+          parsedData = JSON.parse(initialData);
+        } catch (error) {
+          console.error('Error parsing initialData:', error);
+          parsedData = { variables: [], prompt: initialData };
+        }
+      } else {
+        parsedData = initialData;
+      }
+      setPromptContent({
+        variables: Array.isArray(parsedData.variables) ? parsedData.variables : [],
+        prompt: parsedData.prompt || ""
+      });
     }
     setTitle(initialTitle)
     setCategory(initialCategory)
@@ -462,7 +476,7 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
                       <SelectValue placeholder="Insert Variable" />
                     </SelectTrigger>
                     <SelectContent>
-                      {promptContent.variables.map((v, index) => (
+                      {(promptContent.variables || []).map((v, index) => (
                         <SelectItem key={index} value={v.fieldName || `variable-${index}`}>
                           {v.fieldName || `Variable ${index + 1}`}
                         </SelectItem>
@@ -476,7 +490,7 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
                     <Label>Variables</Label>
                     <Button onClick={handleAddVariable} className="bg-blue-500 hover:bg-blue-600 text-white">Add Variable</Button>
                   </div>
-                  {promptContent.variables.map((variable, index) => renderVariable(variable, index))}
+                  {(promptContent.variables || []).map((variable, index) => renderVariable(variable, index))}
                 </div>
               </div>
             </TabsContent>
