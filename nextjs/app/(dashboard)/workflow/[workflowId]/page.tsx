@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { ChevronLeft, Copy, FileText, Check } from 'lucide-react'
+import { ChevronLeft, Copy, FileText, Check, RefreshCw } from 'lucide-react'
 import { fetchWorkflow, Workflow, executeWorkflow, getWorkflowResults, WorkflowResult } from '@/components/workflowService'
 import { fetchPromptTemplate, PromptTemplate } from '@/components/promptTemplateService'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
@@ -28,6 +28,8 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
   const hasReceivedResults = useRef(false)
   const isPolling = useRef(false)
   const { sidebarOpen } = useSidebar()
+  const [showRunAgain, setShowRunAgain] = useState(false)
+  const [initialMessage, setInitialMessage] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     const loadWorkflow = async () => {
@@ -72,6 +74,7 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
     console.log('Complex prompt submitted:', generatedPrompt);
     setShowComplexPromptModal(false);
+    setInitialMessage(generatedPrompt);
     executeWorkflowAndPollResults(generatedPrompt);
   };
 
@@ -84,6 +87,7 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
     setIsExecuting(true);
     setError(null);
     setResults([]);  // Clear previous results
+    setShowRunAgain(false);  // Hide the "Run Again" button
     emptyPollCount.current = 0;
     hasReceivedResults.current = false;
 
@@ -92,6 +96,9 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
         console.log('Executing workflow with message:', message);
         const trimmedMessage = message.trim();
         await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, trimmedMessage);
+      } else if (initialMessage) {
+        console.log('Executing workflow with initial message:', initialMessage);
+        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, initialMessage);
       } else {
         console.log('Executing workflow without message');
         await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`);
@@ -101,6 +108,7 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
       console.error('Error executing workflow:', error);
       setError(`Failed to execute workflow: ${error}`);
       setIsExecuting(false);
+      setShowRunAgain(true);  // Show the "Run Again" button on error
     }
   };
 
@@ -127,6 +135,7 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
         if (fetchedResults.length > 0) {
           hasReceivedResults.current = true;
           emptyPollCount.current = 0;
+          setShowRunAgain(true);  // Show the "Run Again" button when results start coming in
 
           // Check for completion message
           const completionMessage = fetchedResults.find(result => 'completed' in result);
@@ -165,6 +174,7 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
         clearInterval(pollInterval);
         setIsExecuting(false);
         isPolling.current = false;
+        setShowRunAgain(true);  // Show the "Run Again" button on error
       }
     }, 2000);  // Poll every 2 seconds
 
@@ -193,6 +203,14 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
     const content = `Workflow: ${workflow?.name}\n\n` + results.map(result => `Step ${result.step}:\nPrompt: ${result.prompt}\nResponse: ${result.response}`).join('\n\n');
     addToScratchPad(content);
     // You might want to add some visual feedback here, like a temporary message
+  };
+
+  const handleRunAgain = () => {
+    if (complexPromptTemplate && !initialMessage) {
+      setShowComplexPromptModal(true);
+    } else {
+      executeWorkflowAndPollResults();
+    }
   };
 
   return (
@@ -249,6 +267,18 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
                 </div>
               </div>
             ))}
+            {showRunAgain && (
+              <div className="mt-6 flex justify-center">
+                <Button
+                  onClick={handleRunAgain}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={isExecuting}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Run Again
+                </Button>
+              </div>
+            )}
           </ScrollArea>
           {showComplexPromptModal && complexPromptTemplate && (
             <ComplexPromptModal
