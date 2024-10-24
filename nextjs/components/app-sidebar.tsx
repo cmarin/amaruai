@@ -49,7 +49,7 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
     <div className={`fixed top-0 left-0 h-full bg-gray-100 transition-all duration-300 ${sidebarOpen ? 'w-56' : 'w-14'} overflow-hidden`}>
       <div className="h-full flex flex-col">
         <div className="flex justify-between items-center p-3">
-          {sidebarOpen && (
+          {sidebarOpen ? (
             <div className="flex items-center gap-2">
               <Image 
                 src="/images/amaruai_logo.svg"
@@ -59,6 +59,14 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
               />
               <h1 className="text-xl font-bold">AmaruAI</h1>
             </div>
+          ) : (
+            <Image 
+              src="/images/amaruai_logo.svg"
+              alt="AmaruAI Logo"
+              width={16}
+              height={16}
+              className="ml-[-5px]"
+            />
           )}
           <Button
             variant="ghost"
