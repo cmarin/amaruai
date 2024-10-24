@@ -12,6 +12,16 @@ import { useRouter } from 'next/navigation'
 import { WorkflowManagerComponent } from '@/components/workflow-manager'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/SidebarContext'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([])
@@ -20,6 +30,8 @@ export default function WorkflowsPage() {
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
+  const [workflowToDelete, setWorkflowToDelete] = useState<Workflow | null>(null)
   const router = useRouter()
   const { sidebarOpen } = useSidebar()
 
@@ -40,16 +52,21 @@ export default function WorkflowsPage() {
     }
   }
 
-  const handleDelete = async (id: string | undefined) => {
-    if (!id) {
-      console.error('Cannot delete workflow: id is undefined');
-      return;
-    }
-    try {
-      await deleteWorkflow(id)
-      setWorkflows(workflows.filter(workflow => workflow.id !== id))
-    } catch (error) {
-      console.error('Error deleting workflow:', error)
+  const handleDeleteClick = (workflow: Workflow) => {
+    setWorkflowToDelete(workflow)
+    setShowDeleteConfirmation(true)
+  }
+
+  const confirmDelete = async () => {
+    if (workflowToDelete && workflowToDelete.id) {
+      try {
+        await deleteWorkflow(workflowToDelete.id)
+        setWorkflows(workflows.filter(workflow => workflow.id !== workflowToDelete.id))
+        setShowDeleteConfirmation(false)
+        setWorkflowToDelete(null)
+      } catch (error) {
+        console.error('Error deleting workflow:', error)
+      }
     }
   }
 
@@ -129,7 +146,7 @@ export default function WorkflowsPage() {
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            onClick={() => handleDelete(workflow.id)} 
+                            onClick={() => handleDeleteClick(workflow)} 
                             className="text-red-500 hover:text-red-700 hover:bg-red-100"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -152,6 +169,21 @@ export default function WorkflowsPage() {
           </ScrollArea>
         </div>
       </div>
+
+      <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900">Are you sure you want to delete this workflow?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600">
+              This action cannot be undone. The workflow will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-gray-100 text-gray-900 hover:bg-gray-200">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 text-white hover:bg-red-700" onClick={confirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
