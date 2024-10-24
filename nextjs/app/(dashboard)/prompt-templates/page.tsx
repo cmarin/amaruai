@@ -111,7 +111,7 @@ export default function PromptTemplatesPage() {
           complexPromptData = { variables: [], prompt: prompt.prompt };
         }
       } else {
-        complexPromptData = prompt.prompt as PromptContent;
+        complexPromptData = prompt.prompt;
       }
       setSelectedComplexPrompt({
         ...prompt,
@@ -150,7 +150,7 @@ export default function PromptTemplatesPage() {
         title: editingPrompt.title,
         prompt: editingPrompt.prompt as string,
         is_complex: false,
-        default_persona_id: editingPrompt.default_persona_id,
+        default_persona_id: editingPrompt.default_persona_id || null,  // Add '|| null' here
         category_ids: editingPrompt.category ? [parseInt(editingPrompt.category)] : [],
         tag_ids: editingPrompt.tags.map(t => t.id || t.name),
       });
@@ -186,7 +186,7 @@ export default function PromptTemplatesPage() {
           title,
           prompt: JSON.stringify(complexPromptData),
           is_complex: true,
-          default_persona_id: selectedComplexPrompt.default_persona_id,
+          default_persona_id: selectedComplexPrompt.default_persona_id || null,  // Add '|| null' here
           category_ids: [parseInt(category)],
           tag_ids: tags.map(t => t.id || t.name),
         });

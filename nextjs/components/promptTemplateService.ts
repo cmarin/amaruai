@@ -1,6 +1,7 @@
 // promptTemplateService.ts
 
 import { createTag, fetchTags, Tag } from './tagService';
+import { PromptContent } from './complex-prompt-editor';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -19,21 +20,15 @@ export interface VariableType {
   };
 }
 
-export interface PromptContent {
-  variables: VariableType[];
-  prompt: string;
-}
-
 export interface Category {
   id: number;
   name: string;
 }
 
-export interface PromptTemplate {
+export type PromptTemplate = {
   id: number;
   title: string;
   prompt: string | PromptContent;
-  content?: PromptContent;
   is_complex: boolean;
   default_persona_id: number | null;
   categories: Category[];
@@ -43,7 +38,8 @@ export interface PromptTemplate {
   category?: string;
   name?: string;
   description?: string;
-}
+  content?: PromptContent;
+};
 
 export async function createPromptTemplate(promptTemplate: {
   title: string;
@@ -186,7 +182,7 @@ export async function fetchPromptTemplates(): Promise<PromptTemplate[]> {
     console.log('Fetched prompt templates data:', data);
 
     const parsedData = data.map((promptTemplate: PromptTemplate) => {
-      let content = promptTemplate.content;
+      let content: PromptContent | undefined = promptTemplate.content;
 
       if (promptTemplate.is_complex) {
         if (!content && typeof promptTemplate.prompt === 'string') {

@@ -161,7 +161,7 @@ export default function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdat
         title: editingPrompt.title.trim(),
         prompt: editingPrompt.prompt as string,
         is_complex: false,
-        default_persona_id: editingPrompt.default_persona_id,
+        default_persona_id: editingPrompt.default_persona_id || null,  // Add '|| null' here
         category_ids: editingPrompt.category ? [parseInt(editingPrompt.category)] : [],
         tag_ids: editingPrompt.tags.map(t => t.id || t.name),
       };
@@ -197,7 +197,7 @@ export default function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdat
           title: title,
           prompt: JSON.stringify(complexPromptData),
           is_complex: true,
-          default_persona_id: promptToUpdate.default_persona_id,
+          default_persona_id: promptToUpdate.default_persona_id || null,  // Add '|| null' here
           category_ids: [parseInt(category)],
           tag_ids: tags.map(t => t.id || t.name),
         });
