@@ -5,6 +5,7 @@ import { FileText, BookOpen, Brain, Workflow, MessageSquare, ChevronLeft, Chevro
 import { useRouter } from 'next/navigation'
 import { useData } from '@/components/DataContext'
 import { useSidebar } from '@/components/SidebarContext'
+import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon, O1Icon } from './icons/ai-provider-icons'
 
 import { Button } from "@/components/ui/button"
 
@@ -38,6 +39,19 @@ const aiTools = [
 
 interface AppSidebarProps {
   toggleChatbot: (modelId: string) => void;
+}
+
+const getProviderIcon = (modelId: string, modelName: string) => {
+  const nameLower = modelName.toLowerCase()
+  
+  if (nameLower.includes('gpt') || nameLower.includes('o1')) return OpenAIIcon
+  if (nameLower.includes('claude')) return AnthropicIcon
+  if (nameLower.includes('gemini')) return GeminiIcon
+  if (nameLower.includes('perplexity')) return PerplexityIcon
+  if (nameLower.includes('mistral') || nameLower.includes('mixtral')) return MistralIcon
+  if (nameLower.includes('llama')) return MetaIcon
+  if (nameLower.includes('zephyr')) return ZephyrIcon
+  return MessageSquare // fallback to default icon
 }
 
 export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
@@ -92,17 +106,20 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
               </Button>
             ))}
             {sidebarOpen && <div className="px-3 py-2 text-xs font-semibold text-gray-500">AI Models</div>}
-            {chatModels.map((model) => (
-              <Button 
-                key={model.id}
-                variant="ghost"
-                className={`w-full justify-start ${sidebarOpen ? 'px-3' : 'px-2'} py-2`}
-                onClick={() => toggleChatbot(model.id.toString())}
-              >
-                <MessageSquare className={sidebarOpen ? "mr-2" : ""} size={16} />
-                {sidebarOpen && <span className="text-sm">{model.name}</span>}
-              </Button>
-            ))}
+            {chatModels.map((model) => {
+              const IconComponent = getProviderIcon(model.id.toString(), model.name)
+              return (
+                <Button 
+                  key={model.id}
+                  variant="ghost"
+                  className={`w-full justify-start ${sidebarOpen ? 'px-3' : 'px-2'} py-2`}
+                  onClick={() => toggleChatbot(model.id.toString())}
+                >
+                  <IconComponent className={sidebarOpen ? "mr-2" : ""} size={16} />
+                  {sidebarOpen && <span className="text-sm">{model.name}</span>}
+                </Button>
+              )
+            })}
           </div>
         </div>
       </div>
