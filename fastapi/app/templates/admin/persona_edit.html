@@ -49,10 +49,6 @@
         <label for="avatar">Avatar URL:</label>
         <input type="text" id="avatar" name="avatar" value="{{ persona.avatar or '' }}">
         
-        <label>
-            <input type="checkbox" name="is_favorite" {% if persona.is_favorite %}checked{% endif %}>
-            Is Favorite
-        </label>
         
         <label for="categories">Categories:</label>
         <select id="categories" name="category_ids" multiple>

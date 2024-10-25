@@ -66,7 +66,6 @@ async def update_persona(request: Request, persona_id: int, db: Session = Depend
         "verbose": form.get("verbose") == "on",
         "memory": form.get("memory") == "on",
         "avatar": form.get("avatar"),
-        "is_favorite": form.get("is_favorite") == "on",
         "category_ids": [int(id) for id in form.getlist("category_ids")],
         "tag_ids": [int(id) for id in form.getlist("tag_ids")]
     }

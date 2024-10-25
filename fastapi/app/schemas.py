@@ -83,7 +83,6 @@ class PersonaBase(BaseModel):
     verbose: bool
     memory: bool
     avatar: Optional[str] = None
-    is_favorite: bool = False
 
 class PersonaCreate(PersonaBase):
     category_ids: List[int] = []
@@ -105,7 +104,7 @@ class Persona(PersonaBase):
 
 class ProcessType(str, Enum):
     SEQUENTIAL = "SEQUENTIAL"
-    PARALLEL = "PARALLEL"
+    PARALLEL = "HIERARCHICAL"
 
 class WorkflowBase(BaseModel):
     name: str

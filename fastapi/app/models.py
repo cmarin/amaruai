@@ -44,7 +44,6 @@ class Persona(Base):
     verbose = Column(Boolean, nullable=False)
     memory = Column(Boolean, nullable=False)
     avatar = Column(String)
-    is_favorite = Column(Boolean, default=False)
     workflow_steps = relationship("WorkflowStep", back_populates="persona")
 
     tools = relationship("Tool", secondary=tool_persona, back_populates="personas")

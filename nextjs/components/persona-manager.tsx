@@ -26,7 +26,6 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
     verbose: false,
     memory: false,
     avatar: null,
-    is_favorite: false,
     tools: [],
     categories: [],
     tags: [],

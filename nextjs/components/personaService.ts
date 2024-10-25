@@ -12,7 +12,6 @@ export type Persona = {
   verbose: boolean;
   memory: boolean;
   avatar: string | null;
-  is_favorite: boolean;
   tools: { name: string; id: number; }[];
   categories: { name: string; id: number; }[];
   tags: Tag[];
