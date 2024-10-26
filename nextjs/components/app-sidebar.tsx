@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useData } from '@/components/DataContext'
 import { useSidebar } from '@/components/SidebarContext'
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon, O1Icon } from './icons/ai-provider-icons'
-import { createClient } from '@/app/utils/supabase/client'
+import { useSupabase } from '@/app/contexts/SupabaseContext'
 import { User } from '@supabase/supabase-js'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -68,7 +68,7 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
   const { chatModels } = useData()
   const { sidebarOpen, toggleSidebar } = useSidebar()
   const [user, setUser] = useState<User | null>(null)
-  const supabase = createClient()
+  const supabase = useSupabase()
 
   useEffect(() => {
     const getUser = async () => {
@@ -85,7 +85,7 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
+  }, [supabase.auth])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
