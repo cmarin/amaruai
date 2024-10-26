@@ -1,12 +1,21 @@
-'use client';  // Add this line at the top of the file
+'use client';
 
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { FileText, BookOpen, Brain, Workflow, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react"
+import { FileText, BookOpen, Brain, Workflow, MessageSquare, ChevronLeft, ChevronRight, User2 } from "lucide-react"
 import { useRouter } from 'next/navigation'
 import { useData } from '@/components/DataContext'
 import { useSidebar } from '@/components/SidebarContext'
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon, O1Icon } from './icons/ai-provider-icons'
-
+import { createClient } from '@/app/utils/supabase/client'
+import { User } from '@supabase/supabase-js'
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 
 const aiTools = [
@@ -58,10 +67,35 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
   const router = useRouter()
   const { chatModels } = useData()
   const { sidebarOpen, toggleSidebar } = useSidebar()
+  const [user, setUser] = useState<User | null>(null)
+  const supabase = createClient()
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+
+    getUser()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push('/auth/login')
+  }
 
   return (
     <div className={`fixed top-0 left-0 h-full bg-gray-100 transition-all duration-300 ${sidebarOpen ? 'w-56' : 'w-14'} overflow-hidden`}>
       <div className="h-full flex flex-col">
+        {/* Header */}
         <div className="flex justify-between items-center p-3">
           {sidebarOpen ? (
             <div className="flex items-center gap-2">
@@ -91,6 +125,8 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
             {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
           </Button>
         </div>
+
+        {/* Main content */}
         <div className="flex-grow overflow-y-auto">
           <div className="space-y-1">
             {sidebarOpen && <div className="px-3 py-2 text-xs font-semibold text-gray-500">AI Tools</div>}
@@ -121,6 +157,38 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
               )
             })}
           </div>
+        </div>
+
+        {/* User footer section */}
+        <div className="border-t border-gray-200 p-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="w-full justify-start gap-2">
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={user?.user_metadata?.avatar_url} />
+                  <AvatarFallback>
+                    {user?.email?.charAt(0).toUpperCase() || <User2 size={16} />}
+                  </AvatarFallback>
+                </Avatar>
+                {sidebarOpen && (
+                  <span className="text-sm truncate">
+                    {user?.email || 'Guest'}
+                  </span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="start">
+              <DropdownMenuItem onClick={() => router.push('/account')}>
+                Account
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/settings')}>
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSignOut}>
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>
