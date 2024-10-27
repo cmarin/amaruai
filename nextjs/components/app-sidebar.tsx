@@ -104,6 +104,7 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
                 alt="AmaruAI Logo"
                 width={36}
                 height={36}
+                style={{ width: 'auto', height: '36px' }}
               />
               <h1 className="text-xl font-bold">AmaruAI</h1>
             </div>
@@ -113,6 +114,7 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
               alt="AmaruAI Logo"
               width={16}
               height={16}
+              style={{ width: 'auto', height: '16px' }}
               className="ml-[-5px]"
             />
           )}

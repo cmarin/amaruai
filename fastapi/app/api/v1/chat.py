@@ -13,6 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableWithMessageHistory, ConfigurableFieldSpec
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import BaseMessage, SystemMessage, trim_messages
+from app.api.v1.dependencies import get_current_user  # Updated import path
 from dotenv import load_dotenv, find_dotenv, get_key
 
 router = APIRouter()
@@ -112,8 +113,9 @@ class ChatInput(BaseModel):
     persona_id: Optional[int] = None
 
 @router.post("/chat")
-async def chat_endpoint(chat_input: ChatInput, db: Session = Depends(get_db)):
+async def chat_endpoint(chat_input: ChatInput, db: Session = Depends(get_db), user = Depends(get_current_user)):
     logging.info(f"Received chat request: {chat_input}")
+    logging.info(f"User email: {user.email}")
     try:
         system_message = ""
         if chat_input.persona_id:

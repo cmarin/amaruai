@@ -38,13 +38,15 @@ export default function LoginPage() {
     <div className="flex flex-col min-h-screen justify-center items-center bg-gray-100 p-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <Image
-            src="/images/amaruai_logo.svg"
-            alt="AmaruAI Logo"
-            width={80}
-            height={80}
-            className="mx-auto mb-4"
-          />
+          <div className="relative w-20 h-20 mx-auto mb-4">
+            <Image
+              src="/images/amaruai_logo.svg"
+              alt="AmaruAI Logo"
+              fill
+              sizes="80px"
+              className="object-contain"
+            />
+          </div>
           <h1 className="text-3xl font-bold text-gray-800">AmaruAI</h1>
         </div>
         {/* Apply the custom class here */}

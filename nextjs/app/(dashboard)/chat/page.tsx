@@ -26,6 +26,8 @@ import { addToScratchPad as addToScratchPadService } from '@/components/scratchP
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/SidebarContext'
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon } from '@/components/icons/ai-provider-icons'
+import { useSupabase } from '@/app/contexts/SupabaseContext'
+import { Session } from '@supabase/supabase-js'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -99,6 +101,8 @@ export default function ChatPage() {
   const { chatModels, personas, promptTemplates, categories, isLoading: dataLoading, error, refetchData } = useData()
   const router = useRouter();
   const { sidebarOpen, toggleSidebar } = useSidebar()
+  const supabase = useSupabase()
+  const [session, setSession] = useState<Session | null>(null)
 
   const [allModels, setAllModels] = useState<ChatModel[]>([])
   const [chatbots, setChatbots] = useState<ChatBot[]>([])
@@ -141,6 +145,22 @@ export default function ChatPage() {
     }
   }, [personas])
 
+  // Add this useEffect to get and maintain the session
+  useEffect(() => {
+    const getSession = async () => {
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      setSession(currentSession)
+    }
+
+    getSession()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [supabase.auth])
+
   const handleSend = async () => {
     if (input.trim()) {
       const newMessage: Message = { role: 'user', content: input }
@@ -175,22 +195,37 @@ export default function ChatPage() {
               payload.persona_id = personaObject.id
             }
 
-            console.log(`Sending request for bot ${botId}:`, payload)
+            // Debug logging
+            console.log('=== Debug Information ===');
+            console.log('Session:', session);
+            console.log('Access Token:', session?.access_token);
+            
+            const headers = {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`
+            };
+            
+            console.log('Request Headers:', headers);
+            console.log('Request Payload:', payload);
+            console.log('Request URL:', `${API_URL}/chat`);
+            console.log('=====================');
 
             const response = await fetchWithRetry(async () => {
               const res = await fetch(`${API_URL}/chat`, {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json',
-                },
+                headers,
                 body: JSON.stringify(payload),
               })
+              
+              // Log the response status and any error message
+              console.log('Response Status:', res.status);
               if (!res.ok) {
-                const errorText = await res.text()
-                throw new Error(`HTTP error! status: ${res.status}, message: ${errorText}`)
+                const errorText = await res.text();
+                console.error('Error Response:', errorText);
+                throw new Error(`HTTP error! status: ${res.status}, message: ${errorText}`);
               }
-              return res
+              return res;
             })
 
             console.log(`Response status for bot ${botId}:`, response.status)
