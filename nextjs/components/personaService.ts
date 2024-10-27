@@ -18,6 +18,8 @@ export type Persona = {
   prompt_templates: { name: string; id: number; content: string; }[];
 };
 
+export type PersonaCreate = Omit<Persona, 'id'>;
+
 export async function fetchPersonas(headers: ApiHeaders): Promise<Persona[]> {
   return fetchWithRetry(async () => {
     if (!API_BASE_URL) {
@@ -33,25 +35,20 @@ export async function fetchPersonas(headers: ApiHeaders): Promise<Persona[]> {
   });
 }
 
-export async function createPersona(persona: Omit<Persona, 'id'>, headers: ApiHeaders): Promise<Persona> {
+export async function createPersona(persona: PersonaCreate, headers: ApiHeaders): Promise<Persona> {
   try {
     if (!API_BASE_URL) {
       throw new Error('API_BASE_URL is not defined');
     }
 
-    // Fetch existing tags
-    const existingTags = await fetchTags();
-    console.log('Existing tags:', existingTags);
-
-    // Process tags
+    // Process tags with headers
+    const existingTags = await fetchTags(headers);
     const processedTagIds = await Promise.all(persona.tags.map(async (tag) => {
       const existingTag = existingTags.find(t => t.name.toLowerCase() === tag.name.toLowerCase());
       if (existingTag) {
-        console.log(`Using existing tag: ${existingTag.name} (ID: ${existingTag.id})`);
         return existingTag.id;
       } else {
-        const newTag = await createTag(tag.name);
-        console.log(`Created new tag: ${newTag.name} (ID: ${newTag.id})`);
+        const newTag = await createTag(tag.name, headers);
         return newTag.id;
       }
     }));
@@ -62,7 +59,6 @@ export async function createPersona(persona: Omit<Persona, 'id'>, headers: ApiHe
     };
 
     console.log('Creating persona with payload:', payload);
-    console.log('POST URL:', `${API_BASE_URL}/personas`);
 
     const response = await fetch(`${API_BASE_URL}/personas`, {
       method: 'POST',
@@ -78,9 +74,7 @@ export async function createPersona(persona: Omit<Persona, 'id'>, headers: ApiHe
       throw new Error(`Failed to create persona: ${response.status} ${response.statusText}`);
     }
 
-    const createdPersona = await response.json();
-    console.log('Created persona:', createdPersona);
-    return createdPersona;
+    return await response.json();
   } catch (error) {
     console.error('Error creating persona:', error);
     throw error;

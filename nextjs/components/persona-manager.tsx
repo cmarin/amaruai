@@ -9,6 +9,7 @@ import { X, Plus } from 'lucide-react'
 import { Persona, createPersona, updatePersona } from './personaService'
 import TagSelector from './tag-selector'
 import { Tag } from './tagService'
+import { useSession } from '@/app/utils/session/session'
 
 type PersonaManagerProps = {
   persona: Persona | null
@@ -17,8 +18,7 @@ type PersonaManagerProps = {
 }
 
 export default function PersonaManager({ persona, onSave, onClose }: PersonaManagerProps) {
-  const [currentPersona, setCurrentPersona] = useState<Persona>({
-    id: 0,
+  const [currentPersona, setCurrentPersona] = useState<Omit<Persona, 'id'>>({
     role: '',
     goal: '',
     backstory: '',
@@ -33,10 +33,13 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
   })
   const [newTool, setNewTool] = useState('')
   const [newCategory, setNewCategory] = useState('')
+  const { getApiHeaders } = useSession();
 
   useEffect(() => {
     if (persona) {
-      setCurrentPersona(persona)
+      // When editing, include all fields from the existing persona
+      const { id, ...personaWithoutId } = persona;
+      setCurrentPersona(personaWithoutId);
     }
   }, [persona])
 
@@ -96,17 +99,23 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
 
   const handleSave = async () => {
     try {
+      const headers = getApiHeaders();
+      if (!headers) {
+        console.error('No valid headers available');
+        return;
+      }
+
       let savedPersona: Persona;
       if (persona) {
-        // Updating existing persona
-        savedPersona = await updatePersona(persona.id, currentPersona)
+        // When updating, include the ID from the original persona
+        savedPersona = await updatePersona(persona.id, currentPersona, headers);
       } else {
-        // Creating new persona
-        savedPersona = await createPersona(currentPersona)
+        // When creating, don't include an ID
+        savedPersona = await createPersona(currentPersona, headers);
       }
-      onSave(savedPersona)
+      onSave(savedPersona);
     } catch (error) {
-      console.error('Error saving persona:', error)
+      console.error('Error saving persona:', error);
       // Handle error (e.g., show error message to user)
     }
   }
