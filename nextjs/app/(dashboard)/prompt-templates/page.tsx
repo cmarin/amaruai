@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchPromptTemplates, PromptTemplate, createPromptTemplate, updatePromptTemplate, deletePromptTemplate } from '@/components/promptTemplateService';
+import { PromptTemplate, fetchPromptTemplates, createPromptTemplate, updatePromptTemplate, deletePromptTemplate } from '@/components/promptTemplateService';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
@@ -28,6 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useSidebar } from '@/components/SidebarContext'
+import { useSession } from '@/app/utils/session/session';
 
 export default function PromptTemplatesPage() {
   const router = useRouter();
@@ -51,33 +52,37 @@ export default function PromptTemplatesPage() {
   const [templateToDelete, setTemplateToDelete] = useState<PromptTemplate | null>(null)
   const { sidebarOpen } = useSidebar()
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const { getApiHeaders, loading: sessionLoading, initialized } = useSession();
 
   useEffect(() => {
-    loadPromptTemplates();
-    loadCategories();
-  }, []);
+    if (!sessionLoading && initialized) {
+      const loadData = async () => {
+        const headers = getApiHeaders();
+        if (!headers) {
+          console.warn('No valid headers available - waiting for session');
+          return;
+        }
 
-  const loadPromptTemplates = async () => {
-    try {
-      setIsLoading(true);
-      const fetchedPrompts = await fetchPromptTemplates();
-      setPrompts(fetchedPrompts);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error loading prompt templates:', error);
-      setError('Failed to load prompt templates');
-      setIsLoading(false);
-    }
-  };
+        try {
+          const [fetchedPrompts, fetchedCategories] = await Promise.all([
+            fetchPromptTemplates(headers),
+            fetchCategories(headers)
+          ]);
+          
+          setPrompts(fetchedPrompts);
+          setCategories(fetchedCategories);
+          setError(null);
+        } catch (err) {
+          console.error('Error loading data:', err);
+          setError('Failed to load data');
+        } finally {
+          setIsLoading(false);
+        }
+      };
 
-  const loadCategories = async () => {
-    try {
-      const fetchedCategories = await fetchCategories();
-      setCategories(fetchedCategories);
-    } catch (error) {
-      console.error('Error loading categories:', error);
+      loadData();
     }
-  };
+  }, [sessionLoading, initialized, getApiHeaders]);
 
   const toggleChatbot = (modelId: string) => {
     router.push(`/chat?model=${modelId}`);
@@ -128,18 +133,27 @@ export default function PromptTemplatesPage() {
   };
 
   const handleSaveNewSimplePrompt = async () => {
+    const headers = getApiHeaders();
+    if (!headers) {
+      console.error('No valid headers available');
+      return;
+    }
+
     try {
-      const createdPrompt = await createPromptTemplate({
+      await createPromptTemplate({
         title: newSimplePrompt.title,
         prompt: newSimplePrompt.prompt,
         is_complex: false,
         category_ids: newSimplePrompt.category ? [parseInt(newSimplePrompt.category)] : [],
         tag_ids: newSimplePrompt.tags.map(tag => tag.id || tag.name),
-      });
+      }, headers);
+      
       setIsNewSimplePromptDialogOpen(false);
-      await loadPromptTemplates();
+      const updatedPrompts = await fetchPromptTemplates(headers);
+      setPrompts(updatedPrompts);
     } catch (error) {
       console.error('Error saving new prompt:', error);
+      setError('Failed to save prompt');
     }
   };
 
@@ -207,8 +221,17 @@ export default function PromptTemplatesPage() {
     }
   };
 
-  if (isLoading) return <div>Loading prompt templates...</div>;
-  if (error) return <div>Error: {error}</div>;
+  if (sessionLoading || !initialized) {
+    return <div>Loading session...</div>;
+  }
+
+  if (isLoading) {
+    return <div>Loading prompt templates...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
 
   return (
     <div className="h-full w-full">
