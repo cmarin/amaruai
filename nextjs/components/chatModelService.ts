@@ -1,26 +1,49 @@
 import { fetchWithRetry } from './apiUtils';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { ApiHeaders } from '@/app/utils/session/session';
+import { API_BASE_URL } from './apiConfig';
 
 export type ChatModel = {
   id: number;
   name: string;
   model: string;
   provider: string;
-  description: string | null;
-  api_key: string | null;
-  default: boolean;
+  api_type: string;
+  max_tokens: number;
+  temperature: number;
 };
 
-export async function fetchChatModels(): Promise<ChatModel[]> {
+export async function fetchChatModels(headers: ApiHeaders | null): Promise<ChatModel[]> {
   return fetchWithRetry(async () => {
-    if (!API_URL) {
-      throw new Error('API_URL is not defined');
+    if (!API_BASE_URL) {
+      throw new Error('API_BASE_URL is not defined');
     }
-    const response = await fetch(`${API_URL}/chat_models`);
+
+    if (!headers) {
+      throw new Error('No valid headers available - session might not be initialized');
+    }
+
+    // Log the request details
+    console.log('=== Fetching Chat Models ===');
+    console.log('Request URL:', `${API_BASE_URL}/chat_models`);
+    console.log('Request Headers:', headers);
+    console.log('Authorization Header:', headers?.Authorization || 'No authorization header');
+    console.log('========================');
+
+    const response = await fetch(`${API_BASE_URL}/chat_models`, {
+      headers: headers as HeadersInit
+    });
+
+    // Log the response status
+    console.log('Response Status:', response.status);
+    
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error Response:', errorText);
       throw new Error('Failed to fetch chat models');
     }
-    return await response.json();
+
+    const data = await response.json();
+    console.log('Received Chat Models:', data);
+    return data;
   });
 }

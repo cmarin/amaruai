@@ -12,6 +12,7 @@ import ReactMarkdown from 'react-markdown'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/SidebarContext'
 import { addToScratchPad } from '@/components/scratchPadService'
+import { useSession } from '@/app/utils/session/session';
 
 const MAX_EMPTY_POLLS = 5;
 
@@ -31,8 +32,16 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
   const [showRunAgain, setShowRunAgain] = useState(false)
   const [initialMessage, setInitialMessage] = useState<string | undefined>(undefined)
 
+  const { getApiHeaders } = useSession();
+
   useEffect(() => {
     const loadWorkflow = async () => {
+      const headers = getApiHeaders();
+      if (!headers) {
+        console.error('No valid headers available');
+        return;
+      }
+      
       try {
         const fetchedWorkflow = await fetchWorkflow(params.workflowId)
         setWorkflow(fetchedWorkflow)
@@ -48,13 +57,22 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
     return () => {
       isPolling.current = false;
     }
-  }, [params.workflowId])
+  }, [params.workflowId, getApiHeaders])
 
   const checkFirstStep = async (workflow: Workflow) => {
     if (workflow.steps.length > 0) {
       const firstStep = workflow.steps[0]
       try {
-        const promptTemplate = await fetchPromptTemplate(parseInt(firstStep.prompt_template_id))
+        const headers = getApiHeaders();
+        if (!headers) {
+          console.error('No valid headers available');
+          return;
+        }
+        
+        const promptTemplate = await fetchPromptTemplate(
+          parseInt(firstStep.prompt_template_id),
+          headers
+        );
         
         if (promptTemplate.is_complex) {
           setComplexPromptTemplate(promptTemplate)

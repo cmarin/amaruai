@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -26,8 +26,7 @@ import { addToScratchPad as addToScratchPadService } from '@/components/scratchP
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/SidebarContext'
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon } from '@/components/icons/ai-provider-icons'
-import { useSupabase } from '@/app/contexts/SupabaseContext'
-import { Session } from '@supabase/supabase-js'
+import { useSession } from '@/app/utils/session/session';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -101,8 +100,7 @@ export default function ChatPage() {
   const { chatModels, personas, promptTemplates, categories, isLoading: dataLoading, error, refetchData } = useData()
   const router = useRouter();
   const { sidebarOpen, toggleSidebar } = useSidebar()
-  const supabase = useSupabase()
-  const [session, setSession] = useState<Session | null>(null)
+  const { session, loading: sessionLoading, getApiHeaders, initialized } = useSession();
 
   const [allModels, setAllModels] = useState<ChatModel[]>([])
   const [chatbots, setChatbots] = useState<ChatBot[]>([])
@@ -145,21 +143,28 @@ export default function ChatPage() {
     }
   }, [personas])
 
-  // Add this useEffect to get and maintain the session
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session: currentSession } } = await supabase.auth.getSession()
-      setSession(currentSession)
+    if (!sessionLoading && initialized) {  // Only fetch when session is ready
+      const headers = getApiHeaders();
+      if (headers) {  // Only proceed if we have valid headers
+        if (chatModels.length > 0) {
+          setAllModels(chatModels)
+          const initialChatbots = chatModels.map((model, index) => ({
+            id: (index + 1).toString(),
+            name: model.name,
+            apiName: model.model,
+            messages: [],
+            persona: 'default',
+            conversationId: uuidv4()
+          }))
+          setChatbots(initialChatbots)
+          setActiveChatbots([initialChatbots[0].id])
+          setLayoutMode('single')
+          setPrompts(promptTemplates)
+        }
+      }
     }
-
-    getSession()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [supabase.auth])
+  }, [sessionLoading, initialized, getApiHeaders, chatModels, promptTemplates])
 
   const handleSend = async () => {
     if (input.trim()) {
@@ -198,13 +203,12 @@ export default function ChatPage() {
             // Debug logging
             console.log('=== Debug Information ===');
             console.log('Session:', session);
-            console.log('Access Token:', session?.access_token);
             
-            const headers = {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'Authorization': `Bearer ${session?.access_token}`
-            };
+            const headers = getApiHeaders();
+            if (!headers) {
+              console.error('No valid headers available');
+              return;
+            }
             
             console.log('Request Headers:', headers);
             console.log('Request Payload:', payload);
@@ -214,7 +218,7 @@ export default function ChatPage() {
             const response = await fetchWithRetry(async () => {
               const res = await fetch(`${API_URL}/chat`, {
                 method: 'POST',
-                headers,
+                headers,  // Now headers is guaranteed to be ApiHeaders
                 body: JSON.stringify(payload),
               })
               
@@ -422,13 +426,18 @@ export default function ChatPage() {
   }
 
   const handleUpdatePersonas = useCallback(async () => {
-    try {
-      const updatedPersonas = await fetchPersonas()
-      setLocalPersonas(updatedPersonas)
-    } catch (error) {
-      console.error('Error fetching updated personas:', error)
+    const headers = getApiHeaders();
+    if (!headers) {
+      console.error('No valid headers available');
+      return;
     }
-  }, [])
+    try {
+      const updatedPersonas = await fetchPersonas(headers);
+      setLocalPersonas(updatedPersonas);
+    } catch (error) {
+      console.error('Error fetching updated personas:', error);
+    }
+  }, [getApiHeaders]);
 
   const navigateToScratchPad = () => {
     router.push('/scratch-pad');
@@ -441,6 +450,40 @@ export default function ChatPage() {
   const navigateToPersonaLibrary = () => {
     router.push('/personas');
   };
+
+  // Memoize the model options to prevent unnecessary re-renders
+  const modelOptions = useMemo(() => 
+    chatModels.map(model => ({
+      value: model.id.toString(),
+      label: model.name,
+      model: model
+    })), [chatModels]
+  );
+
+  // Memoize the persona options
+  const personaOptions = useMemo(() => 
+    personas.map(persona => ({
+      value: persona.id.toString(),
+      label: persona.role,
+      persona: persona
+    })), [personas]
+  );
+
+  // Use refs for values that shouldn't trigger re-renders
+  const messageEndRef = useRef<HTMLDivElement>(null);
+
+  // Memoize handlers
+  const handleModelChange = useCallback((modelId: string, chatbotId: string) => {
+    setChatbots(prev => prev.map(bot => 
+      bot.id === chatbotId ? { ...bot, apiName: modelId } : bot
+    ));
+  }, []);
+
+  const handlePersonaChange = useCallback((personaId: string, chatbotId: string) => {
+    setChatbots(prev => prev.map(bot => 
+      bot.id === chatbotId ? { ...bot, persona: personaId } : bot
+    ));
+  }, []);
 
   return (
     <div className="h-full w-full">

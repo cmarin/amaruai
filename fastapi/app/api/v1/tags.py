@@ -1,35 +1,37 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app import crud, schemas
 from app.database import get_db
+from app.api.v1.router import create_protected_router
 
-router = APIRouter()
+# Create a protected router for tags
+router = create_protected_router(prefix="tags", tags=["tags"])
 
-@router.post("/tags/", response_model=schemas.Tag)
+@router.post("/", response_model=schemas.Tag)
 def create_tag(tag: schemas.TagCreate, db: Session = Depends(get_db)):
     return crud.create_tag(db=db, tag=tag)
 
-@router.get("/tags/", response_model=List[schemas.Tag])
+@router.get("/", response_model=List[schemas.Tag])
 def read_tags(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     tags = crud.get_tags(db, skip=skip, limit=limit)
     return tags
 
-@router.get("/tags/{tag_id}", response_model=schemas.Tag)
+@router.get("/{tag_id}", response_model=schemas.Tag)
 def read_tag(tag_id: int, db: Session = Depends(get_db)):
     db_tag = crud.get_tag(db, tag_id=tag_id)
     if db_tag is None:
         raise HTTPException(status_code=404, detail="Tag not found")
     return db_tag
 
-@router.put("/tags/{tag_id}", response_model=schemas.Tag)
+@router.put("/{tag_id}", response_model=schemas.Tag)
 def update_tag(tag_id: int, tag: schemas.TagCreate, db: Session = Depends(get_db)):
     db_tag = crud.update_tag(db, tag_id=tag_id, tag=tag)
     if db_tag is None:
         raise HTTPException(status_code=404, detail="Tag not found")
     return db_tag
 
-@router.delete("/tags/{tag_id}", response_model=schemas.Tag)
+@router.delete("/{tag_id}", response_model=schemas.Tag)
 def delete_tag(tag_id: int, db: Session = Depends(get_db)):
     db_tag = crud.delete_tag(db, tag_id=tag_id)
     if db_tag is None:

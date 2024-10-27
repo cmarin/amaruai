@@ -14,6 +14,7 @@ import { Workflow, WorkflowStep, createWorkflow, updateWorkflow } from './workfl
 import { PromptTemplate, fetchPromptTemplates } from './promptTemplateService'
 import { ChatModel, fetchChatModels } from './chatModelService'
 import { Persona, fetchPersonas } from './personaService'
+import { useSession } from '@/app/utils/session/session';
 
 interface WorkflowManagerProps {
   workflow?: Workflow | null;
@@ -31,6 +32,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([])
   const [chatModels, setChatModels] = useState<ChatModel[]>([])
   const [personas, setPersonas] = useState<Persona[]>([])
+  const { getApiHeaders, loading: sessionLoading } = useSession();
 
   useEffect(() => {
     if (initialWorkflow) {
@@ -39,25 +41,36 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   }, [initialWorkflow])
 
   useEffect(() => {
-    const fetchData = async () => {
-      const [fetchedPromptTemplates, fetchedChatModels, fetchedPersonas] = await Promise.all([
-        fetchPromptTemplates(),
-        fetchChatModels(),
-        fetchPersonas()
-      ])
-      setPromptTemplates(fetchedPromptTemplates)
-      setChatModels(fetchedChatModels)
-      setPersonas(fetchedPersonas)
+    if (!sessionLoading) {
+      const fetchData = async () => {
+        const headers = getApiHeaders();
+        if (!headers) {
+          console.error('No valid headers available');
+          return;
+        }
+        try {
+          const [fetchedPromptTemplates, fetchedChatModels, fetchedPersonas] = await Promise.all([
+            fetchPromptTemplates(headers),
+            fetchChatModels(headers),
+            fetchPersonas(headers)
+          ]);
+          setPromptTemplates(fetchedPromptTemplates);
+          setChatModels(fetchedChatModels);
+          setPersonas(fetchedPersonas);
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        }
+      };
+      fetchData();
     }
-    fetchData()
-  }, [])
+  }, [sessionLoading, getApiHeaders]);
 
   const addStep = () => {
     const newStep: WorkflowStep = {
       prompt_template_id: promptTemplates[0]?.id.toString() || "",
       chat_model_id: chatModels[0]?.id.toString() || "",
       persona_id: personas[0]?.id.toString() || "",
-      order: workflow.steps.length,
+      position: workflow.steps.length,
     }
     setWorkflow({ ...workflow, steps: [...workflow.steps, newStep] })
   }
@@ -65,7 +78,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   const removeStep = (index: number) => {
     setWorkflow({
       ...workflow,
-      steps: workflow.steps.filter((_, i) => i !== index).map((step, i) => ({ ...step, order: i })),
+      steps: workflow.steps.filter((_, i) => i !== index).map((step, i) => ({ ...step, position: i })),
     })
   }
 
@@ -83,7 +96,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     } else if (direction === 'down' && index < newSteps.length - 1) {
       [newSteps[index], newSteps[index + 1]] = [newSteps[index + 1], newSteps[index]];
     }
-    setWorkflow({ ...workflow, steps: newSteps.map((step, i) => ({ ...step, order: i })) });
+    setWorkflow({ ...workflow, steps: newSteps.map((step, i) => ({ ...step, position: i })) });
   };
 
   const handleSave = async () => {

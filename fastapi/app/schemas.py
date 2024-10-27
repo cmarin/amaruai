@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from enum import Enum
 
 class ToolBase(BaseModel):
@@ -150,5 +150,17 @@ class WorkflowStepResult(BaseModel):
 
 class WorkflowExecutionResult(BaseModel):
     results: List[WorkflowStepResult]
+
+class ChatResponse(BaseModel):
+    """Schema for chat response"""
+    content: str
+    conversation_id: str
+    user_id: str
+    model: Optional[str] = None
+    persona_id: Optional[int] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
 
 Workflow.update_forward_refs()

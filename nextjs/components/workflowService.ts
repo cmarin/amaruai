@@ -8,7 +8,7 @@ export interface WorkflowStep {
   prompt_template_id: string;
   chat_model_id: string;
   persona_id: string;
-  order: number;
+  position: number;
 }
 
 export interface Workflow {
@@ -135,7 +135,7 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>): P
           prompt_template_id: step.prompt_template_id,
           chat_model_id: step.chat_model_id,
           persona_id: step.persona_id,
-          order: step.order
+          position: step.position
         })
       ));
       updatedWorkflow.steps = createdSteps;

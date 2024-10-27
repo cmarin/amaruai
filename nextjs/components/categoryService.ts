@@ -1,23 +1,27 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { ApiHeaders } from '@/app/utils/session/session';
+import { API_BASE_URL } from './apiConfig';
 
 export type Category = {
   id: number;
   name: string;
 };
 
-export async function fetchCategories(): Promise<Category[]> {
-  try {
-    if (!API_URL) {
-      throw new Error('API_URL is not defined');
-    }
-    const response = await fetch(`${API_URL}/categories`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch categories');
-    }
-    const data = await response.json();
-    return data.sort((a: Category, b: Category) => a.name.localeCompare(b.name));
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    throw error;
+export async function fetchCategories(headers: ApiHeaders | null): Promise<Category[]> {
+  if (!API_BASE_URL) {
+    throw new Error('API_BASE_URL is not defined');
   }
+
+  if (!headers) {
+    throw new Error('No valid headers available - session might not be initialized');
+  }
+
+  const response = await fetch(`${API_BASE_URL}/categories`, {
+    headers: headers as HeadersInit
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch categories');
+  }
+
+  return response.json();
 }

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from config.supabase import supabase
+from app.config.supabase import supabase
 import logging
 
 logger = logging.getLogger(__name__)

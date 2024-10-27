@@ -1,7 +1,7 @@
 import { fetchWithRetry } from './apiUtils';
 import { createTag, fetchTags, Tag } from './tagService';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { ApiHeaders } from '@/app/utils/session/session';
+import { API_BASE_URL } from './apiConfig';
 
 export type Persona = {
   id: number;
@@ -18,25 +18,25 @@ export type Persona = {
   prompt_templates: { name: string; id: number; content: string; }[];
 };
 
-export async function fetchPersonas(): Promise<Persona[]> {
+export async function fetchPersonas(headers: ApiHeaders): Promise<Persona[]> {
   return fetchWithRetry(async () => {
-    if (!API_URL) {
-      throw new Error('API_URL is not defined');
+    if (!API_BASE_URL) {
+      throw new Error('API_BASE_URL is not defined');
     }
-    const response = await fetch(`${API_URL}/personas`);
+    const response = await fetch(`${API_BASE_URL}/personas`, {
+      headers
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch personas');
     }
-    const data = await response.json();
-    console.log('Fetched personas data:', data);
-    return data;
+    return response.json();
   });
 }
 
-export async function createPersona(persona: Omit<Persona, 'id'>): Promise<Persona> {
+export async function createPersona(persona: Omit<Persona, 'id'>, headers: ApiHeaders): Promise<Persona> {
   try {
-    if (!API_URL) {
-      throw new Error('API_URL is not defined');
+    if (!API_BASE_URL) {
+      throw new Error('API_BASE_URL is not defined');
     }
 
     // Fetch existing tags
@@ -62,12 +62,12 @@ export async function createPersona(persona: Omit<Persona, 'id'>): Promise<Perso
     };
 
     console.log('Creating persona with payload:', payload);
-    console.log('POST URL:', `${API_URL}/personas`);
+    console.log('POST URL:', `${API_BASE_URL}/personas`);
 
-    const response = await fetch(`${API_URL}/personas`, {
+    const response = await fetch(`${API_BASE_URL}/personas`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        ...headers,
       },
       body: JSON.stringify(payload),
     });
@@ -87,10 +87,10 @@ export async function createPersona(persona: Omit<Persona, 'id'>): Promise<Perso
   }
 }
 
-export async function updatePersona(personaId: number, persona: Partial<Persona>): Promise<Persona> {
+export async function updatePersona(personaId: number, persona: Partial<Persona>, headers: ApiHeaders): Promise<Persona> {
   try {
-    if (!API_URL) {
-      throw new Error('API_URL is not defined');
+    if (!API_BASE_URL) {
+      throw new Error('API_BASE_URL is not defined');
     }
 
     // Fetch existing tags
@@ -116,12 +116,12 @@ export async function updatePersona(personaId: number, persona: Partial<Persona>
     };
 
     console.log('Updating persona with payload:', payload);
-    console.log('PUT URL:', `${API_URL}/personas/${personaId}`);
+    console.log('PUT URL:', `${API_BASE_URL}/personas/${personaId}`);
 
-    const response = await fetch(`${API_URL}/personas/${personaId}`, {
+    const response = await fetch(`${API_BASE_URL}/personas/${personaId}`, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json',
+        ...headers,
       },
       body: JSON.stringify(payload),
     });
@@ -141,16 +141,17 @@ export async function updatePersona(personaId: number, persona: Partial<Persona>
   }
 }
 
-export async function deletePersona(personaId: number): Promise<void> {
+export async function deletePersona(personaId: number, headers: ApiHeaders): Promise<void> {
   try {
-    if (!API_URL) {
-      throw new Error('API_URL is not defined');
+    if (!API_BASE_URL) {
+      throw new Error('API_BASE_URL is not defined');
     }
     console.log('Deleting persona:', personaId);
-    console.log('DELETE URL:', `${API_URL}/personas/${personaId}`);
+    console.log('DELETE URL:', `${API_BASE_URL}/personas/${personaId}`);
 
-    const response = await fetch(`${API_URL}/personas/${personaId}`, {
+    const response = await fetch(`${API_BASE_URL}/personas/${personaId}`, {
       method: 'DELETE',
+      headers
     });
     if (!response.ok) {
       const errorText = await response.text();

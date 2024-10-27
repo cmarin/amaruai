@@ -15,8 +15,10 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import BaseMessage, SystemMessage, trim_messages
 from app.api.v1.dependencies import get_current_user  # Updated import path
 from dotenv import load_dotenv, find_dotenv, get_key
+from app.api.v1.router import create_protected_router
 
-router = APIRouter()
+# Create a protected router specifically for chat endpoints
+router = create_protected_router(prefix="chat", tags=["chat"])
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -112,8 +114,8 @@ class ChatInput(BaseModel):
     model: Optional[str] = None
     persona_id: Optional[int] = None
 
-@router.post("/chat")
-async def chat_endpoint(chat_input: ChatInput, db: Session = Depends(get_db), user = Depends(get_current_user)):
+@router.post("/")  # Remove response_model since we're using StreamingResponse
+async def chat_endpoint(chat_input: ChatInput, db: Session = Depends(get_db)):
     logging.info(f"Received chat request: {chat_input}")
     logging.info(f"User email: {user.email}")
     try:

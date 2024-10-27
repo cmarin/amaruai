@@ -6,6 +6,7 @@ import { fetchPersonas, Persona, deletePersona } from '@/components/personaServi
 import PersonaLibrary from '@/components/persona-library'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/SidebarContext'
+import { useSession } from '@/app/utils/session/session';
 
 export default function PersonaPage() {
   const router = useRouter();
@@ -13,35 +14,48 @@ export default function PersonaPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { sidebarOpen } = useSidebar()
+  const { getApiHeaders, loading: sessionLoading } = useSession();
 
   useEffect(() => {
-    fetchPersonas()
-      .then((data) => {
-        setPersonas(data)
-        setIsLoading(false)
-      })
-      .catch((err) => {
-        console.error('Error fetching personas:', err)
-        setError('Failed to load personas')
-        setIsLoading(false)
-      })
-  }, [])
+    if (!sessionLoading) {
+      const headers = getApiHeaders();
+      if (!headers) {
+        console.error('No valid headers available');
+        return;
+      }
+      fetchPersonas(headers)
+        .then((data) => {
+          setPersonas(data);
+          setIsLoading(false);
+        })
+        .catch((err) => {
+          console.error('Error fetching personas:', err);
+          setError('Failed to load personas');
+          setIsLoading(false);
+        });
+    }
+  }, [sessionLoading, getApiHeaders]);
 
   const handleUpdatePersonas = async () => {
-    try {
-      const updatedPersonas = await fetchPersonas()
-      setPersonas(updatedPersonas)
-    } catch (err) {
-      console.error('Error updating personas:', err)
-      setError('Failed to update personas')
+    const headers = getApiHeaders();
+    if (!headers) {
+      console.error('No valid headers available');
+      return;
     }
-  }
+    try {
+      const updatedPersonas = await fetchPersonas(headers);
+      setPersonas(updatedPersonas);
+    } catch (err) {
+      console.error('Error updating personas:', err);
+      setError('Failed to update personas');
+    }
+  };
 
   const toggleChatbot = (modelId: string) => {
     router.push(`/chat?model=${modelId}`);
-  }
+  };
 
-  if (isLoading) return <div>Loading personas...</div>
+  if (sessionLoading || isLoading) return <div>Loading personas...</div>
   if (error) return <div>Error: {error}</div>
 
   return (

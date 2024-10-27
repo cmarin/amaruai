@@ -2,6 +2,9 @@
 
 import { createTag, fetchTags, Tag } from './tagService';
 import { PromptContent } from './complex-prompt-editor';
+import { fetchWithRetry } from './apiUtils';
+import { ApiHeaders } from '@/app/utils/session/session';
+import { API_BASE_URL } from './apiConfig';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -28,29 +31,27 @@ export interface Category {
 export type PromptTemplate = {
   id: number;
   title: string;
+  description: string;
   prompt: string | PromptContent;
   is_complex: boolean;
-  default_persona_id: number | null;
-  categories: Category[];
-  tags: Tag[];
-  isFavorite?: boolean;
-  isComplex?: boolean;
-  category?: string;
-  name?: string;
-  description?: string;
-  content?: PromptContent;
+  variables?: string[];
+  category_id?: number;
+  content?: string | PromptContent;
 };
 
-export async function createPromptTemplate(promptTemplate: {
-  title: string;
-  prompt: string | PromptContent;
-  is_complex: boolean;
-  category_ids?: number[];
-  tag_ids?: (number | string)[];
-}): Promise<PromptTemplate> {
+export async function createPromptTemplate(
+  promptTemplate: {
+    title: string;
+    prompt: string | PromptContent;
+    is_complex: boolean;
+    category_ids?: number[];
+    tag_ids?: (number | string)[];
+  },
+  headers: ApiHeaders
+): Promise<PromptTemplate> {
   try {
-    if (!API_URL) {
-      throw new Error('API_URL is not defined');
+    if (!API_BASE_URL) {
+      throw new Error('API_BASE_URL is not defined');
     }
 
     // Fetch existing tags
@@ -75,16 +76,17 @@ export async function createPromptTemplate(promptTemplate: {
       tag_ids: processedTagIds,
     };
 
-    const response = await fetch(`${API_URL}/prompt_templates`, {
+    const response = await fetch(`${API_BASE_URL}/prompt_templates`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        ...headers,
       },
       body: JSON.stringify(payload),
     });
+    
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Error response:', errorData);
+      const errorText = await response.text();
+      console.error('Error response:', response.status, errorText);
       throw new Error(`Failed to create prompt template: ${response.status} ${response.statusText}`);
     }
     return await response.json();
@@ -103,11 +105,12 @@ export async function updatePromptTemplate(
     default_persona_id: number | null;
     category_ids: number[];
     tag_ids: (number | string)[];
-  }
+  },
+  headers: ApiHeaders
 ): Promise<PromptTemplate> {
   try {
-    if (!API_URL) {
-      throw new Error('API_URL is not defined');
+    if (!API_BASE_URL) {
+      throw new Error('API_BASE_URL is not defined');
     }
 
     // Fetch existing tags
@@ -132,17 +135,18 @@ export async function updatePromptTemplate(
       tag_ids: processedTagIds,
     };
 
-    console.log('Sending payload:', JSON.stringify(payload, null, 2));
-    const response = await fetch(`${API_URL}/prompt_templates/${promptTemplateId}`, {
+    console.log('Updating prompt template with payload:', payload);
+    const response = await fetch(`${API_BASE_URL}/prompt_templates/${promptTemplateId}`, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json',
+        ...headers,
       },
       body: JSON.stringify(payload),
     });
+    
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Error response:', errorData);
+      const errorText = await response.text();
+      console.error('Error response:', response.status, errorText);
       throw new Error(`Failed to update prompt template: ${response.status} ${response.statusText}`);
     }
     return await response.json();
@@ -152,16 +156,19 @@ export async function updatePromptTemplate(
   }
 }
 
-export async function deletePromptTemplate(promptTemplateId: number): Promise<void> {
+export async function deletePromptTemplate(promptTemplateId: number, headers: ApiHeaders): Promise<void> {
   try {
-    if (!API_URL) {
-      throw new Error('API_URL is not defined');
+    if (!API_BASE_URL) {
+      throw new Error('API_BASE_URL is not defined');
     }
-    const response = await fetch(`${API_URL}/prompt_templates/${promptTemplateId}`, {
+    const response = await fetch(`${API_BASE_URL}/prompt_templates/${promptTemplateId}`, {
       method: 'DELETE',
+      headers,
     });
     if (!response.ok) {
-      throw new Error('Failed to delete prompt template');
+      const errorText = await response.text();
+      console.error('Error response:', response.status, errorText);
+      throw new Error(`Failed to delete prompt template: ${response.status} ${response.statusText}`);
     }
   } catch (error) {
     console.error('Error deleting prompt template:', error);
@@ -169,61 +176,51 @@ export async function deletePromptTemplate(promptTemplateId: number): Promise<vo
   }
 }
 
-export async function fetchPromptTemplates(): Promise<PromptTemplate[]> {
-  try {
-    if (!API_URL) {
-      throw new Error('API_URL is not defined');
+export async function fetchPromptTemplates(headers: ApiHeaders | null): Promise<PromptTemplate[]> {
+  return fetchWithRetry(async () => {
+    if (!API_BASE_URL) {
+      throw new Error('API_BASE_URL is not defined');
     }
-    const response = await fetch(`${API_URL}/prompt_templates`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch prompt templates');
+
+    if (!headers) {
+      throw new Error('No valid headers available - session might not be initialized');
     }
-    const data: PromptTemplate[] = await response.json();
-    console.log('Fetched prompt templates data:', data);
 
-    const parsedData = data.map((promptTemplate: PromptTemplate) => {
-      let content: PromptContent | undefined = promptTemplate.content;
+    console.log('=== Fetching Prompt Templates ===');
+    console.log('Request URL:', `${API_BASE_URL}/prompt_templates`);
+    console.log('Request Headers:', headers);
+    console.log('Authorization Header:', headers.Authorization);
+    console.log('========================');
 
-      if (promptTemplate.is_complex) {
-        if (!content && typeof promptTemplate.prompt === 'string') {
-          try {
-            const parsedPrompt = JSON.parse(promptTemplate.prompt);
-            content = parsedPrompt.content || parsedPrompt;
-          } catch (error) {
-            content = undefined;
-            console.warn(`Prompt ID ${promptTemplate.id} marked as complex but has invalid JSON. Marking as non-complex.`);
-          }
-        } else if (!content && typeof promptTemplate.prompt === 'object') {
-          content = promptTemplate.prompt as PromptContent;
-        }
-
-        if (!content) {
-          promptTemplate.is_complex = false;
-        }
-      } else {
-        content = undefined;
-      }
-
-      return {
-        ...promptTemplate,
-        content,
-      };
+    const response = await fetch(`${API_BASE_URL}/prompt_templates`, {
+      headers
     });
 
-    return parsedData;
-  } catch (error) {
-    console.error('Error fetching prompt templates:', error);
-    throw error;
-  }
+    console.log('Response Status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error Response:', errorText);
+      throw new Error('Failed to fetch prompt templates');
+    }
+
+    const data = await response.json();
+    console.log('Received Prompt Templates:', data);
+    return data;
+  });
 }
 
-export async function fetchPromptTemplate(id: number): Promise<PromptTemplate> {
+export async function fetchPromptTemplate(id: number, headers: ApiHeaders): Promise<PromptTemplate> {
   try {
-    if (!API_URL) {
-      throw new Error('API_URL is not defined');
+    if (!API_BASE_URL) {
+      throw new Error('API_BASE_URL is not defined');
     }
-    const response = await fetch(`${API_URL}/prompt_templates/${id}`);
+    const response = await fetch(`${API_BASE_URL}/prompt_templates/${id}`, {
+      headers,
+    });
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response:', response.status, errorText);
       throw new Error('Failed to fetch prompt template');
     }
     const data: PromptTemplate = await response.json();
@@ -235,7 +232,6 @@ export async function fetchPromptTemplate(id: number): Promise<PromptTemplate> {
         try {
           const parsedPrompt = JSON.parse(data.prompt);
           data.content = parsedPrompt;
-          // Ensure the prompt field is also an object
           data.prompt = parsedPrompt;
         } catch (error) {
           console.error('Error parsing complex prompt:', error);
