@@ -309,14 +309,16 @@ def get_workflow_step(db: Session, step_id: int):
     return db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
 
 def get_workflow_steps(db: Session, workflow_id: int):
-    return db.query(models.WorkflowStep).filter(models.WorkflowStep.workflow_id == workflow_id).order_by(models.WorkflowStep.order).all()
+    return db.query(models.WorkflowStep).filter(models.WorkflowStep.workflow_id == workflow_id).order_by(models.WorkflowStep.position).all()
 
 def create_workflow_step(db: Session, workflow_id: int, step: schemas.WorkflowStepCreate):
-    # Get the highest order number for the current workflow
-    max_order = db.query(models.WorkflowStep).filter(models.WorkflowStep.workflow_id == workflow_id).order_by(desc(models.WorkflowStep.order)).first()
-    new_order = (max_order.order + 1) if max_order else 1
-
-    db_step = models.WorkflowStep(**step.dict(), workflow_id=workflow_id, order=new_order)
+    db_step = models.WorkflowStep(
+        workflow_id=workflow_id,
+        prompt_template_id=step.prompt_template_id,
+        chat_model_id=step.chat_model_id,
+        persona_id=step.persona_id,
+        position=step.position  # Make sure this uses position
+    )
     db.add(db_step)
     db.commit()
     db.refresh(db_step)
@@ -339,38 +341,38 @@ def delete_workflow_step(db: Session, step_id: int):
         db.commit()
     return step
 
-def reorder_workflow_step(db: Session, step_id: int, new_order: int):
+def reorder_workflow_step(db: Session, step_id: int, new_position: int):
     db_step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
     if db_step:
-        old_order = db_step.order
-        if new_order > old_order:
+        old_position = db_step.position
+        if new_position > old_position:
             # Moving down, shift intermediate steps up
             db.query(models.WorkflowStep).filter(
                 models.WorkflowStep.workflow_id == db_step.workflow_id,
-                models.WorkflowStep.order > old_order,
-                models.WorkflowStep.order <= new_order
-            ).update({models.WorkflowStep.order: models.WorkflowStep.order - 1})
-        elif new_order < old_order:
+                models.WorkflowStep.position > old_position,
+                models.WorkflowStep.position <= new_position
+            ).update({models.WorkflowStep.position: models.WorkflowStep.position - 1})
+        elif new_position < old_position:
             # Moving up, shift intermediate steps down
             db.query(models.WorkflowStep).filter(
                 models.WorkflowStep.workflow_id == db_step.workflow_id,
-                models.WorkflowStep.order >= new_order,
-                models.WorkflowStep.order < old_order
-            ).update({models.WorkflowStep.order: models.WorkflowStep.order + 1})
+                models.WorkflowStep.position >= new_position,
+                models.WorkflowStep.position < old_position
+            ).update({models.WorkflowStep.position: models.WorkflowStep.position + 1})
         
-        db_step.order = new_order
+        db_step.position = new_position
         db.commit()
     return db_step
 
 def move_workflow_step_up(db: Session, step_id: int):
     step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
-    if step and step.order > 1:
+    if step and step.position > 1:
         previous_step = db.query(models.WorkflowStep).filter(
             models.WorkflowStep.workflow_id == step.workflow_id,
-            models.WorkflowStep.order == step.order - 1
+            models.WorkflowStep.position == step.position - 1
         ).first()
         if previous_step:
-            step.order, previous_step.order = previous_step.order, step.order
+            step.position, previous_step.position = previous_step.position, step.position
             db.commit()
     return step
 
@@ -379,11 +381,12 @@ def move_workflow_step_down(db: Session, step_id: int):
     if step:
         next_step = db.query(models.WorkflowStep).filter(
             models.WorkflowStep.workflow_id == step.workflow_id,
-            models.WorkflowStep.order == step.order + 1
+            models.WorkflowStep.position == step.position + 1
         ).first()
         if next_step:
-            step.order, next_step.order = next_step.order, step.order
+            step.position, next_step.position = next_step.position, step.position
             db.commit()
     return step
+
 
 

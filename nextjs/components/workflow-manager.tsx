@@ -101,6 +101,12 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
 
   const handleSave = async () => {
     try {
+      const headers = getApiHeaders();
+      if (!headers) {
+        console.error('No valid headers available');
+        return;
+      }
+
       console.log('Saving workflow:', workflow);
       if (workflow.id) {
         const updatedWorkflow = await updateWorkflow(workflow.id, {
@@ -108,19 +114,18 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
           description: workflow.description,
           process_type: workflow.process_type,
           steps: workflow.steps
-        });
+        }, headers);
         setWorkflow(updatedWorkflow);
       } else {
-        const createdWorkflow = await createWorkflow(workflow);
+        const createdWorkflow = await createWorkflow(workflow, headers);
         setWorkflow(createdWorkflow);
       }
       console.log('Workflow saved successfully');
       onSave();
     } catch (error) {
       console.error('Error saving workflow:', error);
-      // Handle error (e.g., show error message to user)
     }
-  }
+  };
 
   return (
     <div className="container mx-auto p-4">

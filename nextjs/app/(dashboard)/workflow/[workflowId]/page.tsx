@@ -43,21 +43,16 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
       }
       
       try {
-        const fetchedWorkflow = await fetchWorkflow(params.workflowId)
-        setWorkflow(fetchedWorkflow)
-        await checkFirstStep(fetchedWorkflow)
+        const fetchedWorkflow = await fetchWorkflow(params.workflowId, headers);
+        setWorkflow(fetchedWorkflow);
+        await checkFirstStep(fetchedWorkflow);
       } catch (error) {
-        console.error('Error loading workflow:', error)
-        setError('Failed to load workflow')
+        console.error('Error loading workflow:', error);
+        setError('Failed to load workflow');
       }
-    }
-    loadWorkflow()
-
-    // Cleanup function to ensure polling stops when component unmounts
-    return () => {
-      isPolling.current = false;
-    }
-  }, [params.workflowId, getApiHeaders])
+    };
+    loadWorkflow();
+  }, [params.workflowId, getApiHeaders]);
 
   const checkFirstStep = async (workflow: Workflow) => {
     if (workflow.steps.length > 0) {
@@ -97,36 +92,34 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
   };
 
   const executeWorkflowAndPollResults = async (message?: string) => {
-    if (isExecuting) {
-      console.log('Workflow is already executing. Ignoring this call.');
+    const headers = getApiHeaders();
+    if (!headers) {
+      console.error('No valid headers available');
       return;
     }
 
-    setIsExecuting(true);
-    setError(null);
-    setResults([]);  // Clear previous results
-    setShowRunAgain(false);  // Hide the "Run Again" button
-    emptyPollCount.current = 0;
-    hasReceivedResults.current = false;
-
     try {
+      setIsExecuting(true);
+      setResults([]);
+      hasReceivedResults.current = false;
+      emptyPollCount.current = 0;
+      
       if (message) {
         console.log('Executing workflow with message:', message);
         const trimmedMessage = message.trim();
-        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, trimmedMessage);
+        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, headers, trimmedMessage);
       } else if (initialMessage) {
         console.log('Executing workflow with initial message:', initialMessage);
-        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, initialMessage);
+        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, headers, initialMessage);
       } else {
         console.log('Executing workflow without message');
-        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`);
+        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, headers);
       }
       pollResults();
     } catch (error) {
       console.error('Error executing workflow:', error);
-      setError(`Failed to execute workflow: ${error}`);
+      setError('Failed to execute workflow');
       setIsExecuting(false);
-      setShowRunAgain(true);  // Show the "Run Again" button on error
     }
   };
 
@@ -147,7 +140,12 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
       }
 
       try {
-        const fetchedResults = await getWorkflowResults(params.workflowId);
+        const headers = getApiHeaders();
+        if (!headers) {
+          console.error('No valid headers available');
+          return;
+        }
+        const fetchedResults = await getWorkflowResults(params.workflowId, headers);
         console.log('Fetched results:', fetchedResults);
 
         if (fetchedResults.length > 0) {

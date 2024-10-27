@@ -138,7 +138,7 @@ class WorkflowStepUpdate(WorkflowStepBase):
 class WorkflowStep(WorkflowStepBase):
     id: int
     workflow_id: int
-    order: int
+    position: int
 
     class Config:
         from_attributes = True

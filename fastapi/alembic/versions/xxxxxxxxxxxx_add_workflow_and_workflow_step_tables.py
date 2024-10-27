@@ -41,7 +41,7 @@ def upgrade():
     op.create_table('workflow_step',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('workflow_id', sa.Integer(), nullable=True),
-        sa.Column('order', sa.Integer(), nullable=False),
+        sa.Column('position', sa.Integer(), nullable=False),
         sa.Column('prompt_template_id', sa.Integer(), nullable=True),
         sa.Column('chat_model_id', sa.Integer(), nullable=True),
         sa.Column('persona_id', sa.Integer(), nullable=True),

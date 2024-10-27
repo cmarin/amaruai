@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation'
 import { WorkflowManagerComponent } from '@/components/workflow-manager'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/SidebarContext'
+import { useSession } from '@/app/utils/session/session';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,23 +35,33 @@ export default function WorkflowsPage() {
   const [workflowToDelete, setWorkflowToDelete] = useState<Workflow | null>(null)
   const router = useRouter()
   const { sidebarOpen } = useSidebar()
+  const { getApiHeaders, loading: sessionLoading, initialized } = useSession();
 
   useEffect(() => {
-    loadWorkflows()
-  }, [])
+    if (!sessionLoading && initialized) {
+      loadWorkflows();
+    }
+  }, [sessionLoading, initialized]);
 
   const loadWorkflows = async () => {
     try {
-      setIsLoading(true)
-      const fetchedWorkflows = await fetchWorkflows()
-      setWorkflows(fetchedWorkflows)
-      setIsLoading(false)
+      const headers = getApiHeaders();
+      if (!headers) {
+        console.error('No valid headers available');
+        return;
+      }
+
+      setIsLoading(true);
+      const fetchedWorkflows = await fetchWorkflows(headers);
+      setWorkflows(fetchedWorkflows);
+      setError(null);
     } catch (error) {
-      console.error('Error loading workflows:', error)
-      setError('Failed to load workflows')
-      setIsLoading(false)
+      console.error('Error loading workflows:', error);
+      setError('Failed to load workflows');
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleDeleteClick = (workflow: Workflow) => {
     setWorkflowToDelete(workflow)
@@ -60,12 +71,18 @@ export default function WorkflowsPage() {
   const confirmDelete = async () => {
     if (workflowToDelete && workflowToDelete.id) {
       try {
-        await deleteWorkflow(workflowToDelete.id)
-        setWorkflows(workflows.filter(workflow => workflow.id !== workflowToDelete.id))
-        setShowDeleteConfirmation(false)
-        setWorkflowToDelete(null)
+        const headers = getApiHeaders();
+        if (!headers) {
+          console.error('No valid headers available');
+          return;
+        }
+
+        await deleteWorkflow(workflowToDelete.id, headers);
+        setWorkflows(workflows.filter(workflow => workflow.id !== workflowToDelete.id));
+        setShowDeleteConfirmation(false);
+        setWorkflowToDelete(null);
       } catch (error) {
-        console.error('Error deleting workflow:', error)
+        console.error('Error deleting workflow:', error);
       }
     }
   }

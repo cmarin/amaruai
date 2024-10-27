@@ -108,19 +108,22 @@ class Workflow(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
-    description = Column(Text, nullable=True)
-    process_type = Column(Enum(ProcessType), default=ProcessType.SEQUENTIAL)
-
-    steps = relationship("WorkflowStep",
-                         back_populates="workflow",
-                         order_by="WorkflowStep.order")
+    description = Column(String, nullable=True)
+    process_type = Column(String)  # SEQUENTIAL or HIERARCHICAL
+    
+    # Update the relationship to order by position instead of order
+    steps = relationship(
+        "WorkflowStep",
+        order_by="WorkflowStep.position",  # Changed from .order to .position
+        cascade="all, delete-orphan"
+    )
 
 class WorkflowStep(Base):
     __tablename__ = "workflow_step"
 
     id = Column(Integer, primary_key=True, index=True)
     workflow_id = Column(Integer, ForeignKey("workflow.id"))
-    order = Column(Integer, nullable=False)
+    position = Column(Integer)  # Changed from 'order' to 'position'
     prompt_template_id = Column(Integer, ForeignKey("prompt_template.id"))
     chat_model_id = Column(Integer, ForeignKey("chat_model.id"))
     persona_id = Column(Integer, ForeignKey("persona.id"))
