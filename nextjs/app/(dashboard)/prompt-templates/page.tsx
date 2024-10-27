@@ -159,17 +159,23 @@ export default function PromptTemplatesPage() {
 
   const handleSaveEditedPrompt = async () => {
     if (!editingPrompt) return;
+    const headers = getApiHeaders();
+    if (!headers) {
+      console.error('No valid headers available');
+      return;
+    }
     try {
       await updatePromptTemplate(editingPrompt.id, {
         title: editingPrompt.title,
         prompt: editingPrompt.prompt as string,
         is_complex: false,
-        default_persona_id: editingPrompt.default_persona_id || null,  // Add '|| null' here
+        default_persona_id: editingPrompt.default_persona_id || null,
         category_ids: editingPrompt.category ? [parseInt(editingPrompt.category)] : [],
         tag_ids: editingPrompt.tags.map(t => t.id || t.name),
-      });
+      }, headers);
       setIsEditPromptDialogOpen(false);
-      await loadPromptTemplates();
+      const updatedPrompts = await fetchPromptTemplates(headers);
+      setPrompts(updatedPrompts);
     } catch (error) {
       console.error('Error updating prompt:', error);
     }
@@ -182,40 +188,57 @@ export default function PromptTemplatesPage() {
 
   const confirmDelete = async () => {
     if (templateToDelete) {
+      const headers = getApiHeaders();
+      if (!headers) {
+        console.error('No valid headers available');
+        return;
+      }
       try {
-        await deletePromptTemplate(templateToDelete.id);
+        await deletePromptTemplate(templateToDelete.id, headers);
         setShowDeleteConfirmation(false);
         setTemplateToDelete(null);
-        await loadPromptTemplates();
+        const updatedPrompts = await fetchPromptTemplates(headers);
+        setPrompts(updatedPrompts);
       } catch (error) {
         console.error('Error deleting prompt template:', error);
       }
     }
   };
 
-  const handleSaveComplexPrompt = async (title: string, category: string, tags: Tag[], complexPromptData: PromptContent) => {
+  const handleSaveComplexPrompt = async (
+    title: string,
+    category: string,
+    tags: Tag[],
+    data: PromptContent
+  ) => {
+    const headers = getApiHeaders();
+    if (!headers) {
+      console.error('No valid headers available');
+      return;
+    }
     try {
       if (selectedComplexPrompt) {
         await updatePromptTemplate(selectedComplexPrompt.id, {
           title,
-          prompt: JSON.stringify(complexPromptData),
+          prompt: JSON.stringify(data),
           is_complex: true,
-          default_persona_id: selectedComplexPrompt.default_persona_id || null,  // Add '|| null' here
+          default_persona_id: selectedComplexPrompt.default_persona_id || null,
           category_ids: [parseInt(category)],
           tag_ids: tags.map(t => t.id || t.name),
-        });
+        }, headers);
       } else {
         await createPromptTemplate({
           title,
-          prompt: JSON.stringify(complexPromptData),
+          prompt: JSON.stringify(data),
           is_complex: true,
           category_ids: [parseInt(category)],
           tag_ids: tags.map(t => t.id || t.name),
-        });
+        }, headers);
       }
       setIsComplexEditorOpen(false);
       setSelectedComplexPrompt(null);
-      await loadPromptTemplates();
+      const updatedPrompts = await fetchPromptTemplates(headers);
+      setPrompts(updatedPrompts);
     } catch (error) {
       console.error('Error saving complex prompt:', error);
     }

@@ -5,6 +5,7 @@ import { PromptContent } from './complex-prompt-editor';
 import { fetchWithRetry } from './apiUtils';
 import { ApiHeaders } from '@/app/utils/session/session';
 import { API_BASE_URL } from './apiConfig';
+import { Category } from './categoryService';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -23,11 +24,6 @@ export interface VariableType {
   };
 }
 
-export interface Category {
-  id: number;
-  name: string;
-}
-
 export type PromptTemplate = {
   id: number;
   title: string;
@@ -37,6 +33,11 @@ export type PromptTemplate = {
   variables?: string[];
   category_id?: number;
   content?: string | PromptContent;
+  // Add these new fields
+  categories: Category[];
+  tags: Tag[];
+  category?: string;  // For form handling
+  default_persona_id?: number | null;
 };
 
 export async function createPromptTemplate(
@@ -54,17 +55,17 @@ export async function createPromptTemplate(
       throw new Error('API_BASE_URL is not defined');
     }
 
-    // Fetch existing tags
-    const existingTags = await fetchTags();
+    // Fetch existing tags with headers
+    const existingTags = await fetchTags(headers);
 
-    // Process tags
+    // Process tags with headers
     const processedTagIds = await Promise.all(promptTemplate.tag_ids?.map(async (tagId) => {
       if (typeof tagId === 'string') {
         const existingTag = existingTags.find(tag => tag.name.toLowerCase() === tagId.toLowerCase());
         if (existingTag) {
           return existingTag.id;
         } else {
-          const newTag = await createTag(tagId);
+          const newTag = await createTag(tagId, headers);
           return newTag.id;
         }
       }

@@ -1,19 +1,30 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { ApiHeaders } from '@/app/utils/session/session';
+import { API_BASE_URL } from './apiConfig';
 
 export type Tag = {
   id: number;
   name: string;
 };
 
-export async function fetchTags(): Promise<Tag[]> {
+export async function fetchTags(headers?: ApiHeaders | null): Promise<Tag[]> {
   try {
-    if (!API_URL) {
-      throw new Error('API_URL is not defined');
+    if (!API_BASE_URL) {
+      throw new Error('API_BASE_URL is not defined');
     }
-    const response = await fetch(`${API_URL}/tags`);
+
+    const requestHeaders = headers ? headers : {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+
+    const response = await fetch(`${API_BASE_URL}/tags`, {
+      headers: requestHeaders
+    });
+
     if (!response.ok) {
       throw new Error('Failed to fetch tags');
     }
+
     const data = await response.json();
     return data.sort((a: Tag, b: Tag) => a.name.localeCompare(b.name));
   } catch (error) {
@@ -22,14 +33,19 @@ export async function fetchTags(): Promise<Tag[]> {
   }
 }
 
-export async function createTag(name: string): Promise<Tag> {
+export async function createTag(name: string, headers?: ApiHeaders | null): Promise<Tag> {
   try {
-    if (!API_URL) {
-      throw new Error('API_URL is not defined');
+    if (!API_BASE_URL) {
+      throw new Error('API_BASE_URL is not defined');
     }
     
+    const requestHeaders = headers ? headers : {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+    
     // First, check if the tag already exists
-    const existingTags = await fetchTags();
+    const existingTags = await fetchTags(headers);
     const existingTag = existingTags.find(tag => tag.name.toLowerCase() === name.toLowerCase());
     
     if (existingTag) {
@@ -37,15 +53,15 @@ export async function createTag(name: string): Promise<Tag> {
     }
     
     // If the tag doesn't exist, create a new one
-    const response = await fetch(`${API_URL}/tags`, {
+    const response = await fetch(`${API_BASE_URL}/tags`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: requestHeaders,
       body: JSON.stringify({ name }),
     });
     
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response:', response.status, errorText);
       throw new Error('Failed to create tag');
     }
     
