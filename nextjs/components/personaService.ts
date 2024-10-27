@@ -87,18 +87,19 @@ export async function updatePersona(personaId: number, persona: Partial<Persona>
       throw new Error('API_BASE_URL is not defined');
     }
 
-    // Fetch existing tags
-    const existingTags = await fetchTags();
+    // Pass headers to fetchTags
+    const existingTags = await fetchTags(headers);
     console.log('Existing tags:', existingTags);
 
-    // Process tags
+    // Process tags with headers
     const processedTagIds = await Promise.all(persona.tags?.map(async (tag) => {
       const existingTag = existingTags.find(t => t.name.toLowerCase() === tag.name.toLowerCase());
       if (existingTag) {
         console.log(`Using existing tag: ${existingTag.name} (ID: ${existingTag.id})`);
         return existingTag.id;
       } else {
-        const newTag = await createTag(tag.name);
+        // Pass headers to createTag
+        const newTag = await createTag(tag.name, headers);
         console.log(`Created new tag: ${newTag.name} (ID: ${newTag.id})`);
         return newTag.id;
       }
