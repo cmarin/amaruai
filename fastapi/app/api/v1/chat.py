@@ -117,7 +117,7 @@ class ChatInput(BaseModel):
 @router.post("/")  # Remove response_model since we're using StreamingResponse
 async def chat_endpoint(chat_input: ChatInput, db: Session = Depends(get_db)):
     logging.info(f"Received chat request: {chat_input}")
-    logging.info(f"User email: {user.email}")
+    logging.info(f"User ID: {user.id}")
     try:
         system_message = ""
         if chat_input.persona_id:
