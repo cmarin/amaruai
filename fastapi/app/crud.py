@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session, joinedload, load_only  # Add load_only to the import
 from . import models, schemas
-from sqlalchemy import desc, Enum as SQLAlchemyEnum, asc
+from sqlalchemy import desc, Enum as SQLAlchemyEnum, asc, func  # Add func to the import
+from fastapi import HTTPException
 
 
 
@@ -274,11 +275,11 @@ def get_workflows(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Workflow).offset(skip).limit(limit).all()
 
 def create_workflow(db: Session, workflow: schemas.WorkflowCreate):
-    db_workflow = models.Workflow(
-        name=workflow.name,
-        description=workflow.description,
-        process_type=models.ProcessType[workflow.process_type.upper()]
-    )
+    # Create a dictionary of the data, converting the enum to string
+    workflow_data = workflow.dict()
+    workflow_data['process_type'] = workflow_data['process_type'].value  # Convert enum to string
+
+    db_workflow = models.Workflow(**workflow_data)
     db.add(db_workflow)
     db.commit()
     db.refresh(db_workflow)
@@ -312,17 +313,30 @@ def get_workflow_steps(db: Session, workflow_id: int):
     return db.query(models.WorkflowStep).filter(models.WorkflowStep.workflow_id == workflow_id).order_by(models.WorkflowStep.position).all()
 
 def create_workflow_step(db: Session, workflow_id: int, step: schemas.WorkflowStepCreate):
-    db_step = models.WorkflowStep(
-        workflow_id=workflow_id,
-        prompt_template_id=step.prompt_template_id,
-        chat_model_id=step.chat_model_id,
-        persona_id=step.persona_id,
-        position=step.position  # Make sure this uses position
-    )
-    db.add(db_step)
-    db.commit()
-    db.refresh(db_step)
-    return db_step
+    try:
+        # Get the current maximum position for this workflow
+        max_position = db.query(func.max(models.WorkflowStep.position))\
+            .filter(models.WorkflowStep.workflow_id == workflow_id)\
+            .scalar()
+        
+        # If no steps exist yet, start at 1, otherwise increment the max position
+        next_position = 1 if max_position is None else max_position + 1
+
+        # Create new step with incremented position
+        db_step = models.WorkflowStep(
+            workflow_id=workflow_id,
+            prompt_template_id=int(step.prompt_template_id),
+            chat_model_id=int(step.chat_model_id),
+            persona_id=int(step.persona_id),
+            position=next_position
+        )
+        db.add(db_step)
+        db.commit()
+        db.refresh(db_step)
+        return db_step
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 def update_workflow_step(db: Session, step_id: int, step: schemas.WorkflowStepUpdate):
     db_step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
@@ -387,6 +401,17 @@ def move_workflow_step_down(db: Session, step_id: int):
             step.position, next_step.position = next_step.position, step.position
             db.commit()
     return step
+
+
+
+
+
+
+
+
+
+
+
 
 
 

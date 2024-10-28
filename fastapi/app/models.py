@@ -31,7 +31,7 @@ tool_persona = Table('tool_persona', Base.metadata,
 
 class ProcessType(enum.Enum):
     SEQUENTIAL = "SEQUENTIAL"
-    PARALLEL = "PARALLEL"
+    HIERARCHICAL = "HIERARCHICAL"  # Ensure this matches the database value
 
 class Persona(Base):
     __tablename__ = 'persona'
@@ -109,12 +109,11 @@ class Workflow(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     description = Column(String, nullable=True)
-    process_type = Column(String)  # SEQUENTIAL or HIERARCHICAL
+    process_type = Column(String)  # Store as String instead of Enum
     
-    # Update the relationship to order by position instead of order
     steps = relationship(
         "WorkflowStep",
-        order_by="WorkflowStep.position",  # Changed from .order to .position
+        order_by="WorkflowStep.position",
         cascade="all, delete-orphan"
     )
 

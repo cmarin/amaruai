@@ -109,10 +109,10 @@ class ProcessType(str, Enum):
 class WorkflowBase(BaseModel):
     name: str
     description: Optional[str] = None
-    process_type: ProcessType = ProcessType.SEQUENTIAL
+    process_type: str = "SEQUENTIAL"  # Change this to str instead of ProcessType
 
 class WorkflowCreate(WorkflowBase):
-    pass
+    process_type: ProcessType  # Keep this as ProcessType for validation
 
 class WorkflowUpdate(WorkflowBase):
     pass
@@ -125,20 +125,23 @@ class Workflow(WorkflowBase):
         from_attributes = True
 
 class WorkflowStepBase(BaseModel):
-    prompt_template_id: int
-    chat_model_id: int
-    persona_id: int
+    prompt_template_id: str | int  # Allow both string and int
+    chat_model_id: str | int
+    persona_id: str | int
 
 class WorkflowStepCreate(WorkflowStepBase):
-    pass
+    pass  # Remove position from here completely
 
 class WorkflowStepUpdate(WorkflowStepBase):
-    pass
+    position: Optional[int] = None
 
 class WorkflowStep(WorkflowStepBase):
     id: int
     workflow_id: int
     position: int
+    prompt_template_id: int  # Override to require int
+    chat_model_id: int      # Override to require int
+    persona_id: int         # Override to require int
 
     class Config:
         from_attributes = True

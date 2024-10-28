@@ -33,10 +33,13 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000"],  # Your frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],  # Add this line
+    allow_origin_regex=None,
+    max_age=600,
 )
 
 # Mount the public routes (authentication)
