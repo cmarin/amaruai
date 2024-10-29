@@ -30,7 +30,19 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
       return;
     }
 
-    const content = prompt.content;
+    let content;
+    if (typeof prompt.prompt === 'string') {
+      try {
+        content = JSON.parse(prompt.prompt);
+      } catch (error) {
+        console.error(`Failed to parse prompt content for prompt ID ${prompt.id}.`, error);
+        return;
+      }
+    } else {
+      console.error(`Prompt content is not a string for prompt ID ${prompt.id}.`);
+      return;
+    }
+
     if (!content) {
       console.error(`No content found in prompt object for prompt ID ${prompt.id}.`);
       return;
@@ -58,13 +70,21 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
   };
 
   const handleSubmit = () => {
-    if (!prompt.is_complex || !prompt.content) {
-      console.error('Invalid prompt or content');
+    let content;
+    if (typeof prompt.prompt === 'string') {
+      try {
+        content = JSON.parse(prompt.prompt);
+      } catch (error) {
+        console.error('Invalid prompt or content');
+        return;
+      }
+    } else {
+      console.error('Prompt content is not a string');
       return;
     }
 
-    let generatedPrompt = prompt.content.prompt;
-    prompt.content.variables.forEach((variable: VariableType) => {
+    let generatedPrompt = content.prompt;
+    content.variables.forEach((variable: VariableType) => {
       const value = values[variable.fieldName];
       if (value !== undefined && value !== '') {
         const stringValue = Array.isArray(value) ? value.join(', ') : String(value);
@@ -82,11 +102,22 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
     onClose();
   };
 
-  if (!prompt || !prompt.is_complex || !prompt.content) {
+  if (!prompt || !prompt.is_complex) {
     return null;
   }
 
-  const content = prompt.content;
+  let content;
+  if (typeof prompt.prompt === 'string') {
+    try {
+      content = JSON.parse(prompt.prompt);
+    } catch (error) {
+      console.error('Failed to parse prompt content');
+      return null;
+    }
+  } else {
+    console.error('Prompt content is not a string');
+    return null;
+  }
 
   const renderField = (variable: VariableType) => {
     const commonProps = {
