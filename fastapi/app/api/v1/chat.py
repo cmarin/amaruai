@@ -143,9 +143,8 @@ async def chat_endpoint(
         
         logging.info(f"Creating chain with model: {chat_input.model}")
         
-        chain_with_message_history = create_chain_with_message_history(chat_input.model, system_message)
-        
-        async def stream_response():
+        async def stream_response(model_name: str):
+            chain_with_message_history = create_chain_with_message_history(model_name, system_message)
             config = {"configurable": {"user_id": chat_input.user_id, "conversation_id": chat_input.conversation_id}}
             logging.info(f"Streaming response with config: {config}")
             try:
@@ -165,11 +164,20 @@ async def chat_endpoint(
                 yield "data: [DONE]\n\n"
             except Exception as e:
                 logging.error(f"Error during streaming: {str(e)}")
-                # Send an error message in SSE format
-                yield f"data: Error: {str(e)}\n\n"
+                if "RESOURCE_EXHAUSTED" in str(e):
+                    logging.info("Quota exceeded, attempting to use default chat model")
+                    default_model = crud.get_default_chat_model(db)
+                    if default_model and default_model.model != model_name:
+                        logging.info(f"Retrying with default model: {default_model.model}")
+                        async for response in stream_response(default_model.model):
+                            yield response
+                    else:
+                        yield "data: Error: Quota exceeded. Please try again later.\n\n"
+                else:
+                    yield f"data: Error: {str(e)}\n\n"
 
         logging.info("Returning StreamingResponse")
-        return StreamingResponse(stream_response(), media_type="text/event-stream")
+        return StreamingResponse(stream_response(chat_input.model), media_type="text/event-stream")
     except Exception as e:
         logging.error(f"Error in chat endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
