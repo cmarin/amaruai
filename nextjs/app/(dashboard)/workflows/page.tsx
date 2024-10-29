@@ -107,9 +107,9 @@ export default function WorkflowsPage() {
     loadWorkflows()
   }
 
-  // Dummy function for toggleChatbot (required for AppSidebar)
   const toggleChatbot = (modelId: string) => {
-    router.push(`/chat?model=${modelId}`)
+    // This function is required by AppSidebar props but won't be used
+    // since AppSidebar will handle the routing internally
   }
 
   if (isLoading) return <div>Loading workflows...</div>

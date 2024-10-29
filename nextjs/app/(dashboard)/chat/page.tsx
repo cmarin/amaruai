@@ -119,23 +119,55 @@ export default function ChatPage() {
   const [selectedTool, setSelectedTool] = useState<string | null>(null)
   const [localPersonas, setLocalPersonas] = useState<Persona[]>([])
 
+  // Add a ref to track if we've initialized from URL
+  const initializedFromUrl = useRef(false);
+
+  // First useEffect to handle URL parameters
   useEffect(() => {
     if (!dataLoading && !error && chatModels.length > 0) {
-      setAllModels(chatModels)
-      const initialChatbots = chatModels.map((model, index) => ({
-        id: (index + 1).toString(),
-        name: model.name,
-        apiName: model.model,
-        messages: [],
-        persona: 'default',
-        conversationId: uuidv4()
-      }))
-      setChatbots(initialChatbots)
-      setActiveChatbots([initialChatbots[0].id])
-      setLayoutMode('single')
-      setPrompts(promptTemplates)
+      const searchParams = new URLSearchParams(window.location.search);
+      const modelId = searchParams.get('model');
+      
+      console.log('URL Model ID:', modelId);
+      console.log('Available Models:', chatModels);
+
+      if (modelId) {
+        const selectedModel = chatModels.find(model => model.id.toString() === modelId);
+        console.log('Selected Model:', selectedModel);
+        
+        if (selectedModel) {
+          console.log('Setting up chatbot with model:', selectedModel.name);
+          const newChatbot: ChatBot = {
+            id: selectedModel.id.toString(),
+            name: selectedModel.name,
+            apiName: selectedModel.model,
+            messages: [],
+            persona: 'default',
+            conversationId: uuidv4()
+          };
+          
+          setChatbots([newChatbot]);
+          setActiveChatbots([selectedModel.id.toString()]);
+          setLayoutMode('single');
+          setAllModels(chatModels);
+          initializedFromUrl.current = true; // Mark that we've initialized from URL
+        }
+      } else if (!initializedFromUrl.current) { // Only set default if we haven't initialized from URL
+        // Default initialization
+        const initialChatbots = chatModels.map((model) => ({
+          id: model.id.toString(),
+          name: model.name,
+          apiName: model.model,
+          messages: [],
+          persona: 'default',
+          conversationId: uuidv4()
+        }));
+        setChatbots(initialChatbots);
+        setActiveChatbots([initialChatbots[0].id]);
+        setAllModels(chatModels);
+      }
     }
-  }, [dataLoading, error, chatModels, promptTemplates])
+  }, [dataLoading, error, chatModels]);
 
   useEffect(() => {
     if (personas.length > 0) {
@@ -143,28 +175,27 @@ export default function ChatPage() {
     }
   }, [personas])
 
+  // Modify the session initialization effect
   useEffect(() => {
-    if (!sessionLoading && initialized) {  // Only fetch when session is ready
+    if (!sessionLoading && initialized && !initializedFromUrl.current) {  // Only initialize if we haven't done so from URL
       const headers = getApiHeaders();
-      if (headers) {  // Only proceed if we have valid headers
-        if (chatModels.length > 0) {
-          setAllModels(chatModels)
-          const initialChatbots = chatModels.map((model, index) => ({
-            id: (index + 1).toString(),
-            name: model.name,
-            apiName: model.model,
-            messages: [],
-            persona: 'default',
-            conversationId: uuidv4()
-          }))
-          setChatbots(initialChatbots)
-          setActiveChatbots([initialChatbots[0].id])
-          setLayoutMode('single')
-          setPrompts(promptTemplates)
-        }
+      if (headers && chatModels.length > 0) {
+        setAllModels(chatModels);
+        const initialChatbots = chatModels.map((model) => ({
+          id: model.id.toString(),
+          name: model.name,
+          apiName: model.model,
+          messages: [],
+          persona: 'default',
+          conversationId: uuidv4()
+        }));
+        setChatbots(initialChatbots);
+        setActiveChatbots([initialChatbots[0].id]);
+        setLayoutMode('single');
+        setPrompts(promptTemplates);
       }
     }
-  }, [sessionLoading, initialized, getApiHeaders, chatModels, promptTemplates])
+  }, [sessionLoading, initialized, getApiHeaders, chatModels, promptTemplates]);
 
   const handleSend = async () => {
     if (input.trim()) {
@@ -292,10 +323,10 @@ export default function ChatPage() {
   }
 
   const toggleChatbot = (modelId: string) => {
-    const selectedModel = allModels.find(model => model.id.toString() === modelId);
+    const selectedModel = chatModels.find(model => model.id.toString() === modelId);
     if (selectedModel) {
       const newChatbot: ChatBot = {
-        id: modelId,
+        id: selectedModel.id.toString(),
         name: selectedModel.name,
         apiName: selectedModel.model,
         messages: [],
@@ -304,11 +335,16 @@ export default function ChatPage() {
       };
 
       setChatbots([newChatbot]);
-      setActiveChatbots([modelId]);
+      setActiveChatbots([selectedModel.id.toString()]);
       setLayoutMode('single');
       setShowMainDisplay(true);
+
+      // Update URL without page reload
+      const url = new URL(window.location.href);
+      url.searchParams.set('model', modelId);
+      window.history.pushState({}, '', url.toString());
     }
-  }
+  };
 
   const setLayout = (mode: LayoutMode) => {
     setLayoutMode(mode)
@@ -321,15 +357,27 @@ export default function ChatPage() {
     }
   }
 
-  const changeModel = useCallback((botId: string, newModelName: string) => {
-    const selectedModel = allModels.find(model => model.name === newModelName);
+  const changeModel = useCallback((botId: string, newModelId: string) => {
+    const selectedModel = allModels.find(model => model.id.toString() === newModelId);
     if (selectedModel) {
       setChatbots(prevChatbots => prevChatbots.map(bot => 
-        bot.id === botId ? { ...bot, name: selectedModel.name, apiName: selectedModel.model } : bot
-      ))
-      console.log(`Changed model for bot ${botId} to ${newModelName}`);
+        bot.id === botId ? { 
+          ...bot, 
+          id: selectedModel.id.toString(),
+          name: selectedModel.name,
+          apiName: selectedModel.model
+        } : bot
+      ));
+      
+      setActiveChatbots(prev => 
+        prev.includes(botId) ? [selectedModel.id.toString()] : prev
+      );
+
+      const url = new URL(window.location.href);
+      url.searchParams.set('model', selectedModel.id.toString());
+      window.history.pushState({}, '', url.toString());
     }
-  }, [allModels])
+  }, [allModels]);
 
   const changePersona = (botId: string, newPersonaRole: string) => {
     setChatbots(chatbots.map(bot => 
@@ -530,15 +578,19 @@ export default function ChatPage() {
                           </SelectContent>
                         </Select>
                         <Select 
-                          value={bot.name}
+                          value={bot.id}
                           onValueChange={(value) => changeModel(bot.id, value)}
                         >
                           <SelectTrigger className="w-[120px]" data-bot-id={bot.id}>
-                            <SelectValue placeholder="Model" />
+                            <SelectValue placeholder="Model">
+                              {allModels.find(m => m.id.toString() === bot.id)?.name}
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             {allModels.map((model) => (
-                              <SelectItem key={model.id} value={model.name}>{model.name}</SelectItem>
+                              <SelectItem key={model.id} value={model.id.toString()}>
+                                {model.name}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>

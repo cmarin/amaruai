@@ -63,7 +63,7 @@ const getProviderIcon = (modelId: string, modelName: string) => {
   return MessageSquare // fallback to default icon
 }
 
-export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
+export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps) {
   const router = useRouter()
   const { chatModels } = useData()
   const { sidebarOpen, toggleSidebar } = useSidebar()
@@ -91,6 +91,14 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
     await supabase.auth.signOut()
     router.push('/auth/login')
   }
+
+  const handleToggleChatbot = (modelId: string) => {
+    if (window.location.pathname === '/chat') {
+      propToggleChatbot(modelId);
+    } else {
+      router.push(`/chat?model=${modelId}`);
+    }
+  };
 
   return (
     <div className={`fixed top-0 left-0 h-full bg-gray-100 transition-all duration-300 ${sidebarOpen ? 'w-56' : 'w-14'} overflow-hidden`}>
@@ -151,7 +159,7 @@ export function AppSidebar({ toggleChatbot }: AppSidebarProps) {
                   key={model.id}
                   variant="ghost"
                   className={`w-full justify-start ${sidebarOpen ? 'px-3' : 'px-2'} py-2`}
-                  onClick={() => toggleChatbot(model.id.toString())}
+                  onClick={() => handleToggleChatbot(model.id.toString())}
                 >
                   <IconComponent className={sidebarOpen ? "mr-2" : ""} size={16} />
                   {sidebarOpen && <span className="text-sm">{model.name}</span>}
