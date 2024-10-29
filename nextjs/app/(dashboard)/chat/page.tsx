@@ -43,6 +43,7 @@ type ChatBot = {
   messages: Message[]
   persona: string
   conversationId: string
+  selectedModelId: string
 }
 
 type LayoutMode = 'single' | 'dual' | 'quad';
@@ -137,7 +138,8 @@ export default function ChatPage() {
             apiName: selectedModel.model,
             messages: [],
             persona: 'default',
-            conversationId: uuidv4()
+            conversationId: uuidv4(),
+            selectedModelId: selectedModel.id.toString()
           };
           
           setChatbots([newChatbot]);
@@ -153,7 +155,8 @@ export default function ChatPage() {
           apiName: model.model,
           messages: [],
           persona: 'default',
-          conversationId: uuidv4()
+          conversationId: uuidv4(),
+          selectedModelId: model.id.toString()
         }));
         setChatbots(initialChatbots);
         setActiveChatbots([initialChatbots[0].id]);
@@ -303,7 +306,8 @@ export default function ChatPage() {
         apiName: selectedModel.model,
         messages: [],
         persona: 'default',
-        conversationId: uuidv4()
+        conversationId: uuidv4(),
+        selectedModelId: selectedModel.id.toString()
       };
 
       setChatbots([newChatbot]);
@@ -332,7 +336,8 @@ export default function ChatPage() {
         apiName: model.model,
         messages: [],
         persona: 'default',
-        conversationId: uuidv4()
+        conversationId: uuidv4(),
+        selectedModelId: model.id.toString()
       }));
       
       const newChatbots = [...chatbots, ...additionalBots];
@@ -372,19 +377,11 @@ export default function ChatPage() {
       setChatbots(prevChatbots => prevChatbots.map(bot => 
         bot.id === botId ? { 
           ...bot, 
-          id: selectedModel.id.toString(),
+          selectedModelId: selectedModel.id.toString(),
           name: selectedModel.name,
           apiName: selectedModel.model
         } : bot
       ));
-      
-      setActiveChatbots(prev => 
-        prev.includes(botId) ? [selectedModel.id.toString()] : prev
-      );
-
-      const url = new URL(window.location.href);
-      url.searchParams.set('model', selectedModel.id.toString());
-      window.history.pushState({}, '', url.toString());
     }
   }, [allModels]);
 
@@ -566,7 +563,7 @@ export default function ChatPage() {
                     <div className="p-4 border-b flex justify-between items-center">
                       <div className="flex items-center">
                         {(() => {
-                          const IconComponent = getProviderIcon(bot.id, bot.name)
+                          const IconComponent = getProviderIcon(bot.selectedModelId, bot.name)
                           return <IconComponent className="mr-2" size={18} />
                         })()}
                         <span className="text-sm font-medium">{bot.name}</span>
@@ -587,12 +584,12 @@ export default function ChatPage() {
                           </SelectContent>
                         </Select>
                         <Select 
-                          value={bot.id}
+                          value={bot.selectedModelId}
                           onValueChange={(value) => changeModel(bot.id, value)}
                         >
                           <SelectTrigger className="w-[120px]" data-bot-id={bot.id}>
                             <SelectValue placeholder="Model">
-                              {allModels.find(m => m.id.toString() === bot.id)?.name}
+                              {allModels.find(m => m.id.toString() === bot.selectedModelId)?.name}
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
