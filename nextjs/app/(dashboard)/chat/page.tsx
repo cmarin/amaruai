@@ -45,7 +45,7 @@ type ChatBot = {
   conversationId: string
 }
 
-type LayoutMode = 'single' | 'dual' | 'quad'
+type LayoutMode = 'single' | 'dual' | 'quad';
 
 type UploadedFile = {
   name: string
@@ -122,21 +122,15 @@ export default function ChatPage() {
   // Add a ref to track if we've initialized from URL
   const initializedFromUrl = useRef(false);
 
-  // First useEffect to handle URL parameters
+  // This is the only initialization effect we need
   useEffect(() => {
     if (!dataLoading && !error && chatModels.length > 0) {
       const searchParams = new URLSearchParams(window.location.search);
       const modelId = searchParams.get('model');
       
-      console.log('URL Model ID:', modelId);
-      console.log('Available Models:', chatModels);
-
       if (modelId) {
         const selectedModel = chatModels.find(model => model.id.toString() === modelId);
-        console.log('Selected Model:', selectedModel);
-        
         if (selectedModel) {
-          console.log('Setting up chatbot with model:', selectedModel.name);
           const newChatbot: ChatBot = {
             id: selectedModel.id.toString(),
             name: selectedModel.name,
@@ -150,10 +144,9 @@ export default function ChatPage() {
           setActiveChatbots([selectedModel.id.toString()]);
           setLayoutMode('single');
           setAllModels(chatModels);
-          initializedFromUrl.current = true; // Mark that we've initialized from URL
+          initializedFromUrl.current = true;
         }
-      } else if (!initializedFromUrl.current) { // Only set default if we haven't initialized from URL
-        // Default initialization
+      } else if (!initializedFromUrl.current) {
         const initialChatbots = chatModels.map((model) => ({
           id: model.id.toString(),
           name: model.name,
@@ -166,36 +159,15 @@ export default function ChatPage() {
         setActiveChatbots([initialChatbots[0].id]);
         setAllModels(chatModels);
       }
+      setPrompts(promptTemplates);
     }
-  }, [dataLoading, error, chatModels]);
+  }, [dataLoading, error, chatModels, promptTemplates]);
 
   useEffect(() => {
     if (personas.length > 0) {
       setLocalPersonas(personas)
     }
   }, [personas])
-
-  // Modify the session initialization effect
-  useEffect(() => {
-    if (!sessionLoading && initialized && !initializedFromUrl.current) {  // Only initialize if we haven't done so from URL
-      const headers = getApiHeaders();
-      if (headers && chatModels.length > 0) {
-        setAllModels(chatModels);
-        const initialChatbots = chatModels.map((model) => ({
-          id: model.id.toString(),
-          name: model.name,
-          apiName: model.model,
-          messages: [],
-          persona: 'default',
-          conversationId: uuidv4()
-        }));
-        setChatbots(initialChatbots);
-        setActiveChatbots([initialChatbots[0].id]);
-        setLayoutMode('single');
-        setPrompts(promptTemplates);
-      }
-    }
-  }, [sessionLoading, initialized, getApiHeaders, chatModels, promptTemplates]);
 
   const handleSend = async () => {
     if (input.trim()) {
@@ -348,12 +320,49 @@ export default function ChatPage() {
 
   const setLayout = (mode: LayoutMode) => {
     setLayoutMode(mode)
-    if (mode === 'single') {
-      setActiveChatbots([chatbots[0].id])
-    } else if (mode === 'dual') {
-      setActiveChatbots([chatbots[0].id, chatbots[1].id])
+    
+    // If we need more chatbots than we currently have, create them
+    const neededBots = mode === 'dual' ? 2 : mode === 'quad' ? 4 : 1;
+    
+    if (chatbots.length < neededBots) {
+      // Create additional chatbots using the available models
+      const additionalBots = chatModels.slice(chatbots.length).map(model => ({
+        id: model.id.toString(),
+        name: model.name,
+        apiName: model.model,
+        messages: [],
+        persona: 'default',
+        conversationId: uuidv4()
+      }));
+      
+      const newChatbots = [...chatbots, ...additionalBots];
+      setChatbots(newChatbots);
+      
+      // Set active chatbots based on mode
+      switch (mode) {
+        case 'single':
+          setActiveChatbots([newChatbots[0].id]);
+          break;
+        case 'dual':
+          setActiveChatbots([newChatbots[0].id, newChatbots[1].id]);
+          break;
+        case 'quad':
+          setActiveChatbots(newChatbots.slice(0, 4).map(bot => bot.id));
+          break;
+      }
     } else {
-      setActiveChatbots(chatbots.slice(0, 4).map(bot => bot.id))
+      // We have enough chatbots, just update active ones
+      switch (mode) {
+        case 'single':
+          setActiveChatbots([chatbots[0].id]);
+          break;
+        case 'dual':
+          setActiveChatbots([chatbots[0].id, chatbots[1].id]);
+          break;
+        case 'quad':
+          setActiveChatbots(chatbots.slice(0, 4).map(bot => bot.id));
+          break;
+      }
     }
   }
 
