@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import List, Optional  # Add Optional to the import
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app import crud, models, schemas
@@ -13,7 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableWithMessageHistory, ConfigurableFieldSpec
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import BaseMessage, SystemMessage, trim_messages
-from app.api.v1.dependencies import get_current_user  # Updated import path
+from app.api.v1.dependencies import get_current_user
 from dotenv import load_dotenv, find_dotenv, get_key
 from app.api.v1.router import create_protected_router
 
@@ -71,14 +71,13 @@ def create_chain_with_message_history(model_name: str, system_message: str):
         prompt = ChatPromptTemplate.from_messages([
             SystemMessage(content=system_message),
             MessagesPlaceholder(variable_name="history"),
-            ("human", "{input}"),  # Changed this line
+            ("human", "{input}"),
         ])
 
         chain = prompt | llm
 
         # Remove the trimmer as it might be using InputTokenDetails
         # We'll handle message history differently
-
         return RunnableWithMessageHistory(
             chain,
             get_session_history=get_session_history,
@@ -115,7 +114,11 @@ class ChatInput(BaseModel):
     persona_id: Optional[int] = None
 
 @router.post("/")  # Remove response_model since we're using StreamingResponse
-async def chat_endpoint(chat_input: ChatInput, db: Session = Depends(get_db)):
+async def chat_endpoint(
+    chat_input: ChatInput, 
+    db: Session = Depends(get_db),
+    user = Depends(get_current_user)
+):
     logging.info(f"Received chat request: {chat_input}")
     logging.info(f"User ID: {user.id}")
     try:

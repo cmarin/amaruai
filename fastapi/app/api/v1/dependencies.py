@@ -1,34 +1,47 @@
+# dependencies.py
 from fastapi import Depends, HTTPException, Header
 from typing import Optional
 import logging
+import os
 from app.config.supabase import supabase
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+from dotenv import load_dotenv
+load_dotenv()
+print(f"Loaded API key: {os.getenv('SERVICE1_API_KEY')}")
 
+logger = logging.getLogger(__name__)
 
 async def get_current_user(authorization: Optional[str] = Header(None)):
     logger.debug(f"Received authorization header: {authorization}")
+    logger.debug(f"Expected API key: Bearer {os.getenv('SERVICE1_API_KEY')}")
+    logger.debug(f"Actual header: {authorization}")
+    
+    # Check if authorization header exists
     if not authorization:
         logger.error("No authorization header provided")
         raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Check for API key first
+    api_key = os.getenv("SERVICE1_API_KEY")
+    if api_key and authorization.strip() == f"Bearer {api_key}":  # Added strip() to remove any whitespace
+        logger.debug("API key authentication successful")
+        return {
+            "email": "api@service.internal",
+            "is_api_user": True
+        }
+    
     try:
-        # Remove 'Bearer ' prefix
         token = authorization.split(' ')[1]
-        logger.debug(f"Extracted token: {token[:20]}...")
-        # First try to verify the token directly
         try:
             user = supabase.auth.get_user(token)
             logger.debug(f"Successfully got user directly: {user.user.email}")
             return user.user
         except Exception as direct_error:
             logger.warning(f"Direct token verification failed: {str(direct_error)}")
-            # If direct verification fails, try setting the session
             try:
                 supabase.auth.set_session({
                     "access_token": token,
-                    "refresh_token": ""  # We don't have the refresh token from the header
+                    "refresh_token": ""
                 })
-                # Now try to get the session
                 session = supabase.auth.get_session()
                 if session:
                     logger.debug(f"Successfully got session after setting it manually")
