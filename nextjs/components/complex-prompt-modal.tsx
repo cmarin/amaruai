@@ -38,13 +38,15 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
         console.error(`Failed to parse prompt content for prompt ID ${prompt.id}.`, error);
         return;
       }
+    } else if (typeof prompt.prompt === 'object') {
+      content = prompt.prompt; // Directly use the object if it's already parsed
     } else {
-      console.error(`Prompt content is not a string for prompt ID ${prompt.id}.`);
+      console.error(`Prompt content is not a valid type for prompt ID ${prompt.id}.`);
       return;
     }
 
-    if (!content) {
-      console.error(`No content found in prompt object for prompt ID ${prompt.id}.`);
+    if (!content || !content.variables) {
+      console.error(`No valid content found in prompt object for prompt ID ${prompt.id}.`);
       return;
     }
 
@@ -78,8 +80,15 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
         console.error('Invalid prompt or content');
         return;
       }
+    } else if (typeof prompt.prompt === 'object') {
+      content = prompt.prompt;
     } else {
-      console.error('Prompt content is not a string');
+      console.error('Prompt content is not a valid type');
+      return;
+    }
+
+    if (!content || !content.variables) {
+      console.error('Invalid content structure');
       return;
     }
 
@@ -114,8 +123,15 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
       console.error('Failed to parse prompt content');
       return null;
     }
+  } else if (typeof prompt.prompt === 'object') {
+    content = prompt.prompt;
   } else {
-    console.error('Prompt content is not a string');
+    console.error('Prompt content is not a valid type');
+    return null;
+  }
+
+  if (!content || !content.variables) {
+    console.error('Invalid content structure');
     return null;
   }
 
