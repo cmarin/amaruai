@@ -279,7 +279,14 @@ def create_workflow(db: Session, workflow: schemas.WorkflowCreate):
     workflow_data = workflow.dict()
     workflow_data['process_type'] = workflow_data['process_type'].value  # Convert enum to string
 
-    db_workflow = models.Workflow(**workflow_data)
+    db_workflow = models.Workflow(
+        name=workflow.name,
+        description=workflow.description,
+        process_type=workflow_data['process_type'],
+        manager_chat_model_id=workflow.manager_chat_model_id,
+        manager_persona_id=workflow.manager_persona_id,
+        max_iterations=workflow.max_iterations
+    )
     db.add(db_workflow)
     db.commit()
     db.refresh(db_workflow)

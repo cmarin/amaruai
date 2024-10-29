@@ -34,6 +34,9 @@
     <p><strong>Name:</strong> {{ workflow.name }}</p>
     <p><strong>Description:</strong> {{ workflow.description }}</p>
     <p><strong>Process Type:</strong> {{ workflow.process_type }}</p>
+    <p><strong>Manager Chat Model ID:</strong> {{ workflow.manager_chat_model_id }}</p>
+    <p><strong>Manager Persona ID:</strong> {{ workflow.manager_persona_id }}</p>
+    <p><strong>Max Iterations:</strong> {{ workflow.max_iterations }}</p>
     
     <a href="#" onclick="executeWorkflow('{{ workflow.id }}')">Execute Workflow</a>
     

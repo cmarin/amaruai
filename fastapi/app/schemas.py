@@ -109,10 +109,13 @@ class ProcessType(str, Enum):
 class WorkflowBase(BaseModel):
     name: str
     description: Optional[str] = None
-    process_type: str = "SEQUENTIAL"  # Change this to str instead of ProcessType
+    process_type: str = "SEQUENTIAL"
+    manager_chat_model_id: Optional[int] = None
+    manager_persona_id: Optional[int] = None
+    max_iterations: Optional[int] = None
 
 class WorkflowCreate(WorkflowBase):
-    process_type: ProcessType  # Keep this as ProcessType for validation
+    process_type: ProcessType
 
 class WorkflowUpdate(WorkflowBase):
     pass

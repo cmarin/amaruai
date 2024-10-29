@@ -109,7 +109,10 @@ class Workflow(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     description = Column(String, nullable=True)
-    process_type = Column(String)  # Store as String instead of Enum
+    process_type = Column(String)
+    manager_chat_model_id = Column(Integer, ForeignKey("chat_model.id"), nullable=True)
+    manager_persona_id = Column(Integer, ForeignKey("persona.id"), nullable=True)
+    max_iterations = Column(Integer, nullable=True)
     
     steps = relationship(
         "WorkflowStep",
