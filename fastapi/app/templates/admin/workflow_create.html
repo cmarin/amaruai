@@ -13,6 +13,13 @@
         input[type="submit"] { margin-top: 20px; padding: 10px; background-color: #007bff; color: white; border: none; cursor: pointer; }
         input[type="submit"]:hover { background-color: #0056b3; }
     </style>
+    <script>
+        document.getElementById('process_type').addEventListener('change', function() {
+            const isHierarchical = this.value === 'HIERARCHICAL';
+            document.getElementById('manager_chat_model_id').required = isHierarchical;
+            document.getElementById('manager_persona_id').required = isHierarchical;
+        });
+    </script>
 </head>
 <body>
     <h1>Create Workflow</h1>

@@ -112,7 +112,7 @@ class WorkflowBase(BaseModel):
     process_type: str = "SEQUENTIAL"
     manager_chat_model_id: Optional[int] = None
     manager_persona_id: Optional[int] = None
-    max_iterations: Optional[int] = None
+    max_iterations: int = 1  # Set a default value of 1
 
 class WorkflowCreate(WorkflowBase):
     process_type: ProcessType

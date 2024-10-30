@@ -3,8 +3,6 @@ from . import models, schemas
 from sqlalchemy import desc, Enum as SQLAlchemyEnum, asc, func  # Add func to the import
 from fastapi import HTTPException
 
-
-
 def get_persona(db: Session, persona_id: int):
     return db.query(models.Persona).filter(models.Persona.id == persona_id).first()
 
@@ -285,7 +283,7 @@ def create_workflow(db: Session, workflow: schemas.WorkflowCreate):
         process_type=workflow_data['process_type'],
         manager_chat_model_id=workflow.manager_chat_model_id,
         manager_persona_id=workflow.manager_persona_id,
-        max_iterations=workflow.max_iterations
+        max_iterations=workflow.max_iterations or 1  # Ensure a default value
     )
     db.add(db_workflow)
     db.commit()
@@ -298,6 +296,11 @@ def update_workflow(db: Session, workflow_id: int, workflow: schemas.WorkflowUpd
         update_data = workflow.dict(exclude_unset=True)
         for key, value in update_data.items():
             setattr(db_workflow, key, value)
+        
+        # Ensure max_iterations is set to a valid integer
+        if db_workflow.max_iterations is None:
+            db_workflow.max_iterations = 1
+
         db.commit()
         db.refresh(db_workflow)
     return db_workflow

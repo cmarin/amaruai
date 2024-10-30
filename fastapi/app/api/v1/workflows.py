@@ -19,6 +19,9 @@ workflow_results = {}
 
 @router.post("/", response_model=schemas.Workflow)
 def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_db)):
+    if workflow.process_type == models.ProcessType.HIERARCHICAL.value:
+        if not workflow.manager_chat_model_id or not workflow.manager_persona_id:
+            raise HTTPException(status_code=400, detail="Manager chat model and persona IDs are required for hierarchical workflows.")
     return crud.create_workflow(db=db, workflow=workflow)
 
 
@@ -33,11 +36,19 @@ def read_workflow(workflow_id: int, db: Session = Depends(get_db)):
     db_workflow = crud.get_workflow(db, workflow_id=workflow_id)
     if db_workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    # Ensure max_iterations is a valid integer
+    if db_workflow.max_iterations is None:
+        db_workflow.max_iterations = 1  # Set a default value if None
+
     return db_workflow
 
 
 @router.put("/{workflow_id}", response_model=schemas.Workflow)
 def update_workflow(workflow_id: int, workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
+    if workflow.process_type == models.ProcessType.HIERARCHICAL.value:
+        if not workflow.manager_chat_model_id or not workflow.manager_persona_id:
+            raise HTTPException(status_code=400, detail="Manager chat model and persona IDs are required for hierarchical workflows.")
     db_workflow = crud.update_workflow(db, workflow_id=workflow_id, workflow=workflow)
     if db_workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -58,10 +69,48 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
         workflow = crud.get_workflow(db, workflow_id=workflow_id)
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
+
+        # Ensure max_iterations is a valid integer
+        max_iterations = workflow.max_iterations if workflow.max_iterations is not None else 1
+
         async def run_workflow():
             try:
                 agents = []
                 tasks = []
+                manager = None
+                manager_llm = None
+
+                # Create manager agent if the workflow is hierarchical
+                if workflow.process_type == models.ProcessType.HIERARCHICAL.value:
+                    logging.info(f"Manager Chat Model ID: {workflow.manager_chat_model_id}")
+                    logging.info(f"Manager Persona ID: {workflow.manager_persona_id}")
+
+                    manager_persona = crud.get_persona(db, workflow.manager_persona_id)
+                    manager_chat_model = crud.get_chat_model(db, workflow.manager_chat_model_id)
+
+                    if manager_chat_model:
+                        manager_llm = LLM(
+                            model=f"openrouter/{manager_chat_model.model}",
+                            api_key=os.environ["OPENROUTER_API_KEY"],
+                            base_url=os.environ["OPENROUTER_API_BASE"]
+                        )
+                        logging.info(f"Manager LLM configured with model: {manager_chat_model.model}")
+                    else:
+                        logging.error("Manager chat model not found or not configured.")
+
+                    if manager_persona:
+                        manager = Agent(
+                            role=manager_persona.role,
+                            goal=manager_persona.goal,
+                            backstory=manager_persona.backstory,
+                            allow_delegation=manager_persona.allow_delegation,
+                            verbose=manager_persona.verbose,
+                            llm=manager_llm
+                        )
+                        logging.info(f"Manager agent configured with role: {manager_persona.role}")
+                    else:
+                        logging.error("Manager persona not found or not configured.")
+
                 for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.position)):
                     prompt_template = step.prompt_template
                     chat_model = step.chat_model
@@ -80,7 +129,8 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
                         backstory=persona.backstory,
                         allow_delegation=persona.allow_delegation,
                         verbose=persona.verbose,
-                        llm=llm
+                        llm=llm,
+                        max_iter=max_iterations  # Use the validated max_iterations
                     )
                     agents.append(agent)
 
@@ -92,7 +142,6 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
                         description=description,
                         agent=agent,
                         expected_output="Quality writing"
-
                     )
 
                     tasks.append(task)
@@ -105,7 +154,9 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
                     agents=agents,
                     tasks=tasks,
                     process=process,
-                    verbose=True  # Set to True for more detailed logging
+                    verbose=True,
+                    manager_agent=manager if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None,
+                    manager_llm=manager_llm if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None
                 )
 
                 results = []
@@ -146,7 +197,6 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
 
                 return {"result": f"Error during workflow execution: {str(e)}"}
 
-
         background_tasks.add_task(run_workflow)
         return {"message": "Workflow execution started in the background"}
 
@@ -174,7 +224,6 @@ async def get_workflow_results(workflow_id: int):
     if any("completed" in result for result in results):
         formatted_results.append({"completed": "true"})
     return formatted_results
-
 
 
 @router.post("/{workflow_id}/steps/", response_model=schemas.WorkflowStep)
