@@ -17,6 +17,9 @@ export interface Workflow {
   description: string;
   process_type: 'SEQUENTIAL' | 'HIERARCHICAL';
   steps: WorkflowStep[];
+  manager_chat_model_id?: string;
+  manager_persona_id?: string;
+  max_iterations?: number;
 }
 
 export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
@@ -61,6 +64,11 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
       name: workflow.name,
       description: workflow.description,
       process_type: workflow.process_type,
+      ...(workflow.process_type === 'HIERARCHICAL' && {
+        manager_chat_model_id: workflow.manager_chat_model_id,
+        manager_persona_id: workflow.manager_persona_id,
+        max_iterations: workflow.max_iterations,
+      }),
     };
 
     console.log('Creating workflow with payload:', workflowPayload);
@@ -104,6 +112,11 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       name: workflow.name,
       description: workflow.description,
       process_type: workflow.process_type,
+      ...(workflow.process_type === 'HIERARCHICAL' && {
+        manager_chat_model_id: workflow.manager_chat_model_id,
+        manager_persona_id: workflow.manager_persona_id,
+        max_iterations: workflow.max_iterations,
+      }),
     };
 
     console.log('Updating workflow with payload:', workflowPayload);

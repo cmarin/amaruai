@@ -28,17 +28,25 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     description: "",
     process_type: "SEQUENTIAL",
     steps: [],
-  })
-  const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([])
-  const [chatModels, setChatModels] = useState<ChatModel[]>([])
-  const [personas, setPersonas] = useState<Persona[]>([])
+  });
+  const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
+  const [chatModels, setChatModels] = useState<ChatModel[]>([]);
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [managerChatModelId, setManagerChatModelId] = useState<string | undefined>(undefined);
+  const [managerPersonaId, setManagerPersonaId] = useState<string | undefined>(undefined);
+  const [maxIterations, setMaxIterations] = useState<number>(5);
   const { getApiHeaders, loading: sessionLoading } = useSession();
 
   useEffect(() => {
     if (initialWorkflow) {
-      setWorkflow(initialWorkflow)
+      setWorkflow(initialWorkflow);
+      if (initialWorkflow.process_type === 'HIERARCHICAL') {
+        setManagerChatModelId(initialWorkflow.manager_chat_model_id);
+        setManagerPersonaId(initialWorkflow.manager_persona_id);
+        setMaxIterations(initialWorkflow.max_iterations || 5);
+      }
     }
-  }, [initialWorkflow])
+  }, [initialWorkflow]);
 
   useEffect(() => {
     if (!sessionLoading) {
@@ -64,6 +72,15 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
       fetchData();
     }
   }, [sessionLoading, getApiHeaders]);
+
+  const handleProcessTypeChange = (value: "SEQUENTIAL" | "HIERARCHICAL") => {
+    setWorkflow({ ...workflow, process_type: value });
+    if (value === 'HIERARCHICAL') {
+      setManagerChatModelId(chatModels[0]?.id.toString());
+      setManagerPersonaId(personas[0]?.id.toString());
+      setMaxIterations(5);
+    }
+  };
 
   const addStep = () => {
     const newStep: WorkflowStep = {
@@ -107,7 +124,19 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
         return;
       }
 
-      console.log('Saving workflow:', workflow);
+      const workflowPayload = {
+        name: workflow.name,
+        description: workflow.description,
+        process_type: workflow.process_type,
+        steps: workflow.steps,
+        ...(workflow.process_type === 'HIERARCHICAL' && {
+          manager_chat_model_id: managerChatModelId,
+          manager_persona_id: managerPersonaId,
+          max_iterations: maxIterations,
+        }),
+      };
+
+      console.log('Saving workflow:', workflowPayload);
       if (workflow.id) {
         const updatedWorkflow = await updateWorkflow(workflow.id, {
           name: workflow.name,
@@ -157,9 +186,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
               <Label htmlFor="processType">Process Type</Label>
               <Select
                 value={workflow.process_type}
-                onValueChange={(value: "SEQUENTIAL" | "HIERARCHICAL") =>
-                  setWorkflow({ ...workflow, process_type: value })
-                }
+                onValueChange={handleProcessTypeChange}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select process type" />
@@ -170,6 +197,56 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
                 </SelectContent>
               </Select>
             </div>
+            {workflow.process_type === 'HIERARCHICAL' && (
+              <>
+                <div>
+                  <Label htmlFor="managerChatModel">Manager Model</Label>
+                  <Select
+                    value={managerChatModelId}
+                    onValueChange={setManagerChatModelId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select manager chat model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {chatModels.map((model) => (
+                        <SelectItem key={model.id} value={model.id.toString()}>
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="managerPersona">Manager Persona</Label>
+                  <Select
+                    value={managerPersonaId}
+                    onValueChange={setManagerPersonaId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select manager persona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {personas.map((persona) => (
+                        <SelectItem key={persona.id} value={persona.id.toString()}>
+                          {persona.role}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="maxIterations">Max Iterations Per Agent</Label>
+                  <Input
+                    id="maxIterations"
+                    type="number"
+                    value={maxIterations}
+                    onChange={(e) => setMaxIterations(Number(e.target.value))}
+                    placeholder="Max Iterations"
+                  />
+                </div>
+              </>
+            )}
           </form>
         </CardContent>
       </Card>
