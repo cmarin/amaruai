@@ -112,7 +112,7 @@ class WorkflowBase(BaseModel):
     process_type: str = "SEQUENTIAL"
     manager_chat_model_id: Optional[int] = None
     manager_persona_id: Optional[int] = None
-    max_iterations: int = 1  # Set a default value of 1
+    max_iterations: Optional[int] = None  # Make max_iterations optional
 
 class WorkflowCreate(WorkflowBase):
     process_type: ProcessType
@@ -123,6 +123,13 @@ class WorkflowUpdate(WorkflowBase):
 class Workflow(WorkflowBase):
     id: int
     steps: List["WorkflowStep"] = []
+
+    @property
+    def effective_max_iterations(self) -> Optional[int]:
+        # Return max_iterations only if process_type is HIERARCHICAL
+        if self.process_type == ProcessType.HIERARCHICAL.value:
+            return self.max_iterations or 1  # Default to 1 for hierarchical workflows
+        return None  # Return None for sequential workflows
 
     class Config:
         from_attributes = True

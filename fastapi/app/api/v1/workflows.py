@@ -70,8 +70,8 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
 
-        # Ensure max_iterations is a valid integer
-        max_iterations = workflow.max_iterations if workflow.max_iterations is not None else 1
+        # Set max_iterations to a default value only if the workflow is hierarchical
+        max_iterations = 1 if (workflow.process_type == models.ProcessType.HIERARCHICAL.value and workflow.max_iterations is None) else workflow.max_iterations
 
         async def run_workflow():
             try:
