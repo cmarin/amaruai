@@ -395,7 +395,7 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
 
   const renderStepIndicator = () => {
     return (
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-8 pt-4">
         {[1, 2, 3].map((step) => (
           <div
             key={step}
@@ -555,17 +555,14 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
           </Button>
         )}
         <div className="flex-grow" />
-        {currentStep < 3 ? (
+        {currentStep < 3 && (
           <Button
             onClick={() => setCurrentStep(prev => prev + 1)}
-            className="flex items-center bg-blue-600 hover:bg-blue-700 text-white"
+            variant="outline"
+            className="flex items-center"
           >
             Next
             <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
-        ) : (
-          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white">
-            Save
           </Button>
         )}
       </div>
@@ -576,10 +573,23 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
     <div className="fixed inset-0 bg-white z-50 flex flex-col h-screen">
       <div className="flex items-center justify-between p-4 border-b">
         <h1 className="text-2xl font-bold">Complex Prompt Editor</h1>
-        <Button onClick={onClose} variant="outline">Close</Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleSave} 
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            Save
+          </Button>
+          <Button onClick={onClose} variant="outline">Close</Button>
+        </div>
+      </div>
+      <div className="bg-gray-50 px-4 py-3 border-b">
+        <h2 className="text-gray-600 text-lg text-center">
+          {title || 'Untitled Prompt'}
+        </h2>
       </div>
       <div className="flex-grow overflow-auto">
-        <CardContent>
+        <CardContent className="pt-8">
           {renderStepIndicator()}
           {renderStepContent()}
           {renderNavigation()}
