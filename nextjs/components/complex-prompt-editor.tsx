@@ -574,13 +574,13 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
       <div className="flex items-center justify-between p-4 border-b">
         <h1 className="text-2xl font-bold">Complex Prompt Editor</h1>
         <div className="flex gap-2">
+        <Button onClick={onClose} variant="outline">Close</Button>
           <Button 
             onClick={handleSave} 
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             Save
           </Button>
-          <Button onClick={onClose} variant="outline">Close</Button>
         </div>
       </div>
       <div className="bg-gray-50 px-4 py-3 border-b">
