@@ -70,8 +70,8 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
 
-        # Set max_iterations to a default value only if the workflow is hierarchical
-        max_iterations = 1 if (workflow.process_type == models.ProcessType.HIERARCHICAL.value and workflow.max_iterations is None) else workflow.max_iterations
+        # Determine max_iterations only for hierarchical workflows
+        max_iterations = workflow.max_iterations if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None
 
         async def run_workflow():
             try:
@@ -123,6 +123,7 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
                         base_url=os.environ["OPENROUTER_API_BASE"]
                     )
 
+                    # Set max_iter only if max_iterations is not None
                     agent = Agent(
                         role=persona.role,
                         goal=persona.goal,
@@ -130,7 +131,7 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
                         allow_delegation=persona.allow_delegation,
                         verbose=persona.verbose,
                         llm=llm,
-                        max_iter=max_iterations  # Use the validated max_iterations
+                        max_iter=max_iterations if max_iterations is not None else 1  # Default to 1 if not set
                     )
                     agents.append(agent)
 
