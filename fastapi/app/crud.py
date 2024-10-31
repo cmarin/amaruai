@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session, joinedload, load_only  # Add load_only to th
 from . import models, schemas
 from sqlalchemy import desc, Enum as SQLAlchemyEnum, asc, func  # Add func to the import
 from fastapi import HTTPException
+import logging
 
 def get_persona(db: Session, persona_id: int):
     return db.query(models.Persona).filter(models.Persona.id == persona_id).first()
@@ -293,16 +294,56 @@ def create_workflow(db: Session, workflow: schemas.WorkflowCreate):
 def update_workflow(db: Session, workflow_id: int, workflow: schemas.WorkflowUpdate):
     db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id).first()
     if db_workflow:
-        update_data = workflow.dict(exclude_unset=True)
+        # Update workflow fields
+        update_data = workflow.dict(exclude_unset=True, exclude={'steps'})
         for key, value in update_data.items():
             setattr(db_workflow, key, value)
         
-        # Ensure max_iterations is set to a valid integer
-        if db_workflow.max_iterations is None:
-            db_workflow.max_iterations = 1
+        # Update step positions if steps are provided
+        if hasattr(workflow, 'steps') and workflow.steps:
+            # Get existing steps
+            existing_steps = {step.id: step for step in db_workflow.steps}
+            
+            # Update or create steps
+            for position, step_data in enumerate(workflow.steps):
+                logging.info(f"Processing step {step_data.id} at position {position}")
+                
+                db_step = db.query(models.WorkflowStep).filter(
+                    models.WorkflowStep.id == step_data.id,
+                    models.WorkflowStep.workflow_id == workflow_id
+                ).first()
+                
+                if db_step:
+                    logging.info(f"Updating step {db_step.id} position to {position}")
+                    # Update step position and other fields
+                    db_step.position = position
+                    if hasattr(step_data, 'prompt_template_id'):
+                        db_step.prompt_template_id = int(step_data.prompt_template_id)
+                    if hasattr(step_data, 'chat_model_id'):
+                        db_step.chat_model_id = int(step_data.chat_model_id)
+                    if hasattr(step_data, 'persona_id'):
+                        db_step.persona_id = int(step_data.persona_id)
+                    
+                    # Remove from existing steps dict to track which ones to delete
+                    existing_steps.pop(db_step.id, None)
+            
+            # Delete any steps that weren't in the update
+            for step in existing_steps.values():
+                logging.info(f"Deleting step {step.id}")
+                db.delete(step)
 
         db.commit()
         db.refresh(db_workflow)
+        
+        # Verify positions after update
+        steps = db.query(models.WorkflowStep).filter(
+            models.WorkflowStep.workflow_id == workflow_id
+        ).order_by(models.WorkflowStep.position).all()
+        
+        logging.info("Final step positions:")
+        for step in steps:
+            logging.info(f"Step {step.id}: position {step.position}")
+            
     return db_workflow
 
 def delete_workflow(db: Session, workflow_id: int):
@@ -324,15 +365,17 @@ def get_workflow_steps(db: Session, workflow_id: int):
 
 def create_workflow_step(db: Session, workflow_id: int, step: schemas.WorkflowStepCreate):
     try:
-        # Get the current maximum position for this workflow
-        max_position = db.query(func.max(models.WorkflowStep.position))\
-            .filter(models.WorkflowStep.workflow_id == workflow_id)\
-            .scalar()
+        # Get all existing steps for this workflow
+        existing_steps = db.query(models.WorkflowStep).filter(
+            models.WorkflowStep.workflow_id == workflow_id
+        ).order_by(models.WorkflowStep.position).all()
         
-        # If no steps exist yet, start at 1, otherwise increment the max position
-        next_position = 1 if max_position is None else max_position + 1
+        # Calculate next position
+        next_position = len(existing_steps)
+        
+        logging.info(f"Creating new step at position {next_position}")
 
-        # Create new step with incremented position
+        # Create new step
         db_step = models.WorkflowStep(
             workflow_id=workflow_id,
             prompt_template_id=int(step.prompt_template_id),
@@ -343,9 +386,12 @@ def create_workflow_step(db: Session, workflow_id: int, step: schemas.WorkflowSt
         db.add(db_step)
         db.commit()
         db.refresh(db_step)
+        
+        logging.info(f"Created step {db_step.id} at position {db_step.position}")
         return db_step
     except Exception as e:
         db.rollback()
+        logging.error(f"Error creating workflow step: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 def update_workflow_step(db: Session, step_id: int, step: schemas.WorkflowStepUpdate):

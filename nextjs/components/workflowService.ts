@@ -146,16 +146,27 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       return Promise.resolve();
     }));
 
-    // Create new steps
+    // Create new steps while preserving their positions
     if (workflow.steps) {
-      const createdSteps = await Promise.all(workflow.steps.map(step => 
-        createWorkflowStep(id, {
+      // Sort steps by position to ensure correct order
+      const sortedSteps = [...workflow.steps].sort((a, b) => a.position - b.position);
+      
+      // Create steps sequentially to maintain order
+      const createdSteps = [];
+      for (let i = 0; i < sortedSteps.length; i++) {
+        const step = sortedSteps[i];
+        const stepPayload = {
           prompt_template_id: step.prompt_template_id,
           chat_model_id: step.chat_model_id,
           persona_id: step.persona_id,
-          position: step.position
-        }, headers)
-      ));
+          position: i  // Explicitly set position based on index
+        };
+        
+        console.log(`Creating step ${i} with payload:`, stepPayload);
+        const createdStep = await createWorkflowStep(id, stepPayload, headers);
+        createdSteps.push(createdStep);
+      }
+      
       updatedWorkflow.steps = createdSteps;
     }
 

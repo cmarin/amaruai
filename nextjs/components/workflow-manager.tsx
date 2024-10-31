@@ -132,12 +132,25 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
 
   const moveStep = (index: number, direction: 'up' | 'down') => {
     const newSteps = [...workflow.steps];
+    
     if (direction === 'up' && index > 0) {
+      // Swap the steps
       [newSteps[index - 1], newSteps[index]] = [newSteps[index], newSteps[index - 1]];
+      
+      // Update positions to match new order
+      newSteps[index - 1].position = index - 1;
+      newSteps[index].position = index;
+      
     } else if (direction === 'down' && index < newSteps.length - 1) {
+      // Swap the steps
       [newSteps[index], newSteps[index + 1]] = [newSteps[index + 1], newSteps[index]];
+      
+      // Update positions to match new order
+      newSteps[index].position = index;
+      newSteps[index + 1].position = index + 1;
     }
-    setWorkflow({ ...workflow, steps: newSteps.map((step, i) => ({ ...step, position: i })) });
+    
+    setWorkflow({ ...workflow, steps: newSteps });
   };
 
   const handleSave = async () => {
