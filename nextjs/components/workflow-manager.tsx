@@ -39,10 +39,16 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
 
   useEffect(() => {
     if (initialWorkflow) {
+      console.log('Initial workflow loaded:', initialWorkflow);
       setWorkflow(initialWorkflow);
       if (initialWorkflow.process_type === 'HIERARCHICAL') {
-        setManagerChatModelId(initialWorkflow.manager_chat_model_id);
-        setManagerPersonaId(initialWorkflow.manager_persona_id);
+        console.log('Setting hierarchical values:', {
+          manager_chat_model_id: initialWorkflow.manager_chat_model_id,
+          manager_persona_id: initialWorkflow.manager_persona_id,
+          max_iterations: initialWorkflow.max_iterations
+        });
+        setManagerChatModelId(initialWorkflow.manager_chat_model_id?.toString());
+        setManagerPersonaId(initialWorkflow.manager_persona_id?.toString());
         setMaxIterations(initialWorkflow.max_iterations || 5);
       }
     }
@@ -73,11 +79,29 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     }
   }, [sessionLoading, getApiHeaders]);
 
+  useEffect(() => {
+    if (workflow.process_type === 'HIERARCHICAL' && chatModels.length > 0 && personas.length > 0) {
+      console.log('Updating manager IDs after data load');
+      console.log('Available chat models:', chatModels);
+      console.log('Available personas:', personas);
+      console.log('Current managerChatModelId:', managerChatModelId);
+      console.log('Current managerPersonaId:', managerPersonaId);
+      
+      // Only set if not already set
+      if (!managerChatModelId) {
+        setManagerChatModelId(workflow.manager_chat_model_id?.toString());
+      }
+      if (!managerPersonaId) {
+        setManagerPersonaId(workflow.manager_persona_id?.toString());
+      }
+    }
+  }, [workflow.process_type, chatModels, personas]);
+
   const handleProcessTypeChange = (value: "SEQUENTIAL" | "HIERARCHICAL") => {
     setWorkflow({ ...workflow, process_type: value });
     if (value === 'HIERARCHICAL') {
-      setManagerChatModelId(chatModels[0]?.id.toString());
-      setManagerPersonaId(personas[0]?.id.toString());
+      setManagerChatModelId(chatModels[0]?.id?.toString());
+      setManagerPersonaId(personas[0]?.id?.toString());
       setMaxIterations(5);
     }
   };
@@ -136,17 +160,13 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
         }),
       };
 
-      console.log('Saving workflow:', workflowPayload);
+      console.log('Workflow payload to be sent:', JSON.stringify(workflowPayload, null, 2));
+
       if (workflow.id) {
-        const updatedWorkflow = await updateWorkflow(workflow.id, {
-          name: workflow.name,
-          description: workflow.description,
-          process_type: workflow.process_type,
-          steps: workflow.steps
-        }, headers);
+        const updatedWorkflow = await updateWorkflow(workflow.id, workflowPayload, headers);
         setWorkflow(updatedWorkflow);
       } else {
-        const createdWorkflow = await createWorkflow(workflow, headers);
+        const createdWorkflow = await createWorkflow(workflowPayload, headers);
         setWorkflow(createdWorkflow);
       }
       console.log('Workflow saved successfully');
@@ -197,16 +217,28 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
                 </SelectContent>
               </Select>
             </div>
-            {workflow.process_type === 'HIERARCHICAL' && (
+            {workflow.process_type === 'HIERARCHICAL' && chatModels.length > 0 && personas.length > 0 && (
               <>
                 <div>
                   <Label htmlFor="managerChatModel">Manager Model</Label>
                   <Select
-                    value={managerChatModelId}
-                    onValueChange={setManagerChatModelId}
+                    value={managerChatModelId?.toString() || ''}
+                    onValueChange={(value) => {
+                      console.log('Setting manager chat model ID:', value);
+                      setManagerChatModelId(value);
+                    }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select manager chat model" />
+                      <SelectValue placeholder="Select manager chat model">
+                        {(() => {
+                          const selectedModel = chatModels.find(model => 
+                            model.id.toString() === managerChatModelId?.toString()
+                          );
+                          console.log('Looking for model with ID:', managerChatModelId);
+                          console.log('Found model:', selectedModel);
+                          return selectedModel?.name || 'Select model';
+                        })()}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {chatModels.map((model) => (
@@ -220,11 +252,23 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
                 <div>
                   <Label htmlFor="managerPersona">Manager Persona</Label>
                   <Select
-                    value={managerPersonaId}
-                    onValueChange={setManagerPersonaId}
+                    value={managerPersonaId?.toString() || ''}
+                    onValueChange={(value) => {
+                      console.log('Setting manager persona ID:', value);
+                      setManagerPersonaId(value);
+                    }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select manager persona" />
+                      <SelectValue placeholder="Select manager persona">
+                        {(() => {
+                          const selectedPersona = personas.find(persona => 
+                            persona.id.toString() === managerPersonaId?.toString()
+                          );
+                          console.log('Looking for persona with ID:', managerPersonaId);
+                          console.log('Found persona:', selectedPersona);
+                          return selectedPersona?.role || 'Select persona';
+                        })()}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {personas.map((persona) => (
