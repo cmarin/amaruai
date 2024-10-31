@@ -17,11 +17,15 @@ export async function fetchTags(headers?: ApiHeaders | null): Promise<Tag[]> {
       'Accept': 'application/json'
     };
 
+    console.log('Fetching tags with headers:', requestHeaders);
+
     const response = await fetch(`${API_BASE_URL}/tags`, {
-      headers: requestHeaders
+      headers: requestHeaders as HeadersInit
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error fetching tags:', response.status, errorText);
       throw new Error('Failed to fetch tags');
     }
 
@@ -44,6 +48,8 @@ export async function createTag(name: string, headers?: ApiHeaders | null): Prom
       'Accept': 'application/json'
     };
     
+    console.log('Creating tag with headers:', requestHeaders);
+    
     // First, check if the tag already exists
     const existingTags = await fetchTags(headers);
     const existingTag = existingTags.find(tag => tag.name.toLowerCase() === name.toLowerCase());
@@ -55,13 +61,13 @@ export async function createTag(name: string, headers?: ApiHeaders | null): Prom
     // If the tag doesn't exist, create a new one
     const response = await fetch(`${API_BASE_URL}/tags`, {
       method: 'POST',
-      headers: requestHeaders,
+      headers: requestHeaders as HeadersInit,
       body: JSON.stringify({ name }),
     });
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Error response:', response.status, errorText);
+      console.error('Error creating tag:', response.status, errorText);
       throw new Error('Failed to create tag');
     }
     

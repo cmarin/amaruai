@@ -15,11 +15,10 @@ import CodeMirror from '@uiw/react-codemirror'
 import { json } from '@codemirror/lang-json'
 import { vscodeDark } from '@uiw/codemirror-theme-vscode'
 import { Category } from './categoryService'
-import { ChevronUp, ChevronDown } from 'lucide-react'
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import TagSelector from './tag-selector'
 import { Tag } from './tagService'
 
-// Update the Validation type to be more specific
 type NumberValidation = {
   min?: number;
   max?: number;
@@ -35,7 +34,6 @@ type DateValidation = {
 
 type Validation = NumberValidation | DateValidation;
 
-// Update the Variable type
 type Variable = {
   fieldName: string;
   required: boolean;
@@ -48,7 +46,6 @@ type Variable = {
   validation?: Validation;
 }
 
-// Add the export keyword to the PromptContent type definition
 export type PromptContent = {
   variables: Variable[]
   prompt: string
@@ -64,7 +61,6 @@ type ComplexPromptEditorProps = {
   categories: Category[]
 }
 
-// Update VariableFieldValue type
 type VariableFieldValue =
   | string
   | boolean
@@ -84,6 +80,7 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
   const [tags, setTags] = useState<Tag[]>(initialTags || [])
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>("visual")
+  const [currentStep, setCurrentStep] = useState(1)
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -120,14 +117,12 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
     }))
   }
 
-  // Update the handleVariableChange function
   const handleVariableChange = (index: number, field: keyof Variable, value: VariableFieldValue) => {
     setPromptContent(prev => ({
       ...prev,
       variables: prev.variables.map((v, i) => {
         if (i === index) {
           if (field === 'validation') {
-            // Ensure the validation is of the correct type
             const newValidation: Validation | undefined = 
               typeof value === 'object' && value !== null
                 ? v.controlType === 'number'
@@ -139,7 +134,6 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
             
             return { ...v, validation: newValidation };
           }
-          // For other fields, directly assign the value
           return { ...v, [field]: value };
         }
         return v;
@@ -399,69 +393,108 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
     onSave(title, category, tags, promptContent)
   }
 
-  return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col h-screen">
-      <div className="flex items-center justify-between p-4 border-b">
-        <h1 className="text-2xl font-bold">Complex Prompt Editor</h1>
-        <div>
-          <Button onClick={handleSave} className="mr-2 bg-blue-600 hover:bg-blue-700 text-white">Save</Button>
-          <Button onClick={onClose} variant="outline">Close</Button>
-        </div>
+  const renderStepIndicator = () => {
+    return (
+      <div className="flex items-center justify-between mb-8">
+        {[1, 2, 3].map((step) => (
+          <div
+            key={step}
+            className="flex items-center"
+            onClick={() => setCurrentStep(step)}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className={`
+              w-10 h-10 rounded-full flex items-center justify-center
+              ${currentStep === step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}
+              ${currentStep > step ? 'bg-green-500 text-white' : ''}
+            `}>
+              {step}
+            </div>
+            <div className={`ml-2 ${currentStep === step ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>
+              {step === 1 ? 'Metadata' : step === 2 ? 'Variables' : 'Prompt'}
+            </div>
+            {step < 3 && (
+              <div className="mx-4 flex-grow border-t border-gray-300 w-20" />
+            )}
+          </div>
+        ))}
       </div>
-      <div className="flex-grow overflow-auto">
-        <CardContent>
-          <div className="grid gap-4 py-4">
-            <div className="flex items-center gap-4">
-              <Label htmlFor="title" className="w-24">
-                Title
-              </Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => handleTitleChange(e.target.value)}
-                className="flex-grow"
-              />
-            </div>
-            <div className="flex items-center gap-4">
-              <Label htmlFor="category" className="w-24">
-                Category
-              </Label>
-              <Select
-                value={category}
-                onValueChange={handleCategoryChange}
-              >
-                <SelectTrigger className="flex-grow">
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id.toString()}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-4">
-              <Label htmlFor="tags" className="w-24">
-                Tags
-              </Label>
-              <div className="flex-grow">
-                <TagSelector
-                  tags={tags}
-                  setTags={setTags}
-                  placeholder="Add a prompt tag"
+    )
+  }
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <div className="space-y-6">
+            <div className="grid gap-4">
+              <div className="flex items-center gap-4">
+                <Label htmlFor="title" className="w-24">
+                  Title
+                </Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => handleTitleChange(e.target.value)}
+                  className="flex-grow"
                 />
+              </div>
+              <div className="flex items-center gap-4">
+                <Label htmlFor="category" className="w-24">
+                  Category
+                </Label>
+                <Select
+                  value={category}
+                  onValueChange={handleCategoryChange}
+                >
+                  <SelectTrigger className="flex-grow">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id.toString()}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-4">
+                <Label htmlFor="tags" className="w-24">
+                  Tags
+                </Label>
+                <div className="flex-grow">
+                  <TagSelector
+                    tags={tags}
+                    setTags={setTags}
+                    placeholder="Add a prompt tag"
+                  />
+                </div>
               </div>
             </div>
           </div>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="visual">Visual Editor</TabsTrigger>
-              <TabsTrigger value="json">JSON Editor</TabsTrigger>
-            </TabsList>
-            <TabsContent value="visual" className="mt-4">
-              <div className="space-y-6">
+        )
+      case 2:
+        return (
+          <div className="space-y-6">
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <Label>Variables</Label>
+                <Button onClick={handleAddVariable} className="bg-blue-500 hover:bg-blue-600 text-white">Add Variable</Button>
+              </div>
+              {(promptContent.variables || []).map((variable, index) => renderVariable(variable, index))}
+            </div>
+          </div>
+        )
+      case 3:
+        return (
+          <div className="space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="visual">Visual Editor</TabsTrigger>
+                <TabsTrigger value="json">JSON Editor</TabsTrigger>
+              </TabsList>
+              <TabsContent value="visual" className="mt-4">
                 <div>
                   <Label className="mb-2 block">Prompt Template</Label>
                   <Textarea
@@ -484,32 +517,72 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
                     </SelectContent>
                   </Select>
                 </div>
-                <Separator className="my-4" />
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <Label>Variables</Label>
-                    <Button onClick={handleAddVariable} className="bg-blue-500 hover:bg-blue-600 text-white">Add Variable</Button>
+              </TabsContent>
+              <TabsContent value="json" className="mt-4">
+                <CodeMirror
+                  value={JSON.stringify(promptContent, null, 2)}
+                  height="400px"
+                  extensions={[json()]}
+                  onChange={handleJsonChange}
+                  theme={vscodeDark}
+                  className="border border-gray-300 rounded-md"
+                />
+                {jsonError && (
+                  <div className="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
+                    {jsonError}
                   </div>
-                  {(promptContent.variables || []).map((variable, index) => renderVariable(variable, index))}
-                </div>
-              </div>
-            </TabsContent>
-            <TabsContent value="json" className="mt-4">
-              <CodeMirror
-                value={JSON.stringify(promptContent, null, 2)}
-                height="400px"
-                extensions={[json()]}
-                onChange={handleJsonChange}
-                theme={vscodeDark}
-                className="border border-gray-300 rounded-md"
-              />
-              {jsonError && (
-                <div className="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
-                  {jsonError}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+        )
+      default:
+        return null
+    }
+  }
+
+  const renderNavigation = () => {
+    return (
+      <div className="flex justify-between mt-8">
+        {currentStep > 1 && (
+          <Button
+            onClick={() => setCurrentStep(prev => prev - 1)}
+            variant="outline"
+            className="flex items-center"
+          >
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Previous
+          </Button>
+        )}
+        <div className="flex-grow" />
+        {currentStep < 3 ? (
+          <Button
+            onClick={() => setCurrentStep(prev => prev + 1)}
+            className="flex items-center bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            Next
+            <ChevronRight className="w-4 h-4 ml-2" />
+          </Button>
+        ) : (
+          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white">
+            Save
+          </Button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 bg-white z-50 flex flex-col h-screen">
+      <div className="flex items-center justify-between p-4 border-b">
+        <h1 className="text-2xl font-bold">Complex Prompt Editor</h1>
+        <Button onClick={onClose} variant="outline">Close</Button>
+      </div>
+      <div className="flex-grow overflow-auto">
+        <CardContent>
+          {renderStepIndicator()}
+          {renderStepContent()}
+          {renderNavigation()}
         </CardContent>
       </div>
     </div>

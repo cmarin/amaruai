@@ -114,17 +114,17 @@ export async function updatePromptTemplate(
       throw new Error('API_BASE_URL is not defined');
     }
 
-    // Fetch existing tags
-    const existingTags = await fetchTags();
+    // Fetch existing tags with headers
+    const existingTags = await fetchTags(headers);
 
-    // Process tags
+    // Process tags with headers
     const processedTagIds = await Promise.all(promptTemplate.tag_ids.map(async (tagId) => {
       if (typeof tagId === 'string') {
         const existingTag = existingTags.find(tag => tag.name.toLowerCase() === tagId.toLowerCase());
         if (existingTag) {
           return existingTag.id;
         } else {
-          const newTag = await createTag(tagId);
+          const newTag = await createTag(tagId, headers);
           return newTag.id;
         }
       }
