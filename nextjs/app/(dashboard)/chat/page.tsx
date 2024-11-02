@@ -27,6 +27,17 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/SidebarContext'
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon } from '@/components/icons/ai-provider-icons'
 import { useSession } from '@/app/utils/session/session';
+import Uppy from '@uppy/core';
+import { Dashboard } from '@uppy/react';
+
+// Import required Uppy CSS
+import '@uppy/core/dist/style.css';
+import '@uppy/dashboard/dist/style.css';
+
+// Add these imports if you want additional features
+// import DropboxPlugin from '@uppy/dropbox';
+// import GoogleDrivePlugin from '@uppy/google-drive';
+// import WebcamPlugin from '@uppy/webcam';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -122,6 +133,42 @@ export default function ChatPage() {
 
   // Add a ref to track if we've initialized from URL
   const initializedFromUrl = useRef(false);
+
+  // Initialize Uppy in a useEffect to avoid SSR issues
+  const [uppyInstance, setUppyInstance] = useState<Uppy | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+
+  useEffect(() => {
+    const uppy = new Uppy({
+      id: 'uppy-chat',
+      autoProceed: false,
+      restrictions: {
+        maxFileSize: 10 * 1024 * 1024, // 10MB
+        maxNumberOfFiles: 5,
+        allowedFileTypes: ['image/*', 'application/pdf', '.doc', '.docx']
+      }
+    });
+
+    // Optional: Add more plugins
+    // uppy.use(DropboxPlugin, { companionUrl: 'https://companion.uppy.io' });
+    // uppy.use(GoogleDrivePlugin, { companionUrl: 'https://companion.uppy.io' });
+    // uppy.use(WebcamPlugin);
+
+    uppy.on('upload-success', (file, response) => {
+      if (file) {
+        console.log('File uploaded successfully:', file.name);
+        // Handle the uploaded file here
+        setShowUploadModal(false);
+      }
+    });
+
+    setUppyInstance(uppy);
+
+    // Cleanup
+    return () => {
+      uppy.cancelAll();
+    };
+  }, []);
 
   // This is the only initialization effect we need
   useEffect(() => {
@@ -435,8 +482,8 @@ export default function ChatPage() {
   }, [chatbots])
 
   const handleFileUpload = () => {
-    fileInputRef.current?.click()
-  }
+    setShowUploadModal(true);
+  };
 
   const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
@@ -682,11 +729,11 @@ export default function ChatPage() {
                       rows={1}
                     />
                     <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleFileUpload}
-                        className="h-8 w-8 p-0"
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={handleFileUpload} 
+                        className="h-8 w-8 p-0" 
                         title="Upload file"
                       >
                         <Paperclip className="h-4 w-4" />
@@ -778,6 +825,21 @@ export default function ChatPage() {
           />
         )}
       </div>
+      {/* Uppy Dashboard Modal */}
+      {uppyInstance && showUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg p-4">
+            <Dashboard
+              uppy={uppyInstance}
+              width={750}
+              height={550}
+              showProgressDetails={true}
+              proudlyDisplayPoweredByUppy={false}
+              onRequestCloseModal={() => setShowUploadModal(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
