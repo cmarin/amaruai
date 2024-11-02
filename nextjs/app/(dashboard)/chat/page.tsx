@@ -179,6 +179,11 @@ export default function ChatPage() {
       }
     });
 
+    uppy.on('complete', (result) => {
+      console.log('Upload complete:', result);
+      setShowUploadModal(false); // Close the modal after all uploads are complete
+    });
+
     setUppyInstance(uppy);
 
     // Cleanup
@@ -845,7 +850,16 @@ export default function ChatPage() {
       {/* Uppy Dashboard Modal */}
       {uppyInstance && showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg p-4">
+          <div className="bg-white rounded-lg p-4 relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowUploadModal(false)}
+              className="absolute top-2 right-2"
+              title="Close"
+            >
+              <X className="h-4 w-4" />
+            </Button>
             <Dashboard
               uppy={uppyInstance}
               width={750}
