@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ChevronLeft, Copy, FileText, Check, RefreshCw } from 'lucide-react'
-import { fetchWorkflow, Workflow, executeWorkflow, getWorkflowResults, WorkflowResult } from '@/components/workflowService'
+import { fetchWorkflow, Workflow, executeWorkflowWS, getWorkflowResults, WorkflowResult } from '@/components/workflowService'
 import { fetchPromptTemplate, PromptTemplate } from '@/components/promptTemplateService'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 import ReactMarkdown from 'react-markdown'
@@ -107,13 +107,13 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
       if (message) {
         console.log('Executing workflow with message:', message);
         const trimmedMessage = message.trim();
-        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, headers, trimmedMessage);
+        await executeWorkflowWS(params.workflowId, 'user', `workflow_execution_${Date.now()}`, headers, trimmedMessage);
       } else if (initialMessage) {
         console.log('Executing workflow with initial message:', initialMessage);
-        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, headers, initialMessage);
+        await executeWorkflowWS(params.workflowId, 'user', `workflow_execution_${Date.now()}`, headers, initialMessage);
       } else {
         console.log('Executing workflow without message');
-        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, headers);
+        await executeWorkflowWS(params.workflowId, 'user', `workflow_execution_${Date.now()}`, headers);
       }
       pollResults();
     } catch (error) {
@@ -167,8 +167,11 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
           setResults(prevResults => {
             const newResults = [...prevResults];
             fetchedResults.forEach(result => {
-              if (!newResults.some(r => r.step === result.step)) {
+              if (!newResults.some(r => r.step === result.step && r.prompt === result.prompt && r.response === result.response)) {
+                console.log('Adding new result:', result);
                 newResults.push(result);
+              } else {
+                console.log('Duplicate result detected, skipping:', result);
               }
             });
             return newResults;

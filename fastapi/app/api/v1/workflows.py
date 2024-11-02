@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, BackgroundTasks
+from fastapi import Depends, HTTPException, BackgroundTasks, WebSocket
 from sqlalchemy.orm import Session
 from typing import List, Dict
 from app import crud, schemas, models
@@ -258,3 +258,96 @@ def delete_workflow_step(workflow_id: int, step_id: int, db: Session = Depends(g
     if db_step is None:
         raise HTTPException(status_code=404, detail="Workflow step not found")
     return db_step
+
+
+@router.websocket("/{workflow_id}/stream")
+async def stream_workflow(workflow_id: int, websocket: WebSocket, db: Session = Depends(get_db)):
+    await websocket.accept()
+    try:
+        workflow = crud.get_workflow(db, workflow_id=workflow_id)
+        if not workflow:
+            await websocket.send_json({"error": "Workflow not found"})
+            return
+
+        # Determine max_iterations only for hierarchical workflows
+        max_iterations = workflow.max_iterations if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None
+
+        agents = []
+        tasks = []
+        manager = None
+        manager_llm = None
+
+        # Create manager agent if the workflow is hierarchical
+        if workflow.process_type == models.ProcessType.HIERARCHICAL.value:
+            manager_persona = crud.get_persona(db, workflow.manager_persona_id)
+            manager_chat_model = crud.get_chat_model(db, workflow.manager_chat_model_id)
+
+            if manager_chat_model:
+                manager_llm = LLM(
+                    model=f"openrouter/{manager_chat_model.model}",
+                    api_key=os.environ["OPENROUTER_API_KEY"],
+                    base_url=os.environ["OPENROUTER_API_BASE"]
+                )
+
+            if manager_persona:
+                manager = Agent(
+                    role=manager_persona.role,
+                    goal=manager_persona.goal,
+                    backstory=manager_persona.backstory,
+                    allow_delegation=manager_persona.allow_delegation,
+                    verbose=manager_persona.verbose,
+                    llm=manager_llm
+                )
+
+        # Create agents and tasks from workflow steps
+        for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.position)):
+            chat_model = step.chat_model
+            persona = step.persona
+
+            llm = LLM(
+                model=f"openrouter/{chat_model.model}",
+                api_key=os.environ["OPENROUTER_API_KEY"],
+                base_url=os.environ["OPENROUTER_API_BASE"]
+            )
+
+            agent = Agent(
+                role=persona.role,
+                goal=persona.goal,
+                backstory=persona.backstory,
+                allow_delegation=persona.allow_delegation,
+                verbose=persona.verbose,
+                llm=llm,
+                max_iter=max_iterations if max_iterations is not None else 1
+            )
+            agents.append(agent)
+
+            task = Task(
+                description=step.prompt_template.prompt,
+                agent=agent,
+                expected_output="Quality writing"
+            )
+            tasks.append(task)
+
+        # Create and configure the crew
+        process = Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL.value else Process.hierarchical
+        crew = Crew(
+            agents=agents,
+            tasks=tasks,
+            process=process,
+            verbose=True,
+            manager_agent=manager if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None,
+            manager_llm=manager_llm if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None
+        )
+
+        # Stream results
+        async for result in crew.kickoff_async():
+            await websocket.send_json(result)
+
+        # Send completion message
+        await websocket.send_json({"status": "completed"})
+
+    except Exception as e:
+        logging.error(f"Error in workflow streaming: {str(e)}")
+        await websocket.send_json({"error": str(e)})
+    finally:
+        await websocket.close()

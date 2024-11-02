@@ -337,3 +337,54 @@ export async function updateWorkflowStep(
     return updatedStep;
   });
 }
+
+export async function executeWorkflowWS(
+  workflowId: string, 
+  userId: string, 
+  conversationId: string, 
+  headers: ApiHeaders,
+  message?: string
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (!API_BASE_URL) {
+      return reject(new Error('API_BASE_URL is not defined'));
+    }
+
+    const url = `${API_BASE_URL}/workflows/${workflowId}/stream`;
+    const ws = new WebSocket(url);
+
+    ws.onopen = () => {
+      const payload: any = {
+        user_id: userId,
+        conversation_id: conversationId,
+      };
+
+      if (message) {
+        payload.message = message;
+      }
+
+      console.log('WebSocket connection opened. Sending payload:', payload);
+      ws.send(JSON.stringify(payload));
+    };
+
+    ws.onmessage = (event) => {
+      const update = JSON.parse(event.data);
+      console.log('Received update:', update);
+      // Handle the update as needed
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      ws.close();
+      // Fallback to HTTP execution
+      executeWorkflow(workflowId, userId, conversationId, headers, message)
+        .then(resolve)
+        .catch(reject);
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket connection closed');
+      resolve();
+    };
+  });
+}
