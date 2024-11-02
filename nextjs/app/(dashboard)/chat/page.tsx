@@ -608,6 +608,26 @@ export default function ChatPage() {
     ));
   }, []);
 
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  const handleClickOutside = (event: MouseEvent) => {
+    if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+      setShowUploadModal(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showUploadModal) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUploadModal]);
+
   return (
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-white"> {/* Added bg-white here */}
@@ -850,7 +870,7 @@ export default function ChatPage() {
       {/* Uppy Dashboard Modal */}
       {uppyInstance && showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg p-4 relative">
+          <div ref={modalRef} className="bg-white rounded-lg p-4 relative">
             <Button
               variant="ghost"
               size="icon"
