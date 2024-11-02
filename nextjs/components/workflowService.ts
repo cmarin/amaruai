@@ -17,9 +17,6 @@ export interface Workflow {
   description: string;
   process_type: 'SEQUENTIAL' | 'HIERARCHICAL';
   steps: WorkflowStep[];
-  manager_chat_model_id?: string;
-  manager_persona_id?: string;
-  max_iterations?: number;
 }
 
 export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
@@ -64,11 +61,6 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
       name: workflow.name,
       description: workflow.description,
       process_type: workflow.process_type,
-      ...(workflow.process_type === 'HIERARCHICAL' && {
-        manager_chat_model_id: workflow.manager_chat_model_id,
-        manager_persona_id: workflow.manager_persona_id,
-        max_iterations: workflow.max_iterations,
-      }),
     };
 
     console.log('Creating workflow with payload:', workflowPayload);
@@ -112,11 +104,6 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       name: workflow.name,
       description: workflow.description,
       process_type: workflow.process_type,
-      ...(workflow.process_type === 'HIERARCHICAL' && {
-        manager_chat_model_id: workflow.manager_chat_model_id,
-        manager_persona_id: workflow.manager_persona_id,
-        max_iterations: workflow.max_iterations,
-      }),
     };
 
     console.log('Updating workflow with payload:', workflowPayload);
@@ -146,27 +133,16 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       return Promise.resolve();
     }));
 
-    // Create new steps while preserving their positions
+    // Create new steps
     if (workflow.steps) {
-      // Sort steps by position to ensure correct order
-      const sortedSteps = [...workflow.steps].sort((a, b) => a.position - b.position);
-      
-      // Create steps sequentially to maintain order
-      const createdSteps = [];
-      for (let i = 0; i < sortedSteps.length; i++) {
-        const step = sortedSteps[i];
-        const stepPayload = {
+      const createdSteps = await Promise.all(workflow.steps.map(step => 
+        createWorkflowStep(id, {
           prompt_template_id: step.prompt_template_id,
           chat_model_id: step.chat_model_id,
           persona_id: step.persona_id,
-          position: i  // Explicitly set position based on index
-        };
-        
-        console.log(`Creating step ${i} with payload:`, stepPayload);
-        const createdStep = await createWorkflowStep(id, stepPayload, headers);
-        createdSteps.push(createdStep);
-      }
-      
+          position: step.position
+        }, headers)
+      ));
       updatedWorkflow.steps = createdSteps;
     }
 
@@ -335,56 +311,5 @@ export async function updateWorkflowStep(
     const updatedStep = await response.json();
     console.log('Updated workflow step:', updatedStep);
     return updatedStep;
-  });
-}
-
-export async function executeWorkflowWS(
-  workflowId: string, 
-  userId: string, 
-  conversationId: string, 
-  headers: ApiHeaders,
-  message?: string
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (!API_BASE_URL) {
-      return reject(new Error('API_BASE_URL is not defined'));
-    }
-
-    const url = `${API_BASE_URL}/workflows/${workflowId}/stream`;
-    const ws = new WebSocket(url);
-
-    ws.onopen = () => {
-      const payload: any = {
-        user_id: userId,
-        conversation_id: conversationId,
-      };
-
-      if (message) {
-        payload.message = message;
-      }
-
-      console.log('WebSocket connection opened. Sending payload:', payload);
-      ws.send(JSON.stringify(payload));
-    };
-
-    ws.onmessage = (event) => {
-      const update = JSON.parse(event.data);
-      console.log('Received update:', update);
-      // Handle the update as needed
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      ws.close();
-      // Fallback to HTTP execution
-      executeWorkflow(workflowId, userId, conversationId, headers, message)
-        .then(resolve)
-        .catch(reject);
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket connection closed');
-      resolve();
-    };
   });
 }
