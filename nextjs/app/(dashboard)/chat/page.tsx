@@ -29,6 +29,7 @@ import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, Met
 import { useSession } from '@/app/utils/session/session';
 import Uppy from '@uppy/core';
 import { Dashboard } from '@uppy/react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.css';
@@ -138,6 +139,8 @@ export default function ChatPage() {
   const [uppyInstance, setUppyInstance] = useState<Uppy | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
 
+  const supabase = createClientComponentClient();
+
   useEffect(() => {
     const uppy = new Uppy({
       id: 'uppy-chat',
@@ -149,16 +152,30 @@ export default function ChatPage() {
       }
     });
 
-    // Optional: Add more plugins
-    // uppy.use(DropboxPlugin, { companionUrl: 'https://companion.uppy.io' });
-    // uppy.use(GoogleDrivePlugin, { companionUrl: 'https://companion.uppy.io' });
-    // uppy.use(WebcamPlugin);
+    uppy.on('file-added', async (file) => {
+      try {
+        if (!file.name) {
+          throw new Error('File name is undefined');
+        }
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `uploads/${fileName}`;
 
-    uppy.on('upload-success', (file, response) => {
-      if (file) {
-        console.log('File uploaded successfully:', file.name);
-        // Handle the uploaded file here
-        setShowUploadModal(false);
+        // Upload file to Supabase storage
+        const { data, error } = await supabase.storage
+          .from('amaruai-dev')
+          .upload(filePath, file.data);
+
+        if (error) throw error;
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('amaruai-dev')
+          .getPublicUrl(filePath);
+
+        console.log('File uploaded:', publicUrl);
+      } catch (error) {
+        console.error('Error uploading file:', error);
       }
     });
 
@@ -168,7 +185,7 @@ export default function ChatPage() {
     return () => {
       uppy.cancelAll();
     };
-  }, []);
+  }, [supabase]);
 
   // This is the only initialization effect we need
   useEffect(() => {
