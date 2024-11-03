@@ -1,5 +1,5 @@
 from crewai import Agent, Task, Crew, LLM, Process
-from typing import AsyncGenerator, Tuple, Dict, Optional
+from typing import AsyncGenerator, Tuple, Dict, Optional, List
 import asyncio
 import uuid
 import logging
@@ -23,6 +23,7 @@ class CrewAIService:
         self.base_url = os.environ.get("OPENROUTER_API_BASE")
         self._stream_tokens: Dict[str, Dict] = {}
         self._task_metadata: Dict[int, Dict] = {}
+        self._task_results: Dict[str, List] = {}
 
     def _generate_stream_token(self, workflow_id: int) -> str:
         token = str(uuid.uuid4())
@@ -111,6 +112,11 @@ class CrewAIService:
                     llm=manager_llm
                 )
 
+            # Initialize results list for this stream token
+            if stream_token:
+                self._task_results[stream_token] = []
+                self._stream_tokens[stream_token]['status'] = 'running'
+
             # Create agents and tasks with metadata
             for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.position)):
                 persona = step.persona
@@ -118,16 +124,7 @@ class CrewAIService:
                 agent = self.create_agent(persona, chat_model, max_iterations)
                 agents.append(agent)
 
-                description = step.prompt_template.prompt.format(**user_input)
-                task = Task(
-                    description=description,
-                    agent=agent,
-                    expected_output="Quality writing"
-                )
-                tasks.append(task)
-                
-                # Store metadata separately
-                task_metadata[id(task)] = {
+                metadata = {
                     "step": i + 1,
                     "persona": {
                         "id": persona.id,
@@ -139,8 +136,30 @@ class CrewAIService:
                         "name": chat_model.name,
                         "model": chat_model.model
                     },
-                    "prompt": description
+                    "prompt": step.prompt_template.prompt.format(**user_input)
                 }
+
+                def create_callback(step_metadata):
+                    def callback(output):
+                        if stream_token:
+                            result = {
+                                "step": step_metadata["step"],
+                                "prompt": step_metadata["prompt"],
+                                "response": output.raw if hasattr(output, 'raw') else str(output),
+                                "persona": step_metadata["persona"],
+                                "chat_model": step_metadata["chat_model"]
+                            }
+                            self._task_results[stream_token].append(result)
+                            self._stream_tokens[stream_token]['result'] = self._task_results[stream_token]
+                    return callback
+
+                task = Task(
+                    description=metadata["prompt"],
+                    agent=agent,
+                    expected_output="Quality writing",
+                    callback=create_callback(metadata)
+                )
+                tasks.append(task)
 
             process = Crew(
                 agents=agents,
@@ -153,29 +172,11 @@ class CrewAIService:
 
             result = await asyncio.to_thread(process.kickoff)
             
-            # Process results with metadata
-            processed_results = []
-            for task in tasks:
-                task_result = task.output
-                if task_result is None:
-                    continue
-                    
-                task_raw_output = task_result.raw if hasattr(task_result, 'raw') else str(task_result)
-                metadata = task_metadata[id(task)]  # Get metadata using task's id
-                processed_results.append({
-                    "step": metadata["step"],
-                    "prompt": metadata["prompt"],
-                    "response": task_raw_output,
-                    "persona": metadata["persona"],
-                    "chat_model": metadata["chat_model"]
-                })
-                
-            # If we have a stream token, store the processed results
+            # Mark as completed after all tasks are done
             if stream_token and stream_token in self._stream_tokens:
-                self._stream_tokens[stream_token]['result'] = processed_results
                 self._stream_tokens[stream_token]['status'] = 'completed'
 
-            return processed_results
+            return self._task_results.get(stream_token, [])
 
         except Exception as e:
             if stream_token and stream_token in self._stream_tokens:
@@ -184,4 +185,4 @@ class CrewAIService:
             logger.error(f"Error executing workflow: {str(e)}")
             raise CrewAIError(f"Workflow execution failed: {str(e)}")
 
-crew_service = CrewAIService() 
+crew_service = CrewAIService()

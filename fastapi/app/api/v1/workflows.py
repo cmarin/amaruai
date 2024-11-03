@@ -300,9 +300,10 @@ async def stream_workflow_results(
     request: Request,
     db: Session = Depends(get_db)
 ):
-    """Stream workflow results using the provided token"""
     try:
         async def event_generator():
+            last_result_count = 0
+            
             while True:
                 if await request.is_disconnected():
                     logger.info("Client disconnected")
@@ -319,6 +320,7 @@ async def stream_workflow_results(
                     }
                     break
 
+                # Handle errors and validation
                 if stream_data['workflow_id'] != workflow_id:
                     yield {
                         "event": "error",
@@ -339,39 +341,34 @@ async def stream_workflow_results(
                     }
                     break
 
+                # Stream new results as they come in
+                if 'result' in stream_data and stream_data['result']:
+                    current_results = stream_data['result']
+                    # Only send new results
+                    while last_result_count < len(current_results):
+                        result = current_results[last_result_count]
+                        yield {
+                            "event": "message",
+                            "data": json.dumps({
+                                "type": "step",
+                                "step": result["step"],
+                                "prompt": result["prompt"],
+                                "response": result["response"],
+                                "persona": result["persona"],
+                                "chat_model": result["chat_model"]
+                            })
+                        }
+                        last_result_count += 1
+
+                # Send completion event when done
                 if stream_data['status'] == 'completed':
-                    results = stream_data['result']
-                    try:
-                        # Send each step result as a separate message
-                        for result in results:
-                            yield {
-                                "event": "message",
-                                "data": json.dumps({
-                                    "type": "step",
-                                    "step": result["step"],
-                                    "prompt": result["prompt"],
-                                    "response": result["response"],
-                                    "persona": result["persona"],
-                                    "chat_model": result["chat_model"]
-                                })
-                            }
-                        
-                        yield {
-                            "event": "complete",
-                            "data": json.dumps({
-                                "type": "status",
-                                "message": "Workflow execution completed"
-                            })
-                        }
-                    except Exception as e:
-                        logger.error(f"Error formatting result: {str(e)}")
-                        yield {
-                            "event": "error",
-                            "data": json.dumps({
-                                "type": "error",
-                                "message": "Error formatting result"
-                            })
-                        }
+                    yield {
+                        "event": "complete",
+                        "data": json.dumps({
+                            "type": "status",
+                            "message": "Workflow execution completed"
+                        })
+                    }
                     break
 
                 await asyncio.sleep(0.5)  # Poll interval

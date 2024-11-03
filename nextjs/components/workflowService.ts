@@ -363,9 +363,8 @@ export function streamWorkflow(
   let isCompleting = false;
   let hasReceivedMessage = false;
   
-  console.log('Initiating workflow stream POST request...');
+  console.log('Initiating workflow stream...');
   
-  // First make the POST request to initiate the stream
   fetch(initUrl, {
     method: 'POST',
     headers: {
@@ -378,93 +377,44 @@ export function streamWorkflow(
       ...(message && { message }),
     }),
   }).then(async response => {
-    console.log('POST response status:', response.status);
-    
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('POST request failed:', errorText);
       throw new Error('Failed to initiate workflow stream');
     }
     
-    const responseData = await response.json();
-    console.log('POST response data:', responseData);
-    const { stream_token } = responseData;
-    
+    const { stream_token } = await response.json();
     const streamUrl = `${API_BASE_URL}/workflows/${workflowId}/stream?stream_token=${stream_token}`;
-    console.log('Creating EventSource with URL:', streamUrl);
     
     try {
       eventSource = new EventSource(streamUrl);
 
-      eventSource.onopen = () => {
-        console.log('EventSource connection opened');
-      };
-
-      // Handle regular messages
       eventSource.onmessage = (event: MessageEvent) => {
-        console.log('Received SSE message:', event.data);
         try {
           const data = JSON.parse(event.data);
           hasReceivedMessage = true;
-          
-          if (data.type === 'error') {
-            console.error('Server error:', data.message);
-            onError(new Error(data.message || 'Unknown server error'));
-            eventSource?.close();
-            return;
-          }
-          
+
           if (data.type === 'step') {
             onMessage(data as WorkflowStreamMessage);
+          } else if (data.type === 'status' && data.message === 'Workflow execution completed') {
+            isCompleting = true;
+            eventSource?.close();
+            onComplete();
           }
         } catch (error) {
           console.error('Error parsing SSE message:', error);
         }
       };
 
-      // Add specific handler for complete event
-      eventSource.addEventListener('complete', (event: MessageEvent) => {
-        console.log('Received complete event:', event.data);
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'status' && data.message === 'Workflow execution completed') {
-            console.log('Workflow execution completed, closing connection');
-            isCompleting = true;
-            eventSource?.close();
-            onComplete();
-          }
-        } catch (error) {
-          console.error('Error parsing complete event:', error);
-        }
-      });
-
       eventSource.onerror = (event: Event) => {
-        // Check if the EventSource is closed (readyState === 2)
         const source = event.target as EventSource;
-        if (source.readyState === 2) {
-          console.log('EventSource connection closed');
-          
-          // If we've received at least one message and we're not completing, 
-          // treat this as completion
+        if (source.readyState === EventSource.CLOSED) {
           if (hasReceivedMessage && !isCompleting) {
-            console.log('Connection closed after receiving messages');
             isCompleting = true;
             onComplete();
           }
           return;
         }
 
-        // Only log error if we haven't received any messages and aren't completing
         if (!hasReceivedMessage && !isCompleting) {
-          console.error('SSE Error:', event);
-          const errorEvent = event as ErrorEvent;
-          if (errorEvent.error) {
-            console.error('Error details:', errorEvent.error);
-          }
-          if (errorEvent.message) {
-            console.error('Error message:', errorEvent.message);
-          }
-
           eventSource?.close();
           onError(new Error('Stream connection error'));
         }
@@ -481,7 +431,6 @@ export function streamWorkflow(
 
   return () => {
     if (eventSource) {
-      console.log('Cleaning up EventSource connection');
       eventSource.close();
     }
   };

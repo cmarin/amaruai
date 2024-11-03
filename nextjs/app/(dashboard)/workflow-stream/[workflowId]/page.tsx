@@ -48,15 +48,28 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     }
 
     if (message.type === 'step') {
-      setResults(prev => [...prev, {
-        step: message.step!.toString(),
-        prompt: message.prompt!,
-        response: message.response!,
-        chat_model: message.chat_model,
-        persona: message.persona
-      }]);
+      setResults(prevResults => {
+        // Check if this step already exists
+        const stepExists = prevResults.some(r => r.step === message.step!.toString());
+        if (stepExists) {
+          return prevResults;
+        }
+
+        const newResult = {
+          step: message.step!.toString(),
+          prompt: message.prompt!,
+          response: message.response!,
+          chat_model: message.chat_model,
+          persona: message.persona
+        };
+        return [...prevResults, newResult];
+      });
     }
   }, []);
+
+  useEffect(() => {
+    console.log('Results updated:', results);
+  }, [results]);
 
   const executeWorkflowStream = useCallback(async (message?: string) => {
     // Clean up any existing EventSource
@@ -225,10 +238,12 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
               <div className="text-red-500 mb-4">{error}</div>
             )}
             {isExecuting && (
-              <div className="text-blue-500 mb-4">Executing workflow...</div>
+              <div className="text-blue-500 mb-4">
+                Executing workflow... ({results.length} steps completed)
+              </div>
             )}
             {results.map((result, index) => (
-              <div key={index} className="mb-6 p-4 border rounded-lg">
+              <div key={`${index}-${result.step}`} className="mb-6 p-4 border rounded-lg">
                 <h3 className="font-semibold mb-2 flex items-center gap-2">
                   Step {result.step}
                   {result.chat_model && (
