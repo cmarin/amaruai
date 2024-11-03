@@ -313,3 +313,172 @@ export async function updateWorkflowStep(
     return updatedStep;
   });
 }
+
+export interface WorkflowStreamMessage {
+  step?: string;
+  prompt?: string;
+  response?: string;
+  type: 'step' | 'completion' | 'error';
+  error?: string;
+  content?: string;
+  message?: string;
+}
+
+export function streamWorkflow(
+  workflowId: string,
+  userId: string,
+  conversationId: string,
+  headers: ApiHeaders,
+  onMessage: (message: WorkflowStreamMessage) => void,
+  onError: (error: Error) => void,
+  onComplete: () => void,
+  message?: string
+): () => void {
+  if (!API_BASE_URL) {
+    throw new Error('API_BASE_URL is not defined');
+  }
+
+  const initUrl = `${API_BASE_URL}/workflows/${workflowId}/stream`;
+  let eventSource: EventSource | null = null;
+  let isCompleting = false;
+  let hasReceivedMessage = false;
+  
+  console.log('Initiating workflow stream POST request...');
+  
+  // First make the POST request to initiate the stream
+  fetch(initUrl, {
+    method: 'POST',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      conversation_id: conversationId,
+      ...(message && { message }),
+    }),
+  }).then(async response => {
+    console.log('POST response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('POST request failed:', errorText);
+      throw new Error('Failed to initiate workflow stream');
+    }
+    
+    const responseData = await response.json();
+    console.log('POST response data:', responseData);
+    const { stream_token } = responseData;
+    
+    const streamUrl = `${API_BASE_URL}/workflows/${workflowId}/stream?stream_token=${stream_token}`;
+    console.log('Creating EventSource with URL:', streamUrl);
+    
+    try {
+      eventSource = new EventSource(streamUrl);
+
+      eventSource.onopen = () => {
+        console.log('EventSource connection opened');
+      };
+
+      eventSource.onmessage = (event: MessageEvent) => {
+        console.log('Received SSE message:', event.data);
+        try {
+          const data = JSON.parse(event.data);
+          hasReceivedMessage = true;
+          
+          if (data.type === 'error') {
+            console.error('Server error:', data.message);
+            onError(new Error(data.message || 'Unknown server error'));
+            if (eventSource) {
+              eventSource.close();
+            }
+            return;
+          }
+          
+          if (data.type === 'content') {
+            onMessage({
+              type: 'step',
+              response: data.content,
+              step: '1',
+              prompt: 'Initial prompt'
+            });
+            
+            // Assume this is the only message we'll receive
+            console.log('Content received, initiating graceful completion');
+            isCompleting = true;
+            if (eventSource) {
+              eventSource.close();
+              onComplete();
+            }
+          } else {
+            onMessage(data as WorkflowStreamMessage);
+
+            if (data.type === 'completion' || data.type === 'complete' || 
+                (data.type === 'status' && data.message === 'Workflow execution completed')) {
+              console.log('Received completion message, closing connection');
+              isCompleting = true;
+              if (eventSource) {
+                eventSource.close();
+                onComplete();
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing SSE message:', error);
+        }
+      };
+
+      eventSource.onerror = (event: Event) => {
+        console.error('SSE Error:', event);
+        
+        // If we've received a message and the connection closes, treat it as completion
+        if (hasReceivedMessage) {
+          console.log('Connection closed after receiving message, treating as completion');
+          isCompleting = true;
+          if (eventSource) {
+            eventSource.close();
+          }
+          onComplete();
+          return;
+        }
+
+        // If we're completing, this is an expected error
+        if (isCompleting) {
+          console.log('Connection closed after completion');
+          return;
+        }
+
+        // Log error details
+        const errorEvent = event as ErrorEvent;
+        if (errorEvent.error) {
+          console.error('Error details:', errorEvent.error);
+        }
+        if (errorEvent.message) {
+          console.error('Error message:', errorEvent.message);
+        }
+
+        // Only report error if we haven't received any messages
+        if (!hasReceivedMessage && !isCompleting) {
+          if (eventSource) {
+            eventSource.close();
+          }
+          onError(new Error('Stream connection error'));
+        }
+      };
+    } catch (error) {
+      console.error('Error creating EventSource:', error);
+      onError(new Error('Failed to create stream connection'));
+    }
+
+  }).catch(error => {
+    console.error('Error initiating workflow stream:', error);
+    onError(error instanceof Error ? error : new Error('Unknown error occurred'));
+  });
+
+  return () => {
+    if (eventSource) {
+      console.log('Cleaning up EventSource connection');
+      eventSource.close();
+    }
+  };
+}

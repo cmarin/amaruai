@@ -1,21 +1,27 @@
-from fastapi import Depends, HTTPException, BackgroundTasks, WebSocket
+from fastapi import Depends, HTTPException, BackgroundTasks, WebSocket, Request
 from sqlalchemy.orm import Session
 from typing import List, Dict
 from app import crud, schemas, models
 from app.database import get_db
-from app.api.v1.router import create_protected_router
+from app.api.v1.router import create_protected_router, create_public_router
 from crewai import Agent, Task, Crew, Process, LLM
 import logging
 import os
 from dotenv import load_dotenv
 import asyncio
+from sse_starlette.sse import EventSourceResponse
+from app.config.crewai_service import crew_service, CrewAIError
+import json
 load_dotenv()
 
-# Create a protected router for workflows
+# Create routers for workflows
 router = create_protected_router(prefix="workflows", tags=["workflows"])
+public_router = create_public_router(prefix="workflows", tags=["workflows"])
 
 # Global dictionary to store workflow results
 workflow_results = {}
+
+logger = logging.getLogger(__name__)
 
 @router.post("/", response_model=schemas.Workflow)
 def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_db)):
@@ -260,94 +266,132 @@ def delete_workflow_step(workflow_id: int, step_id: int, db: Session = Depends(g
     return db_step
 
 
-@router.websocket("/{workflow_id}/stream")
-async def stream_workflow(workflow_id: int, websocket: WebSocket, db: Session = Depends(get_db)):
-    await websocket.accept()
+@router.post("/{workflow_id}/stream", response_model=Dict[str, str])
+async def initiate_workflow_stream(
+    workflow_id: int,
+    user_input: Dict[str, str],
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Initiate a workflow execution and return a stream token"""
     try:
-        workflow = crud.get_workflow(db, workflow_id=workflow_id)
-        if not workflow:
-            await websocket.send_json({"error": "Workflow not found"})
-            return
+        # Generate a stream token
+        stream_token = await crew_service.prepare_workflow_stream(workflow_id)
+        
+        # Start workflow execution in background
+        background_tasks.add_task(
+            crew_service.execute_workflow,
+            workflow_id=workflow_id,
+            user_input=user_input,
+            db=db,
+            stream_token=stream_token
+        )
+        
+        return {"stream_token": stream_token}
+    
+    except Exception as e:
+        logger.error(f"Error initiating workflow stream: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-        # Determine max_iterations only for hierarchical workflows
-        max_iterations = workflow.max_iterations if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None
+@public_router.get("/{workflow_id}/stream")
+async def stream_workflow_results(
+    workflow_id: int,
+    stream_token: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Stream workflow results using the provided token"""
+    try:
+        async def event_generator():
+            while True:
+                if await request.is_disconnected():
+                    logger.info("Client disconnected")
+                    break
 
-        agents = []
-        tasks = []
-        manager = None
-        manager_llm = None
+                stream_data = crew_service.get_stream_data(stream_token)
+                if not stream_data:
+                    yield {
+                        "event": "error",
+                        "data": json.dumps({
+                            "type": "error",
+                            "message": "Invalid or expired stream token"
+                        })
+                    }
+                    break
 
-        # Create manager agent if the workflow is hierarchical
-        if workflow.process_type == models.ProcessType.HIERARCHICAL.value:
-            manager_persona = crud.get_persona(db, workflow.manager_persona_id)
-            manager_chat_model = crud.get_chat_model(db, workflow.manager_chat_model_id)
+                if stream_data['workflow_id'] != workflow_id:
+                    yield {
+                        "event": "error",
+                        "data": json.dumps({
+                            "type": "error",
+                            "message": "Invalid workflow ID for this token"
+                        })
+                    }
+                    break
 
-            if manager_chat_model:
-                manager_llm = LLM(
-                    model=f"openrouter/{manager_chat_model.model}",
-                    api_key=os.environ["OPENROUTER_API_KEY"],
-                    base_url=os.environ["OPENROUTER_API_BASE"]
-                )
+                if stream_data['status'] == 'error':
+                    yield {
+                        "event": "error",
+                        "data": json.dumps({
+                            "type": "error",
+                            "message": stream_data.get('error', 'Unknown error occurred')
+                        })
+                    }
+                    break
 
-            if manager_persona:
-                manager = Agent(
-                    role=manager_persona.role,
-                    goal=manager_persona.goal,
-                    backstory=manager_persona.backstory,
-                    allow_delegation=manager_persona.allow_delegation,
-                    verbose=manager_persona.verbose,
-                    llm=manager_llm
-                )
+                if stream_data['status'] == 'completed':
+                    result = stream_data['result']
+                    try:
+                        if isinstance(result, (list, tuple)):
+                            for item in result:
+                                yield {
+                                    "event": "message",
+                                    "data": json.dumps({
+                                        "type": "content",
+                                        "content": str(item)
+                                    })
+                                }
+                        else:
+                            yield {
+                                "event": "message",
+                                "data": json.dumps({
+                                    "type": "content",
+                                    "content": str(result)
+                                })
+                            }
+                        
+                        yield {
+                            "event": "complete",
+                            "data": json.dumps({
+                                "type": "status",
+                                "message": "Workflow execution completed"
+                            })
+                        }
+                    except Exception as e:
+                        logger.error(f"Error formatting result: {str(e)}")
+                        yield {
+                            "event": "error",
+                            "data": json.dumps({
+                                "type": "error",
+                                "message": "Error formatting result"
+                            })
+                        }
+                    break
 
-        # Create agents and tasks from workflow steps
-        for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.position)):
-            chat_model = step.chat_model
-            persona = step.persona
+                await asyncio.sleep(0.5)  # Poll interval
 
-            llm = LLM(
-                model=f"openrouter/{chat_model.model}",
-                api_key=os.environ["OPENROUTER_API_KEY"],
-                base_url=os.environ["OPENROUTER_API_BASE"]
-            )
-
-            agent = Agent(
-                role=persona.role,
-                goal=persona.goal,
-                backstory=persona.backstory,
-                allow_delegation=persona.allow_delegation,
-                verbose=persona.verbose,
-                llm=llm,
-                max_iter=max_iterations if max_iterations is not None else 1
-            )
-            agents.append(agent)
-
-            task = Task(
-                description=step.prompt_template.prompt,
-                agent=agent,
-                expected_output="Quality writing"
-            )
-            tasks.append(task)
-
-        # Create and configure the crew
-        process = Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL.value else Process.hierarchical
-        crew = Crew(
-            agents=agents,
-            tasks=tasks,
-            process=process,
-            verbose=True,
-            manager_agent=manager if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None,
-            manager_llm=manager_llm if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None
+        return EventSourceResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "text/event-stream",
+                "X-Accel-Buffering": "no"  # Disable buffering in Nginx
+            }
         )
 
-        # Stream results
-        async for result in crew.kickoff_async():
-            await websocket.send_json(result)
-
-        # Send completion message
-        await websocket.send_json({"status": "completed"})
-
     except Exception as e:
-        logging.error(f"Error in workflow streaming: {str(e)}")
-        await websocket.send_json({"error": str(e)})
-    finally:
-        await websocket.close()
+        logger.error(f"Error in workflow stream: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

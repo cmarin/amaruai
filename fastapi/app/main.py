@@ -19,6 +19,7 @@ from app.admin import admin_router
 from app.api.v1.dependencies import get_current_user
 from dotenv import load_dotenv
 import logging
+from app.api.v1.workflows import router as workflow_router, public_router as workflow_public_router
 
 load_dotenv()
 
@@ -84,6 +85,10 @@ app.include_router(
     tags=["admin"],
     dependencies=[Depends(get_current_user)]  # Protect admin routes
 )
+
+# Mount workflow routes
+app.include_router(workflow_router, prefix="/api/v1")
+app.include_router(workflow_public_router, prefix="/api/v1")
 
 # Create database tables
 Base.metadata.create_all(bind=engine)

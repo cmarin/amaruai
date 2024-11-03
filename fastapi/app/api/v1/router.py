@@ -21,3 +21,18 @@ def create_protected_router(prefix: str = "", tags: list = None) -> APIRouter:
         dependencies=[Depends(get_current_user)]
     )
 
+
+# Function to create a namespaced public router
+def create_public_router(prefix: str = "", tags: list = None) -> APIRouter:
+    """
+    Creates a public router with a specific prefix and tags.
+    This router will not require authentication.
+    """
+    if tags is None:
+        tags = [prefix] if prefix else []
+        
+    return APIRouter(
+        prefix=f"/{prefix}" if prefix else "",
+        tags=tags
+    )
+
