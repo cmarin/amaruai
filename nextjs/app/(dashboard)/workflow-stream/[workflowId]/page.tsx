@@ -87,11 +87,13 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       return;
     }
 
-    if (message.type === 'step' && message.step && message.prompt && message.response) {
+    if (message.type === 'step') {
       setResults(prev => [...prev, {
-        step: message.step!,
+        step: message.step!.toString(),
         prompt: message.prompt!,
-        response: message.response!
+        response: message.response!,
+        chat_model: message.chat_model,
+        persona: message.persona
       }]);
     }
   }, []);
@@ -199,7 +201,19 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
             )}
             {results.map((result, index) => (
               <div key={index} className="mb-6 p-4 border rounded-lg">
-                <h3 className="font-semibold mb-2">Step {result.step}</h3>
+                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                  Step {result.step}
+                  {result.chat_model && (
+                    <span className="text-sm text-gray-500">
+                      using {result.chat_model.name}
+                    </span>
+                  )}
+                  {result.persona && (
+                    <span className="text-sm text-gray-500">
+                      as {result.persona.role}
+                    </span>
+                  )}
+                </h3>
                 <div className="mb-2">
                   <strong>Prompt:</strong>
                   <ReactMarkdown>{result.prompt}</ReactMarkdown>

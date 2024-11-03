@@ -22,6 +22,7 @@ class CrewAIService:
         self.api_key = os.environ.get("OPENROUTER_API_KEY")
         self.base_url = os.environ.get("OPENROUTER_API_BASE")
         self._stream_tokens: Dict[str, Dict] = {}
+        self._task_metadata: Dict[int, Dict] = {}
 
     def _generate_stream_token(self, workflow_id: int) -> str:
         token = str(uuid.uuid4())
@@ -80,6 +81,7 @@ class CrewAIService:
 
             agents = []
             tasks = []
+            task_metadata = {}
             manager = None
             manager_llm = None
 
@@ -109,8 +111,8 @@ class CrewAIService:
                     llm=manager_llm
                 )
 
-            # Create agents and tasks
-            for step in sorted(workflow.steps, key=lambda x: x.position):
+            # Create agents and tasks with metadata
+            for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.position)):
                 persona = step.persona
                 chat_model = step.chat_model
                 agent = self.create_agent(persona, chat_model, max_iterations)
@@ -123,6 +125,22 @@ class CrewAIService:
                     expected_output="Quality writing"
                 )
                 tasks.append(task)
+                
+                # Store metadata separately
+                task_metadata[id(task)] = {
+                    "step": i + 1,
+                    "persona": {
+                        "id": persona.id,
+                        "role": persona.role,
+                        "goal": persona.goal
+                    },
+                    "chat_model": {
+                        "id": chat_model.id,
+                        "name": chat_model.name,
+                        "model": chat_model.model
+                    },
+                    "prompt": description
+                }
 
             process = Crew(
                 agents=agents,
@@ -135,12 +153,29 @@ class CrewAIService:
 
             result = await asyncio.to_thread(process.kickoff)
             
-            # If we have a stream token, store the result
+            # Process results with metadata
+            processed_results = []
+            for task in tasks:
+                task_result = task.output
+                if task_result is None:
+                    continue
+                    
+                task_raw_output = task_result.raw if hasattr(task_result, 'raw') else str(task_result)
+                metadata = task_metadata[id(task)]  # Get metadata using task's id
+                processed_results.append({
+                    "step": metadata["step"],
+                    "prompt": metadata["prompt"],
+                    "response": task_raw_output,
+                    "persona": metadata["persona"],
+                    "chat_model": metadata["chat_model"]
+                })
+                
+            # If we have a stream token, store the processed results
             if stream_token and stream_token in self._stream_tokens:
-                self._stream_tokens[stream_token]['result'] = result
+                self._stream_tokens[stream_token]['result'] = processed_results
                 self._stream_tokens[stream_token]['status'] = 'completed'
 
-            return result
+            return processed_results
 
         except Exception as e:
             if stream_token and stream_token in self._stream_tokens:

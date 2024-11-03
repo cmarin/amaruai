@@ -340,23 +340,19 @@ async def stream_workflow_results(
                     break
 
                 if stream_data['status'] == 'completed':
-                    result = stream_data['result']
+                    results = stream_data['result']
                     try:
-                        if isinstance(result, (list, tuple)):
-                            for item in result:
-                                yield {
-                                    "event": "message",
-                                    "data": json.dumps({
-                                        "type": "content",
-                                        "content": str(item)
-                                    })
-                                }
-                        else:
+                        # Send each step result as a separate message
+                        for result in results:
                             yield {
                                 "event": "message",
                                 "data": json.dumps({
-                                    "type": "content",
-                                    "content": str(result)
+                                    "type": "step",
+                                    "step": result["step"],
+                                    "prompt": result["prompt"],
+                                    "response": result["response"],
+                                    "persona": result["persona"],
+                                    "chat_model": result["chat_model"]
                                 })
                             }
                         
@@ -388,7 +384,7 @@ async def stream_workflow_results(
                 "Connection": "keep-alive",
                 "Access-Control-Allow-Origin": "*",
                 "Content-Type": "text/event-stream",
-                "X-Accel-Buffering": "no"  # Disable buffering in Nginx
+                "X-Accel-Buffering": "no"
             }
         )
 

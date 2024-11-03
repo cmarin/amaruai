@@ -268,6 +268,16 @@ export interface WorkflowResult {
   step: string;
   prompt: string;
   response: string;
+  chat_model?: {
+    id: number;
+    name: string;
+    model: string;
+  };
+  persona?: {
+    id: number;
+    role: string;
+    goal: string;
+  };
 }
 
 export async function getWorkflowResults(workflowId: string, headers: ApiHeaders): Promise<WorkflowResult[]> {
@@ -315,13 +325,23 @@ export async function updateWorkflowStep(
 }
 
 export interface WorkflowStreamMessage {
-  step?: string;
+  step?: string | number;
   prompt?: string;
   response?: string;
-  type: 'step' | 'completion' | 'error';
+  type: 'step' | 'completion' | 'error' | 'status';
   error?: string;
   content?: string;
   message?: string;
+  chat_model?: {
+    id: number;
+    name: string;
+    model: string;
+  };
+  persona?: {
+    id: number;
+    role: string;
+    goal: string;
+  };
 }
 
 export function streamWorkflow(
@@ -415,12 +435,13 @@ export function streamWorkflow(
 
             if (data.type === 'completion' || data.type === 'complete' || 
                 (data.type === 'status' && data.message === 'Workflow execution completed')) {
-              console.log('Received completion message, closing connection');
+              console.log('Received completion message, closing connection gracefully');
               isCompleting = true;
               if (eventSource) {
                 eventSource.close();
                 onComplete();
               }
+              return;
             }
           }
         } catch (error) {
