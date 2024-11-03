@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -33,51 +33,11 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const [showRunAgain, setShowRunAgain] = useState(false)
   const [initialMessage, setInitialMessage] = useState<string | undefined>(undefined)
   const { getApiHeaders } = useSession()
+  const [hasStarted, setHasStarted] = useState(false)
+  const cleanupRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    const loadWorkflow = async () => {
-      const headers = getApiHeaders();
-      if (!headers) {
-        console.error('No valid headers available');
-        return;
-      }
-      
-      try {
-        const fetchedWorkflow = await fetchWorkflow(params.workflowId, headers);
-        setWorkflow(fetchedWorkflow);
-        await checkFirstStep(fetchedWorkflow);
-      } catch (error) {
-        console.error('Error loading workflow:', error);
-        setError('Failed to load workflow');
-      }
-    };
-    loadWorkflow();
-  }, [params.workflowId, getApiHeaders]);
-
-  const checkFirstStep = async (workflow: Workflow) => {
-    if (workflow.steps.length > 0) {
-      const firstStep = workflow.steps[0]
-      try {
-        const headers = getApiHeaders();
-        if (!headers) return;
-        
-        const promptTemplate = await fetchPromptTemplate(
-          parseInt(firstStep.prompt_template_id),
-          headers
-        );
-        
-        if (promptTemplate.is_complex) {
-          setComplexPromptTemplate(promptTemplate)
-          setShowComplexPromptModal(true)
-        } else {
-          executeWorkflowStream()
-        }
-      } catch (error) {
-        console.error('Error fetching prompt template:', error)
-        setError('Failed to fetch prompt template')
-      }
-    }
-  }
+  // Use a ref to track if the initial load has happened
+  const initialLoadRef = useRef(false);
 
   const handleStreamMessage = useCallback((message: WorkflowStreamMessage) => {
     if (message.type === 'error') {
@@ -98,7 +58,14 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     }
   }, []);
 
-  const executeWorkflowStream = async (message?: string) => {
+  const executeWorkflowStream = useCallback(async (message?: string) => {
+    // Clean up any existing EventSource
+    if (cleanupRef.current) {
+      console.log('Cleaning up previous EventSource before starting new one');
+      cleanupRef.current();
+      cleanupRef.current = null;
+    }
+
     const headers = getApiHeaders();
     if (!headers) return;
 
@@ -117,16 +84,77 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         setError(error.message);
         setIsExecuting(false);
         setShowRunAgain(true);
+        cleanupRef.current = null;
       },
       () => {
         setIsExecuting(false);
         setShowRunAgain(true);
+        cleanupRef.current = null;
       },
       message || initialMessage
     );
 
+    cleanupRef.current = cleanup;
     return cleanup;
-  };
+  }, [params.workflowId, getApiHeaders, handleStreamMessage, initialMessage]);
+
+  const checkFirstStep = useCallback(async (workflow: Workflow) => {
+    if (workflow.steps.length > 0) {
+      const firstStep = workflow.steps[0];
+      try {
+        const headers = getApiHeaders();
+        if (!headers) return;
+        
+        console.log('Fetching prompt template...');
+        const promptTemplate = await fetchPromptTemplate(
+          parseInt(firstStep.prompt_template_id),
+          headers
+        );
+        
+        if (promptTemplate.is_complex) {
+          setComplexPromptTemplate(promptTemplate);
+          setShowComplexPromptModal(true);
+        } else {
+          executeWorkflowStream();
+        }
+      } catch (error) {
+        console.error('Error fetching prompt template:', error);
+        setError('Failed to fetch prompt template');
+      }
+    }
+  }, [getApiHeaders, executeWorkflowStream]);
+
+  const loadWorkflow = useCallback(async () => {
+    const headers = getApiHeaders();
+    if (!headers) {
+      console.error('No valid headers available');
+      return;
+    }
+    
+    try {
+      console.log('Fetching workflow...');
+      const fetchedWorkflow = await fetchWorkflow(params.workflowId, headers);
+      console.log('Fetched workflow:', fetchedWorkflow);
+      setWorkflow(fetchedWorkflow);
+      await checkFirstStep(fetchedWorkflow);
+    } catch (error) {
+      console.error('Error loading workflow:', error);
+      setError('Failed to load workflow');
+    }
+  }, [params.workflowId, getApiHeaders, checkFirstStep]);
+
+  useEffect(() => {
+    console.log('Component mounted, loading workflow...');
+    loadWorkflow();
+
+    return () => {
+      if (cleanupRef.current) {
+        console.log('Cleaning up previous EventSource');
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
+    };
+  }, [loadWorkflow]);
 
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
     console.log('Complex prompt submitted:', generatedPrompt);

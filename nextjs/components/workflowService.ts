@@ -400,6 +400,7 @@ export function streamWorkflow(
         console.log('EventSource connection opened');
       };
 
+      // Handle regular messages
       eventSource.onmessage = (event: MessageEvent) => {
         console.log('Received SSE message:', event.data);
         try {
@@ -409,80 +410,62 @@ export function streamWorkflow(
           if (data.type === 'error') {
             console.error('Server error:', data.message);
             onError(new Error(data.message || 'Unknown server error'));
-            if (eventSource) {
-              eventSource.close();
-            }
+            eventSource?.close();
             return;
           }
           
-          if (data.type === 'content') {
-            onMessage({
-              type: 'step',
-              response: data.content,
-              step: '1',
-              prompt: 'Initial prompt'
-            });
-            
-            // Assume this is the only message we'll receive
-            console.log('Content received, initiating graceful completion');
-            isCompleting = true;
-            if (eventSource) {
-              eventSource.close();
-              onComplete();
-            }
-          } else {
+          if (data.type === 'step') {
             onMessage(data as WorkflowStreamMessage);
-
-            if (data.type === 'completion' || data.type === 'complete' || 
-                (data.type === 'status' && data.message === 'Workflow execution completed')) {
-              console.log('Received completion message, closing connection gracefully');
-              isCompleting = true;
-              if (eventSource) {
-                eventSource.close();
-                onComplete();
-              }
-              return;
-            }
           }
         } catch (error) {
           console.error('Error parsing SSE message:', error);
         }
       };
 
+      // Add specific handler for complete event
+      eventSource.addEventListener('complete', (event: MessageEvent) => {
+        console.log('Received complete event:', event.data);
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'status' && data.message === 'Workflow execution completed') {
+            console.log('Workflow execution completed, closing connection');
+            isCompleting = true;
+            eventSource?.close();
+            onComplete();
+          }
+        } catch (error) {
+          console.error('Error parsing complete event:', error);
+        }
+      });
+
       eventSource.onerror = (event: Event) => {
-        console.error('SSE Error:', event);
-        
-        // If we've received a message and the connection closes, treat it as completion
-        if (hasReceivedMessage) {
-          console.log('Connection closed after receiving message, treating as completion');
-          isCompleting = true;
-          if (eventSource) {
-            eventSource.close();
+        // Check if the EventSource is closed (readyState === 2)
+        const source = event.target as EventSource;
+        if (source.readyState === 2) {
+          console.log('EventSource connection closed');
+          
+          // If we've received at least one message and we're not completing, 
+          // treat this as completion
+          if (hasReceivedMessage && !isCompleting) {
+            console.log('Connection closed after receiving messages');
+            isCompleting = true;
+            onComplete();
           }
-          onComplete();
           return;
         }
 
-        // If we're completing, this is an expected error
-        if (isCompleting) {
-          console.log('Connection closed after completion');
-          return;
-        }
-
-        // Log error details
-        const errorEvent = event as ErrorEvent;
-        if (errorEvent.error) {
-          console.error('Error details:', errorEvent.error);
-        }
-        if (errorEvent.message) {
-          console.error('Error message:', errorEvent.message);
-        }
-
-        // Only report error if we haven't received any messages
+        // Only log error if we haven't received any messages and aren't completing
         if (!hasReceivedMessage && !isCompleting) {
-          if (eventSource) {
-            eventSource.close();
+          console.error('SSE Error:', event);
+          const errorEvent = event as ErrorEvent;
+          if (errorEvent.error) {
+            console.error('Error details:', errorEvent.error);
           }
+          if (errorEvent.message) {
+            console.error('Error message:', errorEvent.message);
+          }
+
+          eventSource?.close();
           onError(new Error('Stream connection error'));
         }
       };
