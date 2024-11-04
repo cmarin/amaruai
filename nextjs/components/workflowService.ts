@@ -377,17 +377,22 @@ export function streamWorkflow(
   
   console.log('Starting workflow stream...');
   
+  // Create the payload with the formatted message
+  const payload = {
+    user_id: userId,
+    conversation_id: conversationId,
+    ...(message && { message: message }) // This is now the formatted prompt from handleComplexPromptSubmit
+  };
+
+  console.log('Sending payload:', payload);
+  
   fetch(initUrl, {
     method: 'POST',
     headers: {
       ...headers,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      user_id: userId,
-      conversation_id: conversationId,
-      ...(message && { message }),
-    }),
+    body: JSON.stringify(payload),
   }).then(async response => {
     if (!response.ok) {
       throw new Error('Failed to initiate workflow stream');
@@ -412,8 +417,27 @@ export function streamWorkflow(
           console.log('Parsed message:', data);
           
           if (data.type === 'step') {
+            // Format the prompt if it's a JSON string
+            if (data.prompt && typeof data.prompt === 'string') {
+              try {
+                const promptObj = JSON.parse(data.prompt);
+                if (promptObj.variables && promptObj.prompt && message) {
+                  // Replace the variable with the actual message in the prompt
+                  const firstVar = promptObj.variables[0];
+                  if (firstVar && firstVar.fieldName) {
+                    data.prompt = promptObj.prompt.replace(
+                      `{${firstVar.fieldName}}`,
+                      message
+                    );
+                  }
+                }
+              } catch (e) {
+                // Not a JSON string, use as-is
+                console.log('Not a JSON prompt, using as-is');
+              }
+            }
+            
             console.log('Dispatching step message to handler');
-            // Use requestAnimationFrame to ensure UI update
             window.requestAnimationFrame(() => {
               onMessage(data as WorkflowStreamMessage);
             });
