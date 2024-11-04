@@ -35,6 +35,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const router = useRouter();
   const cleanupRef = useRef<(() => void) | null>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
+  const [hasSubmittedComplexPrompt, setHasSubmittedComplexPrompt] = useState(false);
 
   const handleStreamMessage = useCallback((message: WorkflowStreamMessage) => {
     if (message.type === 'error') {
@@ -44,11 +45,41 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       return;
     }
 
-    if (message.type === 'step') {
-      const newResult = {
+    if (message.type === 'step' && message.prompt && message.response) {
+      let formattedPrompt: string = message.prompt;
+      
+      // Try to parse the prompt if it's a JSON string
+      try {
+        const promptObj = JSON.parse(message.prompt);
+        if (promptObj.variables && promptObj.prompt) {
+          // This is a complex prompt template
+          formattedPrompt = promptObj.prompt;
+          
+          // Get all variables from the template
+          const variables = promptObj.variables;
+          
+          // Replace each variable with its value
+          variables.forEach((variable: { fieldName: string }) => {
+            if (variable.fieldName) {
+              const placeholder = `{${variable.fieldName}}`;
+              if (formattedPrompt.includes(placeholder)) {
+                // If this is the first variable and we have an initial message, use it
+                if (variables.indexOf(variable) === 0 && initialMessage) {
+                  formattedPrompt = formattedPrompt.replace(placeholder, initialMessage);
+                }
+              }
+            }
+          });
+        }
+      } catch (e) {
+        // If parsing fails, use the prompt as-is
+        console.log('Not a JSON prompt, using as-is');
+      }
+
+      const newResult: WorkflowResult = {
         step: message.step!.toString(),
-        prompt: message.prompt!,
-        response: message.response!,
+        prompt: formattedPrompt,
+        response: message.response,
         chat_model: message.chat_model,
         persona: message.persona
       };
@@ -66,7 +97,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         }
       }, 0);
     }
-  }, []);
+  }, [initialMessage]);
 
   const executeWorkflowStream = useCallback(async (message?: string) => {
     if (cleanupRef.current) {
@@ -108,7 +139,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   }, [params.workflowId, getApiHeaders, handleStreamMessage, initialMessage]);
 
   const checkFirstStep = useCallback(async (workflow: Workflow) => {
-    if (workflow.steps.length > 0) {
+    if (workflow.steps.length > 0 && !hasSubmittedComplexPrompt) {
       const firstStep = workflow.steps[0];
       try {
         const headers = getApiHeaders();
@@ -121,9 +152,11 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         );
         
         if (promptTemplate.is_complex) {
+          console.log('First step has complex prompt template:', promptTemplate);
           setComplexPromptTemplate(promptTemplate);
           setShowComplexPromptModal(true);
         } else {
+          console.log('First step has simple prompt template, executing workflow...');
           executeWorkflowStream();
         }
       } catch (error) {
@@ -131,7 +164,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         setError('Failed to fetch prompt template');
       }
     }
-  }, [getApiHeaders, executeWorkflowStream]);
+  }, [getApiHeaders, executeWorkflowStream, hasSubmittedComplexPrompt]);
 
   const loadWorkflow = useCallback(async () => {
     const headers = getApiHeaders();
@@ -169,6 +202,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     console.log('Complex prompt submitted:', generatedPrompt);
     setShowComplexPromptModal(false);
     setInitialMessage(generatedPrompt);
+    setHasSubmittedComplexPrompt(true);
     executeWorkflowStream(generatedPrompt);
   };
 
@@ -197,7 +231,8 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   };
 
   const handleRunAgain = () => {
-    if (complexPromptTemplate && !initialMessage) {
+    setHasSubmittedComplexPrompt(false);
+    if (complexPromptTemplate && !hasSubmittedComplexPrompt) {
       setShowComplexPromptModal(true);
     } else {
       executeWorkflowStream();
