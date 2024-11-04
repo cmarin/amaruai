@@ -80,10 +80,18 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
     const createdWorkflow = await response.json();
     console.log('Created workflow:', createdWorkflow);
 
-    // Create workflow steps
-    const createdSteps = await Promise.all(workflow.steps.map(step => 
-      createWorkflowStep(createdWorkflow.id, step, headers)
-    ));
+    // Create workflow steps sequentially to ensure correct positioning
+    const createdSteps = [];
+    for (let i = 0; i < workflow.steps.length; i++) {
+      const step = workflow.steps[i];
+      const stepWithPosition = {
+        ...step,
+        position: i  // Explicitly set position based on array index
+      };
+      
+      const createdStep = await createWorkflowStep(createdWorkflow.id, stepWithPosition, headers);
+      createdSteps.push(createdStep);
+    }
 
     console.log('Created steps:', createdSteps);
 
@@ -133,16 +141,21 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       return Promise.resolve();
     }));
 
-    // Create new steps
+    // Create new steps sequentially with correct positions
+    const createdSteps = [];
     if (workflow.steps) {
-      const createdSteps = await Promise.all(workflow.steps.map(step => 
-        createWorkflowStep(id, {
+      for (let i = 0; i < workflow.steps.length; i++) {
+        const step = workflow.steps[i];
+        const stepWithPosition = {
           prompt_template_id: step.prompt_template_id,
           chat_model_id: step.chat_model_id,
           persona_id: step.persona_id,
-          position: step.position
-        }, headers)
-      ));
+          position: i  // Explicitly set position based on array index
+        };
+        
+        const createdStep = await createWorkflowStep(id, stepWithPosition, headers);
+        createdSteps.push(createdStep);
+      }
       updatedWorkflow.steps = createdSteps;
     }
 
