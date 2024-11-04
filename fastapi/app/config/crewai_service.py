@@ -4,14 +4,24 @@ import asyncio
 import uuid
 import logging
 import os
+import sys
+from io import StringIO
 from app import crud, models
 from app.database import get_db
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
+import json
 
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Reduce noise from HTTP client libraries
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("hpack").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
 
 class CrewAIError(Exception):
     """Custom exception for CrewAI operations"""
@@ -24,6 +34,7 @@ class CrewAIService:
         self._stream_tokens: Dict[str, Dict] = {}
         self._task_metadata: Dict[int, Dict] = {}
         self._task_results: Dict[str, List] = {}
+        self._stdout_buffers: Dict[str, StringIO] = {}
 
     def _generate_stream_token(self, workflow_id: int) -> str:
         token = str(uuid.uuid4())
@@ -36,16 +47,35 @@ class CrewAIService:
         return token
 
     def get_stream_data(self, token: str) -> Optional[Dict]:
-        # Clean up expired tokens (older than 1 hour)
-        current_time = datetime.now()
-        expired_tokens = [
-            t for t, data in self._stream_tokens.items()
-            if current_time - data['created_at'] > timedelta(hours=1)
-        ]
-        for t in expired_tokens:
-            self._stream_tokens.pop(t, None)
+        data = self._stream_tokens.get(token)
+        if data and token in self._stdout_buffers:
+            # Get any new output from the buffer
+            buffer = self._stdout_buffers[token]
+            buffer_value = buffer.getvalue()
+            if buffer_value:
+                try:
+                    # Process each line immediately
+                    lines = buffer_value.splitlines()
+                    for line in lines:
+                        if line.strip():
+                            try:
+                                result = json.loads(line)
+                                if 'result' not in data:
+                                    data['result'] = []
+                                data['result'].append(result)
+                                # Flush after each line
+                                buffer.flush()
+                            except json.JSONDecodeError:
+                                continue
+                
+                    # Clear the buffer after processing
+                    buffer.truncate(0)
+                    buffer.seek(0)
+                    buffer.flush()
+                except Exception as e:
+                    logger.error(f"Error processing buffer: {str(e)}")
 
-        return self._stream_tokens.get(token)
+        return data
 
     async def prepare_workflow_stream(self, workflow_id: int) -> str:
         """Generate and return a unique token for streaming"""
@@ -112,71 +142,94 @@ class CrewAIService:
                     llm=manager_llm
                 )
 
-            # Initialize results list for this stream token
+            # Initialize results and stdout buffer for this stream token
             if stream_token:
                 self._task_results[stream_token] = []
                 self._stream_tokens[stream_token]['status'] = 'running'
+                self._stdout_buffers[stream_token] = StringIO()
 
-            # Create agents and tasks with metadata
-            for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.position)):
-                persona = step.persona
-                chat_model = step.chat_model
-                agent = self.create_agent(persona, chat_model, max_iterations)
-                agents.append(agent)
+            # Redirect stdout to capture CrewAI output
+            old_stdout = sys.stdout
+            if stream_token:
+                sys.stdout = self._stdout_buffers[stream_token]
 
-                metadata = {
-                    "step": i + 1,
-                    "persona": {
-                        "id": persona.id,
-                        "role": persona.role,
-                        "goal": persona.goal
-                    },
-                    "chat_model": {
-                        "id": chat_model.id,
-                        "name": chat_model.name,
-                        "model": chat_model.model
-                    },
-                    "prompt": step.prompt_template.prompt.format(**user_input)
-                }
+            try:
+                # Create agents and tasks with metadata
+                for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.position)):
+                    persona = step.persona
+                    chat_model = step.chat_model
+                    agent = self.create_agent(persona, chat_model, max_iterations)
+                    agents.append(agent)
 
-                def create_callback(step_metadata):
-                    def callback(output):
-                        if stream_token:
-                            result = {
-                                "step": step_metadata["step"],
-                                "prompt": step_metadata["prompt"],
-                                "response": output.raw if hasattr(output, 'raw') else str(output),
-                                "persona": step_metadata["persona"],
-                                "chat_model": step_metadata["chat_model"]
-                            }
-                            self._task_results[stream_token].append(result)
-                            self._stream_tokens[stream_token]['result'] = self._task_results[stream_token]
-                    return callback
+                    # Try to format the prompt, or use the raw prompt if formatting fails
+                    try:
+                        formatted_prompt = step.prompt_template.prompt.format(**user_input)
+                    except KeyError as e:
+                        logger.warning(f"Missing variable in prompt template: {str(e)}")
+                        formatted_prompt = step.prompt_template.prompt  # Use raw prompt as fallback
 
-                task = Task(
-                    description=metadata["prompt"],
-                    agent=agent,
-                    expected_output="Quality writing",
-                    callback=create_callback(metadata)
+                    metadata = {
+                        "step": i + 1,
+                        "persona": {
+                            "id": persona.id,
+                            "role": persona.role,
+                            "goal": persona.goal
+                        },
+                        "chat_model": {
+                            "id": chat_model.id,
+                            "name": chat_model.name,
+                            "model": chat_model.model
+                        },
+                        "prompt": formatted_prompt
+                    }
+
+                    def create_callback(step_metadata):
+                        def callback(output):
+                            if stream_token:
+                                result = {
+                                    "step": step_metadata["step"],
+                                    "prompt": step_metadata["prompt"],
+                                    "response": output.raw if hasattr(output, 'raw') else str(output),
+                                    "persona": step_metadata["persona"],
+                                    "chat_model": step_metadata["chat_model"]
+                                }
+                                self._task_results[stream_token].append(result)
+                                self._stream_tokens[stream_token]['result'] = self._task_results[stream_token]
+
+                                # Write to buffer and flush immediately
+                                print(json.dumps(result), flush=True)
+                                if stream_token in self._stdout_buffers:
+                                    self._stdout_buffers[stream_token].flush()
+                        return callback
+
+                    task = Task(
+                        description=metadata["prompt"],
+                        agent=agent,
+                        expected_output="Quality writing",
+                        callback=create_callback(metadata)
+                    )
+                    tasks.append(task)
+
+                process = Crew(
+                    agents=agents,
+                    tasks=tasks,
+                    process=Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL.value else Process.hierarchical,
+                    manager_agent=manager if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None,
+                    manager_llm=manager_llm if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None,
+                    verbose=True
                 )
-                tasks.append(task)
 
-            process = Crew(
-                agents=agents,
-                tasks=tasks,
-                process=Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL.value else Process.hierarchical,
-                manager_agent=manager if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None,
-                manager_llm=manager_llm if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None,
-                verbose=True
-            )
+                result = await asyncio.to_thread(process.kickoff)
+                
+                # Mark as completed after all tasks are done
+                if stream_token and stream_token in self._stream_tokens:
+                    self._stream_tokens[stream_token]['status'] = 'completed'
 
-            result = await asyncio.to_thread(process.kickoff)
-            
-            # Mark as completed after all tasks are done
-            if stream_token and stream_token in self._stream_tokens:
-                self._stream_tokens[stream_token]['status'] = 'completed'
+                return self._task_results.get(stream_token, [])
 
-            return self._task_results.get(stream_token, [])
+            finally:
+                # Restore stdout
+                sys.stdout = old_stdout
 
         except Exception as e:
             if stream_token and stream_token in self._stream_tokens:

@@ -21,23 +21,20 @@ import { addToScratchPad } from '@/components/scratchPadService'
 import { useSession } from '@/app/utils/session/session'
 
 export default function WorkflowStreamPage({ params }: { params: { workflowId: string } }) {
-  const [workflow, setWorkflow] = useState<Workflow | null>(null)
-  const [results, setResults] = useState<WorkflowResult[]>([])
-  const [isExecuting, setIsExecuting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [showComplexPromptModal, setShowComplexPromptModal] = useState(false)
-  const [complexPromptTemplate, setComplexPromptTemplate] = useState<PromptTemplate | null>(null)
-  const [copied, setCopied] = useState(false)
-  const router = useRouter()
-  const { sidebarOpen } = useSidebar()
-  const [showRunAgain, setShowRunAgain] = useState(false)
-  const [initialMessage, setInitialMessage] = useState<string | undefined>(undefined)
-  const { getApiHeaders } = useSession()
-  const [hasStarted, setHasStarted] = useState(false)
+  const [workflow, setWorkflow] = useState<Workflow | null>(null);
+  const [results, setResults] = useState<WorkflowResult[]>([]);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showComplexPromptModal, setShowComplexPromptModal] = useState(false);
+  const [complexPromptTemplate, setComplexPromptTemplate] = useState<PromptTemplate | null>(null);
+  const [showRunAgain, setShowRunAgain] = useState(false);
+  const [initialMessage, setInitialMessage] = useState<string | undefined>(undefined);
+  const [copied, setCopied] = useState(false);
+  const { getApiHeaders } = useSession();
+  const { sidebarOpen } = useSidebar();
+  const router = useRouter();
   const cleanupRef = useRef<(() => void) | null>(null);
-
-  // Use a ref to track if the initial load has happened
-  const initialLoadRef = useRef(false);
+  const resultsContainerRef = useRef<HTMLDivElement>(null);
 
   const handleStreamMessage = useCallback((message: WorkflowStreamMessage) => {
     if (message.type === 'error') {
@@ -48,31 +45,30 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     }
 
     if (message.type === 'step') {
-      setResults(prevResults => {
-        // Check if this step already exists
-        const stepExists = prevResults.some(r => r.step === message.step!.toString());
-        if (stepExists) {
-          return prevResults;
-        }
+      const newResult = {
+        step: message.step!.toString(),
+        prompt: message.prompt!,
+        response: message.response!,
+        chat_model: message.chat_model,
+        persona: message.persona
+      };
 
-        const newResult = {
-          step: message.step!.toString(),
-          prompt: message.prompt!,
-          response: message.response!,
-          chat_model: message.chat_model,
-          persona: message.persona
-        };
-        return [...prevResults, newResult];
+      setResults(prev => {
+        if (prev.some(r => r.step === newResult.step)) {
+          return prev;
+        }
+        return [...prev, newResult];
       });
+
+      setTimeout(() => {
+        if (resultsContainerRef.current) {
+          resultsContainerRef.current.scrollTop = resultsContainerRef.current.scrollHeight;
+        }
+      }, 0);
     }
   }, []);
 
-  useEffect(() => {
-    console.log('Results updated:', results);
-  }, [results]);
-
   const executeWorkflowStream = useCallback(async (message?: string) => {
-    // Clean up any existing EventSource
     if (cleanupRef.current) {
       console.log('Cleaning up previous EventSource before starting new one');
       cleanupRef.current();
@@ -176,19 +172,22 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     executeWorkflowStream(generatedPrompt);
   };
 
-  const toggleChatbot = (modelId: string) => {
+  const toggleChatbot = useCallback((modelId: string) => {
     router.push(`/chat?model=${modelId}`);
-  }
+  }, [router]);
 
-  const handleCopyToClipboard = () => {
-    const content = results.map(result => `Step ${result.step}:\nPrompt: ${result.prompt}\nResponse: ${result.response}`).join('\n\n');
+  const handleCopyToClipboard = useCallback(() => {
+    const content = results.map(result => 
+      `Step ${result.step}:\nPrompt: ${result.prompt}\nResponse: ${result.response}`
+    ).join('\n\n');
+    
     navigator.clipboard.writeText(content).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }).catch(err => {
       console.error('Failed to copy text: ', err);
     });
-  };
+  }, [results]);
 
   const handleAddToScratchPad = () => {
     const content = `Workflow: ${workflow?.name}\n\n` + results.map(result => 
@@ -233,7 +232,10 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
               </Button>
             </div>
           </div>
-          <ScrollArea className="flex-grow p-4">
+          <div 
+            ref={resultsContainerRef}
+            className="flex-grow p-4 overflow-auto"
+          >
             {error && (
               <div className="text-red-500 mb-4">{error}</div>
             )}
@@ -242,8 +244,11 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
                 Executing workflow... ({results.length} steps completed)
               </div>
             )}
-            {results.map((result, index) => (
-              <div key={`${index}-${result.step}`} className="mb-6 p-4 border rounded-lg">
+            {results.map((result) => (
+              <div 
+                key={`result-${result.step}`}
+                className="mb-6 p-4 border rounded-lg"
+              >
                 <h3 className="font-semibold mb-2 flex items-center gap-2">
                   Step {result.step}
                   {result.chat_model && (
@@ -279,7 +284,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
                 </Button>
               </div>
             )}
-          </ScrollArea>
+          </div>
           {showComplexPromptModal && complexPromptTemplate && (
             <ComplexPromptModal
               prompt={complexPromptTemplate}

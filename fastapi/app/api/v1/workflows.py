@@ -275,8 +275,13 @@ async def initiate_workflow_stream(
 ):
     """Initiate a workflow execution and return a stream token"""
     try:
+        # Log the request parameters
+        logger.info(f"Initiating workflow stream - Workflow ID: {workflow_id}")
+        logger.info(f"User input parameters: {json.dumps(user_input, indent=2)}")
+        
         # Generate a stream token
         stream_token = await crew_service.prepare_workflow_stream(workflow_id)
+        logger.info(f"Generated stream token: {stream_token}")
         
         # Start workflow execution in background
         background_tasks.add_task(
@@ -301,6 +306,11 @@ async def stream_workflow_results(
     db: Session = Depends(get_db)
 ):
     try:
+        # Log the request parameters
+        logger.info(f"Starting stream for workflow ID: {workflow_id}")
+        logger.info(f"Stream token: {stream_token}")
+        logger.info(f"Request headers: {dict(request.headers)}")
+        
         async def event_generator():
             last_result_count = 0
             
@@ -344,7 +354,6 @@ async def stream_workflow_results(
                 # Stream new results as they come in
                 if 'result' in stream_data and stream_data['result']:
                     current_results = stream_data['result']
-                    # Only send new results
                     while last_result_count < len(current_results):
                         result = current_results[last_result_count]
                         yield {
@@ -371,7 +380,8 @@ async def stream_workflow_results(
                     }
                     break
 
-                await asyncio.sleep(0.5)  # Poll interval
+                # Reduced polling interval
+                await asyncio.sleep(0.1)  # Poll more frequently
 
         return EventSourceResponse(
             event_generator(),

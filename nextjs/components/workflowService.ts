@@ -361,9 +361,8 @@ export function streamWorkflow(
   const initUrl = `${API_BASE_URL}/workflows/${workflowId}/stream`;
   let eventSource: EventSource | null = null;
   let isCompleting = false;
-  let hasReceivedMessage = false;
   
-  console.log('Initiating workflow stream...');
+  console.log('Starting workflow stream...');
   
   fetch(initUrl, {
     method: 'POST',
@@ -383,42 +382,63 @@ export function streamWorkflow(
     
     const { stream_token } = await response.json();
     const streamUrl = `${API_BASE_URL}/workflows/${workflowId}/stream?stream_token=${stream_token}`;
+    console.log('Stream URL:', streamUrl);
     
     try {
       eventSource = new EventSource(streamUrl);
+      console.log('EventSource created');
+
+      eventSource.onopen = () => {
+        console.log('EventSource connection opened');
+      };
 
       eventSource.onmessage = (event: MessageEvent) => {
+        console.log('Raw message received:', event.data);
         try {
           const data = JSON.parse(event.data);
-          hasReceivedMessage = true;
-
+          console.log('Parsed message:', data);
+          
           if (data.type === 'step') {
-            onMessage(data as WorkflowStreamMessage);
-          } else if (data.type === 'status' && data.message === 'Workflow execution completed') {
-            isCompleting = true;
-            eventSource?.close();
-            onComplete();
+            console.log('Dispatching step message to handler');
+            // Use requestAnimationFrame to ensure UI update
+            window.requestAnimationFrame(() => {
+              onMessage(data as WorkflowStreamMessage);
+            });
           }
         } catch (error) {
-          console.error('Error parsing SSE message:', error);
+          console.error('Error parsing message:', error);
         }
       };
+
+      eventSource.addEventListener('complete', (event: MessageEvent) => {
+        console.log('Complete event received:', event.data);
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'status' && data.message === 'Workflow execution completed') {
+            console.log('Workflow completed, closing connection');
+            isCompleting = true;
+            if (eventSource) {
+              eventSource.close();
+              onComplete();
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing complete event:', error);
+        }
+      });
 
       eventSource.onerror = (event: Event) => {
+        console.log('Error event received:', event);
         const source = event.target as EventSource;
-        if (source.readyState === EventSource.CLOSED) {
-          if (hasReceivedMessage && !isCompleting) {
-            isCompleting = true;
-            onComplete();
+        if (source.readyState === EventSource.CLOSED && !isCompleting) {
+          console.log('Connection closed unexpectedly');
+          if (eventSource) {
+            eventSource.close();
+            onError(new Error('Stream connection closed unexpectedly'));
           }
-          return;
-        }
-
-        if (!hasReceivedMessage && !isCompleting) {
-          eventSource?.close();
-          onError(new Error('Stream connection error'));
         }
       };
+
     } catch (error) {
       console.error('Error creating EventSource:', error);
       onError(new Error('Failed to create stream connection'));
@@ -431,6 +451,7 @@ export function streamWorkflow(
 
   return () => {
     if (eventSource) {
+      console.log('Cleaning up EventSource');
       eventSource.close();
     }
   };
