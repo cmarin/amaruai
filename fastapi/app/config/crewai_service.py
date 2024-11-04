@@ -161,9 +161,14 @@ class CrewAIService:
                     agent = self.create_agent(persona, chat_model, max_iterations)
                     agents.append(agent)
 
-                    # Try to format the prompt, or use the raw prompt if formatting fails
+                    # Handle complex prompts and variable substitution
                     try:
-                        formatted_prompt = step.prompt_template.prompt.format(**user_input)
+                        if i == 0 and step.prompt_template.is_complex and "message" in user_input:
+                            logger.info(f"Using message for complex prompt in step {i}: {user_input['message']}")
+                            formatted_prompt = user_input["message"]
+                        else:
+                            logger.info(f"Formatting prompt template for step {i}: {step.prompt_template.prompt}")
+                            formatted_prompt = step.prompt_template.prompt.format(**user_input)
                     except KeyError as e:
                         logger.warning(f"Missing variable in prompt template: {str(e)}")
                         formatted_prompt = step.prompt_template.prompt  # Use raw prompt as fallback

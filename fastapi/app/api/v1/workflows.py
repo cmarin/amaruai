@@ -279,6 +279,21 @@ async def initiate_workflow_stream(
         logger.info(f"Initiating workflow stream - Workflow ID: {workflow_id}")
         logger.info(f"User input parameters: {json.dumps(user_input, indent=2)}")
         
+        # Log the workflow details
+        workflow = crud.get_workflow(db, workflow_id=workflow_id)
+        if workflow:
+            steps = sorted(workflow.steps, key=lambda x: x.position)
+            if steps:
+                first_step = steps[0]
+                logger.info(f"First step prompt template (ID: {first_step.prompt_template_id}): {first_step.prompt_template.prompt}")
+                logger.info(f"First step is_complex: {first_step.prompt_template.is_complex}")
+                if first_step.prompt_template.is_complex:
+                    logger.info("Complex prompt detected for first step")
+                    if "message" in user_input:
+                        logger.info(f"Using message from user input: {user_input['message']}")
+                    else:
+                        logger.info("No message found in user input for complex prompt")
+        
         # Generate a stream token
         stream_token = await crew_service.prepare_workflow_stream(workflow_id)
         logger.info(f"Generated stream token: {stream_token}")
