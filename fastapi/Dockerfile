@@ -27,8 +27,8 @@ RUN apt-get update && apt-get install -y \
 # Copy dependency files
 COPY pyproject.toml poetry.lock ./
 
-# Install dependencies
-RUN poetry install --without dev --no-root
+# Install dependencies (corrected command)
+RUN poetry install --only main
 
 FROM base as runtime
 
