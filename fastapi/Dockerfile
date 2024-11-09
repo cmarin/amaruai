@@ -15,26 +15,29 @@ FROM base as builder
 
 WORKDIR /app
 
-# Install poetry
-RUN pip install "poetry==$POETRY_VERSION"
-
-# Install system dependencies required for psycopg2-binary
+# Install system dependencies and C++ build tools
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
+    g++ \
+    cmake \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
+
+# Install poetry
+RUN pip install "poetry==$POETRY_VERSION"
 
 # Copy dependency files
 COPY pyproject.toml poetry.lock ./
 
-# Install dependencies (corrected command)
+# Install dependencies
 RUN poetry install --only main
 
 FROM base as runtime
 
 WORKDIR /app
 
-# Install required system libraries for psycopg2
+# Install runtime system libraries
 RUN apt-get update && apt-get install -y \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
