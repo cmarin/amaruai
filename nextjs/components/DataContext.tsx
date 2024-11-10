@@ -47,16 +47,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (!apiUrl) {
+        throw new Error('API URL is not configured');
+      }
+
+      if (!apiUrl.startsWith('https://')) {
+        console.warn('Warning: API URL should use HTTPS in production');
+      }
+
       const [
         fetchedChatModels,
         fetchedPersonas,
         fetchedPromptTemplates,
         fetchedCategories
       ] = await Promise.all([
-        fetchChatModels(headers),
-        fetchPersonas(headers),
-        fetchPromptTemplates(headers),
-        fetchCategories(headers)
+        fetchChatModels(headers).catch(err => {
+          console.error('Error fetching chat models:', err);
+          return [];
+        }),
+        fetchPersonas(headers).catch(err => {
+          console.error('Error fetching personas:', err);
+          return [];
+        }),
+        fetchPromptTemplates(headers).catch(err => {
+          console.error('Error fetching prompt templates:', err);
+          return [];
+        }),
+        fetchCategories(headers).catch(err => {
+          console.error('Error fetching categories:', err);
+          return [];
+        })
       ]);
 
       setChatModels(fetchedChatModels);
