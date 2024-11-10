@@ -1,10 +1,11 @@
 'use client';
 
-import React, { createContext, useContext, useState } from 'react';
-import { ChatModel } from './chatModelService';
-import { Persona } from './personaService';
-import { PromptTemplate } from './promptTemplateService';
-import { Category } from './categoryService';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { ChatModel, fetchChatModels } from './chatModelService';
+import { Persona, fetchPersonas } from './personaService';
+import { PromptTemplate, fetchPromptTemplates } from './promptTemplateService';
+import { Category, fetchCategories } from './categoryService';
+import { useSession } from '@/app/utils/session/session';
 
 type DataContextType = {
   chatModels: ChatModel[];
@@ -31,8 +32,50 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { getApiHeaders, initialized } = useSession();
 
-  const setData = (data: {
+  const fetchData = useCallback(async () => {
+    if (!initialized) return;
+
+    const headers = getApiHeaders();
+    if (!headers) {
+      console.error('No valid headers available');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const [
+        fetchedChatModels,
+        fetchedPersonas,
+        fetchedPromptTemplates,
+        fetchedCategories
+      ] = await Promise.all([
+        fetchChatModels(headers),
+        fetchPersonas(headers),
+        fetchPromptTemplates(headers),
+        fetchCategories(headers)
+      ]);
+
+      setChatModels(fetchedChatModels);
+      setPersonas(fetchedPersonas);
+      setPromptTemplates(fetchedPromptTemplates);
+      setCategories(fetchedCategories);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while fetching data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getApiHeaders, initialized]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const setData = useCallback((data: {
     chatModels?: ChatModel[];
     personas?: Persona[];
     promptTemplates?: PromptTemplate[];
@@ -42,12 +85,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (data.personas) setPersonas(data.personas);
     if (data.promptTemplates) setPromptTemplates(data.promptTemplates);
     if (data.categories) setCategories(data.categories);
-  };
+  }, []);
 
-  const refetchData = async () => {
-    // This will be implemented in the component that needs to fetch data
-    // Just providing the function signature here
-  };
+  const refetchData = useCallback(async () => {
+    await fetchData();
+  }, [fetchData]);
 
   return (
     <DataContext.Provider value={{
