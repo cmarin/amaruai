@@ -3,6 +3,10 @@ import { geistSans, geistMono } from "@/app/fonts";
 import "./globals.css";
 import { SupabaseProvider } from '@/app/contexts/SupabaseContext';
 import { DataProvider } from '@/components/DataContext'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const metadata: Metadata = {
   title: "AmaruAI",
