@@ -43,7 +43,10 @@ security_scheme = HTTPBearer(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://amaruai-l2117eld6-cmarins-projects.vercel.app"  # Add your Vercel domain
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -127,12 +130,11 @@ app.openapi = custom_openapi
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to AmaruAI API"}
-
-@app.get("/health")
+    return {"message": "Welcome to AmaruAI API"}@app.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
