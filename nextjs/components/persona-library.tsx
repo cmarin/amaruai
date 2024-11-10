@@ -7,6 +7,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import PersonaManager from './persona-manager'
 import { Persona, deletePersona } from './personaService'
 import { Badge } from "@/components/ui/badge"
+import { useSession } from '@/app/utils/session/session';
 
 type PersonaLibraryProps = {
   personas: Persona[];
@@ -17,6 +18,9 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null)
   const [isCreating, setIsCreating] = useState(false)
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
+  const [personaToDelete, setPersonaToDelete] = useState<number | null>(null)
+  const { getApiHeaders } = useSession();
 
   const filteredPersonas = personas.filter(persona =>
     persona.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -33,11 +37,16 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
 
   const handleDeletePersona = async (personaId: number) => {
     try {
-      await deletePersona(personaId)
-      await onUpdatePersonas()
+      const headers = getApiHeaders();
+      if (!headers) {
+        console.error('No valid headers available');
+        return;
+      }
+      
+      await deletePersona(personaId, headers);
+      await onUpdatePersonas();
     } catch (error) {
-      console.error('Error deleting persona:', error)
-      // Handle error (e.g., show error message to user)
+      console.error('Error deleting persona:', error);
     }
   }
 
