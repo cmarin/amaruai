@@ -12,38 +12,21 @@ export type ChatModel = {
   temperature: number;
 };
 
-export async function fetchChatModels(headers: ApiHeaders | null): Promise<ChatModel[]> {
+export async function fetchChatModels(headers: ApiHeaders): Promise<ChatModel[]> {
   return fetchWithRetry(async () => {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-
-    if (!headers) {
-      throw new Error('No valid headers available - session might not be initialized');
-    }
-
-    // Log the request details
-    console.log('=== Fetching Chat Models ===');
-    console.log('Request URL:', `${API_BASE_URL}/chat_models`);
-    console.log('Request Headers:', headers);
-    console.log('Authorization Header:', headers?.Authorization || 'No authorization header');
-    console.log('========================');
-
-    const response = await fetch(`${API_BASE_URL}/chat_models`, {
-      headers: headers as HeadersInit
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat_models`, {
+      method: 'GET',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      credentials: 'include',
     });
 
-    // Log the response status
-    console.log('Response Status:', response.status);
-    
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error Response:', errorText);
       throw new Error('Failed to fetch chat models');
     }
-
-    const data = await response.json();
-    console.log('Received Chat Models:', data);
-    return data;
+    return await response.json();
   });
 }

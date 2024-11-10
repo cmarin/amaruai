@@ -45,7 +45,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://amaruai-l2117eld6-cmarins-projects.vercel.app"  # Add your Vercel domain
+        "https://amaruai-l2117eld6-cmarins-projects.vercel.app",
+        "https://amaruai.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
