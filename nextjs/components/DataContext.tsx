@@ -1,13 +1,12 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { fetchChatModels, ChatModel } from './chatModelService';
-import { fetchPersonas, Persona } from './personaService';
-import { fetchPromptTemplates, PromptTemplate } from './promptTemplateService';
-import { fetchCategories, Category } from './categoryService';
-import { useSession } from '@/app/utils/session/session';
+import React, { createContext, useContext, useState } from 'react';
+import { ChatModel } from './chatModelService';
+import { Persona } from './personaService';
+import { PromptTemplate } from './promptTemplateService';
+import { Category } from './categoryService';
 
-interface DataContextType {
+type DataContextType = {
   chatModels: ChatModel[];
   personas: Persona[];
   promptTemplates: PromptTemplate[];
@@ -15,7 +14,13 @@ interface DataContextType {
   isLoading: boolean;
   error: string | null;
   refetchData: () => Promise<void>;
-}
+  setData: (data: {
+    chatModels?: ChatModel[];
+    personas?: Persona[];
+    promptTemplates?: PromptTemplate[];
+    categories?: Category[];
+  }) => void;
+};
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
@@ -24,61 +29,40 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { getApiHeaders, loading: sessionLoading, initialized } = useSession();
 
-  const fetchData = useCallback(async () => {
-    try {
-      const headers = getApiHeaders();
-      if (!headers) {
-        console.warn('No valid headers available - waiting for session');
-        return;
-      }
-
-      console.log('Fetching data with headers:', headers);
-      const [
-        fetchedChatModels,
-        fetchedPersonas,
-        fetchedPromptTemplates,
-        fetchedCategories,
-      ] = await Promise.all([
-        fetchChatModels(headers),
-        fetchPersonas(headers),
-        fetchPromptTemplates(headers),
-        fetchCategories(headers),
-      ]);
-
-      setChatModels(fetchedChatModels);
-      setPersonas(fetchedPersonas);
-      setPromptTemplates(fetchedPromptTemplates);
-      setCategories(fetchedCategories);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching data:', err);
-      setError('Failed to fetch data');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getApiHeaders]);
-
-  useEffect(() => {
-    if (!sessionLoading && initialized) {
-      fetchData();
-    }
-  }, [sessionLoading, initialized, fetchData]);
-
-  const value = {
-    chatModels,
-    personas,
-    promptTemplates,
-    categories,
-    isLoading: isLoading || sessionLoading || !initialized,
-    error,
-    refetchData: fetchData,
+  const setData = (data: {
+    chatModels?: ChatModel[];
+    personas?: Persona[];
+    promptTemplates?: PromptTemplate[];
+    categories?: Category[];
+  }) => {
+    if (data.chatModels) setChatModels(data.chatModels);
+    if (data.personas) setPersonas(data.personas);
+    if (data.promptTemplates) setPromptTemplates(data.promptTemplates);
+    if (data.categories) setCategories(data.categories);
   };
 
-  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
+  const refetchData = async () => {
+    // This will be implemented in the component that needs to fetch data
+    // Just providing the function signature here
+  };
+
+  return (
+    <DataContext.Provider value={{
+      chatModels,
+      personas,
+      promptTemplates,
+      categories,
+      isLoading,
+      error,
+      refetchData,
+      setData,
+    }}>
+      {children}
+    </DataContext.Provider>
+  );
 }
 
 export function useData() {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { geistSans, geistMono } from "@/app/fonts";
 import "./globals.css";
 import { SupabaseProvider } from '@/app/contexts/SupabaseContext';
+import { DataProvider } from '@/components/DataContext'
 
 export const metadata: Metadata = {
   title: "AmaruAI",
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <SupabaseProvider>
-          {children}
+          <DataProvider>
+            {children}
+          </DataProvider>
         </SupabaseProvider>
       </body>
     </html>
