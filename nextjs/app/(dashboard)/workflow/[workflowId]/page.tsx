@@ -34,26 +34,6 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
 
   const { getApiHeaders } = useSession();
 
-  useEffect(() => {
-    const loadWorkflow = async () => {
-      const headers = getApiHeaders();
-      if (!headers) {
-        console.error('No valid headers available');
-        return;
-      }
-      
-      try {
-        const fetchedWorkflow = await fetchWorkflow(params.workflowId, headers);
-        setWorkflow(fetchedWorkflow);
-        await checkFirstStep(fetchedWorkflow);
-      } catch (error) {
-        console.error('Error loading workflow:', error);
-        setError('Failed to load workflow');
-      }
-    };
-    loadWorkflow();
-  }, [params.workflowId, getApiHeaders]);
-
   const checkFirstStep = async (workflow: Workflow) => {
     if (workflow.steps.length > 0) {
       const firstStep = workflow.steps[0]
@@ -83,6 +63,26 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
       setError('Workflow has no steps')
     }
   }
+
+  useEffect(() => {
+    const loadWorkflow = async () => {
+      const headers = getApiHeaders();
+      if (!headers) {
+        console.error('No valid headers available');
+        return;
+      }
+      
+      try {
+        const fetchedWorkflow = await fetchWorkflow(params.workflowId, headers);
+        setWorkflow(fetchedWorkflow);
+        await checkFirstStep(fetchedWorkflow);
+      } catch (error) {
+        console.error('Error loading workflow:', error);
+        setError('Failed to load workflow');
+      }
+    };
+    loadWorkflow();
+  }, [params.workflowId, getApiHeaders, checkFirstStep]);
 
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
     console.log('Complex prompt submitted:', generatedPrompt);

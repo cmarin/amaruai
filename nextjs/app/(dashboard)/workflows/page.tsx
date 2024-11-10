@@ -37,12 +37,6 @@ export default function WorkflowsPage() {
   const { sidebarOpen } = useSidebar()
   const { getApiHeaders, loading: sessionLoading, initialized } = useSession();
 
-  useEffect(() => {
-    if (!sessionLoading && initialized) {
-      loadWorkflows();
-    }
-  }, [sessionLoading, initialized]);
-
   const loadWorkflows = async () => {
     try {
       const headers = getApiHeaders();
@@ -62,6 +56,12 @@ export default function WorkflowsPage() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!sessionLoading && initialized) {
+      loadWorkflows();
+    }
+  }, [sessionLoading, initialized, loadWorkflows]);
 
   const handleDeleteClick = (workflow: Workflow) => {
     setWorkflowToDelete(workflow)

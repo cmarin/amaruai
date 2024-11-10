@@ -107,6 +107,8 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   }, [
     workflow.manager_chat_model_id,
     workflow.manager_persona_id,
+    managerChatModelId,
+    managerPersonaId,
     setManagerChatModelId,
     setManagerPersonaId
   ]);

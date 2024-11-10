@@ -249,7 +249,11 @@ export async function executeWorkflow(
       throw new Error('API_BASE_URL is not defined');
     }
     const url = `${API_BASE_URL}/workflows/${workflowId}/execute`;
-    const payload: any = {
+    const payload: {
+      user_id: string;
+      conversation_id: string;
+      message?: string;
+    } = {
       user_id: userId,
       conversation_id: conversationId,
     };
