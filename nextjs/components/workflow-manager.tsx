@@ -97,6 +97,20 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     }
   }, [workflow.process_type, chatModels, personas]);
 
+  useEffect(() => {
+    if (workflow.manager_chat_model_id) {
+      setManagerChatModelId(workflow.manager_chat_model_id);
+    }
+    if (workflow.manager_persona_id) {
+      setManagerPersonaId(workflow.manager_persona_id);
+    }
+  }, [
+    workflow.manager_chat_model_id,
+    workflow.manager_persona_id,
+    setManagerChatModelId,
+    setManagerPersonaId
+  ]);
+
   const handleProcessTypeChange = (value: "SEQUENTIAL" | "HIERARCHICAL") => {
     setWorkflow({ ...workflow, process_type: value });
     if (value === 'HIERARCHICAL') {

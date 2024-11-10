@@ -17,6 +17,9 @@ export interface Workflow {
   description: string;
   process_type: 'SEQUENTIAL' | 'HIERARCHICAL';
   steps: WorkflowStep[];
+  manager_chat_model_id?: string;
+  manager_persona_id?: string;
+  max_iterations?: number;
 }
 
 export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
