@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -88,14 +88,14 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
       console.log('Current managerPersonaId:', managerPersonaId);
       
       // Only set if not already set
-      if (!managerChatModelId) {
+      if (!managerChatModelId && workflow.manager_chat_model_id) {
         setManagerChatModelId(workflow.manager_chat_model_id?.toString());
       }
-      if (!managerPersonaId) {
+      if (!managerPersonaId && workflow.manager_persona_id) {
         setManagerPersonaId(workflow.manager_persona_id?.toString());
       }
     }
-  }, [workflow.process_type, chatModels, personas]);
+  }, [workflow.process_type, chatModels, personas, managerChatModelId, managerPersonaId, workflow.manager_chat_model_id, workflow.manager_persona_id]);
 
   useEffect(() => {
     if (workflow.manager_chat_model_id) {

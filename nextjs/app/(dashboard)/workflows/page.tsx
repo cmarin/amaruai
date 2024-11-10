@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Plus, Edit, Trash2, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,7 +37,7 @@ export default function WorkflowsPage() {
   const { sidebarOpen } = useSidebar()
   const { getApiHeaders, loading: sessionLoading, initialized } = useSession();
 
-  const loadWorkflows = async () => {
+  const loadWorkflows = useCallback(async () => {
     try {
       const headers = getApiHeaders();
       if (!headers) {
@@ -55,7 +55,7 @@ export default function WorkflowsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [getApiHeaders]);
 
   useEffect(() => {
     if (!sessionLoading && initialized) {
