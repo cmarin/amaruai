@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.security import HTTPBearer
@@ -20,7 +20,7 @@ from app.api.v1.dependencies import get_current_user
 from dotenv import load_dotenv
 import logging
 from app.api.v1.workflows import router as workflow_router, public_router as workflow_public_router
-from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+import os
 
 load_dotenv()
 
@@ -35,29 +35,27 @@ app = FastAPI(
     redirect_slashes=True
 )
 
-# Add this after creating the FastAPI app but before other middleware
-app.add_middleware(HTTPSRedirectMiddleware)
+# Get environment
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
-# Security scheme
-security_scheme = HTTPBearer(
-    scheme_name="Authorization",
-    description="Enter your API key as: **Bearer your-api-key**"
-)
+# CORS middleware with environment-specific origins
+origins = [
+    "http://localhost:3000",  # Local development
+]
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
+if ENVIRONMENT == "production":
+    origins.extend([
         "https://amaruai-l2117eld6-cmarins-projects.vercel.app",
         "https://amaruai.vercel.app"
-    ],
+    ])
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
-    allow_origin_regex=None,
-    max_age=600,
 )
 
 # Mount the public routes (authentication)
