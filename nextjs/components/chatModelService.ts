@@ -1,6 +1,5 @@
 import { fetchWithRetry } from './apiUtils';
 import { ApiHeaders } from '@/app/utils/session/session';
-import { API_BASE_URL } from './apiConfig';
 
 export type ChatModel = {
   id: number;
@@ -14,14 +13,13 @@ export type ChatModel = {
 
 export async function fetchChatModels(headers: ApiHeaders): Promise<ChatModel[]> {
   return fetchWithRetry(async () => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat_models`, {
+    const response = await fetch(`/api/v1/chat_models`, {
       method: 'GET',
       headers: {
         ...headers,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      credentials: 'include',
     });
 
     if (!response.ok) {
