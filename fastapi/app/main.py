@@ -20,6 +20,7 @@ from app.api.v1.dependencies import get_current_user
 from dotenv import load_dotenv
 import logging
 from app.api.v1.workflows import router as workflow_router, public_router as workflow_public_router
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 load_dotenv()
 
@@ -33,6 +34,9 @@ app = FastAPI(
     version="1.0.0",
     redirect_slashes=True
 )
+
+# Add this after creating the FastAPI app but before other middleware
+app.add_middleware(HTTPSRedirectMiddleware)
 
 # Security scheme
 security_scheme = HTTPBearer(
