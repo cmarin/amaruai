@@ -38,7 +38,7 @@ app = FastAPI(
 # Get environment
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
-# CORS middleware with all protocols allowed
+# Update origins list to include all possible variations
 origins = [
     "http://localhost:3000",
     "https://localhost:3000",
@@ -46,17 +46,20 @@ origins = [
     "https://localhost:8000",
     "http://amaruai.vercel.app",
     "https://amaruai.vercel.app",
-    "http://amaruai-l2117eld6-cmarins-projects.vercel.app",
     "https://amaruai-l2117eld6-cmarins-projects.vercel.app",
-    "https://accurate-courtesy-production.up.railway.app"
+    "https://accurate-courtesy-production.up.railway.app",
+    # Add the Vercel preview deployments pattern
+    "https://*.vercel.app"
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Content-Type", "Authorization", "Accept"],
+    expose_headers=["*"],
+    max_age=3600
 )
 
 # Mount the public routes (authentication)
@@ -134,9 +137,7 @@ app.openapi = custom_openapi
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to AmaruAI API"}
-
-@app.get("/health")
+    return {"message": "Welcome to AmaruAI API"}@app.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
