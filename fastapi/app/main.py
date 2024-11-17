@@ -38,10 +38,22 @@ app = FastAPI(
 # Get environment
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
-# CORS middleware to allow all origins
+# CORS middleware with all protocols allowed
+origins = [
+    "http://localhost:3000",
+    "https://localhost:3000",
+    "http://localhost:8000",
+    "https://localhost:8000",
+    "http://amaruai.vercel.app",
+    "https://amaruai.vercel.app",
+    "http://amaruai-l2117eld6-cmarins-projects.vercel.app",
+    "https://amaruai-l2117eld6-cmarins-projects.vercel.app",
+    "https://accurate-courtesy-production.up.railway.app"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
     allow_headers=["*"],  # Allow all headers
