@@ -6,3 +6,22 @@ dockerfilePath = "Dockerfile"
 startCommand = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
 healthcheckPath = "/health"
 restartPolicyType = "on_failure"
+
+[[services]]
+internal_port = 8000
+protocol = "tcp"
+
+[[services.ports]]
+handlers = ["http"]
+port = "80"
+
+[[services.ports]]
+handlers = ["tls", "http"]
+port = "443"
+
+[headers]
+Access-Control-Allow-Origin = "https://amaruai.vercel.app"
+Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+Access-Control-Allow-Headers = "Content-Type, Authorization, Accept, Origin, X-Requested-With"
+Access-Control-Allow-Credentials = "true"
+Access-Control-Max-Age = "600"

@@ -48,7 +48,6 @@ origins = [
     "https://amaruai.vercel.app",
     "https://amaruai-l2117eld6-cmarins-projects.vercel.app",
     "https://accurate-courtesy-production.up.railway.app",
-    # Add the Vercel preview deployments pattern
     "https://*.vercel.app"
 ]
 
@@ -57,7 +56,7 @@ app.add_middleware(
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["Content-Type", "Authorization", "Accept"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
     expose_headers=["*"],
     max_age=3600
 )
