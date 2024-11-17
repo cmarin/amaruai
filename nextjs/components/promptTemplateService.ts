@@ -4,10 +4,8 @@ import { createTag, fetchTags, Tag } from './tagService';
 import { PromptContent } from './complex-prompt-editor';
 import { fetchWithRetry } from './apiUtils';
 import { ApiHeaders } from '@/app/utils/session/session';
-import { API_BASE_URL } from './apiConfig';
+import { getApiUrl } from '@/lib/apiConfig';
 import { Category } from './categoryService';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export interface VariableType {
   fieldName: string;
@@ -51,8 +49,8 @@ export async function createPromptTemplate(
   headers: ApiHeaders
 ): Promise<PromptTemplate> {
   try {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
+    if (!getApiUrl()) {
+      throw new Error('API URL is not defined');
     }
 
     // Fetch existing tags with headers
@@ -77,7 +75,7 @@ export async function createPromptTemplate(
       tag_ids: processedTagIds,
     };
 
-    const response = await fetch(`${API_BASE_URL}/prompt_templates`, {
+    const response = await fetch(`${getApiUrl()}/prompt_templates`, {
       method: 'POST',
       headers: {
         ...headers,
@@ -110,8 +108,8 @@ export async function updatePromptTemplate(
   headers: ApiHeaders
 ): Promise<PromptTemplate> {
   try {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
+    if (!getApiUrl()) {
+      throw new Error('API URL is not defined');
     }
 
     // Fetch existing tags with headers
@@ -137,7 +135,7 @@ export async function updatePromptTemplate(
     };
 
     console.log('Updating prompt template with payload:', payload);
-    const response = await fetch(`${API_BASE_URL}/prompt_templates/${promptTemplateId}`, {
+    const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
       method: 'PUT',
       headers: {
         ...headers,
@@ -159,10 +157,10 @@ export async function updatePromptTemplate(
 
 export async function deletePromptTemplate(promptTemplateId: number, headers: ApiHeaders): Promise<void> {
   try {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
+    if (!getApiUrl()) {
+      throw new Error('API URL is not defined');
     }
-    const response = await fetch(`${API_BASE_URL}/prompt_templates/${promptTemplateId}`, {
+    const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
       method: 'DELETE',
       headers,
     });
@@ -179,8 +177,8 @@ export async function deletePromptTemplate(promptTemplateId: number, headers: Ap
 
 export async function fetchPromptTemplates(headers: ApiHeaders | null): Promise<PromptTemplate[]> {
   return fetchWithRetry(async () => {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
+    if (!getApiUrl()) {
+      throw new Error('API URL is not defined');
     }
 
     if (!headers) {
@@ -188,12 +186,12 @@ export async function fetchPromptTemplates(headers: ApiHeaders | null): Promise<
     }
 
     console.log('=== Fetching Prompt Templates ===');
-    console.log('Request URL:', `${API_BASE_URL}/prompt_templates`);
+    console.log('Request URL:', `${getApiUrl()}/prompt_templates`);
     console.log('Request Headers:', headers);
     console.log('Authorization Header:', headers.Authorization);
     console.log('========================');
 
-    const response = await fetch(`${API_BASE_URL}/prompt_templates`, {
+    const response = await fetch(`${getApiUrl()}/prompt_templates`, {
       headers
     });
 
@@ -213,10 +211,10 @@ export async function fetchPromptTemplates(headers: ApiHeaders | null): Promise<
 
 export async function fetchPromptTemplate(id: number, headers: ApiHeaders): Promise<PromptTemplate> {
   try {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
+    if (!getApiUrl()) {
+      throw new Error('API URL is not defined');
     }
-    const response = await fetch(`${API_BASE_URL}/prompt_templates/${id}`, {
+    const response = await fetch(`${getApiUrl()}/prompt_templates/${id}`, {
       headers,
     });
     if (!response.ok) {

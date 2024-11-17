@@ -38,16 +38,18 @@ app = FastAPI(
 # Get environment
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
-# CORS middleware with environment-specific origins
+# CORS middleware with all protocols allowed
 origins = [
-    "http://localhost:3000",  # Local development
+    "http://localhost:3000",
+    "https://localhost:3000",
+    "http://localhost:8000",
+    "https://localhost:8000",
+    "http://amaruai.vercel.app",
+    "https://amaruai.vercel.app",
+    "http://amaruai-l2117eld6-cmarins-projects.vercel.app",
+    "https://amaruai-l2117eld6-cmarins-projects.vercel.app",
+    "https://accurate-courtesy-production.up.railway.app"
 ]
-
-if ENVIRONMENT == "production":
-    origins.extend([
-        "https://amaruai-l2117eld6-cmarins-projects.vercel.app",
-        "https://amaruai.vercel.app"
-    ])
 
 app.add_middleware(
     CORSMiddleware,
@@ -55,8 +57,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
-    max_age=3600
+    expose_headers=["*"]
 )
 
 # Mount the public routes (authentication)

@@ -9,6 +9,7 @@ export async function fetchWithRetry<T>(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
+      console.log('Attempting fetch with URL:', fetchFunction.toString());
       return await fetchFunction();
     } catch (error) {
       lastError = error as Error;

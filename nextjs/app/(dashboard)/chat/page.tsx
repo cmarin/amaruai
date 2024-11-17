@@ -30,6 +30,7 @@ import { useSession } from '@/app/utils/session/session';
 import Uppy from '@uppy/core';
 import { Dashboard } from '@uppy/react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { getApiUrl, getFetchOptions } from '@/lib/apiConfig';
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.css';
@@ -39,8 +40,6 @@ import '@uppy/dashboard/dist/style.css';
 // import DropboxPlugin from '@uppy/dropbox';
 // import GoogleDrivePlugin from '@uppy/google-drive';
 // import WebcamPlugin from '@uppy/webcam';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 // Type definitions
 type Message = {
@@ -287,14 +286,15 @@ export default function ChatPage() {
             
             console.log('Request Headers:', headers);
             console.log('Request Payload:', payload);
-            console.log('Request URL:', `${API_URL}/chat`);
+            console.log('Request URL:', `${getApiUrl()}/chat`);
             console.log('=====================');
 
             const response = await fetchWithRetry(async () => {
-              const res = await fetch(`${API_URL}/chat`, {
+              const res = await fetch(`${getApiUrl()}/chat`, {
                 method: 'POST',
-                headers,  // Now headers is guaranteed to be ApiHeaders
+                headers,
                 body: JSON.stringify(payload),
+                ...getFetchOptions(),
               })
               
               // Log the response status and any error message

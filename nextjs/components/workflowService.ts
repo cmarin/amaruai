@@ -1,6 +1,6 @@
 import { fetchWithRetry } from './apiUtils';
 import { ApiHeaders } from '@/app/utils/session/session';
-import { API_BASE_URL } from './apiConfig';
+import { getApiUrl } from '@/lib/apiConfig';
 
 export interface WorkflowStep {
   id?: string;
@@ -24,11 +24,7 @@ export interface Workflow {
 
 export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
   return fetchWithRetry(async () => {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-
-    const response = await fetch(`${API_BASE_URL}/workflows`, {
+    const response = await fetch(`${getApiUrl()}/workflows`, {
       headers
     });
 
@@ -41,10 +37,7 @@ export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
 
 export async function fetchWorkflow(id: string, headers: ApiHeaders): Promise<Workflow> {
   return fetchWithRetry(async () => {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-    const response = await fetch(`${API_BASE_URL}/workflows/${id}`, {
+    const response = await fetch(`${getApiUrl()}/workflows/${id}`, {
       headers
     });
     if (!response.ok) {
@@ -56,10 +49,6 @@ export async function fetchWorkflow(id: string, headers: ApiHeaders): Promise<Wo
 
 export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: ApiHeaders): Promise<Workflow> {
   return fetchWithRetry(async () => {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-
     const workflowPayload = {
       name: workflow.name,
       description: workflow.description,
@@ -68,7 +57,7 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
 
     console.log('Creating workflow with payload:', workflowPayload);
 
-    const response = await fetch(`${API_BASE_URL}/workflows`, {
+    const response = await fetch(`${getApiUrl()}/workflows`, {
       method: 'POST',
       headers: {
         ...headers,
@@ -107,10 +96,6 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
 
 export async function updateWorkflow(id: string, workflow: Partial<Workflow>, headers: ApiHeaders): Promise<Workflow> {
   return fetchWithRetry(async () => {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-
     const workflowPayload = {
       name: workflow.name,
       description: workflow.description,
@@ -119,7 +104,7 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
 
     console.log('Updating workflow with payload:', workflowPayload);
 
-    const response = await fetch(`${API_BASE_URL}/workflows/${id}`, {
+    const response = await fetch(`${getApiUrl()}/workflows/${id}`, {
       method: 'PUT',
       headers: {
         ...headers,
@@ -168,10 +153,7 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
 
 export async function deleteWorkflow(id: string, headers: ApiHeaders): Promise<void> {
   return fetchWithRetry(async () => {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-    const response = await fetch(`${API_BASE_URL}/workflows/${id}`, {
+    const response = await fetch(`${getApiUrl()}/workflows/${id}`, {
       method: 'DELETE',
       headers
     });
@@ -183,11 +165,8 @@ export async function deleteWorkflow(id: string, headers: ApiHeaders): Promise<v
 
 export async function createWorkflowStep(workflowId: string, step: Omit<WorkflowStep, 'id' | 'workflow_id'>, headers: ApiHeaders): Promise<WorkflowStep> {
   return fetchWithRetry(async () => {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
-    }
     console.log('Creating workflow step:', step);
-    const response = await fetch(`${API_BASE_URL}/workflows/${workflowId}/steps`, {
+    const response = await fetch(`${getApiUrl()}/workflows/${workflowId}/steps`, {
       method: 'POST',
       headers: {
         ...headers,
@@ -207,10 +186,7 @@ export async function createWorkflowStep(workflowId: string, step: Omit<Workflow
 
 export async function fetchWorkflowSteps(workflowId: string, headers: ApiHeaders): Promise<WorkflowStep[]> {
   return fetchWithRetry(async () => {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-    const response = await fetch(`${API_BASE_URL}/workflows/${workflowId}/steps`, {
+    const response = await fetch(`${getApiUrl()}/workflows/${workflowId}/steps`, {
       headers
     });
     if (!response.ok) {
@@ -224,10 +200,7 @@ export async function fetchWorkflowSteps(workflowId: string, headers: ApiHeaders
 
 export async function deleteWorkflowStep(workflowId: string, stepId: string, headers: ApiHeaders): Promise<void> {
   return fetchWithRetry(async () => {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-    const response = await fetch(`${API_BASE_URL}/workflows/${workflowId}/steps/${stepId}`, {
+    const response = await fetch(`${getApiUrl()}/workflows/${workflowId}/steps/${stepId}`, {
       method: 'DELETE',
       headers
     });
@@ -245,10 +218,7 @@ export async function executeWorkflow(
   message?: string
 ): Promise<void> {
   return fetchWithRetry(async () => {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-    const url = `${API_BASE_URL}/workflows/${workflowId}/execute`;
+    const url = `${getApiUrl()}/workflows/${workflowId}/execute`;
     const payload: {
       user_id: string;
       conversation_id: string;
@@ -302,10 +272,7 @@ export interface WorkflowResult {
 
 export async function getWorkflowResults(workflowId: string, headers: ApiHeaders): Promise<WorkflowResult[]> {
   return fetchWithRetry(async () => {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-    const response = await fetch(`${API_BASE_URL}/workflows/${workflowId}/results`, {
+    const response = await fetch(`${getApiUrl()}/workflows/${workflowId}/results`, {
       headers
     });
     if (!response.ok) {
@@ -322,11 +289,8 @@ export async function updateWorkflowStep(
   headers: ApiHeaders
 ): Promise<WorkflowStep> {
   return fetchWithRetry(async () => {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
-    }
     console.log('Updating workflow step:', step);
-    const response = await fetch(`${API_BASE_URL}/workflows/${workflowId}/steps/${stepId}`, {
+    const response = await fetch(`${getApiUrl()}/workflows/${workflowId}/steps/${stepId}`, {
       method: 'PUT',
       headers: {
         ...headers,
@@ -374,11 +338,7 @@ export function streamWorkflow(
   onComplete: () => void,
   message?: string
 ): () => void {
-  if (!API_BASE_URL) {
-    throw new Error('API_BASE_URL is not defined');
-  }
-
-  const initUrl = `${API_BASE_URL}/workflows/${workflowId}/stream`;
+  const initUrl = `${getApiUrl()}/workflows/${workflowId}/stream`;
   let eventSource: EventSource | null = null;
   let isCompleting = false;
   
@@ -406,7 +366,7 @@ export function streamWorkflow(
     }
     
     const { stream_token } = await response.json();
-    const streamUrl = `${API_BASE_URL}/workflows/${workflowId}/stream?stream_token=${stream_token}`;
+    const streamUrl = `${getApiUrl()}/workflows/${workflowId}/stream?stream_token=${stream_token}`;
     console.log('Stream URL:', streamUrl);
     
     try {

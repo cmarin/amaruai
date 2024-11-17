@@ -1,7 +1,7 @@
 import { fetchWithRetry } from './apiUtils';
 import { createTag, fetchTags, Tag } from './tagService';
 import { ApiHeaders } from '@/app/utils/session/session';
-import { API_BASE_URL } from './apiConfig';
+import { getApiUrl } from '@/lib/apiConfig';
 
 export type Persona = {
   id: number;
@@ -22,10 +22,10 @@ export type PersonaCreate = Omit<Persona, 'id'>;
 
 export async function fetchPersonas(headers: ApiHeaders): Promise<Persona[]> {
   return fetchWithRetry(async () => {
-    if (!API_BASE_URL) {
+    if (!getApiUrl()) {
       throw new Error('API_BASE_URL is not defined');
     }
-    const response = await fetch(`${API_BASE_URL}/personas`, {
+    const response = await fetch(`${getApiUrl()}/personas`, {
       headers
     });
     if (!response.ok) {
@@ -37,7 +37,7 @@ export async function fetchPersonas(headers: ApiHeaders): Promise<Persona[]> {
 
 export async function createPersona(persona: PersonaCreate, headers: ApiHeaders): Promise<Persona> {
   try {
-    if (!API_BASE_URL) {
+    if (!getApiUrl()) {
       throw new Error('API_BASE_URL is not defined');
     }
 
@@ -60,7 +60,7 @@ export async function createPersona(persona: PersonaCreate, headers: ApiHeaders)
 
     console.log('Creating persona with payload:', payload);
 
-    const response = await fetch(`${API_BASE_URL}/personas`, {
+    const response = await fetch(`${getApiUrl()}/personas`, {
       method: 'POST',
       headers: {
         ...headers,
@@ -83,7 +83,7 @@ export async function createPersona(persona: PersonaCreate, headers: ApiHeaders)
 
 export async function updatePersona(personaId: number, persona: Partial<Persona>, headers: ApiHeaders): Promise<Persona> {
   try {
-    if (!API_BASE_URL) {
+    if (!getApiUrl()) {
       throw new Error('API_BASE_URL is not defined');
     }
 
@@ -111,9 +111,9 @@ export async function updatePersona(personaId: number, persona: Partial<Persona>
     };
 
     console.log('Updating persona with payload:', payload);
-    console.log('PUT URL:', `${API_BASE_URL}/personas/${personaId}`);
+    console.log('PUT URL:', `${getApiUrl()}/personas/${personaId}`);
 
-    const response = await fetch(`${API_BASE_URL}/personas/${personaId}`, {
+    const response = await fetch(`${getApiUrl()}/personas/${personaId}`, {
       method: 'PUT',
       headers: {
         ...headers,
@@ -138,13 +138,13 @@ export async function updatePersona(personaId: number, persona: Partial<Persona>
 
 export async function deletePersona(personaId: number, headers: ApiHeaders): Promise<void> {
   try {
-    if (!API_BASE_URL) {
+    if (!getApiUrl()) {
       throw new Error('API_BASE_URL is not defined');
     }
     console.log('Deleting persona:', personaId);
-    console.log('DELETE URL:', `${API_BASE_URL}/personas/${personaId}`);
+    console.log('DELETE URL:', `${getApiUrl()}/personas/${personaId}`);
 
-    const response = await fetch(`${API_BASE_URL}/personas/${personaId}`, {
+    const response = await fetch(`${getApiUrl()}/personas/${personaId}`, {
       method: 'DELETE',
       headers
     });

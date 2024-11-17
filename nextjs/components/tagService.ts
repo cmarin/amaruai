@@ -1,5 +1,5 @@
 import { ApiHeaders } from '@/app/utils/session/session';
-import { API_BASE_URL } from './apiConfig';
+import { getApiUrl } from '@/lib/apiConfig';
 
 export type Tag = {
   id: number;
@@ -8,10 +8,6 @@ export type Tag = {
 
 export async function fetchTags(headers?: ApiHeaders | null): Promise<Tag[]> {
   try {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-
     const requestHeaders = headers ? headers : {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
@@ -19,7 +15,7 @@ export async function fetchTags(headers?: ApiHeaders | null): Promise<Tag[]> {
 
     console.log('Fetching tags with headers:', requestHeaders);
 
-    const response = await fetch(`${API_BASE_URL}/tags`, {
+    const response = await fetch(`${getApiUrl()}/tags`, {
       headers: requestHeaders as HeadersInit
     });
 
@@ -39,10 +35,6 @@ export async function fetchTags(headers?: ApiHeaders | null): Promise<Tag[]> {
 
 export async function createTag(name: string, headers?: ApiHeaders | null): Promise<Tag> {
   try {
-    if (!API_BASE_URL) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-    
     const requestHeaders = headers ? headers : {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
@@ -59,7 +51,7 @@ export async function createTag(name: string, headers?: ApiHeaders | null): Prom
     }
     
     // If the tag doesn't exist, create a new one
-    const response = await fetch(`${API_BASE_URL}/tags`, {
+    const response = await fetch(`${getApiUrl()}/tags`, {
       method: 'POST',
       headers: requestHeaders as HeadersInit,
       body: JSON.stringify({ name }),
