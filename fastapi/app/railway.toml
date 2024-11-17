@@ -20,7 +20,7 @@ handlers = ["tls", "http"]
 port = "443"
 
 [headers]
-Access-Control-Allow-Origin = "https://amaruai.vercel.app"
+Access-Control-Allow-Origin = "*"
 Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
 Access-Control-Allow-Headers = "Content-Type, Authorization, Accept, Origin, X-Requested-With"
 Access-Control-Allow-Credentials = "true"
