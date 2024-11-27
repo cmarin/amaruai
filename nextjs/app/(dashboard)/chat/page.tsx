@@ -308,54 +308,30 @@ export default function ChatPage() {
     }
   };
 
-  const setLayout = (mode: LayoutMode) => {
-    setLayoutMode(mode)
-    
+  const handleLayoutChange = (mode: LayoutMode) => {
     // If we need more chatbots than we currently have, create them
-    const neededBots = mode === 'dual' ? 2 : mode === 'quad' ? 4 : 1;
+    const neededBots = mode === 'split' ? 2 : mode === 'grid' ? 4 : 1;
     
     if (chatbots.length < neededBots) {
       // Create additional chatbots using the available models
-      const additionalBots = chatModels.slice(chatbots.length).map(model => ({
-        id: model.id.toString(),
-        name: model.name,
-        apiName: model.model,
-        messages: [],
-        persona: 'default',
-        conversationId: uuidv4(),
-        selectedModelId: model.id.toString()
-      }));
-      
-      const newChatbots = [...chatbots, ...additionalBots];
-      setChatbots(newChatbots);
-      
-      // Set active chatbots based on mode
-      switch (mode) {
-        case 'single':
-          setActiveChatbots([newChatbots[0].id]);
-          break;
-        case 'dual':
-          setActiveChatbots([newChatbots[0].id, newChatbots[1].id]);
-          break;
-        case 'quad':
-          setActiveChatbots(newChatbots.slice(0, 4).map(bot => bot.id));
-          break;
-      }
-    } else {
-      // We have enough chatbots, just update active ones
-      switch (mode) {
-        case 'single':
-          setActiveChatbots([chatbots[0].id]);
-          break;
-        case 'dual':
-          setActiveChatbots([chatbots[0].id, chatbots[1].id]);
-          break;
-        case 'quad':
-          setActiveChatbots(chatbots.slice(0, 4).map(bot => bot.id));
-          break;
-      }
+      const newBots = allModels.slice(chatbots.length, neededBots).map(model => ChatService.createChatBot(model));
+      setChatbots([...chatbots, ...newBots]);
     }
-  }
+
+    // Update active chatbots based on layout
+    let newActiveBots: string[];
+    if (mode === 'single') {
+      newActiveBots = chatbots.length > 0 ? [chatbots[0].id] : [];
+    } else if (mode === 'split') {
+      newActiveBots = chatbots.slice(0, 2).map(bot => bot.id);
+    } else {
+      // grid mode
+      newActiveBots = chatbots.slice(0, 4).map(bot => bot.id);
+    }
+
+    setActiveChatbots(newActiveBots);
+    setLayoutMode(mode);
+  };
 
   const changeModel = useCallback((botId: string, newModelId: string) => {
     const selectedModel = allModels.find(model => model.id.toString() === newModelId);
@@ -459,7 +435,7 @@ export default function ChatPage() {
 
   const resetToPlayground = () => {
     setActiveChatbots(['1', '2', '3', '4'])
-    setLayoutMode('quad')
+    setLayoutMode('grid')
     setShowPromptLibrary(false)
     setShowPersonaLibrary(false)
     setShowMainDisplay(true)
@@ -547,7 +523,7 @@ export default function ChatPage() {
 
   return (
     <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-white"> {/* Added bg-white here */}
+      <div className="flex h-full w-full overflow-hidden bg-white"> 
         <AppSidebar toggleChatbot={toggleChatbot} />
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           {showPromptLibrary ? (
@@ -561,7 +537,7 @@ export default function ChatPage() {
             <>
               <div className={`flex-1 grid gap-4 p-4 overflow-hidden ${
                 layoutMode === 'single' ? 'grid-cols-1' : 
-                layoutMode === 'dual' ? 'grid-cols-2' : 
+                layoutMode === 'split' ? 'grid-cols-2' : 
                 'grid-cols-2 grid-rows-2'
               }`}>
                 {chatbots.filter(bot => activeChatbots.includes(bot.id)).slice(0, 4).map(bot => (
@@ -719,32 +695,29 @@ export default function ChatPage() {
                   />
                   <div className="flex-shrink-0 flex space-x-2">
                     <Button onClick={handleSend} className="bg-blue-600 hover:bg-blue-700 text-white">Send</Button>
-                    <Button 
-                      variant={layoutMode === 'single' ? "default" : "outline"} 
-                      size="icon" 
-                      onClick={() => setLayout('single')}
+                    <Button
+                      variant={layoutMode === 'single' ? "secondary" : "ghost"}
+                      size="icon"
+                      onClick={() => handleLayoutChange('single')}
                       title="Single chat"
-                      className={layoutMode === 'single' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'text-blue-600 border-blue-600 hover:bg-blue-100'}
                     >
-                      <Square size={18} />
+                      <Square className="h-4 w-4" />
                     </Button>
-                    <Button 
-                      variant={layoutMode === 'dual' ? "default" : "outline"} 
-                      size="icon" 
-                      onClick={() => setLayout('dual')}
-                      title="Dual chat"
-                      className={layoutMode === 'dual' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'text-blue-600 border-blue-600 hover:bg-blue-100'}
+                    <Button
+                      variant={layoutMode === 'split' ? "secondary" : "ghost"}
+                      size="icon"
+                      onClick={() => handleLayoutChange('split')}
+                      title="Split chat"
                     >
-                      <Columns size={18} />
+                      <Columns className="h-4 w-4" />
                     </Button>
-                    <Button 
-                      variant={layoutMode === 'quad' ? "default" : "outline"} 
-                      size="icon" 
-                      onClick={() => setLayout('quad')}
-                      title="Quad chat"
-                      className={layoutMode === 'quad' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'text-blue-600 border-blue-600 hover:bg-blue-100'}
+                    <Button
+                      variant={layoutMode === 'grid' ? "secondary" : "ghost"}
+                      size="icon"
+                      onClick={() => handleLayoutChange('grid')}
+                      title="Grid chat"
                     >
-                      <LayoutGrid size={18} />
+                      <LayoutGrid className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
