@@ -32,6 +32,7 @@ import { Dashboard } from '@uppy/react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { getApiUrl, getFetchOptions } from '@/lib/apiConfig';
 import { ChatService, Message, ChatBot } from '@/components/chat-service'
+import { UploadService, UploadedFile } from '@/components/upload-service';
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.css';
@@ -43,14 +44,9 @@ import '@uppy/dashboard/dist/style.css';
 // import WebcamPlugin from '@uppy/webcam';
 
 // Type definitions
-type LayoutMode = 'single' | 'split' | 'grid';
+export type LayoutMode = 'single' | 'split' | 'grid';
 
-type UploadedFile = {
-  name: string
-  size: number
-}
-
-interface ChatPayload {
+export interface ChatPayload {
   user_id: string;
   conversation_id: string;
   message: string;
@@ -127,47 +123,18 @@ export default function ChatPage() {
   const supabase = createClientComponentClient();
 
   useEffect(() => {
-    const uppy = new Uppy({
-      id: 'uppy-chat',
-      autoProceed: false,
-      restrictions: {
-        maxFileSize: 10 * 1024 * 1024, // 10MB
-        maxNumberOfFiles: 5,
-        allowedFileTypes: ['image/*', 'application/pdf', '.doc', '.docx']
+    const uppy = UploadService.createUppy(
+      'uppy-chat',
+      {},  // Use default config
+      (file) => {
+        console.log('File uploaded:', file);
+        setUploadedFiles(prev => [...prev, file]);
+      },
+      (result) => {
+        console.log('Upload complete:', result);
+        setShowUploadModal(false);
       }
-    });
-
-    uppy.on('file-added', async (file) => {
-      try {
-        if (!file.name) {
-          throw new Error('File name is undefined');
-        }
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `uploads/${fileName}`;
-
-        // Upload file to Supabase storage
-        const { data, error } = await supabase.storage
-          .from('amaruai-dev')
-          .upload(filePath, file.data);
-
-        if (error) throw error;
-
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('amaruai-dev')
-          .getPublicUrl(filePath);
-
-        console.log('File uploaded:', publicUrl);
-      } catch (error) {
-        console.error('Error uploading file:', error);
-      }
-    });
-
-    uppy.on('complete', (result) => {
-      console.log('Upload complete:', result);
-      setShowUploadModal(false); // Close the modal after all uploads are complete
-    });
+    );
 
     setUppyInstance(uppy);
 
@@ -175,7 +142,7 @@ export default function ChatPage() {
     return () => {
       uppy.cancelAll();
     };
-  }, [supabase]);
+  }, []);
 
   // This is the only initialization effect we need
   useEffect(() => {
@@ -343,20 +310,30 @@ export default function ChatPage() {
     setShowUploadModal(true);
   };
 
-  const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
     if (files) {
-      const newFiles = Array.from(files).map(file => ({
+      const newFiles: UploadedFile[] = Array.from(files).map(file => ({
         name: file.name,
-        size: file.size
-      }))
-      setUploadedFiles(prev => [...prev, ...newFiles])
+        size: file.size,
+        url: URL.createObjectURL(file)  // Create temporary URL for preview
+      }));
+      setUploadedFiles(prev => [...prev, ...newFiles]);
     }
   }
 
   const removeFile = (fileName: string) => {
-    setUploadedFiles(prev => prev.filter(file => file.name !== fileName))
-  }
+    setUploadedFiles(prev => {
+      const filtered = prev.filter(file => file.name !== fileName);
+      // Cleanup any temporary URLs we created
+      prev.forEach(file => {
+        if (file.name === fileName && file.url.startsWith('blob:')) {
+          URL.revokeObjectURL(file.url);
+        }
+      });
+      return filtered;
+    });
+  };
 
   const addToScratchPad = (botId: string) => {
     const bot = chatbots.find(b => b.id === botId)
@@ -645,7 +622,7 @@ export default function ChatPage() {
                   <input
                     type="file"
                     ref={fileInputRef}
-                    onChange={onFileChange}
+                    onChange={handleFileChange}
                     className="hidden"
                     multiple
                   />
@@ -713,26 +690,23 @@ export default function ChatPage() {
           />
         )}
       </div>
-      {/* Uppy Dashboard Modal */}
-      {uppyInstance && showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div ref={modalRef} className="bg-white rounded-lg p-4 relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowUploadModal(false)}
-              className="absolute top-2 right-2"
-              title="Close"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+      {showUploadModal && uppyInstance && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div ref={modalRef} className="bg-white p-4 rounded-lg shadow-lg max-w-2xl w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Upload Files</h2>
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
             <Dashboard
               uppy={uppyInstance}
-              width={750}
-              height={550}
-              showProgressDetails={true}
-              proudlyDisplayPoweredByUppy={false}
-              onRequestCloseModal={() => setShowUploadModal(false)}
+              plugins={['Dashboard']}
+              width="100%"
+              height="400px"
             />
           </div>
         </div>
