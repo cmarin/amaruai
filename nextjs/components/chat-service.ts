@@ -62,6 +62,7 @@ export class ChatService {
         const personaObject = personas.find(p => p.role === bot.persona);
 
         const payload: ChatPayload = {
+            //TODO remove user_id
             user_id: "test",
             conversation_id: bot.conversationId,
             message: message,
