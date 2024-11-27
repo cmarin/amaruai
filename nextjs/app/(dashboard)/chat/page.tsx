@@ -210,73 +210,21 @@ export default function ChatPage() {
   }, [personas])
 
   const handleSend = async () => {
-    if (input.trim()) {
-      const newMessage: Message = { role: 'user', content: input };
-      
-      setChatbots(prevBots => ChatService.addMessageToChatBots(prevBots, activeChatbots, newMessage));
-      setInput('');
-
-      for (const botId of activeChatbots) {
-        const bot = chatbots.find(b => b.id === botId);
-        if (bot) {
-          setChatLoading(prev => ({ ...prev, [botId]: true }));
-
-          try {
-            const headers = getApiHeaders();
-            if (!headers) {
-              console.error('No valid headers available');
-              return;
-            }
-
-            const response = await ChatService.sendChatMessage(
-              bot,
-              input,
-              personas,
-              allModels,
-              headers
-            );
-
-            // Process the streamed response
-            await ChatService.processStreamedResponse(
-              response,
-              (content) => {
-                setChatbots(prevBots => {
-                  return prevBots.map(b => {
-                    if (b.id === botId) {
-                      const lastMessage = b.messages[b.messages.length - 1];
-                      if (lastMessage && lastMessage.role === 'assistant') {
-                        return {
-                          ...b,
-                          messages: [
-                            ...b.messages.slice(0, -1),
-                            { ...lastMessage, content }
-                          ]
-                        };
-                      } else {
-                        return {
-                          ...b,
-                          messages: [...b.messages, { role: 'assistant', content }]
-                        };
-                      }
-                    }
-                    return b;
-                  });
-                });
-              },
-              (error) => {
-                console.error('Error processing stream:', error);
-                setChatLoading(prev => ({ ...prev, [botId]: false }));
-              }
-            );
-          } catch (error) {
-            console.error('Error sending message:', error);
-          } finally {
-            setChatLoading(prev => ({ ...prev, [botId]: false }));
-          }
-        }
+    await ChatService.handleSend(
+      input,
+      chatbots,
+      activeChatbots,
+      personas,
+      allModels,
+      {
+        onUpdateChatbots: setChatbots,
+        onSetChatLoading: (botId, loading) => 
+          setChatLoading(prev => ({ ...prev, [botId]: loading })),
+        getApiHeaders
       }
-    }
-  }
+    );
+    setInput('');
+  };
 
   const toggleChatbot = (modelId: string) => {
     const selectedModel = chatModels.find(model => model.id.toString() === modelId);

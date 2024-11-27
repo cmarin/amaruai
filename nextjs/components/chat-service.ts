@@ -28,6 +28,12 @@ export interface ChatPayload {
     persona_id?: number;
 }
 
+export interface ChatServiceCallbacks {
+    onUpdateChatbots: (updater: (prevBots: ChatBot[]) => ChatBot[]) => void;
+    onSetChatLoading: (botId: string, loading: boolean) => void;
+    getApiHeaders: () => HeadersInit | null;
+}
+
 export class ChatService {
     static createChatBot(model: ChatModel): ChatBot {
         return {
@@ -126,6 +132,89 @@ export class ChatService {
             }
         } catch (error) {
             onError(error instanceof Error ? error : new Error('Unknown error occurred'));
+        }
+    }
+
+    static async handleSend(
+        input: string,
+        chatbots: ChatBot[],
+        activeChatbots: string[],
+        personas: Persona[],
+        allModels: ChatModel[],
+        callbacks: ChatServiceCallbacks
+    ): Promise<void> {
+        if (!input.trim()) return;
+
+        const newMessage: Message = { role: 'user', content: input };
+        callbacks.onUpdateChatbots(prevBots => 
+            this.addMessageToChatBots(prevBots, activeChatbots, newMessage)
+        );
+
+        for (const botId of activeChatbots) {
+            const bot = chatbots.find(b => b.id === botId);
+            if (bot) {
+                callbacks.onSetChatLoading(botId, true);
+
+                try {
+                    const headers = callbacks.getApiHeaders();
+                    if (!headers) {
+                        console.error('No valid headers available');
+                        return;
+                    }
+
+                    const response = await this.sendChatMessage(
+                        bot,
+                        input,
+                        personas,
+                        allModels,
+                        headers
+                    );
+
+                    // Initialize assistant's response
+                    callbacks.onUpdateChatbots(prevBots => prevBots.map(b => 
+                        b.id === botId
+                            ? { ...b, messages: [...b.messages, { role: 'assistant', content: '' }] }
+                            : b
+                    ));
+
+                    // Process the streamed response
+                    await this.processStreamedResponse(
+                        response,
+                        (content) => {
+                            callbacks.onUpdateChatbots(prevBots => {
+                                return prevBots.map(b => {
+                                    if (b.id === botId) {
+                                        const lastMessage = b.messages[b.messages.length - 1];
+                                        if (lastMessage && lastMessage.role === 'assistant') {
+                                            return {
+                                                ...b,
+                                                messages: [
+                                                    ...b.messages.slice(0, -1),
+                                                    { ...lastMessage, content }
+                                                ]
+                                            };
+                                        }
+                                    }
+                                    return b;
+                                });
+                            });
+                        },
+                        (error) => {
+                            console.error('Error processing stream:', error);
+                            callbacks.onSetChatLoading(botId, false);
+                        }
+                    );
+                } catch (error) {
+                    console.error('Error sending message:', error);
+                    callbacks.onUpdateChatbots(prevBots => prevBots.map(b =>
+                        b.id === botId
+                            ? { ...b, messages: [...b.messages, { role: 'assistant', content: 'An error occurred while processing your request. Please try again.' }] }
+                            : b
+                    ));
+                } finally {
+                    callbacks.onSetChatLoading(botId, false);
+                }
+            }
         }
     }
 }
