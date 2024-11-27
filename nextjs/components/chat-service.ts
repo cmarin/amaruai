@@ -3,6 +3,7 @@ import { ChatModel } from './chatModelService';
 import { Persona } from './personaService';
 import { getApiUrl, getFetchOptions } from '@/lib/apiConfig';
 import { fetchWithRetry } from './apiUtils';
+import { createParser, ParsedEvent, ReconnectInterval } from 'eventsource-parser';
 
 export interface Message {
     role: 'user' | 'assistant';
@@ -103,42 +104,25 @@ export class ChatService {
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let buffer = '';
+        let assistantMessage = '';
 
         try {
+            const parser = createParser((event: ParsedEvent | ReconnectInterval) => {
+                if (event.type === 'event') {
+                    const data = event.data;
+                    if (data === '[DONE]') {
+                        return;
+                    }
+                    assistantMessage += data;
+                    onChunk(assistantMessage);
+                }
+            });
+
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                
-                buffer = lines.pop() || '';
-
-                for (const line of lines) {
-                    if (line.trim() === '') continue;
-                    if (line.startsWith('data: ')) {
-                        const data = line.slice(6).trim();
-                        onChunk(data);
-                    } else {
-                        // If the line doesn't start with 'data:', treat it as raw content
-                        onChunk(line.trim());
-                    }
-                }
-            }
-            
-            if (buffer) {
-                const lines = buffer.split('\n');
-                for (const line of lines) {
-                    if (line.trim() === '') continue;
-                    if (line.startsWith('data: ')) {
-                        const data = line.slice(6).trim();
-                        onChunk(data);
-                    } else {
-                        // If the line doesn't start with 'data:', treat it as raw content
-                        onChunk(line.trim());
-                    }
-                }
+                const chunk = decoder.decode(value);
+                parser.feed(chunk);
             }
         } catch (error) {
             onError(error instanceof Error ? error : new Error('Unknown error occurred'));

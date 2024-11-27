@@ -239,42 +239,29 @@ export default function ChatPage() {
             // Process the streamed response
             await ChatService.processStreamedResponse(
               response,
-              (chunk) => {
-                try {
-                  // Try to parse as JSON first
-                  let content;
-                  try {
-                    content = JSON.parse(chunk).content;
-                  } catch {
-                    // If JSON parsing fails, use the chunk as raw content
-                    content = chunk;
-                  }
-
-                  setChatbots(prevBots => {
-                    return prevBots.map(b => {
-                      if (b.id === botId) {
-                        const lastMessage = b.messages[b.messages.length - 1];
-                        if (lastMessage && lastMessage.role === 'assistant') {
-                          return {
-                            ...b,
-                            messages: [
-                              ...b.messages.slice(0, -1),
-                              { ...lastMessage, content: lastMessage.content + content }
-                            ]
-                          };
-                        } else {
-                          return {
-                            ...b,
-                            messages: [...b.messages, { role: 'assistant', content }]
-                          };
-                        }
+              (content) => {
+                setChatbots(prevBots => {
+                  return prevBots.map(b => {
+                    if (b.id === botId) {
+                      const lastMessage = b.messages[b.messages.length - 1];
+                      if (lastMessage && lastMessage.role === 'assistant') {
+                        return {
+                          ...b,
+                          messages: [
+                            ...b.messages.slice(0, -1),
+                            { ...lastMessage, content }
+                          ]
+                        };
+                      } else {
+                        return {
+                          ...b,
+                          messages: [...b.messages, { role: 'assistant', content }]
+                        };
                       }
-                      return b;
-                    });
+                    }
+                    return b;
                   });
-                } catch (e) {
-                  console.error('Error processing chunk:', e);
-                }
+                });
               },
               (error) => {
                 console.error('Error processing stream:', error);
