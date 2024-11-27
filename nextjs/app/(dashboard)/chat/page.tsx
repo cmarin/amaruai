@@ -32,7 +32,7 @@ import { Dashboard } from '@uppy/react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { getApiUrl, getFetchOptions } from '@/lib/apiConfig';
 import { ChatService, Message, ChatBot } from '@/components/chat-service'
-import { UploadService, UploadedFile } from '@/components/upload-service';
+import { UploadService, type UploadedFile } from '@/components/upload-service';
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.css';
@@ -116,33 +116,42 @@ export default function ChatPage() {
   // Add a ref to track if we've initialized from URL
   const initializedFromUrl = useRef(false);
 
-  // Initialize Uppy in a useEffect to avoid SSR issues
-  const [uppyInstance, setUppyInstance] = useState<Uppy | null>(null);
+  const [uppy, setUppy] = useState<Uppy | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
 
-  const supabase = createClientComponentClient();
-
   useEffect(() => {
-    const uppy = UploadService.createUppy(
-      'uppy-chat',
-      {},  // Use default config
+    const uppyInstance = UploadService.createUppy(
+      'chat-uploader',
+      {},
       (file) => {
-        console.log('File uploaded:', file);
         setUploadedFiles(prev => [...prev, file]);
       },
-      (result) => {
-        console.log('Upload complete:', result);
+      () => {
         setShowUploadModal(false);
       }
     );
+    setUppy(uppyInstance);
 
-    setUppyInstance(uppy);
-
-    // Cleanup
     return () => {
-      uppy.cancelAll();
+      if (uppyInstance) {
+        uppyInstance.cancelAll();
+      }
     };
   }, []);
+
+  const handleFileUpload = () => {
+    setShowUploadModal(true);
+  };
+
+  const removeFile = (fileName: string) => {
+    if (uppy) {
+      const file = uppy.getFile(fileName);
+      if (file) {
+        uppy.removeFile(file.id);
+      }
+    }
+    setUploadedFiles(prev => prev.filter(file => file.name !== fileName));
+  };
 
   // This is the only initialization effect we need
   useEffect(() => {
@@ -305,35 +314,6 @@ export default function ChatPage() {
     setChatbots(chatbots.map(bot => ({ ...bot, messages: [], conversationId: uuidv4() })))
     setInput('')
   }, [chatbots])
-
-  const handleFileUpload = () => {
-    setShowUploadModal(true);
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (files) {
-      const newFiles: UploadedFile[] = Array.from(files).map(file => ({
-        name: file.name,
-        size: file.size,
-        url: URL.createObjectURL(file)  // Create temporary URL for preview
-      }));
-      setUploadedFiles(prev => [...prev, ...newFiles]);
-    }
-  }
-
-  const removeFile = (fileName: string) => {
-    setUploadedFiles(prev => {
-      const filtered = prev.filter(file => file.name !== fileName);
-      // Cleanup any temporary URLs we created
-      prev.forEach(file => {
-        if (file.name === fileName && file.url.startsWith('blob:')) {
-          URL.revokeObjectURL(file.url);
-        }
-      });
-      return filtered;
-    });
-  };
 
   const addToScratchPad = (botId: string) => {
     const bot = chatbots.find(b => b.id === botId)
@@ -622,7 +602,7 @@ export default function ChatPage() {
                   <input
                     type="file"
                     ref={fileInputRef}
-                    onChange={handleFileChange}
+                    onChange={(e) => console.log('File input changed:', e)}
                     className="hidden"
                     multiple
                   />
@@ -690,7 +670,7 @@ export default function ChatPage() {
           />
         )}
       </div>
-      {showUploadModal && uppyInstance && (
+      {showUploadModal && uppy && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div ref={modalRef} className="bg-white p-4 rounded-lg shadow-lg max-w-2xl w-full">
             <div className="flex justify-between items-center mb-4">
@@ -703,7 +683,7 @@ export default function ChatPage() {
               </button>
             </div>
             <Dashboard
-              uppy={uppyInstance}
+              uppy={uppy}
               plugins={['Dashboard']}
               width="100%"
               height="400px"
