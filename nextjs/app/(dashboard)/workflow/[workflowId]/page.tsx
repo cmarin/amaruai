@@ -1,229 +1,217 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ChevronLeft, Copy, FileText, Check, RefreshCw } from 'lucide-react'
-import { fetchWorkflow, Workflow, executeWorkflow, getWorkflowResults, WorkflowResult } from '@/components/workflowService'
+import { 
+  fetchWorkflow, 
+  Workflow, 
+  WorkflowResult,
+  streamWorkflow,
+  WorkflowStreamMessage 
+} from '@/components/workflowService'
 import { fetchPromptTemplate, PromptTemplate } from '@/components/promptTemplateService'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 import ReactMarkdown from 'react-markdown'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/SidebarContext'
 import { addToScratchPad } from '@/components/scratchPadService'
-import { useSession } from '@/app/utils/session/session';
+import { useSession } from '@/app/utils/session/session'
 
-const MAX_EMPTY_POLLS = 5;
-
-export default function WorkflowExecutionPage({ params }: { params: { workflowId: string } }) {
-  const [workflow, setWorkflow] = useState<Workflow | null>(null)
-  const [results, setResults] = useState<WorkflowResult[]>([])
-  const [isExecuting, setIsExecuting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [showComplexPromptModal, setShowComplexPromptModal] = useState(false)
-  const [complexPromptTemplate, setComplexPromptTemplate] = useState<PromptTemplate | null>(null)
-  const [copied, setCopied] = useState(false)
-  const router = useRouter()
-  const emptyPollCount = useRef(0)
-  const hasReceivedResults = useRef(false)
-  const isPolling = useRef(false)
-  const { sidebarOpen } = useSidebar()
-  const [showRunAgain, setShowRunAgain] = useState(false)
-  const [initialMessage, setInitialMessage] = useState<string | undefined>(undefined)
-
+export default function WorkflowStreamPage({ params }: { params: { workflowId: string } }) {
+  const [workflow, setWorkflow] = useState<Workflow | null>(null);
+  const [results, setResults] = useState<WorkflowResult[]>([]);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showComplexPromptModal, setShowComplexPromptModal] = useState(false);
+  const [complexPromptTemplate, setComplexPromptTemplate] = useState<PromptTemplate | null>(null);
+  const [showRunAgain, setShowRunAgain] = useState(false);
+  const [initialMessage, setInitialMessage] = useState<string | undefined>(undefined);
+  const [copied, setCopied] = useState(false);
   const { getApiHeaders } = useSession();
+  const { sidebarOpen } = useSidebar();
+  const router = useRouter();
+  const cleanupRef = useRef<(() => void) | null>(null);
+  const resultsContainerRef = useRef<HTMLDivElement>(null);
+  const [hasSubmittedComplexPrompt, setHasSubmittedComplexPrompt] = useState(false);
+  const [submittedPrompt, setSubmittedPrompt] = useState<string | undefined>(undefined);
 
-  const pollResults = useCallback(async () => {
-    if (isPolling.current) {
-      console.log('Already polling. Ignoring this call.');
-      return;
-    }
-
-    isPolling.current = true;
-    console.log('Starting to poll for results');
-
-    const pollInterval = setInterval(async () => {
-      if (!isPolling.current) {
-        console.log('Polling stopped. Clearing interval.');
-        clearInterval(pollInterval);
-        return;
-      }
-
-      try {
-        const headers = getApiHeaders();
-        if (!headers) {
-          console.error('No valid headers available');
-          return;
-        }
-        const fetchedResults = await getWorkflowResults(params.workflowId, headers);
-        console.log('Fetched results:', fetchedResults);
-
-        if (fetchedResults.length > 0) {
-          hasReceivedResults.current = true;
-          emptyPollCount.current = 0;
-          setShowRunAgain(true);
-
-          const completionMessage = fetchedResults.find(result => 'completed' in result);
-          if (completionMessage) {
-            console.log('Received completion message. Workflow execution is complete.');
-            setResults(prevResults => [...prevResults, ...fetchedResults.filter(result => !('completed' in result))]);
-            clearInterval(pollInterval);
-            setIsExecuting(false);
-            isPolling.current = false;
-            return;
-          }
-
-          setResults(prevResults => {
-            const newResults = [...prevResults];
-            fetchedResults.forEach(result => {
-              if (!newResults.some(r => r.step === result.step)) {
-                newResults.push(result);
-              }
-            });
-            return newResults;
-          });
-        } else if (hasReceivedResults.current) {
-          emptyPollCount.current += 1;
-          console.log('Empty poll count:', emptyPollCount.current);
-        }
-
-        if (emptyPollCount.current >= MAX_EMPTY_POLLS) {
-          console.log('Reached maximum number of empty polls. Stopping.');
-          clearInterval(pollInterval);
-          setIsExecuting(false);
-          isPolling.current = false;
-        }
-      } catch (error) {
-        console.error('Error fetching results:', error);
-        setError(`Failed to fetch workflow results: ${error}`);
-        clearInterval(pollInterval);
-        setIsExecuting(false);
-        isPolling.current = false;
-        setShowRunAgain(true);
-      }
-    }, 2000);
-
-    return () => {
-      clearInterval(pollInterval);
-      isPolling.current = false;
-    };
-  }, [getApiHeaders, params.workflowId, setError, setIsExecuting, setResults, setShowRunAgain]);
-
-  const executeWorkflowAndPollResults = useCallback(async (message?: string) => {
-    const headers = getApiHeaders();
-    if (!headers) {
-      console.error('No valid headers available');
-      return;
-    }
-
-    try {
-      setIsExecuting(true);
-      setResults([]);
-      hasReceivedResults.current = false;
-      emptyPollCount.current = 0;
-      
-      if (message) {
-        console.log('Executing workflow with message:', message);
-        const trimmedMessage = message.trim();
-        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, headers, trimmedMessage);
-      } else if (initialMessage) {
-        console.log('Executing workflow with initial message:', initialMessage);
-        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, headers, initialMessage);
-      } else {
-        console.log('Executing workflow without message');
-        await executeWorkflow(params.workflowId, 'user', `workflow_execution_${Date.now()}`, headers);
-      }
-      pollResults();
-    } catch (error) {
-      console.error('Error executing workflow:', error);
-      setError('Failed to execute workflow');
+  const handleStreamMessage = useCallback((message: WorkflowStreamMessage) => {
+    if (message.type === 'error') {
+      setError(message.error || 'Unknown error occurred');
       setIsExecuting(false);
+      setShowRunAgain(true);
+      return;
     }
-  }, [getApiHeaders, initialMessage, params.workflowId, pollResults, setError, setIsExecuting, setResults]);
+
+    if (message.type === 'step' && message.prompt && message.response) {
+      const promptToShow = message.step === 1 && submittedPrompt 
+        ? submittedPrompt 
+        : message.prompt;
+
+      const newResult: WorkflowResult = {
+        step: message.step!.toString(),
+        prompt: promptToShow,
+        response: message.response,
+        chat_model: message.chat_model,
+        persona: message.persona
+      };
+
+      setResults(prev => {
+        if (prev.some(r => r.step === newResult.step)) {
+          return prev;
+        }
+        return [...prev, newResult];
+      });
+
+      setTimeout(() => {
+        if (resultsContainerRef.current) {
+          resultsContainerRef.current.scrollTop = resultsContainerRef.current.scrollHeight;
+        }
+      }, 0);
+    }
+  }, [submittedPrompt]);
+
+  const executeWorkflowStream = useCallback(async (message?: string) => {
+    if (cleanupRef.current) {
+      console.log('Cleaning up previous EventSource before starting new one');
+      cleanupRef.current();
+      cleanupRef.current = null;
+    }
+
+    const headers = getApiHeaders();
+    if (!headers) return;
+
+    setIsExecuting(true);
+    setResults([]);
+    setError(null);
+    setShowRunAgain(false);
+
+    const cleanup = streamWorkflow(
+      params.workflowId,
+      'user',
+      `workflow_stream_${Date.now()}`,
+      headers,
+      handleStreamMessage,
+      (error) => {
+        setError(error.message);
+        setIsExecuting(false);
+        setShowRunAgain(true);
+        cleanupRef.current = null;
+      },
+      () => {
+        setIsExecuting(false);
+        setShowRunAgain(true);
+        cleanupRef.current = null;
+      },
+      message || initialMessage
+    );
+
+    cleanupRef.current = cleanup;
+    return cleanup;
+  }, [params.workflowId, getApiHeaders, handleStreamMessage, initialMessage]);
 
   const checkFirstStep = useCallback(async (workflow: Workflow) => {
-    if (workflow.steps.length > 0) {
-      const firstStep = workflow.steps[0]
+    if (workflow.steps.length > 0 && !hasSubmittedComplexPrompt) {
+      const firstStep = workflow.steps[0];
       try {
         const headers = getApiHeaders();
-        if (!headers) {
-          console.error('No valid headers available');
-          return;
-        }
+        if (!headers) return;
         
+        console.log('Fetching prompt template...');
         const promptTemplate = await fetchPromptTemplate(
           parseInt(firstStep.prompt_template_id),
           headers
         );
         
         if (promptTemplate.is_complex) {
-          setComplexPromptTemplate(promptTemplate)
-          setShowComplexPromptModal(true)
+          console.log('First step has complex prompt template:', promptTemplate);
+          setComplexPromptTemplate(promptTemplate);
+          setShowComplexPromptModal(true);
         } else {
-          executeWorkflowAndPollResults()
+          console.log('First step has simple prompt template, executing workflow...');
+          executeWorkflowStream();
         }
       } catch (error) {
-        console.error('Error fetching prompt template:', error)
-        setError('Failed to fetch prompt template')
+        console.error('Error fetching prompt template:', error);
+        setError('Failed to fetch prompt template');
       }
-    } else {
-      setError('Workflow has no steps')
     }
-  }, [executeWorkflowAndPollResults, getApiHeaders, setComplexPromptTemplate, setError, setShowComplexPromptModal]);
+  }, [getApiHeaders, executeWorkflowStream, hasSubmittedComplexPrompt]);
+
+  const loadWorkflow = useCallback(async () => {
+    const headers = getApiHeaders();
+    if (!headers) {
+      console.error('No valid headers available');
+      return;
+    }
+    
+    try {
+      console.log('Fetching workflow...');
+      const fetchedWorkflow = await fetchWorkflow(params.workflowId, headers);
+      console.log('Fetched workflow:', fetchedWorkflow);
+      setWorkflow(fetchedWorkflow);
+      await checkFirstStep(fetchedWorkflow);
+    } catch (error) {
+      console.error('Error loading workflow:', error);
+      setError('Failed to load workflow');
+    }
+  }, [params.workflowId, getApiHeaders, checkFirstStep]);
 
   useEffect(() => {
-    const loadWorkflow = async () => {
-      const headers = getApiHeaders();
-      if (!headers) {
-        console.error('No valid headers available');
-        return;
-      }
-      
-      try {
-        const fetchedWorkflow = await fetchWorkflow(params.workflowId, headers);
-        setWorkflow(fetchedWorkflow);
-        await checkFirstStep(fetchedWorkflow);
-      } catch (error) {
-        console.error('Error loading workflow:', error);
-        setError('Failed to load workflow');
+    console.log('Component mounted, loading workflow...');
+    loadWorkflow();
+
+    return () => {
+      if (cleanupRef.current) {
+        console.log('Cleaning up previous EventSource');
+        cleanupRef.current();
+        cleanupRef.current = null;
       }
     };
-    loadWorkflow();
-  }, [params.workflowId, getApiHeaders, checkFirstStep]);
+  }, [loadWorkflow]);
 
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
     console.log('Complex prompt submitted:', generatedPrompt);
     setShowComplexPromptModal(false);
     setInitialMessage(generatedPrompt);
-    executeWorkflowAndPollResults(generatedPrompt);
+    setSubmittedPrompt(generatedPrompt);
+    setHasSubmittedComplexPrompt(true);
+    executeWorkflowStream(generatedPrompt);
   };
 
-  const toggleChatbot = (modelId: string) => {
+  const toggleChatbot = useCallback((modelId: string) => {
     router.push(`/chat?model=${modelId}`);
-  }
+  }, [router]);
 
-  const handleCopyToClipboard = () => {
-    const content = results.map(result => `Step ${result.step}:\nPrompt: ${result.prompt}\nResponse: ${result.response}`).join('\n\n');
+  const handleCopyToClipboard = useCallback(() => {
+    const content = results.map(result => 
+      `Step ${result.step}:\nPrompt: ${result.prompt}\nResponse: ${result.response}`
+    ).join('\n\n');
+    
     navigator.clipboard.writeText(content).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }).catch(err => {
       console.error('Failed to copy text: ', err);
     });
-  };
+  }, [results]);
 
   const handleAddToScratchPad = () => {
-    const content = `Workflow: ${workflow?.name}\n\n` + results.map(result => `Step ${result.step}:\nPrompt: ${result.prompt}\nResponse: ${result.response}`).join('\n\n');
+    const content = `Workflow: ${workflow?.name}\n\n` + results.map(result => 
+      `Step ${result.step}:\nPrompt: ${result.prompt}\nResponse: ${result.response}`
+    ).join('\n\n');
     addToScratchPad(content);
-    // You might want to add some visual feedback here, like a temporary message
   };
 
   const handleRunAgain = () => {
-    if (complexPromptTemplate && !initialMessage) {
+    setHasSubmittedComplexPrompt(false);
+    if (complexPromptTemplate && !hasSubmittedComplexPrompt) {
       setShowComplexPromptModal(true);
     } else {
-      executeWorkflowAndPollResults();
+      executeWorkflowStream();
     }
   };
 
@@ -255,16 +243,36 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
               </Button>
             </div>
           </div>
-          <ScrollArea className="flex-grow p-4">
+          <div 
+            ref={resultsContainerRef}
+            className="flex-grow p-4 overflow-auto"
+          >
             {error && (
               <div className="text-red-500 mb-4">{error}</div>
             )}
             {isExecuting && (
-              <div className="text-blue-500 mb-4">Executing workflow...</div>
+              <div className="text-blue-500 mb-4">
+                Executing workflow... ({results.length} steps completed)
+              </div>
             )}
-            {results.map((result, index) => (
-              <div key={index} className="mb-6 p-4 border rounded-lg">
-                <h3 className="font-semibold mb-2">Step {result.step}</h3>
+            {results.map((result) => (
+              <div 
+                key={`result-${result.step}`}
+                className="mb-6 p-4 border rounded-lg"
+              >
+                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                  Step {result.step}
+                  {result.chat_model && (
+                    <span className="text-sm text-gray-500">
+                      using {result.chat_model.name}
+                    </span>
+                  )}
+                  {result.persona && (
+                    <span className="text-sm text-gray-500">
+                      as {result.persona.role}
+                    </span>
+                  )}
+                </h3>
                 <div className="mb-2">
                   <strong>Prompt:</strong>
                   <ReactMarkdown>{result.prompt}</ReactMarkdown>
@@ -287,7 +295,7 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
                 </Button>
               </div>
             )}
-          </ScrollArea>
+          </div>
           {showComplexPromptModal && complexPromptTemplate && (
             <ComplexPromptModal
               prompt={complexPromptTemplate}
@@ -299,5 +307,5 @@ export default function WorkflowExecutionPage({ params }: { params: { workflowId
         </div>
       </div>
     </div>
-  )
-}
+  );
+} 
