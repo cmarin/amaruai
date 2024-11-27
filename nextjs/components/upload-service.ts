@@ -1,16 +1,17 @@
 import Uppy from '@uppy/core';
+import Dashboard from '@uppy/dashboard';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export interface UploadedFile {
     name: string;
     size: number;
-    url: string;
+    url?: string;
 }
 
 export interface UploadServiceConfig {
-    maxFileSize?: number;  // in bytes
-    maxFiles?: number;
-    allowedFileTypes?: string[];
+    maxFileSize: number;
+    maxFiles: number;
+    allowedFileTypes: string[];
     storageFolder?: string;
     storageBucket?: string;
 }
@@ -43,6 +44,13 @@ export class UploadService {
             }
         });
 
+        uppy.use(Dashboard, {
+            inline: false,
+            target: 'body',
+            showProgressDetails: true,
+            proudlyDisplayPoweredByUppy: false,
+        });
+
         uppy.on('file-added', async (file) => {
             try {
                 if (!file.name) {
@@ -52,30 +60,27 @@ export class UploadService {
                 const fileName = `${Math.random()}.${fileExt}`;
                 const filePath = `${finalConfig.storageFolder}/${fileName}`;
 
-                // Upload file to Supabase storage
                 const { data, error } = await supabase.storage
                     .from(finalConfig.storageBucket!)
                     .upload(filePath, file.data);
 
                 if (error) throw error;
 
-                // Get public URL
                 const { data: { publicUrl } } = supabase.storage
                     .from(finalConfig.storageBucket!)
                     .getPublicUrl(filePath);
 
-                if (onFileUploaded) {
-                    onFileUploaded({
-                        name: file.name,
-                        size: file.size || 0,  // Provide a default of 0 if size is null
-                        url: publicUrl
-                    });
-                }
+                const uploadedFile: UploadedFile = {
+                    name: file.name || '',
+                    size: file.size || 0,
+                    url: publicUrl
+                };
 
-                console.log('File uploaded:', publicUrl);
+                if (onFileUploaded) {
+                    onFileUploaded(uploadedFile);
+                }
             } catch (error) {
                 console.error('Error uploading file:', error);
-                throw error;
             }
         });
 
@@ -107,11 +112,13 @@ export class UploadService {
             .from(finalConfig.storageBucket!)
             .getPublicUrl(filePath);
 
-        return {
-            name: file.name,
-            size: file.size,
+        const uploadedFile: UploadedFile = {
+            name: file.name || '',
+            size: file.size || 0,
             url: publicUrl
         };
+
+        return uploadedFile;
     }
 
     static async deleteFile(

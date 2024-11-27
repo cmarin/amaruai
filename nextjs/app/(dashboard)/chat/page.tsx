@@ -28,15 +28,13 @@ import { useSidebar } from '@/components/SidebarContext'
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon } from '@/components/icons/ai-provider-icons'
 import { useSession } from '@/app/utils/session/session';
 import Uppy from '@uppy/core';
-import { Dashboard } from '@uppy/react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { getApiUrl, getFetchOptions } from '@/lib/apiConfig';
-import { ChatService, Message, ChatBot } from '@/components/chat-service'
+import Dashboard from '@uppy/react/lib/Dashboard';
 import { UploadService, type UploadedFile } from '@/components/upload-service';
+import { ChatService, ChatBot, Message } from '@/components/chat-service';
 
 // Import required Uppy CSS
-import '@uppy/core/dist/style.css';
-import '@uppy/dashboard/dist/style.css';
+import '@uppy/core/dist/style.min.css';
+import '@uppy/dashboard/dist/style.min.css';
 
 // Add these imports if you want additional features
 // import DropboxPlugin from '@uppy/dropbox';
@@ -106,7 +104,6 @@ export default function ChatPage() {
   const [prompts, setPrompts] = useState<PromptTemplate[]>([])
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<PromptTemplate | null>(null)
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [showMainDisplay, setShowMainDisplay] = useState(true)
   const [chatLoading, setChatLoading] = useState<{ [key: string]: boolean }>({})
@@ -116,41 +113,45 @@ export default function ChatPage() {
   // Add a ref to track if we've initialized from URL
   const initializedFromUrl = useRef(false);
 
-  const [uppy, setUppy] = useState<Uppy | null>(null);
+  const [uppyInstance, setUppyInstance] = useState<Uppy | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
 
   useEffect(() => {
-    const uppyInstance = UploadService.createUppy(
-      'chat-uploader',
-      {},
+    const uppy = UploadService.createUppy('uppy-chat', {}, 
       (file) => {
-        setUploadedFiles(prev => [...prev, file]);
+        console.log('File uploaded:', file);
+        if (file.url) {
+          setInput(prev => prev + `\n[File: ${file.name}](${file.url})`);
+        }
       },
-      () => {
+      (result) => {
+        console.log('Upload complete:', result);
         setShowUploadModal(false);
       }
     );
-    setUppy(uppyInstance);
+
+    setUppyInstance(uppy);
 
     return () => {
-      if (uppyInstance) {
-        uppyInstance.cancelAll();
-      }
+      uppy.cancelAll();
     };
   }, []);
 
   const handleFileUpload = () => {
-    setShowUploadModal(true);
+    if (uppyInstance && uppyInstance.getPlugin('Dashboard')) {
+      setShowUploadModal(true);
+    }
   };
 
   const removeFile = (fileName: string) => {
-    if (uppy) {
-      const file = uppy.getFile(fileName);
-      if (file) {
-        uppy.removeFile(file.id);
-      }
-    }
     setUploadedFiles(prev => prev.filter(file => file.name !== fileName));
+  };
+
+  const handleCloseUploadModal = () => {
+    setShowUploadModal(false);
+    if (uppyInstance) {
+      uppyInstance.cancelAll();
+    }
   };
 
   // This is the only initialization effect we need
@@ -194,7 +195,7 @@ export default function ChatPage() {
       allModels,
       {
         onUpdateChatbots: setChatbots,
-        onSetChatLoading: (botId, loading) => 
+        onSetChatLoading: (botId: string, loading: boolean) => 
           setChatLoading(prev => ({ ...prev, [botId]: loading })),
         getApiHeaders
       }
@@ -205,16 +206,7 @@ export default function ChatPage() {
   const toggleChatbot = (modelId: string) => {
     const selectedModel = chatModels.find(model => model.id.toString() === modelId);
     if (selectedModel) {
-      const newChatbot: ChatBot = {
-        id: selectedModel.id.toString(),
-        name: selectedModel.name,
-        apiName: selectedModel.model,
-        messages: [],
-        persona: 'default',
-        conversationId: uuidv4(),
-        selectedModelId: selectedModel.id.toString()
-      };
-
+      const newChatbot = ChatService.createChatBot(selectedModel);
       setChatbots([newChatbot]);
       setActiveChatbots([selectedModel.id.toString()]);
       setLayoutMode('single');
@@ -445,8 +437,8 @@ export default function ChatPage() {
                     <div className="p-4 border-b flex justify-between items-center">
                       <div className="flex items-center">
                         {(() => {
-                          const IconComponent = getProviderIcon(bot.selectedModelId, bot.name)
-                          return <IconComponent className="mr-2" size={18} />
+                          const IconComponent = getProviderIcon(bot.selectedModelId, bot.name);
+                          return <IconComponent className="mr-2" size={18} />;
                         })()}
                         <span className="text-sm font-medium">{bot.name}</span>
                       </div>
@@ -520,7 +512,7 @@ export default function ChatPage() {
                     </div>
                     <ScrollArea className="flex-1 p-4">
                       <div className="flex flex-col gap-4 p-4">
-                        {bot.messages.map((message, index) => (
+                        {bot.messages.map((message: Message, index: number) => (
                           <div
                             key={index}
                             className={`flex flex-col ${
@@ -599,40 +591,31 @@ export default function ChatPage() {
                       </Button>
                     </div>
                   </div>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={(e) => console.log('File input changed:', e)}
-                    className="hidden"
-                    multiple
-                  />
-                  <div className="flex-shrink-0 flex space-x-2">
-                    <Button onClick={handleSend} className="bg-blue-600 hover:bg-blue-700 text-white">Send</Button>
-                    <Button
-                      variant={layoutMode === 'single' ? "secondary" : "ghost"}
-                      size="icon"
-                      onClick={() => handleLayoutChange('single')}
-                      title="Single chat"
-                    >
-                      <Square className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant={layoutMode === 'split' ? "secondary" : "ghost"}
-                      size="icon"
-                      onClick={() => handleLayoutChange('split')}
-                      title="Split chat"
-                    >
-                      <Columns className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant={layoutMode === 'grid' ? "secondary" : "ghost"}
-                      size="icon"
-                      onClick={() => handleLayoutChange('grid')}
-                      title="Grid chat"
-                    >
-                      <LayoutGrid className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Button onClick={handleSend} className="bg-blue-600 hover:bg-blue-700 text-white">Send</Button>
+                  <Button
+                    variant={layoutMode === 'single' ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={() => handleLayoutChange('single')}
+                    title="Single chat"
+                  >
+                    <Square className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={layoutMode === 'split' ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={() => handleLayoutChange('split')}
+                    title="Split chat"
+                  >
+                    <Columns className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={layoutMode === 'grid' ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={() => handleLayoutChange('grid')}
+                    title="Grid chat"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
                 </div>
                 {uploadedFiles.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -670,23 +653,25 @@ export default function ChatPage() {
           />
         )}
       </div>
-      {showUploadModal && uppy && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div ref={modalRef} className="bg-white p-4 rounded-lg shadow-lg max-w-2xl w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Upload Files</h2>
-              <button
-                onClick={() => setShowUploadModal(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
+      {uppyInstance && showUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div ref={modalRef} className="bg-white rounded-lg p-4 relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleCloseUploadModal}
+              className="absolute top-2 right-2"
+              title="Close"
+            >
+              <X className="h-4 w-4" />
+            </Button>
             <Dashboard
-              uppy={uppy}
-              plugins={['Dashboard']}
-              width="100%"
-              height="400px"
+              uppy={uppyInstance}
+              width={750}
+              height={550}
+              showProgressDetails={true}
+              proudlyDisplayPoweredByUppy={false}
+              onRequestCloseModal={handleCloseUploadModal}
             />
           </div>
         </div>
