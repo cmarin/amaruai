@@ -119,7 +119,14 @@ export class ChatService {
                     if (data === '[DONE]') {
                         return;
                     }
-                    assistantMessage += data;
+
+                    // Preserve line breaks by replacing them with HTML line breaks
+                    // First, handle double line breaks (paragraphs)
+                    const formattedData = data
+                        .replace(/\n\n+/g, '\n\n')  // Normalize multiple line breaks to double
+                        .replace(/\n\n/g, '\n\n');  // Preserve double line breaks
+
+                    assistantMessage += formattedData;
                     onChunk(assistantMessage);
                 }
             });

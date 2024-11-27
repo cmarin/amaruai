@@ -562,18 +562,31 @@ export default function ChatPage() {
                       </div>
                     </div>
                     <ScrollArea className="flex-1 p-4">
-                      {bot.messages.map((msg, index) => (
-                        <div key={index} className={`mb-4 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
-                          <div className={`inline-block p-2 rounded-lg ${msg.role === 'user' ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <div className="flex flex-col gap-4 p-4">
+                        {bot.messages.map((message, index) => (
+                          <div
+                            key={index}
+                            className={`flex flex-col ${
+                              message.role === 'assistant' ? 'items-start' : 'items-end'
+                            }`}
+                          >
+                            <div
+                              className={`rounded-lg p-3 max-w-[80%] whitespace-pre-wrap ${
+                                message.role === 'assistant'
+                                  ? 'bg-gray-200 text-gray-800'
+                                  : 'bg-blue-500 text-white'
+                              }`}
+                            >
+                              {message.content}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                      {chatLoading[bot.id] && (
-                        <div className="text-center">
-                          <span className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-gray-900"></span>
-                        </div>
-                      )}
+                        ))}
+                        {chatLoading[bot.id] && (
+                          <div className="text-center">
+                            <span className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-gray-900"></span>
+                          </div>
+                        )}
+                      </div>
                     </ScrollArea>
                   </div>
                 ))}
