@@ -111,25 +111,33 @@ export class ChatService {
                 if (done) break;
 
                 buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\\n');
+                const lines = buffer.split('\n');
                 
                 buffer = lines.pop() || '';
 
                 for (const line of lines) {
                     if (line.trim() === '') continue;
                     if (line.startsWith('data: ')) {
-                        const data = line.slice(6);
+                        const data = line.slice(6).trim();
                         onChunk(data);
+                    } else {
+                        // If the line doesn't start with 'data:', treat it as raw content
+                        onChunk(line.trim());
                     }
                 }
             }
             
             if (buffer) {
-                const lines = buffer.split('\\n');
+                const lines = buffer.split('\n');
                 for (const line of lines) {
-                    if (line.trim() === '' || !line.startsWith('data: ')) continue;
-                    const data = line.slice(6);
-                    onChunk(data);
+                    if (line.trim() === '') continue;
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6).trim();
+                        onChunk(data);
+                    } else {
+                        // If the line doesn't start with 'data:', treat it as raw content
+                        onChunk(line.trim());
+                    }
                 }
             }
         } catch (error) {

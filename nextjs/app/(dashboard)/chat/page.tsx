@@ -241,7 +241,15 @@ export default function ChatPage() {
               response,
               (chunk) => {
                 try {
-                  const content = JSON.parse(chunk).content;
+                  // Try to parse as JSON first
+                  let content;
+                  try {
+                    content = JSON.parse(chunk).content;
+                  } catch {
+                    // If JSON parsing fails, use the chunk as raw content
+                    content = chunk;
+                  }
+
                   setChatbots(prevBots => {
                     return prevBots.map(b => {
                       if (b.id === botId) {
