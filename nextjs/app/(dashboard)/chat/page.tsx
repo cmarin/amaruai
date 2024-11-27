@@ -31,6 +31,7 @@ import Uppy from '@uppy/core';
 import { Dashboard } from '@uppy/react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { getApiUrl, getFetchOptions } from '@/lib/apiConfig';
+import { ChatService, Message, ChatBot } from '@/components/chat-service'
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.css';
@@ -42,22 +43,7 @@ import '@uppy/dashboard/dist/style.css';
 // import WebcamPlugin from '@uppy/webcam';
 
 // Type definitions
-type Message = {
-  role: 'user' | 'assistant'
-  content: string
-}
-
-type ChatBot = {
-  id: string
-  name: string
-  apiName: string
-  messages: Message[]
-  persona: string
-  conversationId: string
-  selectedModelId: string
-}
-
-type LayoutMode = 'single' | 'dual' | 'quad';
+type LayoutMode = 'single' | 'split' | 'grid';
 
 type UploadedFile = {
   name: string
@@ -200,16 +186,7 @@ export default function ChatPage() {
       if (modelId) {
         const selectedModel = chatModels.find(model => model.id.toString() === modelId);
         if (selectedModel) {
-          const newChatbot: ChatBot = {
-            id: selectedModel.id.toString(),
-            name: selectedModel.name,
-            apiName: selectedModel.model,
-            messages: [],
-            persona: 'default',
-            conversationId: uuidv4(),
-            selectedModelId: selectedModel.id.toString()
-          };
-          
+          const newChatbot = ChatService.createChatBot(selectedModel);
           setChatbots([newChatbot]);
           setActiveChatbots([selectedModel.id.toString()]);
           setLayoutMode('single');
@@ -217,15 +194,7 @@ export default function ChatPage() {
           initializedFromUrl.current = true;
         }
       } else if (!initializedFromUrl.current) {
-        const initialChatbots = chatModels.map((model) => ({
-          id: model.id.toString(),
-          name: model.name,
-          apiName: model.model,
-          messages: [],
-          persona: 'default',
-          conversationId: uuidv4(),
-          selectedModelId: model.id.toString()
-        }));
+        const initialChatbots = ChatService.createInitialChatBots(chatModels);
         setChatbots(initialChatbots);
         setActiveChatbots([initialChatbots[0].id]);
         setAllModels(chatModels);
@@ -242,124 +211,72 @@ export default function ChatPage() {
 
   const handleSend = async () => {
     if (input.trim()) {
-      const newMessage: Message = { role: 'user', content: input }
+      const newMessage: Message = { role: 'user', content: input };
       
-      setChatbots(chatbots.map(bot => 
-        activeChatbots.includes(bot.id) 
-          ? { ...bot, messages: [...bot.messages, newMessage] }
-          : bot
-      ))
-
-      setInput('')
+      setChatbots(prevBots => ChatService.addMessageToChatBots(prevBots, activeChatbots, newMessage));
+      setInput('');
 
       for (const botId of activeChatbots) {
-        const bot = chatbots.find(b => b.id === botId)
+        const bot = chatbots.find(b => b.id === botId);
         if (bot) {
-          setChatLoading(prev => ({ ...prev, [botId]: true }))
+          setChatLoading(prev => ({ ...prev, [botId]: true }));
 
           try {
-            const personaObject = personas.find(p => p.role === bot.persona)
-
-            const payload: ChatPayload = {
-              user_id: "test",
-              conversation_id: bot.conversationId,
-              message: input,
-            }
-
-            if (bot.apiName !== allModels[0].model) {
-              payload.model = bot.apiName
-            }
-
-            if (personaObject) {
-              payload.persona_id = personaObject.id
-            }
-
-            // Debug logging
-            console.log('=== Debug Information ===');
-            console.log('Session:', session);
-            
             const headers = getApiHeaders();
             if (!headers) {
               console.error('No valid headers available');
               return;
             }
-            
-            console.log('Request Headers:', headers);
-            console.log('Request Payload:', payload);
-            console.log('Request URL:', `${getApiUrl()}/chat`);
-            console.log('=====================');
 
-            const response = await fetchWithRetry(async () => {
-              const res = await fetch(`${getApiUrl()}/chat`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(payload),
-                ...getFetchOptions(),
-              })
-              
-              // Log the response status and any error message
-              console.log('Response Status:', res.status);
-              if (!res.ok) {
-                const errorText = await res.text();
-                console.error('Error Response:', errorText);
-                throw new Error(`HTTP error! status: ${res.status}, message: ${errorText}`);
-              }
-              return res;
-            })
+            const response = await ChatService.sendChatMessage(
+              bot,
+              input,
+              personas,
+              allModels,
+              headers
+            );
 
-            console.log(`Response status for bot ${botId}:`, response.status)
-
-            setChatbots(chatbots => chatbots.map(cb =>
-              cb.id === botId
-                ? { ...cb, messages: [...cb.messages, { role: 'assistant', content: '' }] }
-                : cb
-            ))
-
-            const reader = response.body?.getReader()
-            const decoder = new TextDecoder()
-            let assistantMessage = ''
-
-            if (reader) {
-              const parser = createParser((event: ParsedEvent | ReconnectInterval) => {
-                if (event.type === 'event') {
-                  const data = event.data
-                  if (data === '[DONE]') {
-                    return
-                  } else {
-                    assistantMessage += data
-
-                    setChatbots(chatbots => chatbots.map(cb =>
-                      cb.id === botId
-                        ? { 
-                            ...cb, 
-                            messages: cb.messages.map((message, index) => 
-                              index === cb.messages.length - 1
-                                ? { ...message, content: assistantMessage }
-                                : message
-                            )
-                          }
-                        : cb
-                    ))
-                  }
+            // Process the streamed response
+            await ChatService.processStreamedResponse(
+              response,
+              (chunk) => {
+                try {
+                  const content = JSON.parse(chunk).content;
+                  setChatbots(prevBots => {
+                    return prevBots.map(b => {
+                      if (b.id === botId) {
+                        const lastMessage = b.messages[b.messages.length - 1];
+                        if (lastMessage && lastMessage.role === 'assistant') {
+                          return {
+                            ...b,
+                            messages: [
+                              ...b.messages.slice(0, -1),
+                              { ...lastMessage, content: lastMessage.content + content }
+                            ]
+                          };
+                        } else {
+                          return {
+                            ...b,
+                            messages: [...b.messages, { role: 'assistant', content }]
+                          };
+                        }
+                      }
+                      return b;
+                    });
+                  });
+                } catch (e) {
+                  console.error('Error processing chunk:', e);
                 }
-              })
-
-              while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                const chunk = decoder.decode(value)
-                parser.feed(chunk)
+              },
+              (error) => {
+                console.error('Error processing stream:', error);
+                setChatLoading(prev => ({ ...prev, [botId]: false }));
               }
-            }
+            );
           } catch (error) {
-            console.error(`Error for bot ${botId}:`, error)
-            setChatbots(chatbots => chatbots.map(cb =>
-              cb.id === botId
-                ? { ...cb, messages: [...cb.messages, { role: 'assistant', content: 'An error occurred while processing your request. Please try again.' }] }
-                : cb
-            ))
+            console.error('Error sending message:', error);
           } finally {
-            setChatLoading(prev => ({ ...prev, [botId]: false }))
+            setChatLoading(prev => ({ ...prev, [botId]: false }));
           }
         }
       }
