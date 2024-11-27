@@ -1,6 +1,5 @@
 'use client'
 
-import { MultiAiChat } from '../components/multi-ai-chat'
 import { ErrorBoundary } from 'react-error-boundary'
 import { useData } from '../components/DataContext'
 
@@ -21,7 +20,7 @@ export default function Home() {
 
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <MultiAiChat />
+      <div>Welcome to Amaru AI</div>
     </ErrorBoundary>
   )
 }
