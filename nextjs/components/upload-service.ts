@@ -1,5 +1,4 @@
 import Uppy from '@uppy/core';
-import Dashboard from '@uppy/dashboard';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export interface UploadedFile {
@@ -44,13 +43,6 @@ export class UploadService {
             }
         });
 
-        uppy.use(Dashboard, {
-            inline: false,
-            target: 'body',
-            showProgressDetails: true,
-            proudlyDisplayPoweredByUppy: false,
-        });
-
         uppy.on('file-added', async (file) => {
             try {
                 if (!file.name) {
@@ -60,12 +52,14 @@ export class UploadService {
                 const fileName = `${Math.random()}.${fileExt}`;
                 const filePath = `${finalConfig.storageFolder}/${fileName}`;
 
+                // Upload file to Supabase storage
                 const { data, error } = await supabase.storage
                     .from(finalConfig.storageBucket!)
                     .upload(filePath, file.data);
 
                 if (error) throw error;
 
+                // Get public URL
                 const { data: { publicUrl } } = supabase.storage
                     .from(finalConfig.storageBucket!)
                     .getPublicUrl(filePath);
@@ -84,9 +78,11 @@ export class UploadService {
             }
         });
 
-        if (onComplete) {
-            uppy.on('complete', onComplete);
-        }
+        uppy.on('complete', (result) => {
+            if (onComplete) {
+                onComplete(result);
+            }
+        });
 
         return uppy;
     }

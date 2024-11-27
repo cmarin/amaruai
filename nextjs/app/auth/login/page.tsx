@@ -65,7 +65,7 @@ export default function LoginPage() {
                 },
               },
             }}
-            providers={['email' as Provider]}
+            providers={['google', 'email'] as Provider[]}
             redirectTo={`${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`}
           />
         </div>

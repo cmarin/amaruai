@@ -117,15 +117,22 @@ export default function ChatPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
 
   useEffect(() => {
-    const uppy = UploadService.createUppy('uppy-chat', {}, 
+    const uppy = UploadService.createUppy(
+      'uppy-chat',
+      {
+        maxFileSize: 10 * 1024 * 1024,
+        maxFiles: 5,
+        allowedFileTypes: ['image/*', 'application/pdf', '.doc', '.docx'],
+        storageFolder: 'uploads',
+        storageBucket: 'amaruai-dev'
+      },
       (file) => {
         console.log('File uploaded:', file);
         if (file.url) {
           setInput(prev => prev + `\n[File: ${file.name}](${file.url})`);
         }
       },
-      (result) => {
-        console.log('Upload complete:', result);
+      () => {
         setShowUploadModal(false);
       }
     );
@@ -133,18 +140,14 @@ export default function ChatPage() {
     setUppyInstance(uppy);
 
     return () => {
-      uppy.cancelAll();
+      if (uppy) {
+        uppy.cancelAll();
+      }
     };
   }, []);
 
   const handleFileUpload = () => {
-    if (uppyInstance && uppyInstance.getPlugin('Dashboard')) {
-      setShowUploadModal(true);
-    }
-  };
-
-  const removeFile = (fileName: string) => {
-    setUploadedFiles(prev => prev.filter(file => file.name !== fileName));
+    setShowUploadModal(true);
   };
 
   const handleCloseUploadModal = () => {
@@ -152,6 +155,10 @@ export default function ChatPage() {
     if (uppyInstance) {
       uppyInstance.cancelAll();
     }
+  };
+
+  const handleRemoveFile = (fileName: string) => {
+    setUploadedFiles(prev => prev.filter(file => file.name !== fileName));
   };
 
   // This is the only initialization effect we need
@@ -627,7 +634,7 @@ export default function ChatPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => removeFile(file.name)}
+                            onClick={() => handleRemoveFile(file.name)}
                             className="ml-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             <X className="h-3 w-3" />
@@ -667,6 +674,7 @@ export default function ChatPage() {
             </Button>
             <Dashboard
               uppy={uppyInstance}
+              id="uppy-dashboard-modal"
               width={750}
               height={550}
               showProgressDetails={true}
