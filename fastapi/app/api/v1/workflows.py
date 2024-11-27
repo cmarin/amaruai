@@ -328,75 +328,117 @@ async def stream_workflow_results(
         
         async def event_generator():
             last_result_count = 0
-            
-            while True:
-                if await request.is_disconnected():
-                    logger.info("Client disconnected")
-                    break
+            try:
+                while True:
+                    try:
+                        if await request.is_disconnected():
+                            logger.info(f"Client disconnected for workflow ID: {workflow_id}")
+                            return
 
-                stream_data = crew_service.get_stream_data(stream_token)
-                if not stream_data:
-                    yield {
-                        "event": "error",
-                        "data": json.dumps({
-                            "type": "error",
-                            "message": "Invalid or expired stream token"
-                        })
-                    }
-                    break
+                        stream_data = crew_service.get_stream_data(stream_token)
+                        if not stream_data:
+                            yield {
+                                "event": "error",
+                                "data": json.dumps({
+                                    "type": "error",
+                                    "message": "Invalid or expired stream token"
+                                })
+                            }
+                            return
 
-                # Handle errors and validation
-                if stream_data['workflow_id'] != workflow_id:
-                    yield {
-                        "event": "error",
-                        "data": json.dumps({
-                            "type": "error",
-                            "message": "Invalid workflow ID for this token"
-                        })
-                    }
-                    break
+                        # Handle errors and validation
+                        if stream_data['workflow_id'] != workflow_id:
+                            yield {
+                                "event": "error",
+                                "data": json.dumps({
+                                    "type": "error",
+                                    "message": "Invalid workflow ID for this token"
+                                })
+                            }
+                            return
 
-                if stream_data['status'] == 'error':
-                    yield {
-                        "event": "error",
-                        "data": json.dumps({
-                            "type": "error",
-                            "message": stream_data.get('error', 'Unknown error occurred')
-                        })
-                    }
-                    break
+                        if stream_data['status'] == 'error':
+                            yield {
+                                "event": "error",
+                                "data": json.dumps({
+                                    "type": "error",
+                                    "message": stream_data.get('error', 'Unknown error occurred')
+                                })
+                            }
+                            return
 
-                # Stream new results as they come in
-                if 'result' in stream_data and stream_data['result']:
-                    current_results = stream_data['result']
-                    while last_result_count < len(current_results):
-                        result = current_results[last_result_count]
+                        # Stream new results as they come in
+                        if 'result' in stream_data and stream_data['result']:
+                            current_results = stream_data['result']
+                            while last_result_count < len(current_results):
+                                result = current_results[last_result_count]
+                                # Ensure result is a dictionary before accessing keys
+                                if isinstance(result, dict):
+                                    yield {
+                                        "event": "message",
+                                        "data": json.dumps({
+                                            "type": "step",
+                                            "step": result.get("step", last_result_count + 1),
+                                            "prompt": result.get("prompt", ""),
+                                            "response": result.get("response", ""),
+                                            "persona": result.get("persona", {}),
+                                            "chat_model": result.get("chat_model", {})
+                                        })
+                                    }
+                                else:
+                                    # Handle string or other non-dict results
+                                    yield {
+                                        "event": "message",
+                                        "data": json.dumps({
+                                            "type": "step",
+                                            "step": last_result_count + 1,
+                                            "response": str(result),
+                                            "prompt": "",
+                                            "persona": {},
+                                            "chat_model": {}
+                                        })
+                                    }
+                                last_result_count += 1
+
+                        # Send completion event when done
+                        if stream_data['status'] == 'completed':
+                            yield {
+                                "event": "complete",
+                                "data": json.dumps({
+                                    "type": "status",
+                                    "message": "Workflow execution completed"
+                                })
+                            }
+                            return
+
+                        await asyncio.sleep(0.1)  # Poll more frequently
+
+                    except asyncio.CancelledError:
+                        logger.info(f"Stream cancelled for workflow ID: {workflow_id}")
+                        return
+                    except Exception as e:
+                        logger.error(f"Error in event stream for workflow {workflow_id}: {str(e)}")
                         yield {
-                            "event": "message",
+                            "event": "error",
                             "data": json.dumps({
-                                "type": "step",
-                                "step": result["step"],
-                                "prompt": result["prompt"],
-                                "response": result["response"],
-                                "persona": result["persona"],
-                                "chat_model": result["chat_model"]
+                                "type": "error",
+                                "message": f"Stream error: {str(e)}"
                             })
                         }
-                        last_result_count += 1
+                        return
 
-                # Send completion event when done
-                if stream_data['status'] == 'completed':
-                    yield {
-                        "event": "complete",
-                        "data": json.dumps({
-                            "type": "status",
-                            "message": "Workflow execution completed"
-                        })
-                    }
-                    break
-
-                # Reduced polling interval
-                await asyncio.sleep(0.1)  # Poll more frequently
+            except Exception as e:
+                logger.error(f"Generator error for workflow {workflow_id}: {str(e)}")
+                yield {
+                    "event": "error",
+                    "data": json.dumps({
+                        "type": "error",
+                        "message": f"Stream error: {str(e)}"
+                    })
+                }
+            finally:
+                logger.info(f"Cleaning up stream for workflow ID: {workflow_id}")
+                # Add any cleanup code here if needed
 
         return EventSourceResponse(
             event_generator(),
