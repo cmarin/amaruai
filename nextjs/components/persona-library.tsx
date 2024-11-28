@@ -104,7 +104,12 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
                       <Button variant="ghost" size="sm" onClick={() => handleEditPersona(persona)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-100">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeletePersona(persona.id)} className="text-red-500 hover:text-red-700 hover:bg-red-100">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleDeletePersona(Number(persona.id))} 
+                        className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
