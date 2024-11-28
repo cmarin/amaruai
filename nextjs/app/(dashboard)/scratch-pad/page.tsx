@@ -4,10 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { getScratchPadContent, setScratchPadContent } from '@/components/scratchPadService'
+import { getScratchPadContent, setScratchPadContent } from '@/components/scratch-pad-service'
 import { Copy, Check } from 'lucide-react'
 import { AppSidebar } from '@/components/app-sidebar'
-import { useSidebar } from '@/components/SidebarContext'
+import { useSidebar } from '@/components/sidebar-context'
 
 export default function ScratchPadPage() {
   const [content, setContent] = useState('');

@@ -23,7 +23,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { PromptTemplate, VariableType, createPromptTemplate, updatePromptTemplate, deletePromptTemplate } from './promptTemplateService';
+import { PromptTemplate, VariableType, createPromptTemplate, updatePromptTemplate, deletePromptTemplate } from './prompt-template-service';
 import { Category, fetchCategories } from './category-service';
 import { ComplexPromptEditor, PromptContent } from './complex-prompt-editor';
 import CodeMirror from '@uiw/react-codemirror';
@@ -31,7 +31,7 @@ import { json } from '@codemirror/lang-json';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 import { EditorView } from '@codemirror/view';
 import TagSelector from './tag-selector';
-import { Tag } from './tagService';
+import { Tag } from './tag-service';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { useSession } from '@/app/utils/session/session';
 

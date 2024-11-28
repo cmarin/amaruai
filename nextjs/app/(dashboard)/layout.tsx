@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { geistSans, geistMono } from "@/app/fonts";  // Import from fonts.ts
 import "../globals.css";
 import { DataProvider } from '../../components/data-context';
-import { SidebarProvider } from '@/components/SidebarContext';
+import { SidebarProvider } from '@/components/sidebar-context';
 import { SupabaseProvider } from '@/app/contexts/SupabaseContext';
 
 export const metadata: Metadata = {

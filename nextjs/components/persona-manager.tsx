@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { X, Plus } from 'lucide-react'
 import { Persona, createPersona, updatePersona } from './persona-service'
 import TagSelector from './tag-selector'
-import { Tag } from './tagService'
+import { Tag } from './tag-service'
 import { useSession } from '@/app/utils/session/session'
 
 type PersonaManagerProps = {

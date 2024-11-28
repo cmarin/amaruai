@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { PromptTemplate } from './promptTemplateService'
+import { PromptTemplate } from './prompt-template-service'
 import { Category } from '@/components/category-service'
 
 type PromptSelectorProps = {

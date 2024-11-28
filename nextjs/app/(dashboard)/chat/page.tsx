@@ -12,7 +12,7 @@ import { PromptSelector } from '@/components/prompt-selector'
 import PromptLibrary from '@/components/prompt-library'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 import PersonaLibrary from '@/components/persona-library'
-import { PromptTemplate, fetchPromptTemplates } from '@/components/promptTemplateService'
+import { PromptTemplate, fetchPromptTemplates } from '@/components/prompt-template-service'
 import ReactMarkdown from 'react-markdown'
 import { createParser, ParsedEvent, ReconnectInterval } from 'eventsource-parser';
 import { v4 as uuidv4 } from 'uuid';
@@ -22,9 +22,9 @@ import { ChatModel, fetchChatModels } from '@/components/chat-model-service'
 import { fetchWithRetry } from '@/components/api-utils';
 import { useData } from '@/components/data-context'
 import { useRouter } from 'next/navigation';
-import { addToScratchPad as addToScratchPadService } from '@/components/scratchPadService'
+import { addToScratchPad as addToScratchPadService } from '@/components/scratch-pad-service'
 import { AppSidebar } from '@/components/app-sidebar'
-import { useSidebar } from '@/components/SidebarContext'
+import { useSidebar } from '@/components/sidebar-context'
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon } from '@/components/icons/ai-provider-icons'
 import { useSession } from '@/app/utils/session/session';
 import Uppy from '@uppy/core';

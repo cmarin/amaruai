@@ -1,6 +1,6 @@
 // promptTemplateService.ts
 
-import { createTag, fetchTags, Tag } from './tagService';
+import { createTag, fetchTags, Tag } from './tag-service';
 import { PromptContent } from './complex-prompt-editor';
 import { fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
@@ -31,7 +31,6 @@ export type PromptTemplate = {
   variables?: string[];
   category_id?: number;
   content?: string | PromptContent;
-  // Add these new fields
   categories: Category[];
   tags: Tag[];
   category?: string;  // For form handling

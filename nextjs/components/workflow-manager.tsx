@@ -10,8 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-import { Workflow, WorkflowStep, createWorkflow, updateWorkflow } from './workflowService'
-import { PromptTemplate, fetchPromptTemplates } from './promptTemplateService'
+import { Workflow, WorkflowStep, createWorkflow, updateWorkflow } from './workflow-service'
+import { PromptTemplate, fetchPromptTemplates } from './prompt-template-service'
 import { ChatModel, fetchChatModels } from './chat-model-service'
 import { Persona, fetchPersonas } from './persona-service'
 import { useSession } from '@/app/utils/session/session';

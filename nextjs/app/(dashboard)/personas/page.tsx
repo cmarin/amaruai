@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { fetchPersonas, Persona, deletePersona } from '@/components/persona-service'
 import PersonaLibrary from '@/components/persona-library'
 import { AppSidebar } from '@/components/app-sidebar'
-import { useSidebar } from '@/components/SidebarContext'
+import { useSidebar } from '@/components/sidebar-context'
 import { useSession } from '@/app/utils/session/session';
 
 export default function PersonaPage() {

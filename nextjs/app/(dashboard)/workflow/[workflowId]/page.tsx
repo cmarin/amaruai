@@ -11,13 +11,13 @@ import {
   WorkflowResult,
   streamWorkflow,
   WorkflowStreamMessage 
-} from '@/components/workflowService'
-import { fetchPromptTemplate, PromptTemplate } from '@/components/promptTemplateService'
+} from '@/components/workflow-service'
+import { fetchPromptTemplate, PromptTemplate } from '@/components/prompt-template-service'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 import ReactMarkdown from 'react-markdown'
 import { AppSidebar } from '@/components/app-sidebar'
-import { useSidebar } from '@/components/SidebarContext'
-import { addToScratchPad } from '@/components/scratchPadService'
+import { useSidebar } from '@/components/sidebar-context'
+import { addToScratchPad } from '@/components/scratch-pad-service'
 import { useSession } from '@/app/utils/session/session'
 
 export default function WorkflowStreamPage({ params }: { params: { workflowId: string } }) {
