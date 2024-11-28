@@ -31,7 +31,7 @@ import { json } from '@codemirror/lang-json';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 import { EditorView } from '@codemirror/view';
 import TagSelector from './tag-selector';
-import { Tag } from './tag-service';
+import { Tag } from '../utils/tag-service';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { useSession } from '@/app/utils/session/session';
 

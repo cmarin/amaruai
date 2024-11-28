@@ -1,6 +1,6 @@
 // promptTemplateService.ts
 
-import { createTag, fetchTags, Tag } from './tag-service';
+import { createTag, fetchTags, Tag } from '../utils/tag-service';
 import { PromptContent } from './complex-prompt-editor';
 import { fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';

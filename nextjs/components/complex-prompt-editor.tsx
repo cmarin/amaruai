@@ -17,7 +17,7 @@ import { vscodeDark } from '@uiw/codemirror-theme-vscode'
 import { Category } from './category-service'
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import TagSelector from './tag-selector'
-import { Tag } from './tag-service'
+import { Tag } from '../utils/tag-service'
 
 type NumberValidation = {
   min?: number;

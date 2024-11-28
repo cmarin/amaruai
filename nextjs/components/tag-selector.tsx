@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { X } from "lucide-react"
-import { Tag } from './tag-service'
+import { Tag } from '../utils/tag-service'
 
 interface TagSelectorProps {
   tags: Tag[]
