@@ -1,6 +1,6 @@
-import { fetchWithRetry } from './api-utils';
+import { fetchWithRetry, getApiUrl } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
-import { getApiUrl } from '@/lib/apiConfig';
+
 
 export type ChatModel = {
   id: number;

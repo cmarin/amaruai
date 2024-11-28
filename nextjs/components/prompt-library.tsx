@@ -23,8 +23,8 @@ import {
   Trash2
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { PromptTemplate, VariableType, createPromptTemplate, updatePromptTemplate, deletePromptTemplate } from './prompt-template-service';
-import { Category, fetchCategories } from './category-service';
+import { PromptTemplate, fetchPromptTemplates, createPromptTemplate, updatePromptTemplate, deletePromptTemplate } from '@/utils/prompt-template-service'
+import { Category, fetchCategories } from '../utils/category-service';
 import { ComplexPromptEditor, PromptContent } from './complex-prompt-editor';
 import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
@@ -271,6 +271,14 @@ export default function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdat
     }
   };
 
+  const handleCategoryClick = (category: Category) => {
+    // existing code
+  }
+
+  const handleTagClick = (t: Tag) => {
+    // existing code
+  }
+
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col h-screen">
       {/* Header */}
@@ -471,7 +479,7 @@ export default function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdat
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
+                  {categories.map((category: Category) => (
                     <SelectItem key={category.id} value={category.id.toString()}>
                       {category.name}
                     </SelectItem>
@@ -549,7 +557,7 @@ export default function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdat
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
+                    {categories.map((category: Category) => (
                       <SelectItem key={category.id} value={category.id.toString()}>
                         {category.name}
                       </SelectItem>

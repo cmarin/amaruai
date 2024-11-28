@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { PromptTemplate } from './prompt-template-service'
-import { Category } from '@/components/category-service'
+import { PromptTemplate } from '@/utils/prompt-template-service'
+import { Category } from '@/utils/category-service'
 
 type PromptSelectorProps = {
   prompts: PromptTemplate[]
@@ -49,6 +49,10 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children }
     }
     return acc
   }, {} as { [key: string]: PromptTemplate[] })
+
+  const handleCategoryClick = (category: Category) => {
+    // ... existing code
+  }
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>

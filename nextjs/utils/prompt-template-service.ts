@@ -1,11 +1,10 @@
 // promptTemplateService.ts
 
 import { createTag, fetchTags, Tag } from '../utils/tag-service';
-import { PromptContent } from './complex-prompt-editor';
-import { fetchWithRetry } from './api-utils';
+import { PromptContent } from '@/components/complex-prompt-editor';
+import { getApiUrl, fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
-import { getApiUrl } from '@/lib/apiConfig';
-import { Category } from '@/components/category-service';
+import { Category } from '@/utils/category-service';
 
 export interface VariableType {
   fieldName: string;

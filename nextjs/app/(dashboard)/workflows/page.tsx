@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Workflow, fetchWorkflows, deleteWorkflow } from '@/components/workflow-service'
+import { Workflow, fetchWorkflows, deleteWorkflow } from '@/utils/workflow-service'
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from 'next/navigation'
 import { WorkflowManagerComponent } from '@/components/workflow-manager'

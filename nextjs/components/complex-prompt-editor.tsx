@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator"
 import CodeMirror from '@uiw/react-codemirror'
 import { json } from '@codemirror/lang-json'
 import { vscodeDark } from '@uiw/codemirror-theme-vscode'
-import { Category } from './category-service'
+import { Category } from '../utils/category-service'
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import TagSelector from './tag-selector'
 import { Tag } from '../utils/tag-service'

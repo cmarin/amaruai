@@ -12,25 +12,25 @@ import { PromptSelector } from '@/components/prompt-selector'
 import PromptLibrary from '@/components/prompt-library'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 import PersonaLibrary from '@/components/persona-library'
-import { PromptTemplate, fetchPromptTemplates } from '@/components/prompt-template-service'
+import { PromptTemplate, fetchPromptTemplates } from '@/utils/prompt-template-service'
 import ReactMarkdown from 'react-markdown'
 import { createParser, ParsedEvent, ReconnectInterval } from 'eventsource-parser';
 import { v4 as uuidv4 } from 'uuid';
-import { fetchPersonas, Persona } from '@/components/persona-service'
-import { Category, fetchCategories } from '@/components/category-service'; 
-import { ChatModel, fetchChatModels } from '@/components/chat-model-service'
-import { fetchWithRetry } from '@/components/api-utils';
+import { fetchPersonas, Persona } from '@/utils/persona-service'
+import { Category, fetchCategories } from '@/utils/category-service'; 
+import { ChatModel, fetchChatModels } from '@/utils/chat-model-service'
+import { fetchWithRetry } from '@/utils/api-utils';
 import { useData } from '@/components/data-context'
 import { useRouter } from 'next/navigation';
-import { addToScratchPad as addToScratchPadService } from '@/components/scratch-pad-service'
+import { addToScratchPad as addToScratchPadService } from '@/utils/scratch-pad-service'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/sidebar-context'
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon } from '@/components/icons/ai-provider-icons'
 import { useSession } from '@/app/utils/session/session';
 import Uppy from '@uppy/core';
 import Dashboard from '@uppy/react/lib/Dashboard';
-import { UploadService, type UploadedFile } from '@/components/upload-service';
-import { ChatService, ChatBot, Message } from '@/components/chat-service';
+import { UploadService, type UploadedFile } from '@/utils/upload-service';
+import { ChatService, ChatBot, Message } from '@/utils/chat-service';
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css';

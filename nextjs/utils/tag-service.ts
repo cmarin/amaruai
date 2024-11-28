@@ -1,5 +1,5 @@
 import { ApiHeaders } from '@/app/utils/session/session';
-import { getApiUrl } from '@/lib/apiConfig';
+import { getApiUrl } from './api-utils';
 
 export type Tag = {
   id: number;

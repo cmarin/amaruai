@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { PromptTemplate, fetchPromptTemplates, createPromptTemplate, updatePromptTemplate, deletePromptTemplate } from '@/components/prompt-template-service';
+import { PromptTemplate, fetchPromptTemplates, createPromptTemplate, updatePromptTemplate, deletePromptTemplate } from '@/utils/prompt-template-service';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import TagSelector from '@/components/tag-selector'
 import { Tag } from '@/utils/tag-service'
 import { ComplexPromptEditor, PromptContent } from '@/components/complex-prompt-editor'
-import { fetchCategories, Category } from '@/components/category-service'
+import { fetchCategories, Category } from '@/utils/category-service'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,

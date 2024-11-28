@@ -1,7 +1,7 @@
 import { fetchWithRetry } from './api-utils';
-import { createTag, fetchTags, Tag } from '../utils/tag-service';
+import { createTag, fetchTags, Tag } from './tag-service';
 import { ApiHeaders } from '@/app/utils/session/session';
-import { getApiUrl } from '@/lib/apiConfig';
+import { getApiUrl } from './api-utils';
 
 export type Persona = {
   id: string | number;

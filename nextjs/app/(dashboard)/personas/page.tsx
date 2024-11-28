@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation';
-import { fetchPersonas, Persona, deletePersona } from '@/components/persona-service'
+import { fetchPersonas, Persona, deletePersona } from '@/utils/persona-service'
 import PersonaLibrary from '@/components/persona-library'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/sidebar-context'

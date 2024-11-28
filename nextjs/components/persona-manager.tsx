@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { X, Plus } from 'lucide-react'
-import { Persona, createPersona, updatePersona } from './persona-service'
+import { Persona, createPersona, updatePersona } from '../utils/persona-service'
 import TagSelector from './tag-selector'
 import { Tag } from '../utils/tag-service'
 import { useSession } from '@/app/utils/session/session'
