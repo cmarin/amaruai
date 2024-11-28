@@ -1,10 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { ChatModel, fetchChatModels } from './chatModelService';
+import { ChatModel, fetchChatModels } from './chat-model-service';
 import { Persona, fetchPersonas } from './personaService';
 import { PromptTemplate, fetchPromptTemplates } from './promptTemplateService';
-import { Category, fetchCategories } from './categoryService';
+import { Category, fetchCategories } from './category-service';
 import { useSession } from '@/app/utils/session/session';
 
 type DataContextType = {
@@ -62,19 +62,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         fetchedPromptTemplates,
         fetchedCategories
       ] = await Promise.all([
-        fetchChatModels(headers).catch(err => {
+        fetchChatModels(headers).catch((err: Error) => {
           console.error('Error fetching chat models:', err);
           return [];
         }),
-        fetchPersonas(headers).catch(err => {
+        fetchPersonas(headers).catch((err: Error) => {
           console.error('Error fetching personas:', err);
           return [];
         }),
-        fetchPromptTemplates(headers).catch(err => {
+        fetchPromptTemplates(headers).catch((err: Error) => {
           console.error('Error fetching prompt templates:', err);
           return [];
         }),
-        fetchCategories(headers).catch(err => {
+        fetchCategories(headers).catch((err: Error) => {
           console.error('Error fetching categories:', err);
           return [];
         })

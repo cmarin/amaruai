@@ -17,8 +17,8 @@ import ReactMarkdown from 'react-markdown'
 import { createParser, ParsedEvent, ReconnectInterval } from 'eventsource-parser';
 import { v4 as uuidv4 } from 'uuid';
 import { fetchPersonas, Persona } from '@/components/personaService'
-import { Category, fetchCategories } from '@/components/categoryService'
-import { ChatModel, fetchChatModels } from '@/components/chatModelService'
+import { Category, fetchCategories } from '@/components/category-service'; 
+import { ChatModel, fetchChatModels } from '@/components/chat-model-service'
 import { fetchWithRetry } from '@/components/api-utils';
 import { useData } from '@/components/DataContext'
 import { useRouter } from 'next/navigation';
