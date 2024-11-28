@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import TagSelector from '@/components/tag-selector'
 import { Tag } from '@/components/tagService'
 import { ComplexPromptEditor, PromptContent } from '@/components/complex-prompt-editor'
-import { fetchCategories, Category } from '@/components/categoryService'
+import { fetchCategories, Category } from '@/components/category-service'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,

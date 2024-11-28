@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PromptTemplate, VariableType, createPromptTemplate, updatePromptTemplate, deletePromptTemplate } from './promptTemplateService';
-import { Category, fetchCategories } from './categoryService';
+import { Category, fetchCategories } from './category-service';
 import { ComplexPromptEditor, PromptContent } from './complex-prompt-editor';
 import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
