@@ -80,7 +80,7 @@ export class ChatService {
         }
 
         if (personaObject) {
-            payload.persona_id = personaObject.id;
+            payload.persona_id = Number(personaObject.id);
         }
 
         return await fetchWithRetry(async () => {
