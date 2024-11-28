@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { FileText, BookOpen, Brain, Workflow, MessageSquare, ChevronLeft, ChevronRight, User2 } from "lucide-react"
 import { useRouter } from 'next/navigation'
-import { useData } from '@/components/DataContext'
+import { useData } from '@/components/data-context'
 import { useSidebar } from '@/components/SidebarContext'
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon, O1Icon } from './icons/ai-provider-icons'
 import { useSupabase } from '@/app/contexts/SupabaseContext'

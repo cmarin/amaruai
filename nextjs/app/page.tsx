@@ -1,7 +1,7 @@
 'use client'
 
 import { ErrorBoundary } from 'react-error-boundary'
-import { useData } from '../components/DataContext'
+import { useData } from '../components/data-context'
 
 function ErrorFallback({error}: {error: Error}) {
   return (

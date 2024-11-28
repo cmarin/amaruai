@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { geistSans, geistMono } from "@/app/fonts";
 import "./globals.css";
 import { SupabaseProvider } from '@/app/contexts/SupabaseContext';
-import { DataProvider } from '@/components/DataContext'
+import { DataProvider } from '@/components/data-context'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!

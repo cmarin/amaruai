@@ -16,11 +16,11 @@ import { PromptTemplate, fetchPromptTemplates } from '@/components/promptTemplat
 import ReactMarkdown from 'react-markdown'
 import { createParser, ParsedEvent, ReconnectInterval } from 'eventsource-parser';
 import { v4 as uuidv4 } from 'uuid';
-import { fetchPersonas, Persona } from '@/components/personaService'
+import { fetchPersonas, Persona } from '@/components/persona-service'
 import { Category, fetchCategories } from '@/components/category-service'; 
 import { ChatModel, fetchChatModels } from '@/components/chat-model-service'
 import { fetchWithRetry } from '@/components/api-utils';
-import { useData } from '@/components/DataContext'
+import { useData } from '@/components/data-context'
 import { useRouter } from 'next/navigation';
 import { addToScratchPad as addToScratchPadService } from '@/components/scratchPadService'
 import { AppSidebar } from '@/components/app-sidebar'

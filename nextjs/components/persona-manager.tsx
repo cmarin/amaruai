@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { X, Plus } from 'lucide-react'
-import { Persona, createPersona, updatePersona } from './personaService'
+import { Persona, createPersona, updatePersona } from './persona-service'
 import TagSelector from './tag-selector'
 import { Tag } from './tagService'
 import { useSession } from '@/app/utils/session/session'
@@ -22,6 +22,7 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
     role: '',
     goal: '',
     backstory: '',
+    description: '',
     allow_delegation: false,
     verbose: false,
     memory: false,
@@ -29,7 +30,9 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
     tools: [],
     categories: [],
     tags: [],
-    prompt_templates: []
+    prompt_templates: [],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   })
   const [newTool, setNewTool] = useState('')
   const [newCategory, setNewCategory] = useState('')
@@ -107,8 +110,8 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
 
       let savedPersona: Persona;
       if (persona) {
-        // When updating, include the ID from the original persona
-        savedPersona = await updatePersona(persona.id, currentPersona, headers);
+        // When updating, include the ID from the original persona and ensure it's a number
+        savedPersona = await updatePersona(Number(persona.id), currentPersona, headers);
       } else {
         // When creating, don't include an ID
         savedPersona = await createPersona(currentPersona, headers);

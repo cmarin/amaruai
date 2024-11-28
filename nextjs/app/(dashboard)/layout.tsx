@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { geistSans, geistMono } from "@/app/fonts";  // Import from fonts.ts
 import "../globals.css";
-import { DataProvider } from '../../components/DataContext';
+import { DataProvider } from '../../components/data-context';
 import { SidebarProvider } from '@/components/SidebarContext';
 import { SupabaseProvider } from '@/app/contexts/SupabaseContext';
 

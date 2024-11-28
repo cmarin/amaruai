@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { ChatModel } from './chat-model-service';
-import { Persona } from './personaService';
+import { Persona } from './persona-service';
 import { getApiUrl, getFetchOptions } from '@/lib/apiConfig';
 import { fetchWithRetry } from './api-utils';
 import { createParser, ParsedEvent, ReconnectInterval } from 'eventsource-parser';

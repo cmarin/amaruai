@@ -5,7 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Plus, Edit, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import PersonaManager from './persona-manager'
-import { Persona, deletePersona } from './personaService'
+import { Persona, deletePersona } from './persona-service'
 import { Badge } from "@/components/ui/badge"
 import { useSession } from '@/app/utils/session/session';
 

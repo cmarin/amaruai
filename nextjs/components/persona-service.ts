@@ -4,11 +4,19 @@ import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl } from '@/lib/apiConfig';
 
 export type Persona = {
-  id: number;
+  id: string | number;
   role: string;
   goal: string;
+  backstory: string;
   description: string;
+  allow_delegation: boolean;
+  verbose: boolean;
+  memory: boolean;
+  avatar: string | null;
+  tools: Array<{ id: number; name: string }>;
+  categories: Array<{ id: number; name: string }>;
   tags: Tag[];
+  prompt_templates: any[];
   created_at: string;
   updated_at: string;
 };

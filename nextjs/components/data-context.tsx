@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { ChatModel, fetchChatModels } from './chat-model-service';
-import { Persona, fetchPersonas } from './personaService';
+import { Persona, fetchPersonas } from './persona-service';
 import { PromptTemplate, fetchPromptTemplates } from './promptTemplateService';
 import { Category, fetchCategories } from './category-service';
 import { useSession } from '@/app/utils/session/session';
