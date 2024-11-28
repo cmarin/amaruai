@@ -5,7 +5,7 @@ import { PromptContent } from './complex-prompt-editor';
 import { fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl } from '@/lib/apiConfig';
-import { Category } from './categoryService';
+import { Category } from '@/components/category-service';
 
 export interface VariableType {
   fieldName: string;
