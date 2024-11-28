@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { PromptTemplate } from './promptTemplateService'
-import { Category } from './categoryService'
+import { Category } from '@/components/category-service'
 
 type PromptSelectorProps = {
   prompts: PromptTemplate[]
