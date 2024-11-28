@@ -19,7 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { fetchPersonas, Persona } from '@/components/personaService'
 import { Category, fetchCategories } from '@/components/categoryService'
 import { ChatModel, fetchChatModels } from '@/components/chatModelService'
-import { fetchWithRetry } from '@/components/apiUtils'
+import { fetchWithRetry } from '@/components/api-utils';
 import { useData } from '@/components/DataContext'
 import { useRouter } from 'next/navigation';
 import { addToScratchPad as addToScratchPadService } from '@/components/scratchPadService'

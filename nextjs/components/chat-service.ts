@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ChatModel } from './chatModelService';
 import { Persona } from './personaService';
 import { getApiUrl, getFetchOptions } from '@/lib/apiConfig';
-import { fetchWithRetry } from './apiUtils';
+import { fetchWithRetry } from './api-utils';
 import { createParser, ParsedEvent, ReconnectInterval } from 'eventsource-parser';
 
 export interface Message {

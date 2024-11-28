@@ -1,4 +1,4 @@
-import { fetchWithRetry } from './apiUtils';
+import { fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl } from '@/lib/apiConfig';
 

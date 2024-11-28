@@ -1,4 +1,4 @@
-import { fetchWithRetry } from './apiUtils';
+import { fetchWithRetry } from './api-utils';
 import { createTag, fetchTags, Tag } from './tagService';
 import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl } from '@/lib/apiConfig';
@@ -7,15 +7,10 @@ export type Persona = {
   id: number;
   role: string;
   goal: string;
-  backstory: string;
-  allow_delegation: boolean;
-  verbose: boolean;
-  memory: boolean;
-  avatar: string | null;
-  tools: { name: string; id: number; }[];
-  categories: { name: string; id: number; }[];
+  description: string;
   tags: Tag[];
-  prompt_templates: { name: string; id: number; content: string; }[];
+  created_at: string;
+  updated_at: string;
 };
 
 export type PersonaCreate = Omit<Persona, 'id'>;
@@ -43,7 +38,7 @@ export async function createPersona(persona: PersonaCreate, headers: ApiHeaders)
 
     // Process tags with headers
     const existingTags = await fetchTags(headers);
-    const processedTagIds = await Promise.all(persona.tags.map(async (tag) => {
+    const processedTagIds = await Promise.all(persona.tags.map(async (tag: Tag) => {
       const existingTag = existingTags.find(t => t.name.toLowerCase() === tag.name.toLowerCase());
       if (existingTag) {
         return existingTag.id;
@@ -92,7 +87,7 @@ export async function updatePersona(personaId: number, persona: Partial<Persona>
     console.log('Existing tags:', existingTags);
 
     // Process tags with headers
-    const processedTagIds = await Promise.all(persona.tags?.map(async (tag) => {
+    const processedTagIds = await Promise.all(persona.tags?.map(async (tag: Tag) => {
       const existingTag = existingTags.find(t => t.name.toLowerCase() === tag.name.toLowerCase());
       if (existingTag) {
         console.log(`Using existing tag: ${existingTag.name} (ID: ${existingTag.id})`);

@@ -2,7 +2,7 @@
 
 import { createTag, fetchTags, Tag } from './tagService';
 import { PromptContent } from './complex-prompt-editor';
-import { fetchWithRetry } from './apiUtils';
+import { fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl } from '@/lib/apiConfig';
 import { Category } from './categoryService';
