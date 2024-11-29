@@ -99,13 +99,8 @@ async def chat_endpoint(
                         content = chunk.choices[0].delta.content
                         if content:
                             full_response += content
-                            # Split content into lines and format each line
-                            lines = content.splitlines()
-                            for line in lines:
-                                if line.strip():  # Only send non-empty lines
-                                    yield f"data: {line}\n"
-                            # Add a newline after each chunk's lines
-                            yield "\n"
+                            # Simply send the content with a newline
+                            yield f"data: {content}\n\n"
                 
                 # Store the complete response
                 messages.append({"role": "assistant", "content": full_response})

@@ -65,10 +65,14 @@ export class UploadService {
                 const fileName = `${Math.random()}.${fileExt}`;
                 const filePath = `${finalConfig.storageFolder}/${session.user.id}/${fileUuid}/${fileName}`;
 
-                console.log('Uploading file with path:', filePath);
+                console.log('Uploading file:', {
+                    path: filePath,
+                    type: file.type,
+                    size: file.size
+                });
 
                 const mimeType = file.type || 'application/octet-stream';
-                
+
                 // First, create the asset record
                 const { data: assetData, error: assetError } = await supabase
                     .from('assets')
@@ -89,21 +93,15 @@ export class UploadService {
                 console.log('Created asset:', assetData);
 
                 // Then upload the file
-                const { data: storageData, error: storageError } = await supabase.storage
+                const { data, error } = await supabase.storage
                     .from(finalConfig.storageBucket!)
                     .upload(filePath, file.data, {
                         upsert: false,
-                        contentType: mimeType
+                        contentType: mimeType,
+                        duplex: 'half'
                     });
 
-                if (storageError) {
-                    // Clean up the asset if storage upload fails
-                    await supabase
-                        .from('assets')
-                        .delete()
-                        .match({ id: assetData.id });
-                    throw storageError;
-                }
+                if (error) throw error;
 
                 // Get public URL
                 const { data: { publicUrl } } = supabase.storage
@@ -166,7 +164,11 @@ export class UploadService {
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `${finalConfig.storageFolder}/${session.user.id}/${fileUuid}/${fileName}`;
 
-        console.log('Uploading file with path:', filePath);
+        console.log('Uploading file:', {
+            path: filePath,
+            type: file.type,
+            size: file.size
+        });
 
         const mimeType = file.type || 'application/octet-stream';
 
@@ -190,20 +192,17 @@ export class UploadService {
         console.log('Created asset:', assetData);
 
         // Then upload the file
-        const { data: storageData, error: storageError } = await supabase.storage
+        const { data, error } = await supabase.storage
             .from(finalConfig.storageBucket!)
             .upload(filePath, file, {
                 upsert: false,
-                contentType: mimeType
+                contentType: mimeType,
+                duplex: 'half'
             });
 
-        if (storageError) {
-            // Clean up the asset if storage upload fails
-            await supabase
-                .from('assets')
-                .delete()
-                .match({ id: assetData.id });
-            throw storageError;
+        if (error) {
+            console.error('Error uploading file:', error);
+            throw error;
         }
 
         // Get public URL
