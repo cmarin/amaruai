@@ -79,13 +79,19 @@ export class UploadService {
                     size: file.size
                 });
 
-                // Upload file to Supabase storage
+                // Upload file to Supabase storage with metadata
                 const { data, error } = await supabase.storage
                     .from(finalConfig.storageBucket!)
                     .upload(filePath, file.data, {
                         contentType: mimeType,
                         duplex: 'half',
-                        cacheControl: '3600'
+                        cacheControl: '3600',
+                        upsert: true,
+                        metadata: {
+                            mime_type: mimeType,
+                            size: file.size.toString(),
+                            name: file.name
+                        }
                     });
 
                 if (error) throw error;
@@ -159,13 +165,19 @@ export class UploadService {
             size: file.size
         });
 
-        // Upload file to Supabase storage
+        // Upload file to Supabase storage with metadata
         const { data, error } = await supabase.storage
             .from(finalConfig.storageBucket!)
             .upload(filePath, file, {
                 contentType: mimeType,
                 duplex: 'half',
-                cacheControl: '3600'
+                cacheControl: '3600',
+                upsert: true,
+                metadata: {
+                    mime_type: mimeType,
+                    size: file.size.toString(),
+                    name: file.name
+                }
             });
 
         if (error) {
