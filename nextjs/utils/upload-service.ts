@@ -50,8 +50,8 @@ export class UploadService {
 
         uppy.on('file-added', async (file) => {
             try {
-                if (!file.name) {
-                    throw new Error('File name is undefined');
+                if (!file.name || file.size === null) {
+                    throw new Error('File name or size is undefined');
                 }
 
                 // Get the current session
@@ -67,11 +67,19 @@ export class UploadService {
 
                 console.log('Uploading file with path:', filePath);
 
-                // Upload file to Supabase storage
+                // Upload file to Supabase storage with metadata
                 const { data, error } = await supabase.storage
                     .from(finalConfig.storageBucket!)
                     .upload(filePath, file.data, {
-                        upsert: false
+                        upsert: false,
+                        contentType: file.type || 'application/octet-stream',
+                        duplex: 'half',
+                        metadata: {
+                            filename: file.name,
+                            size: file.size.toString(),
+                            mimetype: file.type || 'application/octet-stream',
+                            uploadTime: new Date().toISOString()
+                        }
                     });
 
                 if (error) throw error;
@@ -116,6 +124,10 @@ export class UploadService {
             throw new Error('Supabase client is required');
         }
 
+        if (!file.name || !file.size) {
+            throw new Error('File name or size is undefined');
+        }
+
         // Get the current session
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user?.id) {
@@ -129,10 +141,19 @@ export class UploadService {
 
         console.log('Uploading file with path:', filePath);
 
+        // Upload file to Supabase storage with metadata
         const { data, error } = await supabase.storage
             .from(finalConfig.storageBucket!)
             .upload(filePath, file, {
-                upsert: false
+                upsert: false,
+                contentType: file.type || 'application/octet-stream',
+                duplex: 'half',
+                metadata: {
+                    filename: file.name,
+                    size: file.size.toString(),
+                    mimetype: file.type || 'application/octet-stream',
+                    uploadTime: new Date().toISOString()
+                }
             });
 
         if (error) {
