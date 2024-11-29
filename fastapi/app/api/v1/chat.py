@@ -108,7 +108,7 @@ def create_chain_with_message_history(model_name: str, system_message: str):
         raise
 
 class ChatInput(BaseModel):
-    user_id: str
+    user_id: Optional[str] = None
     conversation_id: str
     message: str
     model: Optional[str] = None
@@ -122,25 +122,12 @@ async def chat_endpoint(
 ):
     logging.info(f"Received chat request: {chat_input}")
     
-    # Method 1: Get current user
-    try:
-        response = supabase.auth.get_user()
-        user_id_method1 = response.user.id
-        logging.info(f"User ID from Method 1 (get_user): {user_id_method1}")
-    except Exception as e:
-        logging.error(f"Method 1 failed: {str(e)}")
-
-    # Method 2: Using JWT token from the current user
-    try:
-        if hasattr(user, 'token'):
-            response = supabase.auth.get_user(user.token)
-            user_id_method2 = response.user.id
-            logging.info(f"User ID from Method 2 (JWT token): {user_id_method2}")
-    except Exception as e:
-        logging.error(f"Method 2 failed: {str(e)}")
-
-    # Use the existing user.id from the current_user dependency
-    logging.info(f"User ID from current_user dependency: {user.id}")
+    # Log the authenticated user information
+    logging.info(f"Authenticated user email: {user.email}")
+    logging.info(f"Authenticated user ID: {user.id}")
+    
+    # Always use the authenticated user's ID, regardless of what was passed in
+    chat_input.user_id = user.id
     
     try:
         system_message = ""
