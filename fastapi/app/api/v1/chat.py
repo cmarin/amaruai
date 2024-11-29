@@ -19,7 +19,6 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 # Store for chat histories
 message_store = {}
 
-# Add this to the existing message store logic
 def get_chat_history(user_id: str, conversation_id: str) -> List[dict]:
     key = (user_id, conversation_id)
     if key not in message_store:
@@ -27,32 +26,6 @@ def get_chat_history(user_id: str, conversation_id: str) -> List[dict]:
         message_store[key] = []
     return message_store[key]
 
-async def stream_response(model_name: str):
-    try:
-        messages = get_chat_history(chat_input.user_id, chat_input.conversation_id)
-        
-        # Add system message at the start if it exists
-        if system_message:
-            if not messages or messages[0].get("role") != "system":
-                messages.insert(0, {"role": "system", "content": system_message})
-        
-        # Add the new user message
-        messages.append({"role": "user", "content": chat_input.message})
-        
-        full_response = ""
-        async for chunk in response:
-            if chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
-                full_response += content
-                yield f"data: {content}\n\n"
-        
-        # Store the complete response
-        messages.append({"role": "assistant", "content": full_response})
-        message_store[(chat_input.user_id, chat_input.conversation_id)] = messages
-        
-        yield "data: [DONE]\n\n"
-    except Exception as e:
-        # Error handling remains the same
 def get_api_key():
     dotenv_path = find_dotenv()
     if dotenv_path:
@@ -103,9 +76,12 @@ async def chat_endpoint(
             try:
                 messages = get_chat_history(chat_input.user_id, chat_input.conversation_id)
                 
+                # Add system message at the start if it exists
                 if system_message:
-                    messages.insert(0, {"role": "system", "content": system_message})
+                    if not messages or messages[0].get("role") != "system":
+                        messages.insert(0, {"role": "system", "content": system_message})
                 
+                # Add the new user message
                 messages.append({"role": "user", "content": chat_input.message})
                 
                 response = completion(
@@ -117,19 +93,18 @@ async def chat_endpoint(
                     api_base="https://openrouter.ai/api/v1"
                 )
 
-                for chunk in response:
+                full_response = ""
+                async for chunk in response:
                     if chunk.choices[0].delta.content:
-                        yield f"data: {chunk.choices[0].delta.content}\n\n"
+                        content = chunk.choices[0].delta.content
+                        full_response += content
+                        yield f"data: {content}\n\n"
                 
-                # Store the assistant's complete response
-                messages.append({
-                    "role": "assistant",
-                    "content": "".join(chunk.choices[0].delta.content for chunk in response if chunk.choices[0].delta.content)
-                })
+                # Store the complete response
+                messages.append({"role": "assistant", "content": full_response})
                 message_store[(chat_input.user_id, chat_input.conversation_id)] = messages
                 
                 yield "data: [DONE]\n\n"
-
             except Exception as e:
                 logging.error(f"Error during streaming: {str(e)}")
                 if "RESOURCE_EXHAUSTED" in str(e):
