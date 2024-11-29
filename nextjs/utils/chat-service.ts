@@ -79,6 +79,12 @@ export class ChatService {
                     message: message,
                 };
 
+                console.log('Sending chat request with payload:', {
+                    user_id: payload.user_id,
+                    conversation_id: payload.conversation_id,
+                    model: currentModel
+                });
+
                 const personaObject = personas.find(p => p.role === bot.persona);
                 if (personaObject) {
                     payload.persona_id = Number(personaObject.id);
@@ -191,6 +197,8 @@ export class ChatService {
         userId?: string
     ): Promise<void> {
         if (!input.trim()) return;
+
+        console.log('handleSend called with userId:', userId);
 
         const newMessage: Message = { role: 'user', content: input };
         callbacks.onUpdateChatbots(prevBots => 
