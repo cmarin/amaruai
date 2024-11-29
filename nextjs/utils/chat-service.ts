@@ -64,6 +64,7 @@ export class ChatService {
         personas: Persona[],
         allModels: ChatModel[],
         headers: HeadersInit,
+        userId: string = 'test',
         maxRetries: number = 2
     ): Promise<Response> {
         let lastError: Error | null = null;
@@ -73,7 +74,7 @@ export class ChatService {
         for (let attempt = 0; attempt < maxRetries; attempt++) {
             try {
                 const payload: ChatPayload = {
-                    user_id: "test",
+                    user_id: userId,
                     conversation_id: bot.conversationId,
                     message: message,
                 };
@@ -152,19 +153,9 @@ export class ChatService {
                         return;
                     }
 
-                    try {
-                        // Check if the data contains an error message
-                        const jsonData = JSON.parse(data);
-                        if (jsonData.error) {
-                            throw new Error(jsonData.error);
-                        }
-                    } catch (e) {
-                        // If JSON.parse fails, it's normal streaming data
-                        // If it succeeds but has no error, it's also fine
-                        // Only throw if we actually found an error property
-                        if (e instanceof Error && e.message !== 'Unexpected token P in JSON at position 0') {
-                            throw e;
-                        }
+                    // Check for error message format
+                    if (data.startsWith('Error:') || data.includes('Provider returned error')) {
+                        throw new Error(data);
                     }
 
                     // Preserve line breaks by replacing them with HTML line breaks
@@ -196,7 +187,8 @@ export class ChatService {
         activeChatbots: string[],
         personas: Persona[],
         allModels: ChatModel[],
-        callbacks: ChatServiceCallbacks
+        callbacks: ChatServiceCallbacks,
+        userId?: string
     ): Promise<void> {
         if (!input.trim()) return;
 
@@ -223,7 +215,8 @@ export class ChatService {
                     input,
                     personas,
                     allModels,
-                    headers
+                    headers,
+                    userId
                 );
 
                 // Initialize assistant's response

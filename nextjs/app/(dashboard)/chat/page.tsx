@@ -194,6 +194,10 @@ export default function ChatPage() {
   }, [personas])
 
   const handleSend = async () => {
+    if (session?.user?.id) {
+      console.log('Authenticated user ID:', session.user.id);
+    }
+
     await ChatService.handleSend(
       input,
       chatbots,
@@ -205,7 +209,8 @@ export default function ChatPage() {
         onSetChatLoading: (botId: string, loading: boolean) => 
           setChatLoading(prev => ({ ...prev, [botId]: loading })),
         getApiHeaders
-      }
+      },
+      session?.user?.id
     );
     setInput('');
   };
