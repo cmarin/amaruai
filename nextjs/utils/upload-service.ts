@@ -68,31 +68,23 @@ export class UploadService {
                 console.log('Uploading file with path:', filePath);
 
                 const mimeType = file.type || 'application/octet-stream';
-                const fileOptions = {
-                    upsert: false,
-                    fileOptions: {
-                        contentType: mimeType,
-                        cacheControl: '3600'
-                    },
-                    duplex: 'half'
+                const metadata = {
+                    mime_type: mimeType,
+                    filename: file.name,
+                    size: file.size.toString(),
+                    upload_time: new Date().toISOString()
                 };
 
-                // Add file metadata as custom headers
-                const customMetadata = {
-                    'x-mime-type': mimeType,
-                    'x-file-name': file.name,
-                    'x-file-size': file.size.toString(),
-                    'x-upload-time': new Date().toISOString()
-                };
-
-                console.log('Uploading file with options:', { ...fileOptions, customMetadata });
+                console.log('Uploading file with metadata:', metadata);
 
                 // Upload file to Supabase storage with metadata
                 const { data, error } = await supabase.storage
                     .from(finalConfig.storageBucket!)
                     .upload(filePath, file.data, {
-                        ...fileOptions,
-                        headers: customMetadata
+                        upsert: false,
+                        contentType: mimeType,
+                        duplex: 'half',
+                        metadata
                     });
 
                 if (error) throw error;
@@ -155,31 +147,23 @@ export class UploadService {
         console.log('Uploading file with path:', filePath);
 
         const mimeType = file.type || 'application/octet-stream';
-        const fileOptions = {
-            upsert: false,
-            fileOptions: {
-                contentType: mimeType,
-                cacheControl: '3600'
-            },
-            duplex: 'half'
+        const metadata = {
+            mime_type: mimeType,
+            filename: file.name,
+            size: file.size.toString(),
+            upload_time: new Date().toISOString()
         };
 
-        // Add file metadata as custom headers
-        const customMetadata = {
-            'x-mime-type': mimeType,
-            'x-file-name': file.name,
-            'x-file-size': file.size.toString(),
-            'x-upload-time': new Date().toISOString()
-        };
-
-        console.log('Uploading file with options:', { ...fileOptions, customMetadata });
+        console.log('Uploading file with metadata:', metadata);
 
         // Upload file to Supabase storage with metadata
         const { data, error } = await supabase.storage
             .from(finalConfig.storageBucket!)
             .upload(filePath, file, {
-                ...fileOptions,
-                headers: customMetadata
+                upsert: false,
+                contentType: mimeType,
+                duplex: 'half',
+                metadata
             });
 
         if (error) {
