@@ -16,6 +16,7 @@ from langchain_core.messages import BaseMessage, SystemMessage, trim_messages
 from app.api.v1.dependencies import get_current_user
 from dotenv import load_dotenv, find_dotenv, get_key
 from app.api.v1.router import create_protected_router
+from app.config.supabase import supabase
 
 # Create a protected router specifically for chat endpoints
 router = create_protected_router(prefix="chat", tags=["chat"])
@@ -120,7 +121,27 @@ async def chat_endpoint(
     user = Depends(get_current_user)
 ):
     logging.info(f"Received chat request: {chat_input}")
-    logging.info(f"User ID: {user.id}")
+    
+    # Method 1: Get current user
+    try:
+        response = supabase.auth.get_user()
+        user_id_method1 = response.user.id
+        logging.info(f"User ID from Method 1 (get_user): {user_id_method1}")
+    except Exception as e:
+        logging.error(f"Method 1 failed: {str(e)}")
+
+    # Method 2: Using JWT token from the current user
+    try:
+        if hasattr(user, 'token'):
+            response = supabase.auth.get_user(user.token)
+            user_id_method2 = response.user.id
+            logging.info(f"User ID from Method 2 (JWT token): {user_id_method2}")
+    except Exception as e:
+        logging.error(f"Method 2 failed: {str(e)}")
+
+    # Use the existing user.id from the current_user dependency
+    logging.info(f"User ID from current_user dependency: {user.id}")
+    
     try:
         system_message = ""
         if chat_input.persona_id:
