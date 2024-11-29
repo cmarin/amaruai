@@ -1,6 +1,6 @@
 import Uppy from '@uppy/core';
 import { SupabaseClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface UploadedFile {
     name: string;
@@ -61,7 +61,7 @@ export class UploadService {
                 }
 
                 const fileExt = file.name.split('.').pop();
-                const fileUuid = crypto.randomUUID();
+                const fileUuid = uuidv4();
                 const fileName = `${Math.random()}.${fileExt}`;
                 const filePath = `${finalConfig.storageFolder}/${session.user.id}/${fileUuid}/${fileName}`;
 
@@ -123,7 +123,7 @@ export class UploadService {
         }
 
         const fileExt = file.name.split('.').pop();
-        const fileUuid = crypto.randomUUID();
+        const fileUuid = uuidv4();
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `${finalConfig.storageFolder}/${session.user.id}/${fileUuid}/${fileName}`;
 
