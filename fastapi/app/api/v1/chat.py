@@ -85,7 +85,7 @@ async def chat_endpoint(
                 messages.append({"role": "user", "content": chat_input.message})
                 
                 response = completion(
-                    model=f"openrouter/{model_name}",
+                    model="gemini/gemini-pro-1.5-exp",  # Changed model format
                     messages=messages,
                     stream=True,
                     temperature=0.6,
@@ -128,16 +128,10 @@ async def chat_endpoint(
                 yield "data: [DONE]\n\n"
             except Exception as e:
                 logging.error(f"Error during streaming: {str(e)}")
-                if "RESOURCE_EXHAUSTED" in str(e):
-                    default_model = crud.get_default_chat_model(db)
-                    if default_model and default_model.model != model_name:
-                        async for response in stream_response(default_model.model):
-                            yield response
-                    else:
-                        yield "data: Error: Quota exceeded. Please try again later.\n\n"
-                else:
-                    yield f"data: Error: {str(e)}\n\n"
-
+                # Return a more user-friendly error message
+                yield f"data: Error: Unable to process request. Please try again later.\n\n"
+                yield "data: [DONE]\n\n"
+        
         return StreamingResponse(
             stream_response(chat_input.model),
             media_type="text/event-stream"

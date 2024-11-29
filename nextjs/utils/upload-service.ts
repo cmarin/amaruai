@@ -76,8 +76,14 @@ export class UploadService {
                 console.log('Uploading file:', {
                     path: filePath,
                     type: mimeType,
-                    size: file.size
+                    size: file.size,
+                    userId: session.user.id
                 });
+
+                // Ensure we have proper authentication
+                if (!session?.user?.id) {
+                    throw new Error('User must be authenticated to upload files');
+                }
 
                 // Upload file to Supabase storage with metadata
                 const { data, error } = await supabase.storage
@@ -90,11 +96,14 @@ export class UploadService {
                         metadata: {
                             mime_type: mimeType,
                             size: file.size.toString(),
-                            name: file.name
+                            uploaded_at: new Date().toISOString()
                         }
                     });
 
-                if (error) throw error;
+                if (error) {
+                    console.error('Storage upload error:', error);
+                    throw error;
+                }
 
                 // Get public URL
                 const { data: { publicUrl } } = supabase.storage
@@ -162,8 +171,14 @@ export class UploadService {
         console.log('Uploading file:', {
             path: filePath,
             type: mimeType,
-            size: file.size
+            size: file.size,
+            userId: session.user.id
         });
+
+        // Ensure we have proper authentication
+        if (!session?.user?.id) {
+            throw new Error('User must be authenticated to upload files');
+        }
 
         // Upload file to Supabase storage with metadata
         const { data, error } = await supabase.storage
@@ -176,12 +191,12 @@ export class UploadService {
                 metadata: {
                     mime_type: mimeType,
                     size: file.size.toString(),
-                    name: file.name
+                    uploaded_at: new Date().toISOString()
                 }
             });
 
         if (error) {
-            console.error('Error uploading file:', error);
+            console.error('Storage upload error:', error);
             throw error;
         }
 
