@@ -113,7 +113,7 @@ class ChatInput(BaseModel):
     model: Optional[str] = None
     persona_id: Optional[int] = None
 
-@router.post("/")  # Remove response_model since we're using StreamingResponse
+@router.post("/")
 async def chat_endpoint(
     chat_input: ChatInput, 
     db: Session = Depends(get_db),

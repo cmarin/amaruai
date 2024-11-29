@@ -84,15 +84,21 @@ export class ChatService {
                 }
 
                 // On final retry, use default model if we had a provider error
-                if (attempt === maxRetries - 1 && lastError instanceof Error && lastError.message === 'Provider returned error') {
+                const isProviderError = lastError instanceof Error && 
+                    (lastError.message === 'Provider returned error' || lastError.message.includes('Provider returned error'));
+                
+                if (attempt === maxRetries - 1 && isProviderError) {
                     currentModel = defaultModel;
                     console.log(`Final retry: Switching to default model ${defaultModel} for bot ${bot.name}`);
-                } else if (attempt > 0) {
-                    console.log(`Retry attempt ${attempt + 1}/${maxRetries}: Using model ${currentModel} for bot ${bot.name}`);
-                }
-
-                if (currentModel !== defaultModel) {
-                    payload.model = currentModel;
+                    // Don't include model in payload for default model
+                } else {
+                    if (attempt > 0) {
+                        console.log(`Retry attempt ${attempt + 1}/${maxRetries}: Using model ${currentModel} for bot ${bot.name}`);
+                    }
+                    // Only include model if it's not the default model
+                    if (currentModel !== defaultModel) {
+                        payload.model = currentModel;
+                    }
                 }
 
                 const response = await fetchWithRetry(async () => {
@@ -115,8 +121,8 @@ export class ChatService {
                 lastError = error instanceof Error ? error : new Error('Unknown error occurred');
                 console.error(`Chat attempt ${attempt + 1} failed for model ${currentModel} (bot: ${bot.name}):`, lastError.message);
                 
-                // Only continue retrying for "Provider returned error"
-                if (lastError.message !== 'Provider returned error') {
+                // Only continue retrying for provider errors
+                if (!(lastError.message === 'Provider returned error' || lastError.message.includes('Provider returned error'))) {
                     throw lastError;
                 }
             }
@@ -146,8 +152,22 @@ export class ChatService {
                         return;
                     }
 
+                    try {
+                        // Check if the data contains an error message
+                        const jsonData = JSON.parse(data);
+                        if (jsonData.error) {
+                            throw new Error(jsonData.error);
+                        }
+                    } catch (e) {
+                        // If JSON.parse fails, it's normal streaming data
+                        // If it succeeds but has no error, it's also fine
+                        // Only throw if we actually found an error property
+                        if (e instanceof Error && e.message !== 'Unexpected token P in JSON at position 0') {
+                            throw e;
+                        }
+                    }
+
                     // Preserve line breaks by replacing them with HTML line breaks
-                    // First, handle double line breaks (paragraphs)
                     const formattedData = data
                         .replace(/\n\n+/g, '\n\n')  // Normalize multiple line breaks to double
                         .replace(/\n\n/g, '\n\n');  // Preserve double line breaks
@@ -164,7 +184,9 @@ export class ChatService {
                 parser.feed(chunk);
             }
         } catch (error) {
-            onError(error instanceof Error ? error : new Error('Unknown error occurred'));
+            const e = error instanceof Error ? error : new Error('Unknown error occurred');
+            console.error('Stream processing error:', e.message);
+            onError(e);
         }
     }
 
