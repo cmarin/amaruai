@@ -96,7 +96,9 @@ export class UploadService {
                         metadata: {
                             mime_type: mimeType,
                             size: file.size.toString(),
-                            uploaded_at: new Date().toISOString()
+                            uploaded_at: new Date().toISOString(),
+                            original_name: file.name,
+                            user_id: session.user.id
                         }
                     });
 
@@ -191,7 +193,9 @@ export class UploadService {
                 metadata: {
                     mime_type: mimeType,
                     size: file.size.toString(),
-                    uploaded_at: new Date().toISOString()
+                    uploaded_at: new Date().toISOString(),
+                    original_name: file.name,
+                    user_id: session.user.id
                 }
             });
 

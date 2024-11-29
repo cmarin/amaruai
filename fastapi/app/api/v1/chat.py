@@ -81,11 +81,10 @@ async def chat_endpoint(
                     if not messages or messages[0].get("role") != "system":
                         messages.insert(0, {"role": "system", "content": system_message})
                 
-                # Add the new user message
                 messages.append({"role": "user", "content": chat_input.message})
                 
                 response = completion(
-                    model="gemini/gemini-pro-1.5-exp",  # Changed model format
+                    model="openrouter/google/gemini-pro-1.5-exp",
                     messages=messages,
                     stream=True,
                     temperature=0.6,
@@ -94,44 +93,24 @@ async def chat_endpoint(
                 )
 
                 full_response = ""
-                buffer = ""
                 for chunk in response:
                     if hasattr(chunk.choices[0], 'delta') and hasattr(chunk.choices[0].delta, 'content'):
                         content = chunk.choices[0].delta.content
                         if content:
-                            buffer += content
                             full_response += content
-                            
-                            # Check for complete line breaks or markdown headers
-                            if '\n' in buffer:
-                                lines = buffer.split('\n')
-                                # Keep the last incomplete line in the buffer
-                                buffer = lines[-1]
-                                
-                                # Process all complete lines
-                                for line in lines[:-1]:
-                                    if line.strip():
-                                        yield f"data: {line}\n\n"
-                            # If we have content without line breaks, send it as is
-                            elif len(buffer) > 80:  # Arbitrary buffer size
-                                yield f"data: {buffer}\n\n"
-                                buffer = ""
-                
-                # Flush any remaining content in the buffer
-                if buffer.strip():
-                    yield f"data: {buffer}\n\n"
+                            # Send content with proper SSE format
+                            yield f"data: {content}\n\n"
                 
                 # Store the complete response
                 messages.append({"role": "assistant", "content": full_response})
                 message_store[(chat_input.user_id, chat_input.conversation_id)] = messages
-                
                 yield "data: [DONE]\n\n"
+
             except Exception as e:
                 logging.error(f"Error during streaming: {str(e)}")
-                # Return a more user-friendly error message
                 yield f"data: Error: Unable to process request. Please try again later.\n\n"
                 yield "data: [DONE]\n\n"
-        
+
         return StreamingResponse(
             stream_response(chat_input.model),
             media_type="text/event-stream"
