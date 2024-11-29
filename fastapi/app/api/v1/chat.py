@@ -94,11 +94,12 @@ async def chat_endpoint(
                 )
 
                 full_response = ""
-                async for chunk in response:
-                    if chunk.choices[0].delta.content:
+                for chunk in response:
+                    if hasattr(chunk.choices[0], 'delta') and hasattr(chunk.choices[0].delta, 'content'):
                         content = chunk.choices[0].delta.content
-                        full_response += content
-                        yield f"data: {content}\n\n"
+                        if content:
+                            full_response += content
+                            yield f"data: {content}\n\n"
                 
                 # Store the complete response
                 messages.append({"role": "assistant", "content": full_response})
