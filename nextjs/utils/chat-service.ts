@@ -58,44 +58,71 @@ export class ChatService {
         );
     }
 
-    static async sendChatMessage(
+    static async sendChatMessageWithRetry(
         bot: ChatBot,
         message: string,
         personas: Persona[],
         allModels: ChatModel[],
-        headers: HeadersInit
+        headers: HeadersInit,
+        maxRetries: number = 2
     ): Promise<Response> {
-        const personaObject = personas.find(p => p.role === bot.persona);
+        let lastError: Error | null = null;
+        let currentModel = bot.apiName;
+        const defaultModel = allModels[0].model;
 
-        const payload: ChatPayload = {
-            //TODO remove user_id
-            user_id: "test",
-            conversation_id: bot.conversationId,
-            message: message,
-        };
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                const payload: ChatPayload = {
+                    user_id: "test",
+                    conversation_id: bot.conversationId,
+                    message: message,
+                };
 
-        if (bot.apiName !== allModels[0].model) {
-            payload.model = bot.apiName;
-        }
+                const personaObject = personas.find(p => p.role === bot.persona);
+                if (personaObject) {
+                    payload.persona_id = Number(personaObject.id);
+                }
 
-        if (personaObject) {
-            payload.persona_id = Number(personaObject.id);
-        }
+                // On final retry, use default model if we had a provider error
+                if (attempt === maxRetries - 1 && lastError instanceof Error && lastError.message === 'Provider returned error') {
+                    currentModel = defaultModel;
+                    console.log(`Final retry: Switching to default model ${defaultModel} for bot ${bot.name}`);
+                } else if (attempt > 0) {
+                    console.log(`Retry attempt ${attempt + 1}/${maxRetries}: Using model ${currentModel} for bot ${bot.name}`);
+                }
 
-        return await fetchWithRetry(async () => {
-            const res = await fetch(`${getApiUrl()}/chat`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(payload),
-                ...getFetchOptions(),
-            });
-            
-            if (!res.ok) {
-                throw new Error(`HTTP error! status: ${res.status}`);
+                if (currentModel !== defaultModel) {
+                    payload.model = currentModel;
+                }
+
+                const response = await fetchWithRetry(async () => {
+                    const res = await fetch(`${getApiUrl()}/chat`, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(payload),
+                        ...getFetchOptions(),
+                    });
+                    
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    
+                    return res;
+                });
+
+                return response;
+            } catch (error) {
+                lastError = error instanceof Error ? error : new Error('Unknown error occurred');
+                console.error(`Chat attempt ${attempt + 1} failed for model ${currentModel} (bot: ${bot.name}):`, lastError.message);
+                
+                // Only continue retrying for "Provider returned error"
+                if (lastError.message !== 'Provider returned error') {
+                    throw lastError;
+                }
             }
-            
-            return res;
-        });
+        }
+
+        throw lastError;
     }
 
     static async processStreamedResponse(
@@ -169,7 +196,7 @@ export class ChatService {
             callbacks.onSetChatLoading(botId, true);
 
             try {
-                const response = await this.sendChatMessage(
+                const response = await this.sendChatMessageWithRetry(
                     bot,
                     input,
                     personas,
