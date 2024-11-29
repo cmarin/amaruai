@@ -1,5 +1,6 @@
 import Uppy from '@uppy/core';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import crypto from 'crypto';
 
 export interface UploadedFile {
     name: string;
@@ -48,14 +49,26 @@ export class UploadService {
                 if (!file.name) {
                     throw new Error('File name is undefined');
                 }
+
+                // Get the current session
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.user?.id) {
+                    throw new Error('User must be authenticated to upload files');
+                }
+
                 const fileExt = file.name.split('.').pop();
+                const fileUuid = crypto.randomUUID();
                 const fileName = `${Math.random()}.${fileExt}`;
-                const filePath = `${finalConfig.storageFolder}/${fileName}`;
+                const filePath = `${finalConfig.storageFolder}/${session.user.id}/${fileUuid}/${fileName}`;
+
+                console.log('Uploading file with path:', filePath);
 
                 // Upload file to Supabase storage
                 const { data, error } = await supabase.storage
                     .from(finalConfig.storageBucket!)
-                    .upload(filePath, file.data);
+                    .upload(filePath, file.data, {
+                        upsert: false
+                    });
 
                 if (error) throw error;
 
@@ -75,6 +88,7 @@ export class UploadService {
                 }
             } catch (error) {
                 console.error('Error uploading file:', error);
+                throw error;
             }
         });
 
@@ -94,27 +108,40 @@ export class UploadService {
         const finalConfig = { ...this.defaultConfig, ...config };
         const supabase = createClientComponentClient();
 
+        // Get the current session first
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) {
+            throw new Error('User must be authenticated to upload files');
+        }
+
         const fileExt = file.name.split('.').pop();
+        const fileUuid = crypto.randomUUID();
         const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${finalConfig.storageFolder}/${fileName}`;
+        const filePath = `${finalConfig.storageFolder}/${session.user.id}/${fileUuid}/${fileName}`;
+
+        console.log('Uploading file with path:', filePath);
 
         const { data, error } = await supabase.storage
             .from(finalConfig.storageBucket!)
-            .upload(filePath, file);
+            .upload(filePath, file, {
+                upsert: false
+            });
 
-        if (error) throw error;
+        if (error) {
+            console.error('Error uploading file:', error);
+            throw error;
+        }
 
+        // Get public URL
         const { data: { publicUrl } } = supabase.storage
             .from(finalConfig.storageBucket!)
             .getPublicUrl(filePath);
 
-        const uploadedFile: UploadedFile = {
-            name: file.name || '',
-            size: file.size || 0,
+        return {
+            name: file.name,
+            size: file.size,
             url: publicUrl
         };
-
-        return uploadedFile;
     }
 
     static async deleteFile(
