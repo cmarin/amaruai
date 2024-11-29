@@ -1,5 +1,5 @@
 import Uppy from '@uppy/core';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { SupabaseClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
 export interface UploadedFile {
@@ -29,10 +29,14 @@ export class UploadService {
         id: string,
         config: Partial<UploadServiceConfig> = {},
         onFileUploaded?: (file: UploadedFile) => void,
-        onComplete?: (result: any) => void
+        onComplete?: (result: any) => void,
+        supabase?: SupabaseClient
     ): Uppy {
         const finalConfig = { ...this.defaultConfig, ...config };
-        const supabase = createClientComponentClient();
+        
+        if (!supabase) {
+            throw new Error('Supabase client is required');
+        }
 
         const uppy = new Uppy({
             id,
@@ -103,12 +107,16 @@ export class UploadService {
 
     static async uploadFile(
         file: File,
-        config: Partial<UploadServiceConfig> = {}
+        config: Partial<UploadServiceConfig> = {},
+        supabase?: SupabaseClient
     ): Promise<UploadedFile> {
         const finalConfig = { ...this.defaultConfig, ...config };
-        const supabase = createClientComponentClient();
+        
+        if (!supabase) {
+            throw new Error('Supabase client is required');
+        }
 
-        // Get the current session first
+        // Get the current session
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user?.id) {
             throw new Error('User must be authenticated to upload files');
@@ -146,10 +154,14 @@ export class UploadService {
 
     static async deleteFile(
         filePath: string,
-        config: Partial<UploadServiceConfig> = {}
+        config: Partial<UploadServiceConfig> = {},
+        supabase?: SupabaseClient
     ): Promise<void> {
         const finalConfig = { ...this.defaultConfig, ...config };
-        const supabase = createClientComponentClient();
+        
+        if (!supabase) {
+            throw new Error('Supabase client is required');
+        }
 
         const { error } = await supabase.storage
             .from(finalConfig.storageBucket!)

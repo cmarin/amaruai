@@ -27,6 +27,7 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/sidebar-context'
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon } from '@/components/icons/ai-provider-icons'
 import { useSession } from '@/app/utils/session/session';
+import { useSupabase } from '@/app/contexts/SupabaseContext';
 import Uppy from '@uppy/core';
 import Dashboard from '@uppy/react/lib/Dashboard';
 import { UploadService, type UploadedFile } from '@/utils/upload-service';
@@ -93,6 +94,7 @@ export default function ChatPage() {
   const router = useRouter();
   const { sidebarOpen, toggleSidebar } = useSidebar()
   const { session, loading: sessionLoading, getApiHeaders, initialized } = useSession();
+  const supabase = useSupabase();
 
   const [allModels, setAllModels] = useState<ChatModel[]>([])
   const [chatbots, setChatbots] = useState<ChatBot[]>([])
@@ -113,38 +115,34 @@ export default function ChatPage() {
   // Add a ref to track if we've initialized from URL
   const initializedFromUrl = useRef(false);
 
-  const [uppyInstance, setUppyInstance] = useState<Uppy | null>(null);
-  const [showUploadModal, setShowUploadModal] = useState(false);
+  const uppyRef = useRef<Uppy | null>(null);
 
   useEffect(() => {
-    const uppy = UploadService.createUppy(
-      'uppy-chat',
-      {
-        maxFileSize: 10 * 1024 * 1024,
-        maxFiles: 5,
-        allowedFileTypes: ['image/*', 'application/pdf', '.doc', '.docx'],
-        storageFolder: 'uploads',
-        storageBucket: 'amaruai-dev'
-      },
-      (file) => {
-        console.log('File uploaded:', file);
-        if (file.url) {
-          setInput(prev => prev + `\n[File: ${file.name}](${file.url})`);
-        }
-      },
-      () => {
-        setShowUploadModal(false);
-      }
-    );
-
-    setUppyInstance(uppy);
+    if (!uppyRef.current) {
+      uppyRef.current = UploadService.createUppy(
+        'uppy-chat',
+        {},
+        (file) => {
+          console.log('File uploaded:', file);
+          if (file.url) {
+            setInput(prev => prev + `\n[File: ${file.name}](${file.url})`);
+          }
+        },
+        () => {
+          setShowUploadModal(false);
+        },
+        supabase
+      );
+    }
 
     return () => {
-      if (uppy) {
-        uppy.cancelAll();
+      if (uppyRef.current) {
+        uppyRef.current.cancelAll();
       }
     };
-  }, []);
+  }, [supabase]);
+
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const handleFileUpload = () => {
     setShowUploadModal(true);
@@ -152,8 +150,8 @@ export default function ChatPage() {
 
   const handleCloseUploadModal = () => {
     setShowUploadModal(false);
-    if (uppyInstance) {
-      uppyInstance.cancelAll();
+    if (uppyRef.current) {
+      uppyRef.current.cancelAll();
     }
   };
 
@@ -665,7 +663,7 @@ export default function ChatPage() {
           />
         )}
       </div>
-      {uppyInstance && showUploadModal && (
+      {uppyRef.current && showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div ref={modalRef} className="bg-white rounded-lg p-4 relative">
             <Button
@@ -678,7 +676,7 @@ export default function ChatPage() {
               <X className="h-4 w-4" />
             </Button>
             <Dashboard
-              uppy={uppyInstance}
+              uppy={uppyRef.current}
               id="uppy-dashboard-modal"
               width={750}
               height={550}
