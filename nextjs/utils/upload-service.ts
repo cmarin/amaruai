@@ -67,20 +67,27 @@ export class UploadService {
 
                 console.log('Uploading file with path:', filePath);
 
+                const mimeType = file.type || 'application/octet-stream';
+                const fileOptions = {
+                    upsert: false,
+                    contentType: mimeType,
+                    duplex: 'half',
+                    cacheControl: '3600',
+                    mimeType: mimeType,
+                    metadata: {
+                        filename: file.name,
+                        size: file.size.toString(),
+                        mime_type: mimeType,
+                        uploadTime: new Date().toISOString()
+                    }
+                };
+
+                console.log('Uploading file with options:', fileOptions);
+
                 // Upload file to Supabase storage with metadata
                 const { data, error } = await supabase.storage
                     .from(finalConfig.storageBucket!)
-                    .upload(filePath, file.data, {
-                        upsert: false,
-                        contentType: file.type || 'application/octet-stream',
-                        duplex: 'half',
-                        metadata: {
-                            filename: file.name,
-                            size: file.size.toString(),
-                            mimetype: file.type || 'application/octet-stream',
-                            uploadTime: new Date().toISOString()
-                        }
-                    });
+                    .upload(filePath, file.data, fileOptions);
 
                 if (error) throw error;
 
@@ -141,20 +148,27 @@ export class UploadService {
 
         console.log('Uploading file with path:', filePath);
 
+        const mimeType = file.type || 'application/octet-stream';
+        const fileOptions = {
+            upsert: false,
+            contentType: mimeType,
+            duplex: 'half',
+            cacheControl: '3600',
+            mimeType: mimeType,
+            metadata: {
+                filename: file.name,
+                size: file.size.toString(),
+                mime_type: mimeType,
+                uploadTime: new Date().toISOString()
+            }
+        };
+
+        console.log('Uploading file with options:', fileOptions);
+
         // Upload file to Supabase storage with metadata
         const { data, error } = await supabase.storage
             .from(finalConfig.storageBucket!)
-            .upload(filePath, file, {
-                upsert: false,
-                contentType: file.type || 'application/octet-stream',
-                duplex: 'half',
-                metadata: {
-                    filename: file.name,
-                    size: file.size.toString(),
-                    mimetype: file.type || 'application/octet-stream',
-                    uploadTime: new Date().toISOString()
-                }
-            });
+            .upload(filePath, file, fileOptions);
 
         if (error) {
             console.error('Error uploading file:', error);
