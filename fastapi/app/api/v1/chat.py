@@ -99,29 +99,17 @@ async def chat_endpoint(
                 )
 
                 full_response = ""
-                buffer = ""
                 for chunk in response:
                     if hasattr(chunk.choices[0], 'delta') and hasattr(chunk.choices[0].delta, 'content'):
                         content = chunk.choices[0].delta.content
                         if content:
                             full_response += content
-                            buffer += content
-                            
-                            # Process buffer when we have complete lines
-                            if '\n' in buffer:
-                                lines = buffer.split('\n')
-                                # Keep the last potentially incomplete line in buffer
-                                buffer = lines[-1]
-                                
-                                # Send complete lines
-                                for line in lines[:-1]:
-                                    if line.strip():
-                                        yield f"data: {line}\n\n"
-                
-                # Send any remaining content in buffer
-                if buffer.strip():
-                    yield f"data: {buffer}\n\n"
-                
+                            # Split content by newlines and send each line separately
+                            lines = content.split('\n')
+                            for line in lines:
+                                # Send each line with proper SSE format
+                                yield f"data: {line}\n\n"
+
                 # Store the complete response
                 messages.append({"role": "assistant", "content": full_response})
                 message_store[(chat_input.user_id, chat_input.conversation_id)] = messages
