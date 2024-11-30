@@ -32,6 +32,7 @@ import Uppy from '@uppy/core';
 import Dashboard from '@uppy/react/lib/Dashboard';
 import { UploadService, type UploadedFile } from '@/utils/upload-service';
 import { ChatService, ChatBot, Message } from '@/utils/chat-service';
+import { FileUploadPills } from '@/components/file-upload-pills'
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css';
@@ -124,9 +125,7 @@ export default function ChatPage() {
         {},
         (file) => {
           console.log('File uploaded:', file);
-          if (file.url) {
-            setInput(prev => prev + `\n[File: ${file.name}](${file.url})`);
-          }
+          setUploadedFiles(prev => [...prev, file]);
         },
         () => {
           setShowUploadModal(false);
@@ -155,8 +154,8 @@ export default function ChatPage() {
     }
   };
 
-  const handleRemoveFile = (fileName: string) => {
-    setUploadedFiles(prev => prev.filter(file => file.name !== fileName));
+  const handleRemoveFile = (file: UploadedFile) => {
+    setUploadedFiles(prev => prev.filter(f => f.name !== file.name));
   };
 
   // This is the only initialization effect we need
@@ -191,13 +190,21 @@ export default function ChatPage() {
     }
   }, [personas])
 
-  const handleSend = async () => {
-    if (session?.user?.id) {
-      console.log('Authenticated user ID:', session.user.id);
-    }
+  const handleSend = useCallback(async () => {
+    if (!input.trim() && uploadedFiles.length === 0) return
+    
+    // Create message with both text and files
+    const messageText = input.trim()
+    const fileUrls = uploadedFiles.map(f => f.url).join('\n')
+    const fullMessage = [messageText, fileUrls].filter(Boolean).join('\n')
 
+    // Clear input and files
+    setInput('')
+    setUploadedFiles([])
+
+    // Send message...
     await ChatService.handleSend(
-      input,
+      fullMessage,
       chatbots,
       activeChatbots,
       personas,
@@ -210,8 +217,7 @@ export default function ChatPage() {
       },
       session?.user?.id
     );
-    setInput('');
-  };
+  }, [input, uploadedFiles, chatbots, activeChatbots, personas, allModels, session]);
 
   const toggleChatbot = (modelId: string) => {
     const selectedModel = chatModels.find(model => model.id.toString() === modelId);
@@ -423,6 +429,14 @@ export default function ChatPage() {
     };
   }, [showUploadModal]);
 
+  const handleFileUploaded = useCallback((result: UploadedFile) => {
+    setUploadedFiles(prev => [...prev, result])
+  }, [])
+
+  const removeFile = useCallback((fileToRemove: UploadedFile) => {
+    setUploadedFiles(files => files.filter(file => file.url !== fileToRemove.url))
+  }, [])
+
   return (
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-white"> 
@@ -551,105 +565,106 @@ export default function ChatPage() {
                 ))}
               </div>
               <div className="p-4 bg-white border-t">
-                <div className="flex items-center space-x-2">
-                  <div className={`flex-shrink-0 ${sidebarOpen ? '-ml-4' : ''}`}>
-                    <PromptSelector 
-                      prompts={prompts} 
-                      categories={categories} 
-                      onSelectPrompt={handleSelectPrompt}
-                    >
-                      <Button variant="outline" size="icon" className="w-8 h-8">
-                        <BookOpen className="h-4 w-4" />
-                        <span className="sr-only">Open Prompt Selector</span>
-                      </Button>
-                    </PromptSelector>
-                  </div>
-                  <div className="flex-grow relative">
-                    <Textarea 
-                      value={input} 
-                      onChange={handleInputChange}
-                      placeholder="Type your message here... (Use '/' to open prompt library)"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          handleSend()
-                        }
-                      }}
-                      className="w-full resize-vertical min-h-[40px] pr-20"
-                      rows={1}
-                    />
-                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex space-x-2">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={handleFileUpload} 
-                        className="h-8 w-8 p-0" 
-                        title="Upload file"
+                <div className="flex flex-col w-full space-y-2">
+                  <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
+                  <div className="flex items-center space-x-2">
+                    <div className={`flex-shrink-0 ${sidebarOpen ? '-ml-4' : ''}`}>
+                      <PromptSelector 
+                        prompts={prompts} 
+                        categories={categories} 
+                        onSelectPrompt={handleSelectPrompt}
                       >
-                        <Paperclip className="h-4 w-4" />
-                        <span className="sr-only">Upload file</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={clearAllConversations}
-                        className="h-8 w-8 p-0"
-                        title="Clear all conversations"
-                      >
-                        <Eraser className="h-4 w-4" />
-                        <span className="sr-only">Clear all conversations</span>
-                      </Button>
+                        <Button variant="outline" size="icon" className="w-8 h-8">
+                          <BookOpen className="h-4 w-4" />
+                          <span className="sr-only">Open Prompt Selector</span>
+                        </Button>
+                      </PromptSelector>
                     </div>
-                  </div>
-                  <Button onClick={handleSend} className="bg-blue-600 hover:bg-blue-700 text-white">Send</Button>
-                  <Button
-                    variant={layoutMode === 'single' ? "secondary" : "ghost"}
-                    size="icon"
-                    onClick={() => handleLayoutChange('single')}
-                    title="Single chat"
-                  >
-                    <Square className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={layoutMode === 'split' ? "secondary" : "ghost"}
-                    size="icon"
-                    onClick={() => handleLayoutChange('split')}
-                    title="Split chat"
-                  >
-                    <Columns className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={layoutMode === 'grid' ? "secondary" : "ghost"}
-                    size="icon"
-                    onClick={() => handleLayoutChange('grid')}
-                    title="Grid chat"
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                </div>
-                {uploadedFiles.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {uploadedFiles.map((file, index) => (
-                      <div key={index} className="relative group">
-                        <div className="bg-gray-200 rounded-md p-2 flex items-center">
-                          <File className="h-4 w-4 mr-2" />
-                          <span className="text-xs truncate max-w-[100px]">{file.name}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRemoveFile(file.name)}
-                            className="ml-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-black text-white text-xs rounded px-2 py-1 mb-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                          {file.name}
-                        </div>
+                    <div className="flex-grow relative">
+                      <Textarea 
+                        value={input} 
+                        onChange={handleInputChange}
+                        placeholder="Type your message here... (Use '/' to open prompt library)"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault()
+                            handleSend()
+                          }
+                        }}
+                        className="w-full resize-vertical min-h-[40px] pr-20"
+                        rows={1}
+                      />
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex space-x-2">
+                        {uppyRef.current && (
+                          <Dashboard
+                            uppy={uppyRef.current}
+                            proudlyDisplayPoweredByUppy={false}
+                            width="0"
+                            height="0"
+                            hideUploadButton
+                            disabled={false}
+                          />
+                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => {
+                            const dashboardEl = document.querySelector('.uppy-Dashboard-input')
+                            if (dashboardEl instanceof HTMLElement) {
+                              dashboardEl.click()
+                            }
+                          }}
+                          className="h-8 w-8 p-0" 
+                          title="Upload file"
+                        >
+                          <Paperclip className="h-4 w-4" />
+                          <span className="sr-only">Upload file</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={clearAllConversations}
+                          className="h-8 w-8 p-0"
+                          title="Clear all conversations"
+                        >
+                          <Eraser className="h-4 w-4" />
+                          <span className="sr-only">Clear all conversations</span>
+                        </Button>
                       </div>
-                    ))}
+                    </div>
+                    <Button 
+                      onClick={handleSend} 
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      disabled={false || (!input.trim() && uploadedFiles.length === 0)}
+                    >
+                      Send
+                    </Button>
+                    <Button
+                      variant={layoutMode === 'single' ? "secondary" : "ghost"}
+                      size="icon"
+                      onClick={() => handleLayoutChange('single')}
+                      title="Single chat"
+                    >
+                      <Square className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={layoutMode === 'split' ? "secondary" : "ghost"}
+                      size="icon"
+                      onClick={() => handleLayoutChange('split')}
+                      title="Split chat"
+                    >
+                      <Columns className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={layoutMode === 'grid' ? "secondary" : "ghost"}
+                      size="icon"
+                      onClick={() => handleLayoutChange('grid')}
+                      title="Grid chat"
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </Button>
                   </div>
-                )}
+                </div>
               </div>
             </>
           ) : null}
