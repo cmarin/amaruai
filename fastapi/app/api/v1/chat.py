@@ -83,8 +83,14 @@ async def chat_endpoint(
                 
                 messages.append({"role": "user", "content": chat_input.message})
                 
+                # Format model name correctly for OpenRouter
+                if "google/gemini" in model_name:
+                    model_name = f"openrouter/{model_name}"
+                elif not model_name.startswith("openrouter/"):
+                    model_name = f"openrouter/{model_name}"
+
                 response = completion(
-                    model="openrouter/google/gemini-pro-1.5-exp",
+                    model=model_name,
                     messages=messages,
                     stream=True,
                     temperature=0.6,
@@ -98,17 +104,27 @@ async def chat_endpoint(
                         content = chunk.choices[0].delta.content
                         if content:
                             full_response += content
-                            # Send content with proper SSE format
-                            yield f"data: {content}\n\n"
+                            # Split the chunk content into lines
+                            lines = content.splitlines()
+                            for line in lines:
+                                if line.strip():  # Only send non-empty lines
+                                    yield f"data: {line}\n"
+                            # Add a newline after each chunk's lines
+                            yield "\n"
                 
                 # Store the complete response
                 messages.append({"role": "assistant", "content": full_response})
                 message_store[(chat_input.user_id, chat_input.conversation_id)] = messages
+                
                 yield "data: [DONE]\n\n"
 
             except Exception as e:
                 logging.error(f"Error during streaming: {str(e)}")
-                yield f"data: Error: Unable to process request. Please try again later.\n\n"
+                # Try to provide more specific error messages
+                if "Provider NOT provided" in str(e):
+                    yield f"data: Error: Invalid model configuration. Please try a different model.\n\n"
+                else:
+                    yield f"data: Error: Unable to process request. Please try again later.\n\n"
                 yield "data: [DONE]\n\n"
 
         return StreamingResponse(
