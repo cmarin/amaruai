@@ -2,12 +2,12 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { serve } from "jsr:@std/http@^0.224.0/server"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2?no-check"
 import { resolvePDFJS } from 'npm:pdfjs-serverless'
+import mammoth from "npm:mammoth@1.6.0"
 
 serve(async (req) => {
   try {
     const payload = await req.json();
     const storageId = payload.record.id;
-    
     const supabaseClient = createClient(
       Deno.env.get('URL') ?? '',
       Deno.env.get('SERVICE_ROLE_KEY') ?? ''
@@ -38,17 +38,21 @@ serve(async (req) => {
       const { getDocument } = await resolvePDFJS();
       const typedArray = new Uint8Array(await fileData.arrayBuffer());
       const pdf = await getDocument({ data: typedArray, useSystemFonts: true }).promise;
-      
       const textContent = [];
+
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const content = await page.getTextContent();
         textContent.push(content.items.map(item => item.str).join(' '));
       }
-      
+
       extractedText = textContent.join('\n');
     } else if (asset.mime_type === 'text/plain') {
       extractedText = new TextDecoder().decode(fileData);
+    } else if (asset.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      const buffer = await fileData.arrayBuffer();
+      const result = await mammoth.extractRawText({ buffer });
+      extractedText = result.value;
     } else {
       throw new Error(`Unsupported mime type: ${asset.mime_type}`);
     }
@@ -77,7 +81,6 @@ serve(async (req) => {
         headers: { "Content-Type": "application/json" }
       }
     );
-
   } catch (error) {
     console.error('Function error:', error);
     return new Response(
@@ -88,4 +91,5 @@ serve(async (req) => {
       }
     );
   }
+
 });
