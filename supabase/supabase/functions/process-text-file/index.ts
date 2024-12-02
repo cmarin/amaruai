@@ -3,6 +3,7 @@ import { serve } from "jsr:@std/http@^0.224.0/server"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2?no-check"
 import { resolvePDFJS } from 'npm:pdfjs-serverless'
 import mammoth from "npm:mammoth@1.6.0"
+import { Presentation } from "https://esm.sh/pptx-parser@1.1.1"
 
 serve(async (req) => {
   try {
@@ -47,12 +48,27 @@ serve(async (req) => {
       }
 
       extractedText = textContent.join('\n');
-    } else if (asset.mime_type === 'text/plain') {
+    } else if (asset.mime_type === 'text/plain' || asset.mime_type === 'text/markdown') {
       extractedText = new TextDecoder().decode(fileData);
     } else if (asset.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       const buffer = await fileData.arrayBuffer();
       const result = await mammoth.extractRawText({ buffer });
       extractedText = result.value;
+    } else if (asset.mime_type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+      const buffer = await fileData.arrayBuffer();
+      const presentation = await Presentation.fromBuffer(new Uint8Array(buffer));
+      const slides = presentation.slides;
+      const texts = [];
+      
+      for (const slide of slides) {
+        for (const shape of slide.shapes) {
+          if (shape.text) {
+            texts.push(shape.text);
+          }
+        }
+      }
+      
+      extractedText = texts.join('\n');
     } else {
       throw new Error(`Unsupported mime type: ${asset.mime_type}`);
     }
