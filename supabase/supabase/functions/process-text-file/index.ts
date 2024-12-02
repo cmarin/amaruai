@@ -3,7 +3,7 @@ import { serve } from "jsr:@std/http@^0.224.0/server"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2?no-check"
 import { resolvePDFJS } from 'npm:pdfjs-serverless'
 import mammoth from "npm:mammoth@1.6.0"
-import { Presentation } from "https://esm.sh/pptx-parser@1.1.1"
+import pptxParser from "https://esm.sh/pptx-parser@1.1.1"
 
 serve(async (req) => {
   try {
@@ -56,11 +56,10 @@ serve(async (req) => {
       extractedText = result.value;
     } else if (asset.mime_type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
       const buffer = await fileData.arrayBuffer();
-      const presentation = await Presentation.fromBuffer(new Uint8Array(buffer));
-      const slides = presentation.slides;
+      const presentation = await pptxParser.parsePresentation(new Uint8Array(buffer));
       const texts = [];
       
-      for (const slide of slides) {
+      for (const slide of presentation.slides) {
         for (const shape of slide.shapes) {
           if (shape.text) {
             texts.push(shape.text);
