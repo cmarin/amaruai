@@ -20,8 +20,19 @@ export class UploadService {
     private static defaultConfig: UploadServiceConfig = {
         maxFileSize: 10 * 1024 * 1024, // 10MB
         maxFiles: 5,
-        allowedFileTypes: ['image/*', 'application/pdf', '.doc', '.docx'],
-        storageFolder: 'uploads',
+        allowedFileTypes: [
+            'image/*',                    // All image types
+            'application/pdf',            // PDF files
+            '.doc', '.docx',             // Word documents
+            '.ppt', '.pptx',             // PowerPoint presentations
+            '.txt',                       // Text files
+            '.md', '.markdown',           // Markdown files
+            'text/plain',                 // Plain text
+            'text/markdown',              // Markdown MIME type
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation', // PPTX
+            'application/vnd.ms-powerpoint'  // PPT
+        ],
+        storageFolder: 'chats',
         storageBucket: 'amaruai-dev'
     };
 
@@ -60,10 +71,9 @@ export class UploadService {
                     throw new Error('User must be authenticated to upload files');
                 }
 
-                const fileExt = file.name.split('.').pop();
                 const fileUuid = uuidv4();
-                const fileName = `${Math.random()}.${fileExt}`;
-                const filePath = `${finalConfig.storageFolder}/${session.user.id}/${fileUuid}/${fileName}`;
+                // Keep the original filename
+                const filePath = `${finalConfig.storageFolder}/${session.user.id}/${fileUuid}/${file.name}`;
 
                 console.log('Uploading file:', {
                     path: filePath,
@@ -157,10 +167,9 @@ export class UploadService {
             throw new Error('User must be authenticated to upload files');
         }
 
-        const fileExt = file.name.split('.').pop();
         const fileUuid = uuidv4();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${finalConfig.storageFolder}/${session.user.id}/${fileUuid}/${fileName}`;
+        // Keep the original filename
+        const filePath = `${finalConfig.storageFolder}/${session.user.id}/${fileUuid}/${file.name}`;
 
         console.log('Uploading file:', {
             path: filePath,
