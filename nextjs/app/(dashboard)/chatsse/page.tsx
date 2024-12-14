@@ -24,7 +24,7 @@ interface ChatInstance {
   modelId: string;
   name: string;
   model: ChatModel;
-  messages: any[];
+  persona?: string;
 }
 
 const getProviderIcon = (modelId: string, modelName: string) => {
@@ -42,12 +42,13 @@ const getProviderIcon = (modelId: string, modelName: string) => {
 
 export default function Chat() {
   const { sidebarOpen } = useSidebar()
-  const { chatModels, isLoading: dataLoading } = useData()
+  const { chatModels, personas, isLoading: dataLoading } = useData()
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('single')
   const [chatInstances, setChatInstances] = useState<ChatInstance[]>([])
   const [activeChatIds, setActiveChatIds] = useState<string[]>([])
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
   const [selectedModelId, setSelectedModelId] = useState<string>()
+  const [selectedPersona, setSelectedPersona] = useState<string>('default')
 
   const {
     messages,
@@ -59,71 +60,9 @@ export default function Chat() {
   } = useChat({
     api: '/api/chat',
     body: {
-      modelId: selectedModelId
-    },
-    onResponse: (response) => {
-      if (response.status === 200) {
-        console.log('Streaming response received');
-        const reader = response.body?.getReader();
-        if (reader) {
-          const decoder = new TextDecoder();
-          const readChunk = async () => {
-            const { done, value } = await reader.read();
-            if (done) {
-              return;
-            }
-            const chunk = decoder.decode(value);
-            
-            // Process the chunk
-            const lines = chunk.split('\n');
-            let content = '';
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const jsonData = JSON.parse(line.slice(5));
-                  if (jsonData.choices && jsonData.choices[0].delta.content) {
-                    content += jsonData.choices[0].delta.content;
-                  }
-                } catch (error) {
-                  console.error('Error parsing SSE data:', error);
-                }
-              }
-            }
-            
-            // Update the messages
-            setMessages((prevMessages) => {
-              const lastMessage = prevMessages[prevMessages.length - 1];
-              if (lastMessage && lastMessage.role === 'assistant') {
-                return [
-                  ...prevMessages.slice(0, -1),
-                  { ...lastMessage, content: lastMessage.content + content },
-                ];
-              } else {
-                return [...prevMessages, { role: 'assistant', content, id: Date.now().toString() }];
-              }
-            });
-            
-            readChunk();
-          };
-          readChunk();
-        }
-      }
-    },
-    onFinish: (message) => {
-      console.log('Message finished:', message);
-      // Update chat instances with new message
-      setChatInstances(prev => 
-        prev.map(chat => {
-          if (activeChatIds.includes(chat.id)) {
-            return {
-              ...chat,
-              messages: messages
-            };
-          }
-          return chat;
-        })
-      );
-    },
+      modelId: selectedModelId,
+      persona: selectedPersona
+    }
   })
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -143,7 +82,7 @@ export default function Chat() {
         modelId: defaultModel.id.toString(),
         name: defaultModel.name,
         model: defaultModel,
-        messages: []
+        persona: 'default'
       };
       setChatInstances([initialInstance]);
       setActiveChatIds([initialInstance.id]);
@@ -163,7 +102,7 @@ export default function Chat() {
         modelId: model.id.toString(),
         name: model.name,
         model: model,
-        messages: []
+        persona: 'default'
       };
       setChatInstances(prev => [...prev, newInstance]);
     }
@@ -175,35 +114,17 @@ export default function Chat() {
   }
 
   const copyToClipboard = (chatId: string) => {
-    const chat = chatInstances.find(c => c.id === chatId)
-    if (chat) {
-      const chatContent = messages.map(msg => `${msg.role}: ${msg.content}`).join('\n')
-      navigator.clipboard.writeText(chatContent).then(() => {
-        setCopiedStates(prev => ({ ...prev, [chatId]: true }))
-        setTimeout(() => {
-          setCopiedStates(prev => ({ ...prev, [chatId]: false }))
-        }, 2000)
-      })
-    }
+    const chatContent = messages.map(msg => `${msg.role}: ${msg.content}`).join('\n')
+    navigator.clipboard.writeText(chatContent).then(() => {
+      setCopiedStates(prev => ({ ...prev, [chatId]: true }))
+      setTimeout(() => {
+        setCopiedStates(prev => ({ ...prev, [chatId]: false }))
+      }, 2000)
+    })
   }
 
-  const clearChat = (chatId: string) => {
+  const clearChat = () => {
     setMessages([])
-    setChatInstances(prev =>
-      prev.map(chat => {
-        if (chat.id === chatId) {
-          return { ...chat, messages: [] };
-        }
-        return chat;
-      })
-    );
-  }
-
-  const clearAllChats = () => {
-    setMessages([])
-    setChatInstances(prev =>
-      prev.map(chat => ({ ...chat, messages: [] }))
-    );
   }
 
   const handleModelChange = (chatId: string, newModelId: string) => {
@@ -228,6 +149,20 @@ export default function Chat() {
     }
   }
 
+  const handlePersonaChange = (chatId: string, newPersona: string) => {
+    setChatInstances(prev =>
+      prev.map(chat => {
+        if (chat.id === chatId) {
+          return { ...chat, persona: newPersona };
+        }
+        return chat;
+      })
+    );
+    if (activeChatIds.length === 1 && activeChatIds[0] === chatId) {
+      setSelectedPersona(newPersona);
+    }
+  }
+
   const toggleChatbot = (modelId: string) => {
     const selectedModel = chatModels.find(model => model.id.toString() === modelId);
     if (selectedModel) {
@@ -236,7 +171,7 @@ export default function Chat() {
         modelId: selectedModel.id.toString(),
         name: selectedModel.name,
         model: selectedModel,
-        messages: []
+        persona: 'default'
       };
       setChatInstances([newInstance]);
       setActiveChatIds([newInstance.id]);
@@ -260,7 +195,7 @@ export default function Chat() {
               .map(chat => (
                 <div key={chat.id} className="bg-white rounded-lg shadow flex flex-col overflow-hidden">
                   <div className="p-4 border-b flex justify-between items-center">
-                    <div className="flex items-center">
+                    <div className="flex items-center space-x-2">
                       {(() => {
                         const IconComponent = getProviderIcon(chat.modelId, chat.name);
                         return <IconComponent className="mr-2" size={18} />;
@@ -276,6 +211,22 @@ export default function Chat() {
                           {chatModels.map((model) => (
                             <SelectItem key={model.id} value={model.id.toString()}>
                               {model.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select 
+                        value={chat.persona || 'default'} 
+                        onValueChange={(value) => handlePersonaChange(chat.id, value)}
+                      >
+                        <SelectTrigger className="w-[120px]">
+                          <SelectValue placeholder="Persona" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="default">Default</SelectItem>
+                          {personas.map((persona) => (
+                            <SelectItem key={persona.id} value={persona.role}>
+                              {persona.role}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -298,7 +249,7 @@ export default function Chat() {
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => clearChat(chat.id)}
+                        onClick={clearChat}
                         className="w-8 h-8 p-0"
                         title="Clear Chat"
                       >
@@ -359,9 +310,9 @@ export default function Chat() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => clearAllChats()}
+                onClick={clearChat}
                 className="h-8 w-8 p-0"
-                title="Clear all chats"
+                title="Clear chat"
               >
                 <Eraser className="h-4 w-4" />
               </Button>
