@@ -63,7 +63,8 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error('Unexpected error in API route:', error);
-    return NextResponse.json({ error: 'An unexpected error occurred', details: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    return NextResponse.json({ error: 'An unexpected error occurred', details: errorMessage }, { status: 500 });
   }
 }
 
