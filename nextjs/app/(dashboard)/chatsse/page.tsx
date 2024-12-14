@@ -40,6 +40,116 @@ const getProviderIcon = (modelId: string, modelName: string) => {
   return MessageSquare // fallback to default icon
 }
 
+function ChatWindow({ instance, onModelChange, onPersonaChange, onCopy, onClear, copiedState, chatHook }: {
+  instance: ChatInstance;
+  onModelChange: (modelId: string) => void;
+  onPersonaChange: (persona: string) => void;
+  onCopy: () => void;
+  onClear: () => void;
+  copiedState: boolean;
+  chatHook: ReturnType<typeof useChat>;
+}) {
+  const { chatModels, personas } = useData();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatHook.messages]);
+
+  return (
+    <div className="bg-white rounded-lg shadow flex flex-col overflow-hidden">
+      <div className="p-4 border-b flex justify-between items-center">
+        <div className="flex items-center space-x-2">
+          {(() => {
+            const IconComponent = getProviderIcon(instance.modelId, instance.name);
+            return <IconComponent className="mr-2" size={18} />;
+          })()}
+          <Select 
+            value={instance.modelId}
+            onValueChange={onModelChange}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue>{instance.name}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {chatModels.map((model) => (
+                <SelectItem key={model.id} value={model.id.toString()}>
+                  {model.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select 
+            value={instance.persona || 'default'} 
+            onValueChange={onPersonaChange}
+          >
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Persona" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Default</SelectItem>
+              {personas.map((persona) => (
+                <SelectItem key={persona.id} value={persona.role}>
+                  {persona.role}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onCopy}
+            className="w-8 h-8 p-0"
+            title={copiedState ? "Copied!" : "Copy chat content"}
+          >
+            {copiedState ? (
+              <Check className="h-4 w-4" />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onClear}
+            className="w-8 h-8 p-0"
+            title="Clear Chat"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      <ScrollArea className="flex-1 p-4">
+        <div className="flex flex-col gap-4">
+          {chatHook.messages.map((message) => (
+            <div
+              key={message.id}
+              className={`mb-4 ${
+                message.role === 'user' ? 'text-right' : 'text-left'
+              }`}
+            >
+              <div
+                className={`inline-block p-2 rounded-lg ${
+                  message.role === 'user'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 text-black'
+                }`}
+              >
+                <ReactMarkdown>{message.content}</ReactMarkdown>
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
 export default function Chat() {
   const { sidebarOpen } = useSidebar()
   const { chatModels, personas, isLoading: dataLoading } = useData()
@@ -48,17 +158,14 @@ export default function Chat() {
   const [activeChatIds, setActiveChatIds] = useState<string[]>([])
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
   const [input, setInput] = useState('')
-  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Create chat hooks for each active instance
-  const chatHooks = chatInstances.map(instance => useChat({
-    api: '/api/chat',
-    id: instance.id,
-    body: {
-      modelId: instance.modelId,
-      persona: instance.persona || 'default'
-    }
-  }));
+  // Create individual chat hooks
+  const chat1 = useChat({ api: '/api/chat', id: chatInstances[0]?.id, body: { modelId: chatInstances[0]?.modelId, persona: chatInstances[0]?.persona || 'default' } });
+  const chat2 = useChat({ api: '/api/chat', id: chatInstances[1]?.id, body: { modelId: chatInstances[1]?.modelId, persona: chatInstances[1]?.persona || 'default' } });
+  const chat3 = useChat({ api: '/api/chat', id: chatInstances[2]?.id, body: { modelId: chatInstances[2]?.modelId, persona: chatInstances[2]?.persona || 'default' } });
+  const chat4 = useChat({ api: '/api/chat', id: chatInstances[3]?.id, body: { modelId: chatInstances[3]?.modelId, persona: chatInstances[3]?.persona || 'default' } });
+
+  const chatHooks = [chat1, chat2, chat3, chat4];
 
   // Initialize chat instances when chat models are loaded
   useEffect(() => {
@@ -74,7 +181,7 @@ export default function Chat() {
       setChatInstances([initialInstance]);
       setActiveChatIds([initialInstance.id]);
     }
-  }, [dataLoading, chatModels]);
+  }, [dataLoading, chatModels, chatInstances.length]);
 
   const handleLayoutChange = (mode: LayoutMode) => {
     const neededInstances = mode === 'split' ? 2 : mode === 'grid' ? 4 : 1;
@@ -206,13 +313,6 @@ export default function Chat() {
     }
   };
 
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [chatHooks.map(chat => chat.messages)]);
-
   return (
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-white">
@@ -226,94 +326,16 @@ export default function Chat() {
             {chatInstances
               .filter(chat => activeChatIds.includes(chat.id))
               .map((chat, index) => (
-                <div key={chat.id} className="bg-white rounded-lg shadow flex flex-col overflow-hidden">
-                  <div className="p-4 border-b flex justify-between items-center">
-                    <div className="flex items-center space-x-2">
-                      {(() => {
-                        const IconComponent = getProviderIcon(chat.modelId, chat.name);
-                        return <IconComponent className="mr-2" size={18} />;
-                      })()}
-                      <Select 
-                        value={chat.modelId}
-                        onValueChange={(value) => handleModelChange(chat.id, value)}
-                      >
-                        <SelectTrigger className="w-[180px]">
-                          <SelectValue>{chat.name}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {chatModels.map((model) => (
-                            <SelectItem key={model.id} value={model.id.toString()}>
-                              {model.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select 
-                        value={chat.persona || 'default'} 
-                        onValueChange={(value) => handlePersonaChange(chat.id, value)}
-                      >
-                        <SelectTrigger className="w-[120px]">
-                          <SelectValue placeholder="Persona" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="default">Default</SelectItem>
-                          {personas.map((persona) => (
-                            <SelectItem key={persona.id} value={persona.role}>
-                              {persona.role}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => copyToClipboard(chat.id)}
-                        className="w-8 h-8 p-0"
-                        title={copiedStates[chat.id] ? "Copied!" : "Copy chat content"}
-                      >
-                        {copiedStates[chat.id] ? (
-                          <Check className="h-4 w-4" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => clearChat(chat.id)}
-                        className="w-8 h-8 p-0"
-                        title="Clear Chat"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <ScrollArea className="flex-1 p-4">
-                    <div className="flex flex-col gap-4">
-                      {chatHooks[index].messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`mb-4 ${
-                            message.role === 'user' ? 'text-right' : 'text-left'
-                          }`}
-                        >
-                          <div
-                            className={`inline-block p-2 rounded-lg ${
-                              message.role === 'user'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-200 text-black'
-                            }`}
-                          >
-                            <ReactMarkdown>{message.content}</ReactMarkdown>
-                          </div>
-                        </div>
-                      ))}
-                      <div ref={messagesEndRef} />
-                    </div>
-                  </ScrollArea>
-                </div>
+                <ChatWindow
+                  key={chat.id}
+                  instance={chat}
+                  onModelChange={(modelId) => handleModelChange(chat.id, modelId)}
+                  onPersonaChange={(persona) => handlePersonaChange(chat.id, persona)}
+                  onCopy={() => copyToClipboard(chat.id)}
+                  onClear={() => clearChat(chat.id)}
+                  copiedState={copiedStates[chat.id] || false}
+                  chatHook={chatHooks[index]}
+                />
               ))}
           </div>
           <div className="p-4 bg-white border-t">
