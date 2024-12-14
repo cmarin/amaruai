@@ -40,83 +40,25 @@ const getProviderIcon = (modelId: string, modelName: string) => {
   return MessageSquare // fallback to default icon
 }
 
-function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClear, copiedState, submittedInput }: {
+function ChatWindow({ instance, onModelChange, onPersonaChange, onCopy, onClear, copiedState }: {
   instance: ChatInstance;
   onModelChange: (modelId: string) => void;
   onPersonaChange: (persona: string) => void;
   onCopy: () => void;
   onClear: () => void;
   copiedState: boolean;
-  submittedInput: string;
 }) {
   const { chatModels, personas } = useData();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, setMessages } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: '/api/chat',
     id: instance.id,
     body: {
       modelId: instance.modelId,
       persona: instance.persona || 'default'
-    },
-    onResponse: (response) => {
-      if (response.status === 200) {
-        console.log('Streaming response received for', instance.name);
-        const reader = response.body?.getReader();
-        if (reader) {
-          const decoder = new TextDecoder();
-          const readChunk = async () => {
-            const { done, value } = await reader.read();
-            if (done) {
-              return;
-            }
-            const chunk = decoder.decode(value);
-            
-            // Process the chunk
-            const lines = chunk.split('\n');
-            let content = '';
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const jsonData = JSON.parse(line.slice(5));
-                  if (jsonData.choices && jsonData.choices[0].delta.content) {
-                    content += jsonData.choices[0].delta.content;
-                  }
-                } catch (error) {
-                  console.error('Error parsing SSE data:', error);
-                }
-              }
-            }
-            
-            // Update the messages
-            setMessages((prevMessages) => {
-              const lastMessage = prevMessages[prevMessages.length - 1];
-              if (lastMessage && lastMessage.role === 'assistant') {
-                return [
-                  ...prevMessages.slice(0, -1),
-                  { ...lastMessage, content: lastMessage.content + content },
-                ];
-              } else {
-                return [...prevMessages, { role: 'assistant', content, id: Date.now().toString() }];
-              }
-            });
-            
-            readChunk();
-          };
-          readChunk();
-        }
-      }
-    },
-    onFinish: (message) => {
-      console.log('Message finished for', instance.name, ':', message);
-    },
-  });
-
-  useEffect(() => {
-    if (submittedInput) {
-      setMessages((prevMessages) => [...prevMessages, { role: 'user', content: submittedInput, id: Date.now().toString() }]);
     }
-  }, [submittedInput, setMessages]);
+  });
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -183,7 +125,7 @@ function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClea
             size="icon"
             onClick={() => {
               onClear();
-              setMessages([]);
+              // setMessages([]);
             }}
             className="w-8 h-8 p-0"
             title="Clear Chat"
@@ -371,7 +313,7 @@ export default function Chat() {
             {chatInstances
               .filter(chat => activeChatIds.includes(chat.id))
               .map((chat) => (
-                <ChatInstance
+                <ChatWindow
                   key={chat.id}
                   instance={chat}
                   onModelChange={(modelId) => handleModelChange(chat.id, modelId)}
@@ -379,7 +321,6 @@ export default function Chat() {
                   onCopy={() => copyToClipboard(chat.id)}
                   onClear={() => {}}
                   copiedState={copiedStates[chat.id] || false}
-                  submittedInput={submittedInput}
                 />
               ))}
           </div>
@@ -434,4 +375,3 @@ export default function Chat() {
     </div>
   );
 }
-
