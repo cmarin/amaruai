@@ -102,7 +102,7 @@ for module in protected_routes:
 # Include chatsse router (public route with API prefix)
 app.include_router(
     chatsse.router,
-    prefix="/api/v1"  # Add back the API prefix
+    prefix="/api/v1"  # Add back the API prefix, again
 )
 
 # Include admin routes
