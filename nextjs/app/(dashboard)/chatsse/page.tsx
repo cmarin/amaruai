@@ -40,18 +40,19 @@ const getProviderIcon = (modelId: string, modelName: string) => {
   return MessageSquare // fallback to default icon
 }
 
-function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClear, copiedState }: {
+function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClear, copiedState, submittedInput }: {
   instance: ChatInstance;
   onModelChange: (modelId: string) => void;
   onPersonaChange: (persona: string) => void;
   onCopy: () => void;
   onClear: () => void;
   copiedState: boolean;
+  submittedInput: string;
 }) {
   const { chatModels, personas } = useData();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
+  const { messages, setMessages } = useChat({
     api: '/api/chat',
     id: instance.id,
     body: {
@@ -110,6 +111,12 @@ function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClea
       console.log('Message finished for', instance.name, ':', message);
     },
   });
+
+  useEffect(() => {
+    if (submittedInput) {
+      setMessages((prevMessages) => [...prevMessages, { role: 'user', content: submittedInput, id: Date.now().toString() }]);
+    }
+  }, [submittedInput, setMessages]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -208,26 +215,6 @@ function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClea
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
-      <div className="p-4 border-t">
-        <form onSubmit={handleSubmit} className="flex space-x-2">
-          <Textarea
-            value={input}
-            onChange={handleInputChange}
-            placeholder="Type your message..."
-            className="flex-grow resize-none"
-            rows={1}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-          />
-          <Button type="submit" disabled={isLoading || !input.trim()}>
-            {isLoading ? 'Thinking...' : 'Send'}
-          </Button>
-        </form>
-      </div>
     </div>
   );
 }
@@ -392,6 +379,7 @@ export default function Chat() {
                   onCopy={() => copyToClipboard(chat.id)}
                   onClear={() => {}}
                   copiedState={copiedStates[chat.id] || false}
+                  submittedInput={submittedInput}
                 />
               ))}
           </div>
