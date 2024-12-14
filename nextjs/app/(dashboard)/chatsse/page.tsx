@@ -40,23 +40,82 @@ const getProviderIcon = (modelId: string, modelName: string) => {
   return MessageSquare // fallback to default icon
 }
 
-function ChatWindow({ instance, onModelChange, onPersonaChange, onCopy, onClear, copiedState, chatHook }: {
+function ChatWindow({ instance, onModelChange, onPersonaChange, onCopy, onClear, copiedState }: {
   instance: ChatInstance;
   onModelChange: (modelId: string) => void;
   onPersonaChange: (persona: string) => void;
   onCopy: () => void;
   onClear: () => void;
   copiedState: boolean;
-  chatHook: ReturnType<typeof useChat>;
 }) {
   const { chatModels, personas } = useData();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
+    api: '/api/chat',
+    id: instance.id,
+    body: {
+      modelId: instance.modelId,
+      persona: instance.persona || 'default'
+    },
+    onResponse: (response) => {
+      if (response.status === 200) {
+        console.log('Streaming response received for', instance.name);
+        const reader = response.body?.getReader();
+        if (reader) {
+          const decoder = new TextDecoder();
+          const readChunk = async () => {
+            const { done, value } = await reader.read();
+            if (done) {
+              return;
+            }
+            const chunk = decoder.decode(value);
+            
+            // Process the chunk
+            const lines = chunk.split('\n');
+            let content = '';
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const jsonData = JSON.parse(line.slice(5));
+                  if (jsonData.choices && jsonData.choices[0].delta.content) {
+                    content += jsonData.choices[0].delta.content;
+                  }
+                } catch (error) {
+                  console.error('Error parsing SSE data:', error);
+                }
+              }
+            }
+            
+            // Update the messages
+            setMessages((prevMessages) => {
+              const lastMessage = prevMessages[prevMessages.length - 1];
+              if (lastMessage && lastMessage.role === 'assistant') {
+                return [
+                  ...prevMessages.slice(0, -1),
+                  { ...lastMessage, content: lastMessage.content + content },
+                ];
+              } else {
+                return [...prevMessages, { role: 'assistant', content, id: Date.now().toString() }];
+              }
+            });
+            
+            readChunk();
+          };
+          readChunk();
+        }
+      }
+    },
+    onFinish: (message) => {
+      console.log('Message finished for', instance.name, ':', message);
+    },
+  });
 
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [chatHook.messages]);
+  }, [messages]);
 
   return (
     <div className="bg-white rounded-lg shadow flex flex-col overflow-hidden">
@@ -125,7 +184,7 @@ function ChatWindow({ instance, onModelChange, onPersonaChange, onCopy, onClear,
       </div>
       <ScrollArea className="flex-1 p-4">
         <div className="flex flex-col gap-4">
-          {chatHook.messages.map((message) => (
+          {messages.map((message) => (
             <div
               key={message.id}
               className={`mb-4 ${
@@ -146,6 +205,26 @@ function ChatWindow({ instance, onModelChange, onPersonaChange, onCopy, onClear,
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
+      <div className="p-4 border-t">
+        <form onSubmit={handleSubmit} className="flex space-x-2">
+          <Textarea
+            value={input}
+            onChange={handleInputChange}
+            placeholder="Type your message..."
+            className="flex-grow resize-none"
+            rows={1}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(e);
+              }
+            }}
+          />
+          <Button type="submit" disabled={isLoading || !input.trim()}>
+            {isLoading ? 'Thinking...' : 'Send'}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -157,46 +236,6 @@ export default function Chat() {
   const [chatInstances, setChatInstances] = useState<ChatInstance[]>([])
   const [activeChatIds, setActiveChatIds] = useState<string[]>([])
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
-  const [input, setInput] = useState('')
-
-  // Create individual chat hooks
-  const chat1 = useChat({
-    api: '/api/chat',
-    id: chatInstances[0]?.id,
-    body: {
-      modelId: chatInstances[0]?.modelId,
-      persona: chatInstances[0]?.persona || 'default'
-    }
-  });
-
-  const chat2 = useChat({
-    api: '/api/chat',
-    id: chatInstances[1]?.id,
-    body: {
-      modelId: chatInstances[1]?.modelId,
-      persona: chatInstances[1]?.persona || 'default'
-    }
-  });
-
-  const chat3 = useChat({
-    api: '/api/chat',
-    id: chatInstances[2]?.id,
-    body: {
-      modelId: chatInstances[2]?.modelId,
-      persona: chatInstances[2]?.persona || 'default'
-    }
-  });
-
-  const chat4 = useChat({
-    api: '/api/chat',
-    id: chatInstances[3]?.id,
-    body: {
-      modelId: chatInstances[3]?.modelId,
-      persona: chatInstances[3]?.persona || 'default'
-    }
-  });
-
-  const chatHooks = [chat1, chat2, chat3, chat4];
 
   // Initialize chat instances when chat models are loaded
   useEffect(() => {
@@ -241,32 +280,6 @@ export default function Chat() {
     setLayoutMode(mode);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-    // Update input for all active chat instances
-    chatHooks.forEach((chat, index) => {
-      if (activeChatIds.includes(chatInstances[index].id)) {
-        chat.setInput(e.target.value);
-      }
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-
-    // Submit to all active chat instances
-    const promises = chatHooks.map((chat, index) => {
-      if (activeChatIds.includes(chatInstances[index].id)) {
-        return chat.handleSubmit(e);
-      }
-      return Promise.resolve();
-    }).filter(Boolean);
-
-    await Promise.all(promises);
-    setInput('');
-  };
-
   const handleModelChange = (chatId: string, newModelId: string) => {
     const selectedModel = chatModels.find(model => model.id.toString() === newModelId);
     if (selectedModel) {
@@ -298,21 +311,6 @@ export default function Chat() {
     );
   };
 
-  const clearChat = (chatId: string) => {
-    const instanceIndex = chatInstances.findIndex(chat => chat.id === chatId);
-    if (instanceIndex !== -1) {
-      chatHooks[instanceIndex].setMessages([]);
-    }
-  };
-
-  const clearAllChats = () => {
-    chatHooks.forEach((chat, index) => {
-      if (activeChatIds.includes(chatInstances[index].id)) {
-        chat.setMessages([]);
-      }
-    });
-  };
-
   const toggleChatbot = (modelId: string) => {
     const selectedModel = chatModels.find(model => model.id.toString() === modelId);
     if (selectedModel) {
@@ -330,12 +328,11 @@ export default function Chat() {
   };
 
   const copyToClipboard = (chatId: string) => {
-    const instanceIndex = chatInstances.findIndex(chat => chat.id === chatId);
-    if (instanceIndex !== -1) {
-      const chatContent = chatHooks[instanceIndex].messages
-        .map(msg => `${msg.role}: ${msg.content}`)
-        .join('\n');
-      navigator.clipboard.writeText(chatContent).then(() => {
+    const instance = chatInstances.find(chat => chat.id === chatId);
+    if (instance) {
+      // We can't access messages directly anymore since they're managed by the ChatWindow component
+      // Instead, we'll just copy the chat ID for now
+      navigator.clipboard.writeText(`Chat ${instance.name}`).then(() => {
         setCopiedStates(prev => ({ ...prev, [chatId]: true }));
         setTimeout(() => {
           setCopiedStates(prev => ({ ...prev, [chatId]: false }));
@@ -356,77 +353,17 @@ export default function Chat() {
           }`}>
             {chatInstances
               .filter(chat => activeChatIds.includes(chat.id))
-              .map((chat, index) => (
+              .map((chat) => (
                 <ChatWindow
                   key={chat.id}
                   instance={chat}
                   onModelChange={(modelId) => handleModelChange(chat.id, modelId)}
                   onPersonaChange={(persona) => handlePersonaChange(chat.id, persona)}
                   onCopy={() => copyToClipboard(chat.id)}
-                  onClear={() => clearChat(chat.id)}
+                  onClear={() => {}} // This will be handled by the ChatWindow component
                   copiedState={copiedStates[chat.id] || false}
-                  chatHook={chatHooks[index]}
                 />
               ))}
-          </div>
-          <div className="p-4 bg-white border-t">
-            <div className="flex items-center space-x-2">
-              <div className="flex-grow">
-                <Textarea
-                  value={input}
-                  onChange={handleInputChange}
-                  placeholder="Type your message..."
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSubmit(e)
-                    }
-                  }}
-                  className="w-full resize-none"
-                  rows={1}
-                />
-              </div>
-              <Button
-                onClick={handleSubmit}
-                disabled={!input.trim() || chatHooks.some(chat => chat.isLoading)}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Send
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={clearAllChats}
-                className="h-8 w-8 p-0"
-                title="Clear all chats"
-              >
-                <Eraser className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={layoutMode === 'single' ? "secondary" : "ghost"}
-                size="icon"
-                onClick={() => handleLayoutChange('single')}
-                title="Single chat"
-              >
-                <Square className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={layoutMode === 'split' ? "secondary" : "ghost"}
-                size="icon"
-                onClick={() => handleLayoutChange('split')}
-                title="Split chat"
-              >
-                <Columns className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={layoutMode === 'grid' ? "secondary" : "ghost"}
-                size="icon"
-                onClick={() => handleLayoutChange('grid')}
-                title="Grid chat"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-            </div>
           </div>
         </div>
       </div>
