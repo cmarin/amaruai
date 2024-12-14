@@ -40,21 +40,19 @@ const getProviderIcon = (modelId: string, modelName: string) => {
   return MessageSquare // fallback to default icon
 }
 
-function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClear, copiedState, input }: {
+function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClear, copiedState }: {
   instance: ChatInstance;
   onModelChange: (modelId: string) => void;
   onPersonaChange: (persona: string) => void;
   onCopy: () => void;
   onClear: () => void;
   copiedState: boolean;
-  input: string;
 }) {
   const { chatModels, personas } = useData();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [lastProcessedInput, setLastProcessedInput] = useState('');
-  
-  // Create a single chat hook for this instance with proper streaming configuration
-  const { messages, append, setMessages } = useChat({
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
     api: '/api/chat',
     id: instance.id,
     body: {
@@ -113,17 +111,6 @@ function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClea
       console.log('Message finished for', instance.name, ':', message);
     },
   });
-
-  // Only process input when it's actually submitted (different from last processed)
-  useEffect(() => {
-    if (input && input !== lastProcessedInput) {
-      setLastProcessedInput(input);
-      append({
-        content: input,
-        role: 'user',
-      });
-    }
-  }, [input, lastProcessedInput, append]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -222,6 +209,10 @@ function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClea
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
+      <form ref={formRef} onSubmit={handleSubmit} className="hidden">
+        <input type="text" value={input} onChange={handleInputChange} />
+        <button type="submit">Submit</button>
+      </form>
     </div>
   );
 }
@@ -386,7 +377,6 @@ export default function Chat() {
                   onCopy={() => copyToClipboard(chat.id)}
                   onClear={() => {}}
                   copiedState={copiedStates[chat.id] || false}
-                  input={submittedInput}
                 />
               ))}
           </div>
