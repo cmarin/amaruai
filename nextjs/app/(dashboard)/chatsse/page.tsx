@@ -295,13 +295,19 @@ export default function Chat() {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    setIsLoading(true);
     const message = input.trim();
     setInput(''); // Clear input immediately
-    setSubmittedInput(message); // Set the submitted input for chat instances
+    setIsLoading(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure state updates
+      // Set the submitted input for chat instances to process
+      setSubmittedInput(message);
+      
+      // Wait for a moment to ensure all instances have started their requests
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Reset the submitted input to allow for new submissions
+      setSubmittedInput('');
     } catch (error) {
       console.error('Error sending messages:', error);
     } finally {
