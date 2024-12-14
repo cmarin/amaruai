@@ -2,6 +2,8 @@ from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.security import HTTPBearer
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from app.api.v1.router import public_router, protected_router
 from app.api.v1 import (
     authentication,
@@ -22,6 +24,7 @@ from dotenv import load_dotenv
 import logging
 from app.api.v1.workflows import router as workflow_router, public_router as workflow_public_router
 import os
+from pydantic import BaseModel
 
 load_dotenv()
 
@@ -35,6 +38,14 @@ app = FastAPI(
     version="1.0.0",
     redirect_slashes=True
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logging.error(f"Validation error: {exc.errors()}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
 
 # Get environment
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
@@ -88,6 +99,9 @@ for module in protected_routes:
         dependencies=[Depends(get_current_user)]  # Add authentication to all protected routes
     )
 
+# Include chatsse router (already has prefix from create_public_router)
+app.include_router(chatsse.router)
+
 # Include admin routes
 app.include_router(
     admin_router, 
@@ -137,7 +151,9 @@ app.openapi = custom_openapi
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to AmaruAI API"}@app.get("/health")
+    return {"message": "Welcome to AmaruAI API"}
+
+@app.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
