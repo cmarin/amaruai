@@ -25,7 +25,6 @@ interface ChatInstance {
   name: string;
   model: ChatModel;
   persona?: string;
-  chat: ReturnType<typeof useChat>;
 }
 
 const getProviderIcon = (modelId: string, modelName: string) => {
@@ -51,67 +50,31 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  // Create chat hooks for each active instance
+  const chatHooks = chatInstances.map(instance => useChat({
+    api: '/api/chat',
+    id: instance.id,
+    body: {
+      modelId: instance.modelId,
+      persona: instance.persona || 'default'
+    }
+  }));
+
   // Initialize chat instances when chat models are loaded
   useEffect(() => {
     if (!dataLoading && chatModels.length > 0 && chatInstances.length === 0) {
       const defaultModel = chatModels[0];
-      const initialInstance = createChatInstance(defaultModel);
+      const initialInstance = {
+        id: uuidv4(),
+        modelId: defaultModel.id.toString(),
+        name: defaultModel.name,
+        model: defaultModel,
+        persona: 'default'
+      };
       setChatInstances([initialInstance]);
       setActiveChatIds([initialInstance.id]);
     }
   }, [dataLoading, chatModels]);
-
-  const createChatInstance = (model: ChatModel) => {
-    const id = uuidv4();
-    return {
-      id,
-      modelId: model.id.toString(),
-      name: model.name,
-      model: model,
-      persona: 'default',
-      chat: useChat({
-        api: '/api/chat',
-        id,
-        body: {
-          modelId: model.id.toString(),
-          persona: 'default'
-        },
-        onResponse: (response) => {
-          if (response.status === 200) {
-            console.log('Streaming response received for', model.name);
-            const reader = response.body?.getReader();
-            if (reader) {
-              const decoder = new TextDecoder();
-              const readChunk = async () => {
-                const { done, value } = await reader.read();
-                if (done) return;
-                const chunk = decoder.decode(value);
-                
-                // Process the chunk
-                const lines = chunk.split('\n');
-                let content = '';
-                for (const line of lines) {
-                  if (line.startsWith('data: ')) {
-                    try {
-                      const jsonData = JSON.parse(line.slice(5));
-                      if (jsonData.choices && jsonData.choices[0].delta.content) {
-                        content += jsonData.choices[0].delta.content;
-                      }
-                    } catch (error) {
-                      console.error('Error parsing SSE data:', error);
-                    }
-                  }
-                }
-                
-                readChunk();
-              };
-              readChunk();
-            }
-          }
-        }
-      })
-    };
-  };
 
   const handleLayoutChange = (mode: LayoutMode) => {
     const neededInstances = mode === 'split' ? 2 : mode === 'grid' ? 4 : 1;
@@ -125,7 +88,13 @@ export default function Chat() {
         // Keep the first instance if it exists
         newInstances.push(chatInstances[0]);
       } else {
-        newInstances.push(createChatInstance(model));
+        newInstances.push({
+          id: uuidv4(),
+          modelId: model.id.toString(),
+          name: model.name,
+          model: model,
+          persona: 'default'
+        });
       }
     }
 
@@ -137,9 +106,9 @@ export default function Chat() {
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     // Update input for all active chat instances
-    chatInstances.forEach(instance => {
-      if (activeChatIds.includes(instance.id)) {
-        instance.chat.setInput(e.target.value);
+    chatHooks.forEach((chat, index) => {
+      if (activeChatIds.includes(chatInstances[index].id)) {
+        chat.setInput(e.target.value);
       }
     });
   };
@@ -149,9 +118,12 @@ export default function Chat() {
     if (!input.trim()) return;
 
     // Submit to all active chat instances
-    const promises = chatInstances
-      .filter(instance => activeChatIds.includes(instance.id))
-      .map(instance => instance.chat.handleSubmit(e));
+    const promises = chatHooks.map((chat, index) => {
+      if (activeChatIds.includes(chatInstances[index].id)) {
+        return chat.handleSubmit(e);
+      }
+      return Promise.resolve();
+    }).filter(Boolean);
 
     await Promise.all(promises);
     setInput('');
@@ -164,8 +136,11 @@ export default function Chat() {
         prev.map(chat => {
           if (chat.id === chatId) {
             return {
-              ...createChatInstance(selectedModel),
-              id: chatId
+              id: chatId,
+              modelId: newModelId,
+              name: selectedModel.name,
+              model: selectedModel,
+              persona: chat.persona
             };
           }
           return chat;
@@ -178,10 +153,7 @@ export default function Chat() {
     setChatInstances(prev =>
       prev.map(chat => {
         if (chat.id === chatId) {
-          const newInstance = createChatInstance(chat.model);
-          newInstance.persona = newPersona;
-          newInstance.chat.setInput(input);
-          return newInstance;
+          return { ...chat, persona: newPersona };
         }
         return chat;
       })
@@ -189,16 +161,16 @@ export default function Chat() {
   };
 
   const clearChat = (chatId: string) => {
-    const instance = chatInstances.find(chat => chat.id === chatId);
-    if (instance) {
-      instance.chat.setMessages([]);
+    const instanceIndex = chatInstances.findIndex(chat => chat.id === chatId);
+    if (instanceIndex !== -1) {
+      chatHooks[instanceIndex].setMessages([]);
     }
   };
 
   const clearAllChats = () => {
-    chatInstances.forEach(instance => {
-      if (activeChatIds.includes(instance.id)) {
-        instance.chat.setMessages([]);
+    chatHooks.forEach((chat, index) => {
+      if (activeChatIds.includes(chatInstances[index].id)) {
+        chat.setMessages([]);
       }
     });
   };
@@ -206,7 +178,13 @@ export default function Chat() {
   const toggleChatbot = (modelId: string) => {
     const selectedModel = chatModels.find(model => model.id.toString() === modelId);
     if (selectedModel) {
-      const newInstance = createChatInstance(selectedModel);
+      const newInstance = {
+        id: uuidv4(),
+        modelId: selectedModel.id.toString(),
+        name: selectedModel.name,
+        model: selectedModel,
+        persona: 'default'
+      };
       setChatInstances([newInstance]);
       setActiveChatIds([newInstance.id]);
       setLayoutMode('single');
@@ -214,9 +192,11 @@ export default function Chat() {
   };
 
   const copyToClipboard = (chatId: string) => {
-    const instance = chatInstances.find(chat => chat.id === chatId);
-    if (instance) {
-      const chatContent = instance.chat.messages.map(msg => `${msg.role}: ${msg.content}`).join('\n');
+    const instanceIndex = chatInstances.findIndex(chat => chat.id === chatId);
+    if (instanceIndex !== -1) {
+      const chatContent = chatHooks[instanceIndex].messages
+        .map(msg => `${msg.role}: ${msg.content}`)
+        .join('\n');
       navigator.clipboard.writeText(chatContent).then(() => {
         setCopiedStates(prev => ({ ...prev, [chatId]: true }));
         setTimeout(() => {
@@ -228,12 +208,10 @@ export default function Chat() {
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    chatInstances.forEach(instance => {
-      if (activeChatIds.includes(instance.id) && messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-      }
-    });
-  }, [chatInstances, activeChatIds]);
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatHooks.map(chat => chat.messages)]);
 
   return (
     <div className="h-full w-full">
@@ -247,7 +225,7 @@ export default function Chat() {
           }`}>
             {chatInstances
               .filter(chat => activeChatIds.includes(chat.id))
-              .map(chat => (
+              .map((chat, index) => (
                 <div key={chat.id} className="bg-white rounded-lg shadow flex flex-col overflow-hidden">
                   <div className="p-4 border-b flex justify-between items-center">
                     <div className="flex items-center space-x-2">
@@ -314,7 +292,7 @@ export default function Chat() {
                   </div>
                   <ScrollArea className="flex-1 p-4">
                     <div className="flex flex-col gap-4">
-                      {chat.chat.messages.map((message) => (
+                      {chatHooks[index].messages.map((message) => (
                         <div
                           key={message.id}
                           className={`mb-4 ${
@@ -357,7 +335,7 @@ export default function Chat() {
               </div>
               <Button
                 onClick={handleSubmit}
-                disabled={!input.trim() || chatInstances.some(chat => chat.chat.isLoading)}
+                disabled={!input.trim() || chatHooks.some(chat => chat.isLoading)}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 Send
