@@ -25,6 +25,7 @@ interface ChatInstance {
   name: string;
   model: ChatModel;
   persona?: string;
+  displayOnly?: boolean;
 }
 
 const getProviderIcon = (modelId: string, modelName: string) => {
@@ -62,6 +63,54 @@ export default function Chat() {
     body: {
       modelId: selectedModelId,
       persona: selectedPersona
+    },
+    onResponse: (response) => {
+      if (response.status === 200) {
+        console.log('Streaming response received');
+        const reader = response.body?.getReader();
+        if (reader) {
+          const decoder = new TextDecoder();
+          const readChunk = async () => {
+            const { done, value } = await reader.read();
+            if (done) {
+              return;
+            }
+            const chunk = decoder.decode(value);
+            
+            // Process the chunk
+            const lines = chunk.split('\n');
+            let content = '';
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const jsonData = JSON.parse(line.slice(5));
+                  if (jsonData.choices && jsonData.choices[0].delta.content) {
+                    content += jsonData.choices[0].delta.content;
+                  }
+                } catch (error) {
+                  console.error('Error parsing SSE data:', error);
+                }
+              }
+            }
+            
+            // Update the messages
+            setMessages((prevMessages) => {
+              const lastMessage = prevMessages[prevMessages.length - 1];
+              if (lastMessage && lastMessage.role === 'assistant') {
+                return [
+                  ...prevMessages.slice(0, -1),
+                  { ...lastMessage, content: lastMessage.content + content },
+                ];
+              } else {
+                return [...prevMessages, { role: 'assistant', content, id: Date.now().toString() }];
+              }
+            });
+            
+            readChunk();
+          };
+          readChunk();
+        }
+      }
     }
   })
 
@@ -94,22 +143,33 @@ export default function Chat() {
     const neededInstances = mode === 'split' ? 2 : mode === 'grid' ? 4 : 1;
     
     // Create additional chat instances if needed
-    while (chatInstances.length < neededInstances) {
-      const modelIndex = chatInstances.length % chatModels.length;
+    const newInstances = [];
+    const mainInstance = chatInstances[0] || {
+      id: uuidv4(),
+      modelId: chatModels[0]?.id.toString() || '1',
+      name: chatModels[0]?.name || 'Default Chat',
+      model: chatModels[0],
+      persona: 'default',
+      displayOnly: false
+    };
+    newInstances.push(mainInstance);
+
+    // Add display-only instances for the layout
+    for (let i = 1; i < neededInstances; i++) {
+      const modelIndex = i % chatModels.length;
       const model = chatModels[modelIndex];
-      const newInstance = {
+      newInstances.push({
         id: uuidv4(),
         modelId: model.id.toString(),
         name: model.name,
         model: model,
-        persona: 'default'
-      };
-      setChatInstances(prev => [...prev, newInstance]);
+        persona: 'default',
+        displayOnly: true
+      });
     }
 
-    // Update active chat instances based on layout
-    const newActiveIds = chatInstances.slice(0, neededInstances).map(chat => chat.id);
-    setActiveChatIds(newActiveIds);
+    setChatInstances(newInstances);
+    setActiveChatIds(newInstances.map(chat => chat.id));
     setLayoutMode(mode);
   }
 
@@ -132,7 +192,8 @@ export default function Chat() {
     if (selectedModel) {
       setChatInstances(prev =>
         prev.map(chat => {
-          if (chat.id === chatId) {
+          if (chat.id === chatId && !chat.displayOnly) {
+            setSelectedModelId(newModelId);
             return {
               ...chat,
               modelId: newModelId,
@@ -143,24 +204,19 @@ export default function Chat() {
           return chat;
         })
       );
-      if (activeChatIds.length === 1 && activeChatIds[0] === chatId) {
-        setSelectedModelId(newModelId);
-      }
     }
   }
 
   const handlePersonaChange = (chatId: string, newPersona: string) => {
     setChatInstances(prev =>
       prev.map(chat => {
-        if (chat.id === chatId) {
+        if (chat.id === chatId && !chat.displayOnly) {
+          setSelectedPersona(newPersona);
           return { ...chat, persona: newPersona };
         }
         return chat;
       })
     );
-    if (activeChatIds.length === 1 && activeChatIds[0] === chatId) {
-      setSelectedPersona(newPersona);
-    }
   }
 
   const toggleChatbot = (modelId: string) => {
@@ -203,6 +259,7 @@ export default function Chat() {
                       <Select 
                         value={chat.modelId}
                         onValueChange={(value) => handleModelChange(chat.id, value)}
+                        disabled={chat.displayOnly}
                       >
                         <SelectTrigger className="w-[180px]">
                           <SelectValue>{chat.name}</SelectValue>
@@ -218,6 +275,7 @@ export default function Chat() {
                       <Select 
                         value={chat.persona || 'default'} 
                         onValueChange={(value) => handlePersonaChange(chat.id, value)}
+                        disabled={chat.displayOnly}
                       >
                         <SelectTrigger className="w-[120px]">
                           <SelectValue placeholder="Persona" />
@@ -239,6 +297,7 @@ export default function Chat() {
                         onClick={() => copyToClipboard(chat.id)}
                         className="w-8 h-8 p-0"
                         title={copiedStates[chat.id] ? "Copied!" : "Copy chat content"}
+                        disabled={chat.displayOnly}
                       >
                         {copiedStates[chat.id] ? (
                           <Check className="h-4 w-4" />
@@ -252,6 +311,7 @@ export default function Chat() {
                         onClick={clearChat}
                         className="w-8 h-8 p-0"
                         title="Clear Chat"
+                        disabled={chat.displayOnly}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
