@@ -99,8 +99,11 @@ for module in protected_routes:
         dependencies=[Depends(get_current_user)]  # Add authentication to all protected routes
     )
 
-# Include chatsse router (already has prefix from create_public_router)
-app.include_router(chatsse.router)
+# Include chatsse router (public route with API prefix)
+app.include_router(
+    chatsse.router,
+    prefix="/api/v1"  # Add back the API prefix
+)
 
 # Include admin routes
 app.include_router(
