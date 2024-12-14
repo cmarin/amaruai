@@ -51,6 +51,7 @@ function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClea
 }) {
   const { chatModels, personas } = useData();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [lastProcessedInput, setLastProcessedInput] = useState('');
   
   // Create a single chat hook for this instance
   const { messages, append, setMessages } = useChat({
@@ -62,17 +63,17 @@ function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClea
     }
   });
 
-  // Handle input changes from parent
+  // Only process input when it's actually submitted (different from last processed)
   useEffect(() => {
-    if (input) {
-      // Use append to properly trigger the Vercel AI SDK streaming
+    if (input && input !== lastProcessedInput) {
+      setLastProcessedInput(input);
+      // Use the Vercel AI SDK's append method to handle streaming
       append({
         content: input,
         role: 'user',
-        id: Date.now().toString()
       });
     }
-  }, [input, append]);
+  }, [input, lastProcessedInput, append]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -183,6 +184,7 @@ export default function Chat() {
   const [activeChatIds, setActiveChatIds] = useState<string[]>([])
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
   const [input, setInput] = useState('')
+  const [submittedInput, setSubmittedInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   // Initialize chat instances when chat models are loaded
@@ -293,15 +295,13 @@ export default function Chat() {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    const userMessage = input;
     setIsLoading(true);
+    const message = input.trim();
+    setInput(''); // Clear input immediately
+    setSubmittedInput(message); // Set the submitted input for chat instances
 
     try {
-      // Each ChatInstance will handle its own message submission via the input prop
-      // when it detects the new input value
-      setInput(userMessage);
       await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure state updates
-      setInput(''); // Clear input after all instances have received it
     } catch (error) {
       console.error('Error sending messages:', error);
     } finally {
@@ -330,7 +330,7 @@ export default function Chat() {
                   onCopy={() => copyToClipboard(chat.id)}
                   onClear={() => {}}
                   copiedState={copiedStates[chat.id] || false}
-                  input={input}
+                  input={submittedInput}
                 />
               ))}
           </div>
