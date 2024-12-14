@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiUrl } from '@/utils/api-utils';
 import type { ApiHeaders } from '@/utils/session/session';
-
 export const runtime = 'edge';
 
 export async function POST(req: NextRequest) {
@@ -18,7 +17,7 @@ export async function POST(req: NextRequest) {
     };
 
     const body = await req.json();
-    const { messages, modelId, persona } = body;
+    const { messages } = body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       console.error('Invalid or empty messages array');
@@ -34,15 +33,7 @@ export async function POST(req: NextRequest) {
     const response = await fetch(externalApiUrl, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        message: lastMessage.content,
-        modelId,
-        persona,
-        messages: messages.map(m => ({
-          role: m.role,
-          content: m.content
-        }))
-      }),
+      body: JSON.stringify({ message: lastMessage.content }),
     });
 
     if (!response.ok) {
@@ -52,33 +43,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch from the chat API', details: errorBody }, { status: response.status });
     }
 
-    // Create a TransformStream to convert the response into the format expected by the Vercel AI SDK
-    const transformStream = new TransformStream({
-      async transform(chunk, controller) {
-        const text = new TextDecoder().decode(chunk);
-        const lines = text.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              // Format the data according to Vercel AI SDK expectations
-              const aiMessage = {
-                id: data.id || Date.now().toString(),
-                role: 'assistant',
-                content: data.choices?.[0]?.delta?.content || '',
-                createdAt: new Date().toISOString()
-              };
-              controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(aiMessage)}\n\n`));
-            } catch (e) {
-              console.error('Error parsing SSE data:', e);
-            }
-          }
+    // Stream the response
+    const stream = new ReadableStream({
+      async start(controller) {
+        const reader = response.body?.getReader();
+        if (!reader) {
+          controller.close();
+          return;
         }
-      }
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          controller.enqueue(value);
+        }
+        controller.close();
+      },
     });
 
-    return new NextResponse(response.body?.pipeThrough(transformStream), {
+    return new NextResponse(stream, {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -91,3 +74,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'An unexpected error occurred', details: errorMessage }, { status: 500 });
   }
 }
+
