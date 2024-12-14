@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiUrl } from '@/utils/api-utils';
+import type { ApiHeaders } from '@/utils/session/session';
 export const runtime = 'edge';
 
 export async function POST(req: NextRequest) {
   console.log('Received POST request to /api/chat');
   
   try {
+    // Get authorization headers from incoming request
+    const authHeader = req.headers.get('authorization');
+    
+    const headers: ApiHeaders = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': authHeader || ''
+    };
+
     const body = await req.json();
     const { messages } = body;
 
@@ -17,15 +27,12 @@ export async function POST(req: NextRequest) {
     const lastMessage = messages[messages.length - 1];
     console.log('Last message:', JSON.stringify(lastMessage));
 
-    //const externalApiUrl = 'https://ssestream.replit.app/chat';
-    const externalApiUrl =  `${getApiUrl()}/chatsse`
+    const externalApiUrl = `${getApiUrl()}/chatsse`;
     console.log('Sending request to external API:', externalApiUrl);
 
     const response = await fetch(externalApiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({ message: lastMessage.content }),
     });
 
