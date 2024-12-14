@@ -50,7 +50,6 @@ function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClea
 }) {
   const { chatModels, personas } = useData();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
     api: '/api/chat',
@@ -209,10 +208,26 @@ function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClea
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
-      <form ref={formRef} onSubmit={handleSubmit} className="hidden">
-        <input type="text" value={input} onChange={handleInputChange} />
-        <button type="submit">Submit</button>
-      </form>
+      <div className="p-4 border-t">
+        <form onSubmit={handleSubmit} className="flex space-x-2">
+          <Textarea
+            value={input}
+            onChange={handleInputChange}
+            placeholder="Type your message..."
+            className="flex-grow resize-none"
+            rows={1}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(e);
+              }
+            }}
+          />
+          <Button type="submit" disabled={isLoading || !input.trim()}>
+            {isLoading ? 'Thinking...' : 'Send'}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }
