@@ -8,6 +8,7 @@ from app.api.v1 import (
     categories,
     chat_models,
     chat,
+    chatsse,
     personas,
     prompt_templates,
     tags,
