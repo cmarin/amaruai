@@ -160,10 +160,225 @@ export default function Chat() {
   const [input, setInput] = useState('')
 
   // Create individual chat hooks
-  const chat1 = useChat({ api: '/api/chat', id: chatInstances[0]?.id, body: { modelId: chatInstances[0]?.modelId, persona: chatInstances[0]?.persona || 'default' } });
-  const chat2 = useChat({ api: '/api/chat', id: chatInstances[1]?.id, body: { modelId: chatInstances[1]?.modelId, persona: chatInstances[1]?.persona || 'default' } });
-  const chat3 = useChat({ api: '/api/chat', id: chatInstances[2]?.id, body: { modelId: chatInstances[2]?.modelId, persona: chatInstances[2]?.persona || 'default' } });
-  const chat4 = useChat({ api: '/api/chat', id: chatInstances[3]?.id, body: { modelId: chatInstances[3]?.modelId, persona: chatInstances[3]?.persona || 'default' } });
+  const chat1 = useChat({
+    api: '/api/chat',
+    id: chatInstances[0]?.id,
+    body: {
+      modelId: chatInstances[0]?.modelId,
+      persona: chatInstances[0]?.persona || 'default'
+    },
+    onResponse: (response) => {
+      if (response.status === 200) {
+        console.log('Streaming response received for chat 1');
+        const reader = response.body?.getReader();
+        if (reader) {
+          const decoder = new TextDecoder();
+          const readChunk = async () => {
+            const { done, value } = await reader.read();
+            if (done) return;
+            const chunk = decoder.decode(value);
+            
+            // Process the chunk
+            const lines = chunk.split('\n');
+            let content = '';
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const jsonData = JSON.parse(line.slice(5));
+                  if (jsonData.choices && jsonData.choices[0].delta.content) {
+                    content += jsonData.choices[0].delta.content;
+                  }
+                } catch (error) {
+                  console.error('Error parsing SSE data:', error);
+                }
+              }
+            }
+            
+            // Update the messages
+            chat1.setMessages((prevMessages) => {
+              const lastMessage = prevMessages[prevMessages.length - 1];
+              if (lastMessage && lastMessage.role === 'assistant') {
+                return [
+                  ...prevMessages.slice(0, -1),
+                  { ...lastMessage, content: lastMessage.content + content },
+                ];
+              } else {
+                return [...prevMessages, { role: 'assistant', content, id: Date.now().toString() }];
+              }
+            });
+            
+            readChunk();
+          };
+          readChunk();
+        }
+      }
+    }
+  });
+
+  const chat2 = useChat({
+    api: '/api/chat',
+    id: chatInstances[1]?.id,
+    body: {
+      modelId: chatInstances[1]?.modelId,
+      persona: chatInstances[1]?.persona || 'default'
+    },
+    onResponse: (response) => {
+      if (response.status === 200) {
+        console.log('Streaming response received for chat 2');
+        const reader = response.body?.getReader();
+        if (reader) {
+          const decoder = new TextDecoder();
+          const readChunk = async () => {
+            const { done, value } = await reader.read();
+            if (done) return;
+            const chunk = decoder.decode(value);
+            
+            // Process the chunk
+            const lines = chunk.split('\n');
+            let content = '';
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const jsonData = JSON.parse(line.slice(5));
+                  if (jsonData.choices && jsonData.choices[0].delta.content) {
+                    content += jsonData.choices[0].delta.content;
+                  }
+                } catch (error) {
+                  console.error('Error parsing SSE data:', error);
+                }
+              }
+            }
+            
+            // Update the messages
+            chat2.setMessages((prevMessages) => {
+              const lastMessage = prevMessages[prevMessages.length - 1];
+              if (lastMessage && lastMessage.role === 'assistant') {
+                return [
+                  ...prevMessages.slice(0, -1),
+                  { ...lastMessage, content: lastMessage.content + content },
+                ];
+              } else {
+                return [...prevMessages, { role: 'assistant', content, id: Date.now().toString() }];
+              }
+            });
+            
+            readChunk();
+          };
+          readChunk();
+        }
+      }
+    }
+  });
+
+  const chat3 = useChat({
+    api: '/api/chat',
+    id: chatInstances[2]?.id,
+    body: {
+      modelId: chatInstances[2]?.modelId,
+      persona: chatInstances[2]?.persona || 'default'
+    },
+    onResponse: (response) => {
+      if (response.status === 200) {
+        console.log('Streaming response received for chat 3');
+        const reader = response.body?.getReader();
+        if (reader) {
+          const decoder = new TextDecoder();
+          const readChunk = async () => {
+            const { done, value } = await reader.read();
+            if (done) return;
+            const chunk = decoder.decode(value);
+            
+            // Process the chunk
+            const lines = chunk.split('\n');
+            let content = '';
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const jsonData = JSON.parse(line.slice(5));
+                  if (jsonData.choices && jsonData.choices[0].delta.content) {
+                    content += jsonData.choices[0].delta.content;
+                  }
+                } catch (error) {
+                  console.error('Error parsing SSE data:', error);
+                }
+              }
+            }
+            
+            // Update the messages
+            chat3.setMessages((prevMessages) => {
+              const lastMessage = prevMessages[prevMessages.length - 1];
+              if (lastMessage && lastMessage.role === 'assistant') {
+                return [
+                  ...prevMessages.slice(0, -1),
+                  { ...lastMessage, content: lastMessage.content + content },
+                ];
+              } else {
+                return [...prevMessages, { role: 'assistant', content, id: Date.now().toString() }];
+              }
+            });
+            
+            readChunk();
+          };
+          readChunk();
+        }
+      }
+    }
+  });
+
+  const chat4 = useChat({
+    api: '/api/chat',
+    id: chatInstances[3]?.id,
+    body: {
+      modelId: chatInstances[3]?.modelId,
+      persona: chatInstances[3]?.persona || 'default'
+    },
+    onResponse: (response) => {
+      if (response.status === 200) {
+        console.log('Streaming response received for chat 4');
+        const reader = response.body?.getReader();
+        if (reader) {
+          const decoder = new TextDecoder();
+          const readChunk = async () => {
+            const { done, value } = await reader.read();
+            if (done) return;
+            const chunk = decoder.decode(value);
+            
+            // Process the chunk
+            const lines = chunk.split('\n');
+            let content = '';
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const jsonData = JSON.parse(line.slice(5));
+                  if (jsonData.choices && jsonData.choices[0].delta.content) {
+                    content += jsonData.choices[0].delta.content;
+                  }
+                } catch (error) {
+                  console.error('Error parsing SSE data:', error);
+                }
+              }
+            }
+            
+            // Update the messages
+            chat4.setMessages((prevMessages) => {
+              const lastMessage = prevMessages[prevMessages.length - 1];
+              if (lastMessage && lastMessage.role === 'assistant') {
+                return [
+                  ...prevMessages.slice(0, -1),
+                  { ...lastMessage, content: lastMessage.content + content },
+                ];
+              } else {
+                return [...prevMessages, { role: 'assistant', content, id: Date.now().toString() }];
+              }
+            });
+            
+            readChunk();
+          };
+          readChunk();
+        }
+      }
+    }
+  });
 
   const chatHooks = [chat1, chat2, chat3, chat4];
 
