@@ -346,6 +346,34 @@ export default function Chat() {
       <div className="flex h-full w-full overflow-hidden bg-white">
         <AppSidebar toggleChatbot={toggleChatbot} />
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+          <div className="flex justify-end p-4 border-b">
+            <div className="flex items-center space-x-2">
+              <Button
+                variant={layoutMode === 'single' ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => handleLayoutChange('single')}
+                title="Single chat"
+              >
+                <Square className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={layoutMode === 'split' ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => handleLayoutChange('split')}
+                title="Split chat"
+              >
+                <Columns className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={layoutMode === 'grid' ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => handleLayoutChange('grid')}
+                title="Grid chat"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
           <div className={`flex-1 grid gap-4 p-4 overflow-hidden ${
             layoutMode === 'single' ? 'grid-cols-1' : 
             layoutMode === 'split' ? 'grid-cols-2' : 
