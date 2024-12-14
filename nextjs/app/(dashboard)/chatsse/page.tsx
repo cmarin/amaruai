@@ -40,8 +40,9 @@ const getProviderIcon = (modelId: string, modelName: string) => {
   return MessageSquare // fallback to default icon
 }
 
-function ChatWindow({ instance, onModelChange, onPersonaChange, onCopy, onClear, copiedState }: {
+function ChatWindow({ instance, messages, onModelChange, onPersonaChange, onCopy, onClear, copiedState }: {
   instance: ChatInstance;
+  messages: any[];
   onModelChange: (modelId: string) => void;
   onPersonaChange: (persona: string) => void;
   onCopy: () => void;
@@ -50,66 +51,6 @@ function ChatWindow({ instance, onModelChange, onPersonaChange, onCopy, onClear,
 }) {
   const { chatModels, personas } = useData();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
-    api: '/api/chat',
-    id: instance.id,
-    body: {
-      modelId: instance.modelId,
-      persona: instance.persona || 'default'
-    },
-    onResponse: (response) => {
-      if (response.status === 200) {
-        console.log('Streaming response received for', instance.name);
-        const reader = response.body?.getReader();
-        if (reader) {
-          const decoder = new TextDecoder();
-          const readChunk = async () => {
-            const { done, value } = await reader.read();
-            if (done) {
-              return;
-            }
-            const chunk = decoder.decode(value);
-            
-            // Process the chunk
-            const lines = chunk.split('\n');
-            let content = '';
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const jsonData = JSON.parse(line.slice(5));
-                  if (jsonData.choices && jsonData.choices[0].delta.content) {
-                    content += jsonData.choices[0].delta.content;
-                  }
-                } catch (error) {
-                  console.error('Error parsing SSE data:', error);
-                }
-              }
-            }
-            
-            // Update the messages
-            setMessages((prevMessages) => {
-              const lastMessage = prevMessages[prevMessages.length - 1];
-              if (lastMessage && lastMessage.role === 'assistant') {
-                return [
-                  ...prevMessages.slice(0, -1),
-                  { ...lastMessage, content: lastMessage.content + content },
-                ];
-              } else {
-                return [...prevMessages, { role: 'assistant', content, id: Date.now().toString() }];
-              }
-            });
-            
-            readChunk();
-          };
-          readChunk();
-        }
-      }
-    },
-    onFinish: (message) => {
-      console.log('Message finished for', instance.name, ':', message);
-    },
-  });
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -205,26 +146,6 @@ function ChatWindow({ instance, onModelChange, onPersonaChange, onCopy, onClear,
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
-      <div className="p-4 border-t">
-        <form onSubmit={handleSubmit} className="flex space-x-2">
-          <Textarea
-            value={input}
-            onChange={handleInputChange}
-            placeholder="Type your message..."
-            className="flex-grow resize-none"
-            rows={1}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-          />
-          <Button type="submit" disabled={isLoading || !input.trim()}>
-            {isLoading ? 'Thinking...' : 'Send'}
-          </Button>
-        </form>
-      </div>
     </div>
   );
 }
@@ -236,6 +157,18 @@ export default function Chat() {
   const [chatInstances, setChatInstances] = useState<ChatInstance[]>([])
   const [activeChatIds, setActiveChatIds] = useState<string[]>([])
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Create a chat hook for each possible instance
+  const chatHooks = chatInstances.map(chat => useChat({
+    api: '/api/chat',
+    id: chat.id,
+    body: {
+      modelId: chat.modelId,
+      persona: chat.persona || 'default'
+    }
+  }));
 
   // Initialize chat instances when chat models are loaded
   useEffect(() => {
@@ -341,13 +274,84 @@ export default function Chat() {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    const userMessage = input;
+    setInput('');
+    setIsLoading(true);
+
+    try {
+      // Get the active chat hooks and send the message to all of them simultaneously
+      const activeHooks = chatHooks.filter((_, index) => 
+        activeChatIds.includes(chatInstances[index].id)
+      );
+
+      await Promise.all(activeHooks.map(hook => {
+        // Instead of calling handleSubmit directly with the message,
+        // we'll use the append method to add the message and trigger the API call
+        hook.append({
+          content: userMessage,
+          role: 'user',
+          id: Date.now().toString()
+        });
+      }));
+    } catch (error) {
+      console.error('Error sending messages:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-white">
         <AppSidebar toggleChatbot={toggleChatbot} />
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-          <div className="flex justify-end p-4 border-b">
-            <div className="flex items-center space-x-2">
+          <div className={`flex-1 grid gap-4 p-4 overflow-hidden ${
+            layoutMode === 'single' ? 'grid-cols-1' : 
+            layoutMode === 'split' ? 'grid-cols-2' : 
+            'grid-cols-2 grid-rows-2'
+          }`}>
+            {chatInstances
+              .filter(chat => activeChatIds.includes(chat.id))
+              .map((chat, index) => {
+                const hook = chatHooks[index];
+                return (
+                  <ChatWindow
+                    key={chat.id}
+                    instance={chat}
+                    messages={hook.messages}
+                    onModelChange={(modelId) => handleModelChange(chat.id, modelId)}
+                    onPersonaChange={(persona) => handlePersonaChange(chat.id, persona)}
+                    onCopy={() => copyToClipboard(chat.id)}
+                    onClear={() => hook.setMessages([])}
+                    copiedState={copiedStates[chat.id] || false}
+                  />
+                );
+              })}
+          </div>
+          <div className="border-t p-4 flex items-center justify-between">
+            <form onSubmit={handleSubmit} className="flex-1 flex space-x-2 max-w-4xl mx-auto">
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Type your message here... (Use '/' to open prompt library)"
+                className="flex-grow resize-none"
+                rows={1}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
+                }}
+              />
+              <Button type="submit" disabled={isLoading || !input.trim()}>
+                {isLoading ? 'Thinking...' : 'Send'}
+              </Button>
+            </form>
+            <div className="flex items-center space-x-2 ml-4">
               <Button
                 variant={layoutMode === 'single' ? "secondary" : "ghost"}
                 size="icon"
@@ -374,28 +378,9 @@ export default function Chat() {
               </Button>
             </div>
           </div>
-          <div className={`flex-1 grid gap-4 p-4 overflow-hidden ${
-            layoutMode === 'single' ? 'grid-cols-1' : 
-            layoutMode === 'split' ? 'grid-cols-2' : 
-            'grid-cols-2 grid-rows-2'
-          }`}>
-            {chatInstances
-              .filter(chat => activeChatIds.includes(chat.id))
-              .map((chat) => (
-                <ChatWindow
-                  key={chat.id}
-                  instance={chat}
-                  onModelChange={(modelId) => handleModelChange(chat.id, modelId)}
-                  onPersonaChange={(persona) => handlePersonaChange(chat.id, persona)}
-                  onCopy={() => copyToClipboard(chat.id)}
-                  onClear={() => {}} // This will be handled by the ChatWindow component
-                  copiedState={copiedStates[chat.id] || false}
-                />
-              ))}
-          </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
