@@ -40,17 +40,34 @@ const getProviderIcon = (modelId: string, modelName: string) => {
   return MessageSquare // fallback to default icon
 }
 
-function ChatWindow({ instance, messages, onModelChange, onPersonaChange, onCopy, onClear, copiedState }: {
+function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClear, copiedState, input }: {
   instance: ChatInstance;
-  messages: any[];
   onModelChange: (modelId: string) => void;
   onPersonaChange: (persona: string) => void;
   onCopy: () => void;
   onClear: () => void;
   copiedState: boolean;
+  input: string;
 }) {
   const { chatModels, personas } = useData();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Create a single chat hook for this instance
+  const { messages, setMessages } = useChat({
+    api: '/api/chat',
+    id: instance.id,
+    body: {
+      modelId: instance.modelId,
+      persona: instance.persona || 'default'
+    }
+  });
+
+  // Handle input changes from parent
+  useEffect(() => {
+    if (input) {
+      setMessages(prev => [...prev, { role: 'user', content: input, id: Date.now().toString() }]);
+    }
+  }, [input, setMessages]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -115,7 +132,10 @@ function ChatWindow({ instance, messages, onModelChange, onPersonaChange, onCopy
           <Button
             variant="outline"
             size="icon"
-            onClick={onClear}
+            onClick={() => {
+              onClear();
+              setMessages([]);
+            }}
             className="w-8 h-8 p-0"
             title="Clear Chat"
           >
@@ -124,7 +144,7 @@ function ChatWindow({ instance, messages, onModelChange, onPersonaChange, onCopy
         </div>
       </div>
       <ScrollArea className="flex-1 p-4">
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4" data-chat-id={instance.id}>
           {messages.map((message) => (
             <div
               key={message.id}
@@ -159,16 +179,6 @@ export default function Chat() {
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-
-  // Create a chat hook for each possible instance
-  const chatHooks = chatInstances.map(chat => useChat({
-    api: '/api/chat',
-    id: chat.id,
-    body: {
-      modelId: chat.modelId,
-      persona: chat.persona || 'default'
-    }
-  }));
 
   // Initialize chat instances when chat models are loaded
   useEffect(() => {
@@ -279,24 +289,14 @@ export default function Chat() {
     if (!input.trim() || isLoading) return;
 
     const userMessage = input;
-    setInput('');
     setIsLoading(true);
 
     try {
-      // Get the active chat hooks and send the message to all of them simultaneously
-      const activeHooks = chatHooks.filter((_, index) => 
-        activeChatIds.includes(chatInstances[index].id)
-      );
-
-      await Promise.all(activeHooks.map(hook => {
-        // Instead of calling handleSubmit directly with the message,
-        // we'll use the append method to add the message and trigger the API call
-        hook.append({
-          content: userMessage,
-          role: 'user',
-          id: Date.now().toString()
-        });
-      }));
+      // Each ChatInstance will handle its own message submission via the input prop
+      // when it detects the new input value
+      setInput(userMessage);
+      await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure state updates
+      setInput(''); // Clear input after all instances have received it
     } catch (error) {
       console.error('Error sending messages:', error);
     } finally {
@@ -316,21 +316,18 @@ export default function Chat() {
           }`}>
             {chatInstances
               .filter(chat => activeChatIds.includes(chat.id))
-              .map((chat, index) => {
-                const hook = chatHooks[index];
-                return (
-                  <ChatWindow
-                    key={chat.id}
-                    instance={chat}
-                    messages={hook.messages}
-                    onModelChange={(modelId) => handleModelChange(chat.id, modelId)}
-                    onPersonaChange={(persona) => handlePersonaChange(chat.id, persona)}
-                    onCopy={() => copyToClipboard(chat.id)}
-                    onClear={() => hook.setMessages([])}
-                    copiedState={copiedStates[chat.id] || false}
-                  />
-                );
-              })}
+              .map((chat) => (
+                <ChatInstance
+                  key={chat.id}
+                  instance={chat}
+                  onModelChange={(modelId) => handleModelChange(chat.id, modelId)}
+                  onPersonaChange={(persona) => handlePersonaChange(chat.id, persona)}
+                  onCopy={() => copyToClipboard(chat.id)}
+                  onClear={() => {}}
+                  copiedState={copiedStates[chat.id] || false}
+                  input={input}
+                />
+              ))}
           </div>
           <div className="border-t p-4 flex items-center justify-between">
             <form onSubmit={handleSubmit} className="flex-1 flex space-x-2 max-w-4xl mx-auto">
