@@ -53,7 +53,7 @@ function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClea
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Create a single chat hook for this instance
-  const { messages, setMessages } = useChat({
+  const { messages, append, setMessages } = useChat({
     api: '/api/chat',
     id: instance.id,
     body: {
@@ -65,9 +65,14 @@ function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClea
   // Handle input changes from parent
   useEffect(() => {
     if (input) {
-      setMessages(prev => [...prev, { role: 'user', content: input, id: Date.now().toString() }]);
+      // Use append to properly trigger the Vercel AI SDK streaming
+      append({
+        content: input,
+        role: 'user',
+        id: Date.now().toString()
+      });
     }
-  }, [input, setMessages]);
+  }, [input, append]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
