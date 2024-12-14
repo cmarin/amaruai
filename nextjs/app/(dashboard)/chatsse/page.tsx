@@ -53,21 +53,71 @@ function ChatInstance({ instance, onModelChange, onPersonaChange, onCopy, onClea
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [lastProcessedInput, setLastProcessedInput] = useState('');
   
-  // Create a single chat hook for this instance
+  // Create a single chat hook for this instance with proper streaming configuration
   const { messages, append, setMessages } = useChat({
     api: '/api/chat',
     id: instance.id,
     body: {
       modelId: instance.modelId,
       persona: instance.persona || 'default'
-    }
+    },
+    onResponse: (response) => {
+      if (response.status === 200) {
+        console.log('Streaming response received for', instance.name);
+        const reader = response.body?.getReader();
+        if (reader) {
+          const decoder = new TextDecoder();
+          const readChunk = async () => {
+            const { done, value } = await reader.read();
+            if (done) {
+              return;
+            }
+            const chunk = decoder.decode(value);
+            
+            // Process the chunk
+            const lines = chunk.split('\n');
+            let content = '';
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const jsonData = JSON.parse(line.slice(5));
+                  if (jsonData.choices && jsonData.choices[0].delta.content) {
+                    content += jsonData.choices[0].delta.content;
+                  }
+                } catch (error) {
+                  console.error('Error parsing SSE data:', error);
+                }
+              }
+            }
+            
+            // Update the messages
+            setMessages((prevMessages) => {
+              const lastMessage = prevMessages[prevMessages.length - 1];
+              if (lastMessage && lastMessage.role === 'assistant') {
+                return [
+                  ...prevMessages.slice(0, -1),
+                  { ...lastMessage, content: lastMessage.content + content },
+                ];
+              } else {
+                return [...prevMessages, { role: 'assistant', content, id: Date.now().toString() }];
+              }
+            });
+            
+            readChunk();
+          };
+          readChunk();
+        }
+      }
+    },
+    onFinish: (message) => {
+      console.log('Message finished for', instance.name, ':', message);
+    },
   });
 
   // Only process input when it's actually submitted (different from last processed)
   useEffect(() => {
     if (input && input !== lastProcessedInput) {
       setLastProcessedInput(input);
-      // Use the Vercel AI SDK's append method to handle streaming
       append({
         content: input,
         role: 'user',
