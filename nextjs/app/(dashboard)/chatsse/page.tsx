@@ -6,17 +6,15 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MessageSquare, FileText, Brain, ChevronDown, LayoutGrid, Columns, Square, BookOpen, Copy, Check, ChevronLeft, ChevronRight, Eraser, Trash2 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
+import { MessageSquare, FileText, Brain, ChevronDown, LayoutGrid, Columns, Square, BookOpen, Copy, Check, Trash2 } from 'lucide-react'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/sidebar-context'
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon } from '@/components/icons/ai-provider-icons'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { useData } from '@/components/data-context'
 import { ChatModel } from '@/utils/chat-model-service'
 
-// Type definitions
 export type LayoutMode = 'single' | 'split' | 'grid';
 
 interface ChatInstance {
@@ -40,76 +38,39 @@ const getProviderIcon = (modelId: string, modelName: string) => {
   return MessageSquare // fallback to default icon
 }
 
-function ChatWindow({ instance, onModelChange, onPersonaChange, onCopy, onClear, copiedState }: {
+interface ChatWindowProps {
   instance: ChatInstance;
   onModelChange: (modelId: string) => void;
   onPersonaChange: (persona: string) => void;
   onCopy: () => void;
   onClear: () => void;
   copiedState: boolean;
-}) {
+  incomingMessage?: string; // message from parent
+}
+
+function ChatWindow({ instance, onModelChange, onPersonaChange, onCopy, onClear, copiedState, incomingMessage }: ChatWindowProps) {
   const { chatModels, personas } = useData();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
+  const { messages, handleSubmit, isLoading, setInput, setMessages } = useChat({
     api: '/api/chat',
     id: instance.id,
     body: {
       modelId: instance.modelId,
       persona: instance.persona || 'default'
     },
-    onResponse: (response) => {
-      if (response.status === 200) {
-        console.log('Streaming response received for', instance.name);
-        const reader = response.body?.getReader();
-        if (reader) {
-          const decoder = new TextDecoder();
-          const readChunk = async () => {
-            const { done, value } = await reader.read();
-            if (done) {
-              return;
-            }
-            const chunk = decoder.decode(value);
-            
-            // Process the chunk
-            const lines = chunk.split('\n');
-            let content = '';
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const jsonData = JSON.parse(line.slice(5));
-                  if (jsonData.choices && jsonData.choices[0].delta.content) {
-                    content += jsonData.choices[0].delta.content;
-                  }
-                } catch (error) {
-                  console.error('Error parsing SSE data:', error);
-                }
-              }
-            }
-            
-            // Update the messages
-            setMessages((prevMessages) => {
-              const lastMessage = prevMessages[prevMessages.length - 1];
-              if (lastMessage && lastMessage.role === 'assistant') {
-                return [
-                  ...prevMessages.slice(0, -1),
-                  { ...lastMessage, content: lastMessage.content + content },
-                ];
-              } else {
-                return [...prevMessages, { role: 'assistant', content, id: Date.now().toString() }];
-              }
-            });
-            
-            readChunk();
-          };
-          readChunk();
-        }
-      }
-    },
-    onFinish: (message) => {
-      console.log('Message finished for', instance.name, ':', message);
-    },
   });
+
+  // If parent sends a message, trigger handleSubmit programmatically
+  useEffect(() => {
+    if (incomingMessage && incomingMessage.trim() !== '') {
+      setInput(incomingMessage);
+      handleSubmit(); // call handleSubmit with no arguments
+    }
+  }, [incomingMessage, handleSubmit, setInput]);
+  
+  
+  
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -205,26 +166,7 @@ function ChatWindow({ instance, onModelChange, onPersonaChange, onCopy, onClear,
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
-      <div className="p-4 border-t">
-        <form onSubmit={handleSubmit} className="flex space-x-2">
-          <Textarea
-            value={input}
-            onChange={handleInputChange}
-            placeholder="Type your message..."
-            className="flex-grow resize-none"
-            rows={1}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-          />
-          <Button type="submit" disabled={isLoading || !input.trim()}>
-            {isLoading ? 'Thinking...' : 'Send'}
-          </Button>
-        </form>
-      </div>
+      {/* Removed the input form from here */}
     </div>
   );
 }
@@ -236,6 +178,8 @@ export default function Chat() {
   const [chatInstances, setChatInstances] = useState<ChatInstance[]>([])
   const [activeChatIds, setActiveChatIds] = useState<string[]>([])
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
+  const [input, setInput] = useState<string>('');  
+  const [triggerMessage, setTriggerMessage] = useState<string | null>(null);
 
   // Initialize chat instances when chat models are loaded
   useEffect(() => {
@@ -256,7 +200,6 @@ export default function Chat() {
   const handleLayoutChange = (mode: LayoutMode) => {
     const neededInstances = mode === 'split' ? 2 : mode === 'grid' ? 4 : 1;
     
-    // Create chat instances for each model
     const newInstances = [];
     for (let i = 0; i < neededInstances; i++) {
       const modelIndex = i % chatModels.length;
@@ -287,11 +230,10 @@ export default function Chat() {
         prev.map(chat => {
           if (chat.id === chatId) {
             return {
-              id: chatId,
+              ...chat,
               modelId: newModelId,
               name: selectedModel.name,
               model: selectedModel,
-              persona: chat.persona
             };
           }
           return chat;
@@ -330,9 +272,9 @@ export default function Chat() {
   const copyToClipboard = (chatId: string) => {
     const instance = chatInstances.find(chat => chat.id === chatId);
     if (instance) {
-      // We can't access messages directly anymore since they're managed by the ChatWindow component
-      // Instead, we'll just copy the chat ID for now
-      navigator.clipboard.writeText(`Chat ${instance.name}`).then(() => {
+      // For a real copy-to-clipboard, you'd concatenate the messages from that chat here.
+      // For now, just show the copied state:
+      navigator.clipboard.writeText(`Chat content from ${instance.name}`).then(() => {
         setCopiedStates(prev => ({ ...prev, [chatId]: true }));
         setTimeout(() => {
           setCopiedStates(prev => ({ ...prev, [chatId]: false }));
@@ -341,11 +283,61 @@ export default function Chat() {
     }
   };
 
+  const sendMessageToAll = (message: string) => {
+    // We simply set a state trigger so that all ChatWindows receive `incomingMessage`
+    // This causes each ChatWindow's useEffect to call handleSubmit.
+    setTriggerMessage(message);
+    // Reset the trigger after a short delay to avoid repeated sends on re-renders
+    setTimeout(() => setTriggerMessage(null), 100);
+  };
+
+  const handleSubmitGlobal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    sendMessageToAll(input.trim());
+    setInput('');
+  };
+
   return (
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-white">
         <AppSidebar toggleChatbot={toggleChatbot} />
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+
+          {/* Controls for switching layouts */}
+          <div className="p-4 flex space-x-2 border-b">
+            <Button onClick={() => setLayoutMode('single')}>Single</Button>
+            <Button onClick={() => setLayoutMode('split')}>Split (Dual)</Button>
+            <Button onClick={() => setLayoutMode('grid')}>Grid (Quad)</Button>
+            {/* On mode change, we must actually call handleLayoutChange */}
+            {/* If you want immediate response, call handleLayoutChange when these are clicked: */}
+            <Button onClick={() => handleLayoutChange('single')}>Single Mode</Button>
+            <Button onClick={() => handleLayoutChange('split')}>Dual Mode</Button>
+            <Button onClick={() => handleLayoutChange('grid')}>Quad Mode</Button>
+          </div>
+
+          {/* Global input form */}
+          <div className="p-4 border-b">
+            <form onSubmit={handleSubmitGlobal} className="flex space-x-2">
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Type your message..."
+                className="flex-grow resize-none"
+                rows={1}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmitGlobal(e);
+                  }
+                }}
+              />
+              <Button type="submit" disabled={!input.trim()}>
+                Send
+              </Button>
+            </form>
+          </div>
+
           <div className={`flex-1 grid gap-4 p-4 overflow-hidden ${
             layoutMode === 'single' ? 'grid-cols-1' : 
             layoutMode === 'split' ? 'grid-cols-2' : 
@@ -360,8 +352,9 @@ export default function Chat() {
                   onModelChange={(modelId) => handleModelChange(chat.id, modelId)}
                   onPersonaChange={(persona) => handlePersonaChange(chat.id, persona)}
                   onCopy={() => copyToClipboard(chat.id)}
-                  onClear={() => {}} // This will be handled by the ChatWindow component
+                  onClear={() => { /* Implement clearing messages if needed */ }}
                   copiedState={copiedStates[chat.id] || false}
+                  incomingMessage={triggerMessage || undefined}
                 />
               ))}
           </div>
@@ -370,4 +363,3 @@ export default function Chat() {
     </div>
   )
 }
-
