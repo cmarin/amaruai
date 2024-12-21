@@ -73,7 +73,7 @@ async def cleanup_connection(correlation_id: str):
         extra={"correlation_id": correlation_id})
 
 
-@router.post("")
+@router.post("/chatsse")
 async def chat_endpoint(message: ChatMessage, request: Request,
                         background_tasks: BackgroundTasks):
     global active_connections

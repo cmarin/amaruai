@@ -85,6 +85,7 @@ protected_routes = [
     categories,
     chat_models,
     chat,
+    chatsse,
     personas,
     prompt_templates,
     tags,
@@ -98,12 +99,6 @@ for module in protected_routes:
         prefix="/api/v1",
         dependencies=[Depends(get_current_user)]  # Add authentication to all protected routes
     )
-
-# Include chatsse router (public route with API prefix)
-app.include_router(
-    chatsse.router,
-    prefix="/api/v1"  # Add back the API prefix, again
-)
 
 # Include admin routes
 app.include_router(
@@ -163,4 +158,3 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
