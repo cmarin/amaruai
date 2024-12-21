@@ -1,51 +1,42 @@
 import os
-from typing import AsyncGenerator
 import json
-import requests
-import sseclient
-from fastapi import FastAPI, HTTPException
+import uuid
+import time
+import logging
+from datetime import datetime
+from typing import AsyncGenerator
+from app.api.v1.router import create_protected_router, create_public_router
+import aiohttp
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
-from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import logging
-import time
-import uuid
-from datetime import datetime
-from app.api.v1.router import create_protected_router, create_public_router
 
-# Configure logging with more detailed format
-logging.basicConfig(
-    level=logging.INFO,  # Changed from DEBUG to reduce noise
-    format='%(asctime)s - %(levelname)s - %(message)s',  # Remove correlation_id from base format
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
 
-# Add correlation ID filter
+
 class CorrelationIdFilter(logging.Filter):
+
     def filter(self, record):
         if not hasattr(record, 'correlation_id'):
             record.correlation_id = 'NO_CORRELATION_ID'
         return True
 
-# Configure the main application logger separately
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - [%(correlation_id)s] - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(levelname)s - [%(correlation_id)s] - %(message)s')
 handler = logging.StreamHandler()
 handler.setFormatter(formatter)
-logger.handlers = [handler]  # Replace existing handlers
+logger.handlers = [handler]
 logger.addFilter(CorrelationIdFilter())
 
-# Configure third-party loggers
-urllib3_logger = logging.getLogger('urllib3')
-urllib3_logger.setLevel(logging.WARNING)  # Reduce connection pool noise
 
-requests_logger = logging.getLogger('requests')
-requests_logger.setLevel(logging.WARNING)  # Reduce request noise
+active_connections = 0
 
-# Create a protected router specifically for chat endpoints
-router = create_public_router(prefix="chatsse", tags=["chatsse"])
 
 class ChatMessage(BaseModel):
     message: str
@@ -61,68 +52,57 @@ def format_openai_message(content: str, finish_reason: str = None) -> dict:
             "index": 0,
             "finish_reason": finish_reason
         }],
-        "created": None,
-        "id": "chat",
-        "model": "openai/gpt-4o",
-        "object": "chat.completion.chunk"
+        "created":
+        None,
+        "id":
+        "chat",
+        "model":
+        "openai/gpt-4o",
+        "object":
+        "chat.completion.chunk"
     }
 
-@router.post("")
-async def chat_endpoint(message: ChatMessage, request: Request):
-    # Generate correlation ID for request tracking
+
+async def cleanup_connection(correlation_id: str):
+    global active_connections
+    active_connections -= 1
+    logger.info(
+        f"Connection cleanup completed. Remaining connections: {active_connections}",
+        extra={"correlation_id": correlation_id})
+
+
+@router.post("/")
+async def chat_endpoint(message: ChatMessage, request: Request,
+                        background_tasks: BackgroundTasks):
+    global active_connections
     correlation_id = str(uuid.uuid4())
     start_time = time.time()
-    
-    # Log the incoming request details with prominent separators
-    logger.info(
-        "="*50,
-        extra={"correlation_id": correlation_id}
-    )
-    
-    # Log request headers
-    headers_to_log = {k: v for k, v in request.headers.items()}
-    logger.info(
-        f"REQUEST HEADERS:\n{json.dumps(headers_to_log, indent=2)}",
-        extra={"correlation_id": correlation_id}
-    )
 
-    # Log URL parameters
-    params = {k: v for k, v in request.query_params.items()}
+    active_connections += 1
+    background_tasks.add_task(cleanup_connection, correlation_id)
     logger.info(
-        f"URL PARAMETERS:\n{json.dumps(params, indent=2)}",
-        extra={"correlation_id": correlation_id}
-    )
-
-    # Log request body
+        f"New chat connection. Active connections: {active_connections}",
+        extra={"correlation_id": correlation_id})
+    logger.info("=" * 50, extra={"correlation_id": correlation_id})
+    logger.info(
+        f"REQUEST HEADERS:\n{json.dumps(dict(request.headers), indent=2)}",
+        extra={"correlation_id": correlation_id})
+    logger.info(
+        f"URL PARAMETERS:\n{json.dumps(dict(request.query_params), indent=2)}",
+        extra={"correlation_id": correlation_id})
     logger.info(
         f"REQUEST BODY:\n{json.dumps({'message': message.message}, indent=2)}",
-        extra={"correlation_id": correlation_id}
-    )
-
-    logger.info(
-        f"CHAT REQUEST: '{message.message}'",
-        extra={"correlation_id": correlation_id}
-    )
-
-    logger.info(
-        "="*50,
-        extra={"correlation_id": correlation_id}
-    )
+        extra={"correlation_id": correlation_id})
+    logger.info(f"CHAT REQUEST: '{message.message}'",
+                extra={"correlation_id": correlation_id})
+    logger.info("=" * 50, extra={"correlation_id": correlation_id})
 
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
-        logger.error(
-            "OpenRouter API key not configured",
-            extra={"correlation_id": correlation_id}
-        )
-        raise HTTPException(status_code=500, detail="OpenRouter API key not configured")
-
-    # Log client information
-    client_host = request.client.host if request.client else "unknown"
-    logger.debug(
-        f"Client info - Host: {client_host}, User-Agent: {request.headers.get('user-agent', 'unknown')}",
-        extra={"correlation_id": correlation_id}
-    )
+        logger.error("OpenRouter API key not configured",
+                     extra={"correlation_id": correlation_id})
+        raise HTTPException(status_code=500,
+                            detail="OpenRouter API key not configured")
 
     headers = {
         "Accept": "text/event-stream",
@@ -131,131 +111,116 @@ async def chat_endpoint(message: ChatMessage, request: Request):
         "Content-Type": "application/json"
     }
 
-    try:
-        logger.info(
-            "Sending request to OpenRouter API",
-            extra={"correlation_id": correlation_id}
-        )
-        
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers=headers,
-            json={
-                "model": "openai/gpt-4o",
-                "stream": True,
-                "messages": [
-                    {"role": "user", "content": message.message}
-                ]
-            },
-            stream=True
-        )
-
-        api_response_time = time.time() - start_time
-        logger.info(
-            f"OpenRouter API response received in {api_response_time:.2f}s - Status: {response.status_code}",
-            extra={"correlation_id": correlation_id}
-        )
-
-        if response.status_code != 200:
-            error_detail = f"Error from OpenRouter API: {response.status_code}"
-            logger.error(
-                error_detail,
-                extra={
-                    "correlation_id": correlation_id,
-                    "status_code": response.status_code,
-                    "response_text": response.text
-                }
-            )
-            raise HTTPException(status_code=response.status_code, detail=error_detail)
-    except requests.exceptions.RequestException as e:
-        logger.error(
-            f"Failed to connect to OpenRouter API: {str(e)}",
-            extra={"correlation_id": correlation_id},
-            exc_info=True
-        )
-        raise HTTPException(status_code=503, detail="Failed to connect to OpenRouter API")
-
-    client = sseclient.SSEClient(response)
-
+    # Create an async generator to stream the response
     async def event_generator() -> AsyncGenerator[str, None]:
         chunks_received = 0
         total_tokens = 0
-        
-        try:
-            logger.info(
-                "Starting SSE stream processing",
-                extra={"correlation_id": correlation_id}
-            )
-            
-            for event in client.events():
-                if event.data != '[DONE]':
-                    try:
-                        chunks_received += 1
-                        data = json.loads(event.data)
-                        
-                        # If the response is already in OpenAI format
-                        if "choices" in data and len(data["choices"]) > 0:
-                            if "delta" in data["choices"][0]:
-                                content = data["choices"][0].get("delta", {}).get("content", "")
-                                total_tokens += len(content.split())
-                                yield f"data: {json.dumps(data)}\n\n"
-                        # If we need to format the response
-                        elif "content" in data:
-                            formatted_data = format_openai_message(data["content"])
-                            total_tokens += len(data["content"].split())
-                            yield f"data: {json.dumps(formatted_data)}\n\n"
-                            
-                        if chunks_received % 10 == 0:  # Log progress every 10 chunks
-                            logger.debug(
-                                f"Stream progress - Chunks: {chunks_received}, Tokens: {total_tokens}",
-                                extra={"correlation_id": correlation_id}
-                            )
-                            
-                    except json.JSONDecodeError as e:
-                        logger.error(
-                            f"Failed to parse SSE data: {event.data}",
-                            extra={"correlation_id": correlation_id, "error": str(e)},
-                            exc_info=True
-                        )
-                        continue
-                    except Exception as e:
-                        logger.error(
-                            f"Error processing event",
-                            extra={"correlation_id": correlation_id, "error": str(e)},
-                            exc_info=True
-                        )
-                        continue
-                        
-            logger.info(
-                f"Stream completed - Total chunks: {chunks_received}, Total tokens: {total_tokens}",
-                extra={"correlation_id": correlation_id}
-            )
-            
-        except Exception as e:
-            logger.error(
-                "Stream error occurred",
-                extra={"correlation_id": correlation_id, "error": str(e)},
-                exc_info=True
-            )
-            error_data = format_openai_message(f"Error: {str(e)}")
-            yield f"data: {json.dumps(error_data)}\n\n"
-        finally:
-            if hasattr(response, 'close'):
-                response.close()
-            if hasattr(client, 'close'):
-                client.close()
-            
-            end_time = time.time()
-            logger.info(
-                f"Chat request completed in {end_time - start_time:.2f}s",
-                extra={
-                    "correlation_id": correlation_id,
-                    "total_chunks": chunks_received,
-                    "total_tokens": total_tokens
-                }
-            )
+        stream_start_time = time.time()
 
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream"
-    )
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers=headers,
+                    json={
+                        "model": "openai/gpt-4o",
+                        "stream": True,
+                        "messages": [{
+                            "role": "user",
+                            "content": message.message
+                        }]
+                    }) as resp:
+                api_response_time = time.time() - start_time
+                logger.info(
+                    f"OpenRouter API response received in {api_response_time:.2f}s - Status: {resp.status}",
+                    extra={"correlation_id": correlation_id})
+
+                if resp.status != 200:
+                    error_detail = f"Error from OpenRouter API: {resp.status}"
+                    logger.error(error_detail,
+                                 extra={
+                                     "correlation_id": correlation_id,
+                                     "response_text": await resp.text()
+                                 })
+                    raise HTTPException(status_code=resp.status,
+                                        detail=error_detail)
+
+                # Read the response line by line
+                async for line_bytes in resp.content:
+                    line = line_bytes.decode('utf-8', errors='replace').strip()
+
+                    # OpenRouter streaming responses typically come as SSE lines, e.g.:
+                    # data: {...}
+                    # If line == "data: [DONE]", we stop.
+                    if not line:
+                        continue
+
+                    if line.startswith("data: "):
+                        data_str = line[len("data: "):].strip()
+                        if data_str == "[DONE]":
+                            # End of stream
+                            break
+                        else:
+                            # Parse JSON and forward the content as SSE
+                            try:
+                                data = json.loads(data_str)
+                                # The data should already be in OpenAI-like format
+                                # If not, adjust as needed
+                                if "choices" in data and data["choices"]:
+                                    delta = data["choices"][0].get("delta", {})
+                                    content = delta.get("content", "")
+                                    total_tokens += len(content.split())
+                                    yield f"data: {json.dumps(data)}\n\n"
+                                else:
+                                    # If the data is not in the expected format, wrap it:
+                                    content = data.get("content", "")
+                                    total_tokens += len(content.split())
+                                    formatted_data = format_openai_message(
+                                        content)
+                                    yield f"data: {json.dumps(formatted_data)}\n\n"
+
+                                chunks_received += 1
+                                if chunks_received % 10 == 0:
+                                    stream_duration = time.time(
+                                    ) - stream_start_time
+                                    logger.debug(
+                                        f"Stream progress - Chunks: {chunks_received}, Tokens: {total_tokens}, Duration: {stream_duration:.2f}s",
+                                        extra={
+                                            "correlation_id": correlation_id
+                                        })
+
+                            except json.JSONDecodeError as e:
+                                logger.error(
+                                    f"Failed to parse SSE data: {data_str}",
+                                    extra={
+                                        "correlation_id": correlation_id,
+                                        "error": str(e)
+                                    },
+                                    exc_info=True)
+                            except Exception as e:
+                                logger.error(f"Error processing event",
+                                             extra={
+                                                 "correlation_id":
+                                                 correlation_id,
+                                                 "error": str(e)
+                                             },
+                                             exc_info=True)
+                                # Optionally send an error message down the stream
+                                error_data = format_openai_message(
+                                    f"Error: {str(e)}")
+                                yield f"data: {json.dumps(error_data)}\n\n"
+
+                logger.info(
+                    f"Stream completed - Total chunks: {chunks_received}, Total tokens: {total_tokens}",
+                    extra={"correlation_id": correlation_id})
+
+        end_time = time.time()
+        logger.info(
+            f"Chat request completed in {end_time - start_time:.2f}s. Remaining connections: {active_connections}",
+            extra={
+                "correlation_id": correlation_id,
+                "total_chunks": chunks_received,
+                "total_tokens": total_tokens,
+                "active_connections": active_connections
+            })
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
