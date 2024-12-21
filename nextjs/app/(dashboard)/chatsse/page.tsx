@@ -213,8 +213,9 @@ export default function Chat() {
             messages: [...prevMessagesLocal, newMessage],
             user_id: session?.user?.id,
             model: selectedModel?.model,
+            chat_model_id: selectedModel?.id,
             persona_id: selectedPersona?.id,
-            files: uploadedFiles.map(f => f.name)
+            files: uploadedFiles.map(f => ({ name: f.name, url: f.url }))
           }),
         })
 
@@ -453,7 +454,7 @@ export default function Chat() {
       </div>
 
       {/* RIGHT COLUMN (main content) */}
-      <div className="flex-1 flex flex-col h-full">
+      <div className="flex-1 flex flex-col h-full relative">
         {/* Body/Chat section (scrollable) */}
         <div className="flex-1 overflow-auto p-4">
           {/* Single/dual/quad chat windows */}
@@ -591,6 +592,13 @@ export default function Chat() {
             </Button>
           </div>
         </div>
+
+        {/* File upload pills */}
+        {uploadedFiles.length > 0 && (
+          <div className="absolute bottom-[72px] left-0 right-0 p-2 bg-background border-t">
+            <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
+          </div>
+        )}
       </div>
 
       {/* Complex prompt modal */}
@@ -615,13 +623,6 @@ export default function Chat() {
             </div>
             <Dashboard uppy={uppyRef.current} plugins={[]} />
           </div>
-        </div>
-      )}
-
-      {/* File upload pills */}
-      {uploadedFiles.length > 0 && (
-        <div className="absolute bottom-full left-0 right-0 p-2">
-          <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
         </div>
       )}
     </div>
