@@ -37,6 +37,8 @@ logger.addFilter(CorrelationIdFilter())
 
 active_connections = 0
 
+# Initialize router
+router = create_public_router()
 
 class ChatMessage(BaseModel):
     message: str
