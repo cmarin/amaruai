@@ -5,7 +5,10 @@ import ReactMarkdown from 'react-markdown'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Copy, Trash2, Send, BookOpen, Grid2X2, Columns, Square, Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText } from 'lucide-react'
+import {
+  Copy, Trash2, Send, BookOpen, Grid2X2, Columns, Square,
+  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText
+} from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -33,7 +36,7 @@ interface Message {
 }
 
 export default function Chat() {
-  const { sidebarOpen, toggleSidebar } = useSidebar()
+  const { sidebarOpen } = useSidebar()
   const { promptTemplates: prompts, categories } = useData()
 
   const [messages, setMessages] = useState<Message[]>([])
@@ -101,7 +104,7 @@ export default function Chat() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: [...prevMessagesLocal, newMessage] }),
-        });
+        })
 
         if (!response.ok || !response.body) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -184,7 +187,6 @@ export default function Chat() {
     try {
       await navigator.clipboard.writeText(content)
       setCopiedStates(prev => ({ ...prev, [content]: true }))
-
       setTimeout(() => {
         setCopiedStates(prev => ({ ...prev, [content]: false }))
       }, 2000)
@@ -222,9 +224,7 @@ export default function Chat() {
     } else {
       setInput(prevInput => {
         const prefix = prevInput ? prevInput + ' ' : ''
-        const promptText = typeof prompt.prompt === 'string'
-          ? prompt.prompt
-          : ''
+        const promptText = typeof prompt.prompt === 'string' ? prompt.prompt : ''
         return prefix + promptText
       })
     }
@@ -296,12 +296,7 @@ export default function Chat() {
           <div className="flex items-center gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-8 h-8"
-                  onClick={onCopy}
-                >
+                <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onCopy}>
                   {isCopied ? (
                     <Check className="w-4 h-4" />
                   ) : (
@@ -315,12 +310,7 @@ export default function Chat() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-8 h-8"
-                  onClick={onAddToScratchPad}
-                >
+                <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onAddToScratchPad}>
                   <FileText className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
@@ -328,12 +318,7 @@ export default function Chat() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-8 h-8"
-                  onClick={onClearConversation}
-                >
+                <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onClearConversation}>
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
@@ -348,9 +333,7 @@ export default function Chat() {
             {messages.map((message, index) => (
               <div
                 key={index}
-                className={`mb-4 ${
-                  message.role === 'user' ? 'text-right' : 'text-left'
-                }`}
+                className={`mb-4 ${message.role === 'user' ? 'text-right' : 'text-left'}`}
               >
                 <div
                   className={`inline-block p-2 rounded-lg ${
@@ -375,39 +358,29 @@ export default function Chat() {
   )
 
   return (
-    <div className="h-full w-full">
-      {/* Outer container ensures the entire page is flex with a sidebar + main area */}
-      <div className="relative w-screen h-screen overflow-hidden">
+    <div className="flex h-screen w-screen overflow-hidden">
+      {/* LEFT COLUMN (sidebar) */}
+      <div className="w-64 h-full border-r border-gray-200">
         <AppSidebar toggleChatbot={() => {}} />
+      </div>
 
-        {/* Main content area */}
-        <main className={`h-full transition-all duration-300 ease-in-out ${ sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+      {/* RIGHT COLUMN (main content) */}
+      <div className="flex-1 flex flex-col h-full">
+        {/* Body/Chat section (scrollable) */}
+        <div className="flex-1 overflow-auto p-4">
           {/* Single/dual/quad chat windows */}
           {mode === 'single' ? (
-            <div
-              className="grid h-full gap-4"
-              style={{ gridTemplateColumns: '1fr' }}
-            >
+            <div className="grid h-full gap-4" style={{ gridTemplateColumns: '1fr' }}>
               <ChatWindow
                 messages={messages}
                 messagesEndRef={messagesEndRef}
                 title="Perplexity Llama"
                 Icon={Timer}
-                onCopy={() =>
-                  copyToClipboard(
-                    messages.map(m => `${m.role}: ${m.content}`).join('\n')
-                  )
-                }
-                onAddToScratchPad={() =>
-                  addToScratchPad(
-                    messages.map(m => `${m.role}: ${m.content}`).join('\n')
-                  )
-                }
+                onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onClearConversation={() => clearConversation(messages)}
                 isCopied={
-                  copiedStates[
-                    messages.map(m => `${m.role}: ${m.content}`).join('\n')
-                  ]
+                  copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]
                 }
               />
             </div>
@@ -424,21 +397,11 @@ export default function Chat() {
                 messagesEndRef={messagesEndRef}
                 title="Perplexity Llama"
                 Icon={Timer}
-                onCopy={() =>
-                  copyToClipboard(
-                    messages.map(m => `${m.role}: ${m.content}`).join('\n')
-                  )
-                }
-                onAddToScratchPad={() =>
-                  addToScratchPad(
-                    messages.map(m => `${m.role}: ${m.content}`).join('\n')
-                  )
-                }
+                onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onClearConversation={() => clearConversation(messages)}
                 isCopied={
-                  copiedStates[
-                    messages.map(m => `${m.role}: ${m.content}`).join('\n')
-                  ]
+                  copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]
                 }
               />
               <ChatWindow
@@ -446,21 +409,11 @@ export default function Chat() {
                 messagesEndRef={messagesEndRef2}
                 title="GPT-4o"
                 Icon={Sparkles}
-                onCopy={() =>
-                  copyToClipboard(
-                    messages2.map(m => `${m.role}: ${m.content}`).join('\n')
-                  )
-                }
-                onAddToScratchPad={() =>
-                  addToScratchPad(
-                    messages2.map(m => `${m.role}: ${m.content}`).join('\n')
-                  )
-                }
+                onCopy={() => copyToClipboard(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                onAddToScratchPad={() => addToScratchPad(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onClearConversation={() => clearConversation(messages2)}
                 isCopied={
-                  copiedStates[
-                    messages2.map(m => `${m.role}: ${m.content}`).join('\n')
-                  ]
+                  copiedStates[messages2.map(m => `${m.role}: ${m.content}`).join('\n')]
                 }
               />
 
@@ -471,21 +424,11 @@ export default function Chat() {
                     messagesEndRef={messagesEndRef3}
                     title="Gemini 1.5 Pro"
                     Icon={Bot}
-                    onCopy={() =>
-                      copyToClipboard(
-                        messages3.map(m => `${m.role}: ${m.content}`).join('\n')
-                      )
-                    }
-                    onAddToScratchPad={() =>
-                      addToScratchPad(
-                        messages3.map(m => `${m.role}: ${m.content}`).join('\n')
-                      )
-                    }
+                    onCopy={() => copyToClipboard(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                    onAddToScratchPad={() => addToScratchPad(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
                     onClearConversation={() => clearConversation(messages3)}
                     isCopied={
-                      copiedStates[
-                        messages3.map(m => `${m.role}: ${m.content}`).join('\n')
-                      ]
+                      copiedStates[messages3.map(m => `${m.role}: ${m.content}`).join('\n')]
                     }
                   />
                   <ChatWindow
@@ -493,93 +436,75 @@ export default function Chat() {
                     messagesEndRef={messagesEndRef4}
                     title="Meta Llama 3.1"
                     Icon={SmilePlus}
-                    onCopy={() =>
-                      copyToClipboard(
-                        messages4.map(m => `${m.role}: ${m.content}`).join('\n')
-                      )
-                    }
-                    onAddToScratchPad={() =>
-                      addToScratchPad(
-                        messages4.map(m => `${m.role}: ${m.content}`).join('\n')
-                      )
-                    }
+                    onCopy={() => copyToClipboard(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                    onAddToScratchPad={() => addToScratchPad(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
                     onClearConversation={() => clearConversation(messages4)}
                     isCopied={
-                      copiedStates[
-                        messages4.map(m => `${m.role}: ${m.content}`).join('\n')
-                      ]
+                      copiedStates[messages4.map(m => `${m.role}: ${m.content}`).join('\n')]
                     }
                   />
                 </>
               )}
             </div>
           )}
+        </div>
 
-          {/* Input area / footer controls */}
-          <div className="flex items-center gap-2 p-4 border-t">
-            <PromptSelector
-              prompts={prompts}
-              categories={categories}
-              onSelectPrompt={handlePromptSelect}
-            >
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <BookOpen className="h-4 w-4" />
-              </Button>
-            </PromptSelector>
-
-            <Input
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSubmit(e)
-                }
-              }}
-              placeholder="Type a message..."
-              className="flex-1"
-            />
-
-            <Button
-              onClick={e => handleSubmit(e)}
-              disabled={isLoading || !input.trim()}
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
+        {/* Footer (input / mode toggle) */}
+        <div className="border-t p-4 flex items-center gap-2">
+          <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <BookOpen className="h-4 w-4" />
             </Button>
+          </PromptSelector>
 
-            {/* Mode toggle buttons: single, dual, quad */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant={mode === 'single' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => setMode('single')}
-                title="Single chat"
-              >
-                <Square className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={mode === 'dual' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => setMode('dual')}
-                title="Split view"
-              >
-                <Columns className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={mode === 'quad' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => setMode('quad')}
-                title="Grid view"
-              >
-                <Grid2X2 className="h-4 w-4" />
-              </Button>
-            </div>
+          <Input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSubmit(e)
+              }
+            }}
+            placeholder="Type a message..."
+            className="flex-1"
+          />
+
+          <Button onClick={e => handleSubmit(e)} disabled={isLoading || !input.trim()}>
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+          </Button>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant={mode === 'single' ? 'secondary' : 'ghost'}
+              size="icon"
+              onClick={() => setMode('single')}
+              title="Single chat"
+            >
+              <Square className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={mode === 'dual' ? 'secondary' : 'ghost'}
+              size="icon"
+              onClick={() => setMode('dual')}
+              title="Split view"
+            >
+              <Columns className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={mode === 'quad' ? 'secondary' : 'ghost'}
+              size="icon"
+              onClick={() => setMode('quad')}
+              title="Grid view"
+            >
+              <Grid2X2 className="h-4 w-4" />
+            </Button>
           </div>
-        </main>
+        </div>
       </div>
 
       {/* Complex prompt modal */}
