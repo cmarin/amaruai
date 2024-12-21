@@ -26,6 +26,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { isMarkdown } from '@/app/utils/isMarkdown'
+import { AppSidebar } from '@/components/app-sidebar'
+import { useSidebar } from '@/components/sidebar-context'
 
 interface Message {
   role: 'user' | 'assistant';
@@ -33,6 +35,7 @@ interface Message {
 }
 
 export default function Chat() {
+  const { sidebarOpen, toggleSidebar } = useSidebar()
   const [messages, setMessages] = useState<Message[]>([])
   const [messages2, setMessages2] = useState<Message[]>([])
   const [messages3, setMessages3] = useState<Message[]>([])
@@ -265,131 +268,87 @@ export default function Chat() {
   )
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <main className="flex-1 p-4 overflow-hidden">
-        <div className={`grid gap-4 h-full ${
-          mode === 'single' ? 'grid-cols-1' 
-          : mode === 'dual' ? 'grid-cols-2' 
-          : 'grid-cols-2 grid-rows-2'
-        }`}>
-          <ChatWindow 
-            messages={messages} 
-            messagesEndRef={messagesEndRef}
-            title="Perplexity Llama"
-            Icon={Timer}
-          />
-          {mode !== 'single' && (
+    <div className="flex h-screen">
+      <AppSidebar toggleChatbot={() => {}} />
+      <main className={`flex-1 flex flex-col h-screen transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className="flex-1 flex flex-col">
+          <div className="grid h-full gap-4 p-4" style={{ gridTemplateColumns: mode === 'single' ? '1fr' : mode === 'dual' ? '1fr 1fr' : '1fr 1fr' }}>
             <ChatWindow 
-              messages={messages2} 
-              messagesEndRef={messagesEndRef2}
-              title="GPT-4o"
-              Icon={Sparkles}
+              messages={messages} 
+              messagesEndRef={messagesEndRef}
+              title="Perplexity Llama"
+              Icon={Timer}
             />
-          )}
-          {mode === 'quad' && (
-            <>
+            {mode !== 'single' && (
               <ChatWindow 
-                messages={messages3} 
-                messagesEndRef={messagesEndRef3}
-                title="Gemini 1.5 Pro"
-                Icon={Bot}
+                messages={messages2} 
+                messagesEndRef={messagesEndRef2}
+                title="GPT-4o"
+                Icon={Sparkles}
               />
-              <ChatWindow 
-                messages={messages4} 
-                messagesEndRef={messagesEndRef4}
-                title="Meta Llama 3.1"
-                Icon={SmilePlus}
-              />
-            </>
-          )}
+            )}
+            {mode === 'quad' && (
+              <>
+                <ChatWindow 
+                  messages={messages3} 
+                  messagesEndRef={messagesEndRef3}
+                  title="Gemini 1.5 Pro"
+                  Icon={Bot}
+                />
+                <ChatWindow 
+                  messages={messages4} 
+                  messagesEndRef={messagesEndRef4}
+                  title="Meta Llama 3.1"
+                  Icon={SmilePlus}
+                />
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 p-4 border-t">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSubmit(e)
+              }
+            }}
+            placeholder="Type a message..."
+            className="flex-1"
+          />
+          <Button onClick={(e) => handleSubmit(e)} disabled={isLoading || !input.trim()}>
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={mode === 'single' ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => setMode('single')}
+              title="Single chat"
+            >
+              <Square className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={mode === 'dual' ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => setMode('dual')}
+              title="Split view"
+            >
+              <Columns className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={mode === 'quad' ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => setMode('quad')}
+              title="Grid view"
+            >
+              <Grid2X2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </main>
-      
-      {error && (
-        <div className="text-red-500 p-4">
-          {error instanceof Error ? error.message : String(error)}
-        </div>
-      )}
-
-      <div className="border-t bg-white p-4">
-        <div className="max-w-screen-xl mx-auto flex items-center gap-2">
-          <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="w-10 h-10">
-                <BookOpen className="w-5 h-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Open Prompt Library</TooltipContent>
-          </Tooltip>
-          <form onSubmit={handleSubmit} className="flex-1 flex items-center gap-2">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your message here... (Use '/' to open prompt library)"
-              className="flex-1"
-            />
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-10 h-10">
-                  <Paperclip className="w-5 h-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Attach Files</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button type="submit" disabled={isLoading} size="icon" className="w-10 h-10">
-                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Send Message</TooltipContent>
-            </Tooltip>
-          </form>
-          <div className="flex items-center gap-2 border-l pl-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={mode === 'single' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="w-10 h-10"
-                  onClick={() => setMode('single')}
-                >
-                  <Square className="w-5 h-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Single View</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={mode === 'dual' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="w-10 h-10"
-                  onClick={() => setMode('dual')}
-                >
-                  <Columns className="w-5 h-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Split View</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={mode === 'quad' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="w-10 h-10"
-                  onClick={() => setMode('quad')}
-                >
-                  <Grid2X2 className="w-5 h-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Quad View</TooltipContent>
-            </Tooltip>
-          </div>
-          </TooltipProvider>
-        </div>
-      </div>
     </div>
   )
 }
