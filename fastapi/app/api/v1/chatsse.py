@@ -43,12 +43,20 @@ active_connections = 0
 # Initialize router
 router = create_public_router()
 
+class Message(BaseModel):
+    role: str
+    content: str
+
+class FileInfo(BaseModel):
+    name: str
+    url: str
+
 class ChatMessage(BaseModel):
-    messages: List[dict]
+    messages: List[Message]
     model_id: Optional[int] = None
     persona_id: Optional[int] = None
     user_id: Optional[str] = None
-    files: Optional[List[dict]] = None
+    files: Optional[List[FileInfo]] = None
 
 
 def format_openai_message(content: str, finish_reason: str = None) -> dict:
