@@ -51,7 +51,12 @@ export default function Chat() {
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<any | null>(null)
   const [selectedModels, setSelectedModels] = useState<{ [key: string]: string }>({})
-  const [selectedPersonas, setSelectedPersonas] = useState<{ [key: string]: string }>({})
+  const [selectedPersonas, setSelectedPersonas] = useState<{ [key: string]: string }>({
+    chat1: 'default',
+    chat2: 'default',
+    chat3: 'default',
+    chat4: 'default'
+  })
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesEndRef2 = useRef<HTMLDivElement>(null)
@@ -311,7 +316,7 @@ export default function Chat() {
                   <SelectValue placeholder="Default" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Default</SelectItem>
+                  <SelectItem value="default">Default</SelectItem>
                   {personas?.map((persona) => (
                     <SelectItem key={persona.id} value={persona.id.toString()}>
                       {persona.role || "Default"}
