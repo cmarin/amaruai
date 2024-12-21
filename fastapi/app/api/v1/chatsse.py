@@ -4,13 +4,16 @@ import uuid
 import time
 import logging
 from datetime import datetime
-from typing import AsyncGenerator
+from typing import AsyncGenerator, List, Optional
 from app.api.v1.router import create_protected_router, create_public_router
 import aiohttp
-from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from app import crud
+from app.database import get_db
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -41,7 +44,11 @@ active_connections = 0
 router = create_public_router()
 
 class ChatMessage(BaseModel):
-    message: str
+    messages: List[dict]
+    model_id: Optional[int] = None
+    persona_id: Optional[int] = None
+    user_id: Optional[str] = None
+    files: Optional[List[dict]] = None
 
 
 def format_openai_message(content: str, finish_reason: str = None) -> dict:
@@ -74,8 +81,12 @@ async def cleanup_connection(correlation_id: str):
 
 
 @router.post("/chatsse")
-async def chat_endpoint(message: ChatMessage, request: Request,
-                        background_tasks: BackgroundTasks):
+async def chat_endpoint(
+    message: ChatMessage,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     global active_connections
     correlation_id = str(uuid.uuid4())
     start_time = time.time()
@@ -93,11 +104,23 @@ async def chat_endpoint(message: ChatMessage, request: Request,
         f"URL PARAMETERS:\n{json.dumps(dict(request.query_params), indent=2)}",
         extra={"correlation_id": correlation_id})
     logger.info(
-        f"REQUEST BODY:\n{json.dumps({'message': message.message}, indent=2)}",
+        f"REQUEST BODY:\n{json.dumps(message.dict(), indent=2)}",
         extra={"correlation_id": correlation_id})
-    logger.info(f"CHAT REQUEST: '{message.message}'",
-                extra={"correlation_id": correlation_id})
     logger.info("=" * 50, extra={"correlation_id": correlation_id})
+
+    # Get system message from persona if specified
+    system_message = ""
+    if message.persona_id:
+        persona = crud.get_persona(db, message.persona_id)
+        if persona:
+            system_message = f"Role: {persona.role}\nGoal: {persona.goal}\nBackstory: {persona.backstory}"
+
+    # Get the model name
+    model_name = "openai/gpt-4o"  # default
+    if message.model_id:
+        chat_model = crud.get_chat_model(db, message.model_id)
+        if chat_model:
+            model_name = chat_model.model
 
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
@@ -119,17 +142,19 @@ async def chat_endpoint(message: ChatMessage, request: Request,
         total_tokens = 0
         stream_start_time = time.time()
 
+        # Prepare messages list
+        messages_list = message.messages
+        if system_message:
+            messages_list.insert(0, {"role": "system", "content": system_message})
+
         async with aiohttp.ClientSession() as session:
             async with session.post(
                     "https://openrouter.ai/api/v1/chat/completions",
                     headers=headers,
                     json={
-                        "model": "openai/gpt-4o",
+                        "model": model_name,
                         "stream": True,
-                        "messages": [{
-                            "role": "user",
-                            "content": message.message
-                        }]
+                        "messages": messages_list
                     }) as resp:
                 api_response_time = time.time() - start_time
                 logger.info(
