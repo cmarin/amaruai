@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Copy, Trash2, Send, BookOpen, Grid2X2, Columns, Square, MessageSquare,
-  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText
+  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X
 } from 'lucide-react'
 import {
   Select,
@@ -30,6 +30,16 @@ import { useData } from '@/components/data-context'
 import { addToScratchPad as addToScratchPadService } from '@/utils/scratch-pad-service'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon } from '@/components/icons/ai-provider-icons'
+import { useSession } from '@/app/utils/session/session'
+import { useSupabase } from '@/app/contexts/SupabaseContext'
+import Uppy from '@uppy/core'
+import Dashboard from '@uppy/react/lib/Dashboard'
+import { UploadService, type UploadedFile } from '@/utils/upload-service'
+import { FileUploadPills } from '@/components/file-upload-pills'
+
+// Import required Uppy CSS
+import '@uppy/core/dist/style.min.css'
+import '@uppy/dashboard/dist/style.min.css'
 
 interface Message {
   role: 'user' | 'assistant';
@@ -39,6 +49,8 @@ interface Message {
 export default function Chat() {
   const { sidebarOpen } = useSidebar()
   const { promptTemplates: prompts, categories, chatModels, personas } = useData()
+  const { session, getApiHeaders } = useSession()
+  const supabase = useSupabase()
 
   const [messages, setMessages] = useState<Message[]>([])
   const [messages2, setMessages2] = useState<Message[]>([])
@@ -57,6 +69,33 @@ export default function Chat() {
     chat3: 'default',
     chat4: 'default'
   })
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
+  const [showUploadModal, setShowUploadModal] = useState(false)
+
+  const uppyRef = useRef<Uppy | null>(null)
+
+  useEffect(() => {
+    if (!uppyRef.current) {
+      uppyRef.current = UploadService.createUppy(
+        'uppy-chatsse',
+        {},
+        (file) => {
+          console.log('File uploaded:', file)
+          setUploadedFiles(prev => [...prev, file])
+        },
+        () => {
+          setShowUploadModal(false)
+        },
+        supabase
+      )
+    }
+
+    return () => {
+      if (uppyRef.current) {
+        uppyRef.current.cancelAll()
+      }
+    }
+  }, [supabase])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesEndRef2 = useRef<HTMLDivElement>(null)
@@ -120,20 +159,41 @@ export default function Chat() {
     return model ? getProviderIcon(model.id.toString(), model.name) : Timer
   }
 
+  const handleFileUpload = () => {
+    setShowUploadModal(true)
+  }
+
+  const handleCloseUploadModal = () => {
+    setShowUploadModal(false)
+    if (uppyRef.current) {
+      uppyRef.current.cancelAll()
+    }
+  }
+
+  const handleRemoveFile = (file: UploadedFile) => {
+    setUploadedFiles(prev => prev.filter(f => f.name !== file.name))
+  }
+
   // Submit user input to all relevant LLMs
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim()) return
+    if (!input.trim() && uploadedFiles.length === 0) return
+
+    // Create message with both text and files
+    const messageText = input.trim()
+    const fileUrls = uploadedFiles.map(f => f.url).join('\n')
+    const fullMessage = [messageText, fileUrls].filter(Boolean).join('\n')
 
     setIsLoading(true)
     setError(null)
 
-    const newMessage: Message = { role: 'user', content: input }
+    const newMessage: Message = { role: 'user', content: fullMessage }
     setMessages(prev => [...prev, newMessage])
     setMessages2(prev => [...prev, newMessage])
     setMessages3(prev => [...prev, newMessage])
     setMessages4(prev => [...prev, newMessage])
     setInput('')
+    setUploadedFiles([])
 
     // Shared streaming logic
     const makeApiCall = async (
@@ -143,8 +203,14 @@ export default function Chat() {
       try {
         const response = await fetch('/api/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: [...prevMessagesLocal, newMessage] }),
+          headers: {
+            'Content-Type': 'application/json',
+            ...getApiHeaders(),
+          },
+          body: JSON.stringify({ 
+            messages: [...prevMessagesLocal, newMessage],
+            user_id: session?.user?.id
+          }),
         })
 
         if (!response.ok || !response.body) {
@@ -510,7 +576,11 @@ export default function Chat() {
             className="flex-1"
           />
 
-          <Button onClick={e => handleSubmit(e)} disabled={isLoading || !input.trim()}>
+          <Button variant="ghost" size="icon" onClick={handleFileUpload} className="h-8 w-8">
+            <Paperclip className="h-4 w-4" />
+          </Button>
+
+          <Button onClick={e => handleSubmit(e)} disabled={isLoading || (!input.trim() && !uploadedFiles.length)}>
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
@@ -555,6 +625,28 @@ export default function Chat() {
           onClose={() => setSelectedComplexPrompt(null)}
           onSubmit={handleComplexPromptSubmit}
         />
+      )}
+
+      {/* File upload modal */}
+      {showUploadModal && uppyRef.current && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg max-w-2xl w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Upload Files</h2>
+              <Button variant="ghost" size="icon" onClick={handleCloseUploadModal}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <Dashboard uppy={uppyRef.current} plugins={[]} />
+          </div>
+        </div>
+      )}
+
+      {/* File upload pills */}
+      {uploadedFiles.length > 0 && (
+        <div className="absolute bottom-full left-0 right-0 p-2">
+          <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
+        </div>
       )}
     </div>
   )
