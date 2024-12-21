@@ -323,7 +323,7 @@ export default function Chat() {
           <div className="flex flex-col h-full p-0">
             {mode === 'single' ? (
               <div
-                className="grid h-full gap-4"
+                className="grid h-full gap-4 flex" /*Added flex here*/
                 style={{ gridTemplateColumns: '1fr' }}
               >
                 <ChatWindow 
