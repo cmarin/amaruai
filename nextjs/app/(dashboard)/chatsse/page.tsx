@@ -322,7 +322,10 @@ export default function Chat() {
         <div className="flex-1 flex flex-col">
           <div className="flex flex-col h-full p-4">
             {mode === 'single' ? (
-              <div className="flex-1 grid grid-cols-1 w-full h-full gap-4">
+              <div
+                className="grid h-full gap-4"
+                style={{ gridTemplateColumns: '1fr' }}
+              >
                 <ChatWindow 
                   messages={messages} 
                   messagesEndRef={messagesEndRef}
@@ -335,7 +338,13 @@ export default function Chat() {
                 />
               </div>
             ) : (
-              <div className="grid h-full gap-4" style={{ gridTemplateColumns: mode === 'dual' ? '1fr 1fr' : '1fr 1fr', gridTemplateRows: mode === 'quad' ? '1fr 1fr' : '1fr' }}>
+              <div
+              className="grid h-full gap-4"
+              style={{
+                gridTemplateColumns: mode === 'dual' ? '1fr 1fr' : '1fr 1fr',
+                gridTemplateRows: mode === 'quad' ? '1fr 1fr' : '1fr',
+              }}
+            >
                 <ChatWindow 
                   messages={messages} 
                   messagesEndRef={messagesEndRef}
