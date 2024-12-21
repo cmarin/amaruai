@@ -31,6 +31,7 @@ import { useSidebar } from '@/components/sidebar-context'
 import { PromptSelector } from '@/components/prompt-selector'
 import { useData } from '@/components/data-context'
 import { addToScratchPad as addToScratchPadService } from '@/utils/scratch-pad-service'
+import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 
 interface Message {
   role: 'user' | 'assistant';
@@ -49,6 +50,7 @@ export default function Chat() {
   const [error, setError] = useState<Error | null>(null)
   const [mode, setMode] = useState('single')
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
+  const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<any | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesEndRef2 = useRef<HTMLDivElement>(null)
@@ -200,7 +202,16 @@ export default function Chat() {
   }
 
   const handlePromptSelect = (prompt: any) => {
-    setInput(prompt.prompt)
+    if (prompt.is_complex) {
+      setSelectedComplexPrompt(prompt)
+    } else {
+      setInput(prevInput => prevInput + (prevInput ? ' ' : '') + (typeof prompt.prompt === 'string' ? prompt.prompt : ''))
+    }
+  }
+
+  const handleComplexPromptSubmit = (generatedPrompt: string) => {
+    setInput(prevInput => prevInput + (prevInput ? ' ' : '') + generatedPrompt)
+    setSelectedComplexPrompt(null)
   }
 
   interface ChatWindowProps {
@@ -309,18 +320,20 @@ export default function Chat() {
       <AppSidebar toggleChatbot={() => {}} />
       <main className={`flex-1 flex flex-col h-screen transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <div className="flex-1 flex flex-col">
-          <div className="h-full p-4">
+          <div className="flex flex-col h-full p-4">
             {mode === 'single' ? (
-              <ChatWindow 
-                messages={messages} 
-                messagesEndRef={messagesEndRef}
-                title="Perplexity Llama"
-                Icon={Timer}
-                onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onClearConversation={() => clearConversation(messages)}
-                isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
-              />
+              <div className="flex-1">
+                <ChatWindow 
+                  messages={messages} 
+                  messagesEndRef={messagesEndRef}
+                  title="Perplexity Llama"
+                  Icon={Timer}
+                  onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onClearConversation={() => clearConversation(messages)}
+                  isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                />
+              </div>
             ) : (
               <div className="grid h-full gap-4" style={{ gridTemplateColumns: mode === 'dual' ? '1fr 1fr' : '1fr 1fr', gridTemplateRows: mode === 'quad' ? '1fr 1fr' : '1fr' }}>
                 <ChatWindow 
@@ -424,6 +437,14 @@ export default function Chat() {
           </div>
         </div>
       </main>
+      {selectedComplexPrompt && (
+        <ComplexPromptModal
+          prompt={selectedComplexPrompt}
+          isOpen={!!selectedComplexPrompt}
+          onClose={() => setSelectedComplexPrompt(null)}
+          onSubmit={handleComplexPromptSubmit}
+        />
+      )}
     </div>
   )
 }
