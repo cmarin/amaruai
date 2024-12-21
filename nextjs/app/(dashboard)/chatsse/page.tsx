@@ -322,7 +322,7 @@ export default function Chat() {
         <div className="flex-1 flex flex-col">
           <div className="flex flex-col h-full p-4">
             {mode === 'single' ? (
-              <div className="flex-1">
+              <div className="flex-1 w-full h-full">
                 <ChatWindow 
                   messages={messages} 
                   messagesEndRef={messagesEndRef}
