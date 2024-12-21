@@ -190,7 +190,6 @@ export default function Chat() {
     setInput('')
     setUploadedFiles([])
 
-    // Shared streaming logic
     const makeApiCall = async (
       prevMessagesLocal: Message[],
       setMessagesFunction: React.Dispatch<React.SetStateAction<Message[]>>,
@@ -212,58 +211,87 @@ export default function Chat() {
           body: JSON.stringify({ 
             messages: [...prevMessagesLocal, newMessage],
             user_id: session?.user?.id,
-            model: selectedModel?.model,
-            chat_model_id: selectedModel?.id,
+            model_id: selectedModel?.id,
             persona_id: selectedPersona?.id,
             files: uploadedFiles.map(f => ({ name: f.name, url: f.url }))
           }),
         })
 
         if (!response.ok || !response.body) {
-          throw new Error('Network response was not ok')
+          throw new Error(`HTTP error! status: ${response.status}`)
         }
 
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
+
         let assistantMessage = ''
+        setMessagesFunction(prev => [
+          ...prev,
+          { role: 'assistant', content: '' },
+        ])
 
         while (true) {
           const { value, done } = await reader.read()
           if (done) break
+          const chunk = decoder.decode(value)
+          const lines = chunk.split('\n')
 
-          const text = decoder.decode(value)
-          assistantMessage += text
-
-          setMessagesFunction(prev => {
-            const newMessages = [...prev]
-            const lastMessage = newMessages[newMessages.length - 1]
-            if (lastMessage?.role === 'assistant') {
-              lastMessage.content = assistantMessage
-            } else {
-              newMessages.push({ role: 'assistant', content: assistantMessage })
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const jsonData = line.slice(5).trim()
+              if (jsonData !== '[DONE]') {
+                try {
+                  const parsed = JSON.parse(jsonData)
+                  if (parsed.choices && parsed.choices[0].delta.content) {
+                    assistantMessage += parsed.choices[0].delta.content
+                    setMessagesFunction(prev => {
+                      const updated = [...prev]
+                      updated[updated.length - 1] = {
+                        role: 'assistant',
+                        content: assistantMessage,
+                      }
+                      return updated
+                    })
+                  }
+                } catch (parseError) {
+                  console.error('Error parsing chunk line:', parseError, line)
+                }
+              }
             }
-            return newMessages
-          })
+          }
         }
-      } catch (error) {
-        console.error('Error:', error)
-        setError(error as Error)
+      } catch (err: any) {
+        console.error('Error in API call:', err)
+        const errMsg = err instanceof Error ? err.message : 'Unknown error'
+        setError(prevError =>
+          prevError
+            ? new Error(`${prevError.message}\n${errMsg}`)
+            : new Error(errMsg)
+        )
       }
     }
 
-    // Make API calls based on mode
-    if (mode === 'single' || mode === 'dual' || mode === 'quad') {
-      await makeApiCall(messages, setMessages, 'chat1')
-    }
-    if (mode === 'dual' || mode === 'quad') {
-      await makeApiCall(messages2, setMessages2, 'chat2')
-    }
-    if (mode === 'quad') {
-      await makeApiCall(messages3, setMessages3, 'chat3')
-      await makeApiCall(messages4, setMessages4, 'chat4')
-    }
+    const apiCalls = [
+      makeApiCall(messages, setMessages, 'chat1'),
+      mode !== 'single' && makeApiCall(messages2, setMessages2, 'chat2'),
+      mode === 'quad' && makeApiCall(messages3, setMessages3, 'chat3'),
+      mode === 'quad' && makeApiCall(messages4, setMessages4, 'chat4'),
+    ].filter(Boolean)
 
-    setIsLoading(false)
+    try {
+      await Promise.all(apiCalls)
+    } catch (err: unknown) {
+      console.error('Error in handleSubmit:', err)
+      const errMsg = err instanceof Error ? err.message : 'Unknown error'
+      setError(prevError =>
+        prevError
+          ? new Error(`${prevError.message}\n${errMsg}`)
+          : new Error(errMsg)
+      )
+    } finally {
+      setIsLoading(false)
+      setUploadedFiles([])
+    }
   }
 
   // Copy all messages to clipboard
