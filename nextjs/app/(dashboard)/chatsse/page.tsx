@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
-  Copy, Trash2, Send, BookOpen, Grid2X2, Columns, Square,
+  Copy, Trash2, Send, BookOpen, Grid2X2, Columns, Square, MessageSquare,
   Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText
 } from 'lucide-react'
 import {
@@ -29,6 +29,7 @@ import { PromptSelector } from '@/components/prompt-selector'
 import { useData } from '@/components/data-context'
 import { addToScratchPad as addToScratchPadService } from '@/utils/scratch-pad-service'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
+import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon } from '@/components/icons/ai-provider-icons'
 
 interface Message {
   role: 'user' | 'assistant';
@@ -37,7 +38,7 @@ interface Message {
 
 export default function Chat() {
   const { sidebarOpen } = useSidebar()
-  const { promptTemplates: prompts, categories } = useData()
+  const { promptTemplates: prompts, categories, chatModels, personas } = useData()
 
   const [messages, setMessages] = useState<Message[]>([])
   const [messages2, setMessages2] = useState<Message[]>([])
@@ -49,6 +50,8 @@ export default function Chat() {
   const [mode, setMode] = useState<'single' | 'dual' | 'quad'>('single')
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<any | null>(null)
+  const [selectedModels, setSelectedModels] = useState<{ [key: string]: string }>({})
+  const [selectedPersonas, setSelectedPersonas] = useState<{ [key: string]: string }>({})
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesEndRef2 = useRef<HTMLDivElement>(null)
@@ -78,6 +81,39 @@ export default function Chat() {
       messagesEndRef4.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages4])
+
+  const getProviderIcon = (modelId: string, modelName: string) => {
+    const nameLower = modelName.toLowerCase()
+    
+    if (nameLower.includes('gpt') || nameLower.includes('o1')) return OpenAIIcon
+    if (nameLower.includes('claude')) return AnthropicIcon
+    if (nameLower.includes('gemini')) return GeminiIcon
+    if (nameLower.includes('perplexity')) return PerplexityIcon
+    if (nameLower.includes('mistral') || nameLower.includes('mixtral')) return MistralIcon
+    if (nameLower.includes('llama')) return MetaIcon
+    if (nameLower.includes('zephyr')) return ZephyrIcon
+    return MessageSquare as React.ComponentType<any>
+  }
+
+  const handleModelChange = (chatWindowId: string, modelId: string) => {
+    setSelectedModels(prev => ({ ...prev, [chatWindowId]: modelId }))
+  }
+
+  const handlePersonaChange = (chatWindowId: string, personaId: string) => {
+    setSelectedPersonas(prev => ({ ...prev, [chatWindowId]: personaId }))
+  }
+
+  const getModelName = (chatWindowId: string) => {
+    const modelId = selectedModels[chatWindowId]
+    const model = chatModels?.find(m => m.id.toString() === modelId)
+    return model?.name || "Default Model"
+  }
+
+  const getModelIcon = (chatWindowId: string) => {
+    const modelId = selectedModels[chatWindowId]
+    const model = chatModels?.find(m => m.id.toString() === modelId)
+    return model ? getProviderIcon(model.id.toString(), model.name) : Timer
+  }
 
   // Submit user input to all relevant LLMs
   const handleSubmit = async (e: React.FormEvent) => {
@@ -246,6 +282,7 @@ export default function Chat() {
     onAddToScratchPad: () => void
     onClearConversation: () => void
     isCopied: boolean
+    chatWindowId: string
   }
 
   const ChatWindow = ({
@@ -257,6 +294,7 @@ export default function Chat() {
     onAddToScratchPad,
     onClearConversation,
     isCopied,
+    chatWindowId
   }: ChatWindowProps) => (
     <TooltipProvider>
       <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
@@ -264,30 +302,33 @@ export default function Chat() {
         <div className="flex items-center justify-between p-3 border-b">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <Icon className="w-5 h-5" />
-              <span className="font-medium">{title}</span>
+              {React.createElement(getModelIcon(chatWindowId), { className: "w-5 h-5" })}
+              <span className="font-medium">{getModelName(chatWindowId)}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Select>
+              <Select value={selectedPersonas[chatWindowId]} onValueChange={(value) => handlePersonaChange(chatWindowId, value)}>
                 <SelectTrigger className="w-[120px]">
                   <SelectValue placeholder="Default" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default">Default</SelectItem>
-                  <SelectItem value="poet">Poet</SelectItem>
-                  <SelectItem value="marketer">Marketer</SelectItem>
-                  <SelectItem value="comedian">Comedian</SelectItem>
+                  <SelectItem value="">Default</SelectItem>
+                  {personas?.map((persona) => (
+                    <SelectItem key={persona.id} value={persona.id.toString()}>
+                      {persona.role || "Default"}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <Select>
+              <Select value={selectedModels[chatWindowId]} onValueChange={(value) => handleModelChange(chatWindowId, value)}>
                 <SelectTrigger className="w-[140px]">
                   <SelectValue placeholder={title} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="perplexity">Perplexity Llama</SelectItem>
-                  <SelectItem value="gpt4">GPT-4o</SelectItem>
-                  <SelectItem value="gemini">Gemini 1.5 Pro</SelectItem>
-                  <SelectItem value="llama">Meta Llama 3.1</SelectItem>
+                  {chatModels?.map((model) => (
+                    <SelectItem key={model.id} value={model.id.toString()}>
+                      {model.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -379,9 +420,8 @@ export default function Chat() {
                 onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onClearConversation={() => clearConversation(messages)}
-                isCopied={
-                  copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]
-                }
+                isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                chatWindowId="chat1"
               />
             </div>
           ) : (
@@ -400,9 +440,8 @@ export default function Chat() {
                 onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onClearConversation={() => clearConversation(messages)}
-                isCopied={
-                  copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]
-                }
+                isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                chatWindowId="chat1"
               />
               <ChatWindow
                 messages={messages2}
@@ -412,11 +451,9 @@ export default function Chat() {
                 onCopy={() => copyToClipboard(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onAddToScratchPad={() => addToScratchPad(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onClearConversation={() => clearConversation(messages2)}
-                isCopied={
-                  copiedStates[messages2.map(m => `${m.role}: ${m.content}`).join('\n')]
-                }
+                isCopied={copiedStates[messages2.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                chatWindowId="chat2"
               />
-
               {mode === 'quad' && (
                 <>
                   <ChatWindow
@@ -427,9 +464,8 @@ export default function Chat() {
                     onCopy={() => copyToClipboard(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
                     onAddToScratchPad={() => addToScratchPad(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
                     onClearConversation={() => clearConversation(messages3)}
-                    isCopied={
-                      copiedStates[messages3.map(m => `${m.role}: ${m.content}`).join('\n')]
-                    }
+                    isCopied={copiedStates[messages3.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                    chatWindowId="chat3"
                   />
                   <ChatWindow
                     messages={messages4}
@@ -439,9 +475,8 @@ export default function Chat() {
                     onCopy={() => copyToClipboard(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
                     onAddToScratchPad={() => addToScratchPad(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
                     onClearConversation={() => clearConversation(messages4)}
-                    isCopied={
-                      copiedStates[messages4.map(m => `${m.role}: ${m.content}`).join('\n')]
-                    }
+                    isCopied={copiedStates[messages4.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                    chatWindowId="chat4"
                   />
                 </>
               )}
