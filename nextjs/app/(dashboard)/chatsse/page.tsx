@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Copy, RotateCcw, Trash2, ChevronDown, Paperclip, Send, BookOpen, Grid2X2, Columns, Square, Loader2, Timer, Bot, Sparkles, SmilePlus } from 'lucide-react'
+import { Copy, RotateCcw, Trash2, ChevronDown, Paperclip, Send, BookOpen, Grid2X2, Columns, Square, Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +28,9 @@ import {
 import { isMarkdown } from '@/app/utils/isMarkdown'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/sidebar-context'
+import { PromptSelector } from '@/components/prompt-selector'
+import { useData } from '@/components/data-context'
+import { addToScratchPad as addToScratchPadService } from '@/utils/scratch-pad-service'
 
 interface Message {
   role: 'user' | 'assistant';
@@ -36,6 +39,7 @@ interface Message {
 
 export default function Chat() {
   const { sidebarOpen, toggleSidebar } = useSidebar()
+  const { promptTemplates: prompts, categories } = useData()
   const [messages, setMessages] = useState<Message[]>([])
   const [messages2, setMessages2] = useState<Message[]>([])
   const [messages3, setMessages3] = useState<Message[]>([])
@@ -44,6 +48,7 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [mode, setMode] = useState('single')
+  const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesEndRef2 = useRef<HTMLDivElement>(null)
@@ -167,14 +172,49 @@ export default function Chat() {
     }
   }
 
+  const copyToClipboard = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopiedStates(prev => ({ ...prev, [content]: true }))
+      setTimeout(() => {
+        setCopiedStates(prev => ({ ...prev, [content]: false }))
+      }, 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
+  const addToScratchPad = async (content: string) => {
+    try {
+      await addToScratchPadService(content)
+    } catch (err) {
+      console.error('Failed to add to scratch pad:', err)
+    }
+  }
+
+  const clearConversation = (messagesList: Message[]) => {
+    if (messagesList === messages) setMessages([])
+    else if (messagesList === messages2) setMessages2([])
+    else if (messagesList === messages3) setMessages3([])
+    else if (messagesList === messages4) setMessages4([])
+  }
+
+  const handlePromptSelect = (prompt: any) => {
+    setInput(prompt.prompt)
+  }
+
   interface ChatWindowProps {
     messages: Message[];
     messagesEndRef: React.RefObject<HTMLDivElement>;
     title: string;
     Icon: React.ComponentType<any>;
+    onCopy: () => void;
+    onAddToScratchPad: () => void;
+    onClearConversation: () => void;
+    isCopied: boolean;
   }
 
-  const ChatWindow = ({ messages, messagesEndRef, title, Icon }: ChatWindowProps) => (
+  const ChatWindow = ({ messages, messagesEndRef, title, Icon, onCopy, onAddToScratchPad, onClearConversation, isCopied }: ChatWindowProps) => (
     <TooltipProvider>
     <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
       <div className="flex items-center justify-between p-3 border-b">
@@ -208,30 +248,27 @@ export default function Chat() {
             </Select>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="w-8 h-8">
-                <BookOpen className="w-4 h-4" />
-                <span className="sr-only">Add to Scratch Pad</span>
+              <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onCopy}>
+                {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{isCopied ? "Copied!" : "Copy chat content"}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onAddToScratchPad}>
+                <FileText className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Add to Scratch Pad</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="w-8 h-8">
-                <Copy className="w-4 h-4" />
-                <span className="sr-only">Copy to Clipboard</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Copy to Clipboard</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="w-8 h-8">
+              <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onClearConversation}>
                 <Trash2 className="w-4 h-4" />
-                <span className="sr-only">Clear Conversation</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>Clear Conversation</TooltipContent>
@@ -272,40 +309,78 @@ export default function Chat() {
       <AppSidebar toggleChatbot={() => {}} />
       <main className={`flex-1 flex flex-col h-screen transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <div className="flex-1 flex flex-col">
-          <div className="grid h-full gap-4 p-4" style={{ gridTemplateColumns: mode === 'single' ? '1fr' : mode === 'dual' ? '1fr 1fr' : '1fr 1fr' }}>
-            <ChatWindow 
-              messages={messages} 
-              messagesEndRef={messagesEndRef}
-              title="Perplexity Llama"
-              Icon={Timer}
-            />
-            {mode !== 'single' && (
+          <div className="h-full p-4">
+            {mode === 'single' ? (
               <ChatWindow 
-                messages={messages2} 
-                messagesEndRef={messagesEndRef2}
-                title="GPT-4o"
-                Icon={Sparkles}
+                messages={messages} 
+                messagesEndRef={messagesEndRef}
+                title="Perplexity Llama"
+                Icon={Timer}
+                onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                onClearConversation={() => clearConversation(messages)}
+                isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
               />
-            )}
-            {mode === 'quad' && (
-              <>
+            ) : (
+              <div className="grid h-full gap-4" style={{ gridTemplateColumns: mode === 'dual' ? '1fr 1fr' : '1fr 1fr', gridTemplateRows: mode === 'quad' ? '1fr 1fr' : '1fr' }}>
                 <ChatWindow 
-                  messages={messages3} 
-                  messagesEndRef={messagesEndRef3}
-                  title="Gemini 1.5 Pro"
-                  Icon={Bot}
+                  messages={messages} 
+                  messagesEndRef={messagesEndRef}
+                  title="Perplexity Llama"
+                  Icon={Timer}
+                  onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onClearConversation={() => clearConversation(messages)}
+                  isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
                 />
                 <ChatWindow 
-                  messages={messages4} 
-                  messagesEndRef={messagesEndRef4}
-                  title="Meta Llama 3.1"
-                  Icon={SmilePlus}
+                  messages={messages2} 
+                  messagesEndRef={messagesEndRef2}
+                  title="GPT-4o"
+                  Icon={Sparkles}
+                  onCopy={() => copyToClipboard(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onAddToScratchPad={() => addToScratchPad(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onClearConversation={() => clearConversation(messages2)}
+                  isCopied={copiedStates[messages2.map(m => `${m.role}: ${m.content}`).join('\n')]}
                 />
-              </>
+                {mode === 'quad' && (
+                  <>
+                    <ChatWindow 
+                      messages={messages3} 
+                      messagesEndRef={messagesEndRef3}
+                      title="Gemini 1.5 Pro"
+                      Icon={Bot}
+                      onCopy={() => copyToClipboard(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                      onAddToScratchPad={() => addToScratchPad(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                      onClearConversation={() => clearConversation(messages3)}
+                      isCopied={copiedStates[messages3.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                    />
+                    <ChatWindow 
+                      messages={messages4} 
+                      messagesEndRef={messagesEndRef4}
+                      title="Meta Llama 3.1"
+                      Icon={SmilePlus}
+                      onCopy={() => copyToClipboard(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                      onAddToScratchPad={() => addToScratchPad(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                      onClearConversation={() => clearConversation(messages4)}
+                      isCopied={copiedStates[messages4.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                    />
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2 p-4 border-t">
+          <PromptSelector
+            prompts={prompts}
+            categories={categories}
+            onSelectPrompt={handlePromptSelect}
+          >
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <BookOpen className="h-4 w-4" />
+            </Button>
+          </PromptSelector>
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
