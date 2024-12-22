@@ -41,7 +41,7 @@ logger.addFilter(CorrelationIdFilter())
 active_connections = 0
 
 # Initialize router
-router = create_public_router(prefix="chatsse", tags=["chat"])
+router = create_public_router()
 
 class Message(BaseModel):
     role: str
@@ -88,7 +88,7 @@ async def cleanup_connection(correlation_id: str):
         extra={"correlation_id": correlation_id})
 
 
-@router.post("/")
+@router.post("")
 async def chat_endpoint(
     message: ChatMessage,
     request: Request,
