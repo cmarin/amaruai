@@ -234,12 +234,15 @@ async def chat_endpoint(
             file_contents = []
             logger.info(f"Processing {len(chat_data.files)} files")
             for file in chat_data.files:
-                # Extract the relative path from the full URL
-                # Example: from "https://...co/storage/v1/object/public/amaruai-dev/chats/user/uuid/file.txt"
-                # we want "chats/user/uuid/file.txt"
                 file_url = file.url.strip(';')  # Remove any trailing semicolons
                 try:
-                    relative_url = file_url.split("/public/amaruai-dev/")[1]
+                    # Find the index of "chats/" and take everything after it
+                    chats_index = file_url.find("chats/")
+                    if chats_index == -1:
+                        logger.error(f"Invalid file URL format for {file.name}: 'chats/' not found in {file_url}")
+                        continue
+                        
+                    relative_url = file_url[chats_index:]
                     logger.info(f"Processing file: {file.name}")
                     logger.info(f"Full URL: {file_url}")
                     logger.info(f"Relative URL: {relative_url}")

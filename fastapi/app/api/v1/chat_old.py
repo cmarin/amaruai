@@ -19,7 +19,7 @@ from app.api.v1.router import create_protected_router
 from app.config.supabase import supabase
 
 # Create a protected router specifically for chat endpoints
-router = create_protected_router(prefix="chat", tags=["chat"])
+router = create_protected_router(prefix="chat_old", tags=["chat"])
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
