@@ -10,6 +10,7 @@ import aiohttp
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from typing import List, Optional
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app import crud
@@ -44,7 +45,7 @@ active_connections = 0
 router = create_public_router()
 
 class Message(BaseModel):
-    role: str = Field(..., description="The role of the message sender (e.g., 'user', 'assistant', 'system')")
+    role: str = Field(..., description="The role of the sender (e.g. user, assistant, system)")
     content: str = Field(..., description="The content of the message")
 
 class FileInfo(BaseModel):
@@ -52,11 +53,21 @@ class FileInfo(BaseModel):
     url: str = Field(..., description="URL of the file")
 
 class ChatMessage(BaseModel):
-    messages: List[Message] = Field(..., description="List of chat messages")
+    # Either a single message or a list of messages
+    message: Optional[str] = Field(
+        None,
+        description="Single message if you're not passing a list of messages"
+    )
+    messages: Optional[List[Message]] = Field(
+        None,
+        description="List of chat messages"
+    )
+
     model_id: Optional[int] = Field(None, description="ID of the chat model to use")
     persona_id: Optional[int] = Field(None, description="ID of the persona to use")
     user_id: Optional[str] = Field(None, description="ID of the user")
     files: Optional[List[FileInfo]] = Field(default=[], description="List of files to process")
+
 
 
 def format_openai_message(content: str, finish_reason: str = None) -> dict:
@@ -90,11 +101,24 @@ async def cleanup_connection(correlation_id: str):
 
 @router.post("")
 async def chat_endpoint(
-    message: ChatMessage,
+    chat_data: ChatMessage,
     request: Request,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
+    
+    # Convert single message to the list-of-messages format if needed
+    if chat_data.messages and len(chat_data.messages) > 0:
+        messages_list = [m.dict() for m in chat_data.messages]
+    elif chat_data.message:
+        messages_list = [{
+            "role": "user",
+            "content": chat_data.message
+        }]
+    else:
+        # If both are missing, handle it as an error or default
+        raise HTTPException(status_code=422, detail="No message(s) provided.")
+        
     global active_connections
     correlation_id = str(uuid.uuid4())
     start_time = time.time()
