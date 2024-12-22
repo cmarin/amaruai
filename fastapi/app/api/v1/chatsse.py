@@ -4,13 +4,13 @@ import uuid
 import time
 import logging
 from datetime import datetime
-from typing import AsyncGenerator, List, Optional
+from typing import AsyncGenerator, List, Optional, Dict
 from app.api.v1.router import create_protected_router, create_public_router
 import aiohttp
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app import crud
 from app.database import get_db
@@ -44,19 +44,19 @@ active_connections = 0
 router = create_public_router()
 
 class Message(BaseModel):
-    role: str
-    content: str
+    role: str = Field(..., description="The role of the message sender (e.g., 'user', 'assistant', 'system')")
+    content: str = Field(..., description="The content of the message")
 
 class FileInfo(BaseModel):
-    name: str
-    url: str
+    name: str = Field(..., description="Name of the file")
+    url: str = Field(..., description="URL of the file")
 
 class ChatMessage(BaseModel):
-    messages: List[Message]
-    model_id: Optional[int] = None
-    persona_id: Optional[int] = None
-    user_id: Optional[str] = None
-    files: Optional[List[FileInfo]] = None
+    messages: List[Message] = Field(..., description="List of chat messages")
+    model_id: Optional[int] = Field(None, description="ID of the chat model to use")
+    persona_id: Optional[int] = Field(None, description="ID of the persona to use")
+    user_id: Optional[str] = Field(None, description="ID of the user")
+    files: Optional[List[FileInfo]] = Field(default=[], description="List of files to process")
 
 
 def format_openai_message(content: str, finish_reason: str = None) -> dict:
