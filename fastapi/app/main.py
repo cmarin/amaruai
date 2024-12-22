@@ -80,10 +80,10 @@ app.include_router(
     tags=["auth"]
 )
 
-# Mount chatsse as public route
+# Mount public chatsse route
 app.include_router(
     chatsse.router,
-    prefix="/api/v1",
+    prefix="/api/v1/chatsse",
     tags=["chat"]
 )
 
