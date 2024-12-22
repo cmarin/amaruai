@@ -216,6 +216,36 @@ async def chat_endpoint(
         if system_message:
             local_messages.insert(0, {"role": "system", "content": system_message})
 
+        # Process any attached files
+        if chat_data.files:
+            file_contents = []
+            for file in chat_data.files:
+                # Extract the relative path from the full URL
+                # Example: from "https://...co/storage/v1/object/public/amaruai-dev/chats/user/uuid/file.txt"
+                # we want "chats/user/uuid/file.txt"
+                file_url = file.url
+                try:
+                    relative_url = file_url.split("/public/amaruai-dev/")[1]
+                    logger.info(f"Looking up asset with relative URL: {relative_url}")
+                    
+                    asset = crud.get_asset_by_file_url(db, relative_url)
+                    if asset and asset.content:
+                        file_contents.append(f"\nFile: {file.name}\nContent:\n{asset.content}\n")
+                        logger.info(f"Found content for file {file.name}")
+                    else:
+                        logger.warning(f"No content found for file {file.name} with URL {relative_url}")
+                except Exception as e:
+                    logger.error(f"Error processing file {file.name}: {str(e)}")
+                    continue
+        
+            if file_contents:
+                # Append file contents to the last user message
+                for i in range(len(local_messages) - 1, -1, -1):
+                    if local_messages[i]["role"] == "user":
+                        local_messages[i]["content"] += "\n\nAttached Files:" + "".join(file_contents)
+                        logger.info(f"Added content from {len(file_contents)} files to user message")
+                        break
+
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 "https://openrouter.ai/api/v1/chat/completions",
@@ -231,6 +261,17 @@ async def chat_endpoint(
                     f"OpenRouter API response received in {api_response_time:.2f}s - Status: {resp.status}",
                     extra={"correlation_id": correlation_id},
                 )
+                
+                # Log the final message structure being sent
+                logger.info("=" * 50)
+                logger.info("Final message structure sent to OpenRouter:")
+                logger.info(f"Model: {model_name}")
+                logger.info("Messages:")
+                for msg in local_messages:
+                    logger.info(f"Role: {msg['role']}")
+                    logger.info(f"Content length: {len(msg['content'])} characters")
+                    logger.info("-" * 30)
+                logger.info("=" * 50)
 
                 if resp.status != 200:
                     error_detail = f"Error from OpenRouter API: {resp.status}"

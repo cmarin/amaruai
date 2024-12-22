@@ -458,16 +458,9 @@ def move_workflow_step_down(db: Session, step_id: int):
             db.commit()
     return step
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+def get_asset_by_file_url(db: Session, file_url: str):
+    """
+    Get an asset by its file_url.
+    The file_url should be in the format: chats/user_id/uuid/filename.txt
+    """
+    return db.query(models.Asset).filter(models.Asset.file_url == file_url).first()
