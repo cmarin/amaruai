@@ -67,8 +67,16 @@ class ChatMessage(BaseModel):
     model_id: Optional[int] = Field(None, description="ID of the chat model to use")
     persona_id: Optional[int] = Field(None, description="ID of the persona to use")
     user_id: Optional[str] = Field(None, description="ID of the user")
-    files: Optional[List[FileInfo]] = Field(default=[], description="List of files to process")
+    files: List[FileInfo] = Field(default_factory=list, description="List of files to process")
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "messages": [{"role": "user", "content": "Tell me a joke"}],
+                "user_id": "user123",
+                "files": [{"name": "doc.txt", "url": "https://..."}]
+            }
+        }
 
 def format_openai_message(content: str, finish_reason: str = None) -> dict:
     """Format message to match OpenAI's chat completion response format."""
@@ -98,8 +106,8 @@ async def cleanup_connection(correlation_id: str):
 
 @router.post("")
 async def chat_endpoint(
-    chat_data: ChatMessage,
     request: Request,
+    chat_data: ChatMessage,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
@@ -120,6 +128,19 @@ async def chat_endpoint(
     logger.info("Incoming Chat Request")
     logger.info("=" * 50)
     
+    # Log raw request body before Pydantic validation
+    raw_body = await request.body()
+    try:
+        raw_json = json.loads(raw_body)
+        logger.info("Raw JSON before Pydantic validation:")
+        logger.info(json.dumps(raw_json, indent=2))
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse raw JSON: {str(e)}")
+    
+    # Log the Pydantic model after validation
+    logger.info("Pydantic validated data:")
+    logger.info(json.dumps(chat_data.dict(), indent=2))
+    
     # Log headers
     headers = dict(request.headers)
     auth_header = headers.get('authorization', 'NO AUTH HEADER FOUND')
@@ -129,14 +150,6 @@ async def chat_endpoint(
     # Log request URL
     logger.info(f"Request URL: {request.url}")
     logger.info(f"Request method: {request.method}")
-    
-    # Log request body
-    body = await request.body()
-    try:
-        raw_body = json.loads(body)
-        logger.info(f"Request body:\n{json.dumps(raw_body, indent=2)}")
-    except:
-        logger.info(f"Raw request body (not JSON): {body}")
     
     logger.info("=" * 50)
 
