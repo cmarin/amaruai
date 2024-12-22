@@ -5,8 +5,11 @@ import { getApiUrl } from '@/utils/api-utils'
 export const runtime = 'edge'
 
 interface ChatRequestBody {
-  messages?: Array<{ role: string; content: string }>
-  // also accept other fields (model_id, persona_id, etc.) if you want
+  messages: Array<{ role: string; content: string }>
+  user_id?: string
+  model_id?: string
+  persona_id?: string
+  files?: Array<{ name: string; url: string }>
 }
 
 export async function POST(req: NextRequest) {
@@ -15,7 +18,8 @@ export async function POST(req: NextRequest) {
 
     // 1) Parse request body
     const body: ChatRequestBody = await req.json()
-    const { messages } = body
+    const { messages, user_id, model_id, persona_id, files } = body
+    
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: 'Invalid request body' }), {
         status: 400,
@@ -33,26 +37,27 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // 3) Forward that same token to your FastAPI server
+    // 3) Forward request to FastAPI server with all parameters
     const externalApiUrl = `${getApiUrl()}/chatsse`
     console.log('Sending request to external API:', externalApiUrl)
 
-    // Use the last message as you did before
     const lastMessage = messages[messages.length - 1]
     console.log('Last message:', JSON.stringify(lastMessage))
+    console.log('Forwarding with params:', { user_id, model_id, persona_id, files })
 
     const response = await fetch(externalApiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // <-- forward the same Bearer token -->
         Authorization: authHeader,
       },
       body: JSON.stringify({
-        // Pass anything your FastAPI server expects
         message: lastMessage.content,
-        // or the entire array: messages
-        // plus model_id, persona_id, etc. if needed
+        messages: messages,
+        user_id,
+        model_id,
+        persona_id,
+        files,
       }),
     })
 
