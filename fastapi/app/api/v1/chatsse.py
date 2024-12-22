@@ -46,6 +46,14 @@ active_connections = 0
 # Create a protected router specifically for chat endpoints
 router = create_protected_router(prefix="chatsse", tags=["chat"])
 
+# Add middleware to log all requests
+@router.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"[DEBUG] Incoming request to {request.url.path}")
+    logger.info(f"[DEBUG] Request headers: {dict(request.headers)}")
+    response = await call_next(request)
+    return response
+
 class Message(BaseModel):
     role: str = Field(..., description="The role of the sender (e.g. user, assistant, system)")
     content: str = Field(..., description="The content of the message")
@@ -116,6 +124,19 @@ async def chat_endpoint(
         }
     and transforms them to a unified structure for processing.
     """
+    # Log raw request details first
+    headers = dict(request.headers)
+    auth_header = headers.get('authorization', 'NO AUTH HEADER FOUND')
+    logger.info(f"[DEBUG] Raw Authorization header: {auth_header}")
+    logger.info(f"[DEBUG] All headers: {json.dumps(headers, indent=2)}")
+    
+    # Log raw request body
+    body = await request.body()
+    try:
+        raw_body = json.loads(body)
+        logger.info(f"[DEBUG] Raw request body: {json.dumps(raw_body, indent=2)}")
+    except:
+        logger.info(f"[DEBUG] Raw request body (not JSON): {body}")
 
     # Convert single message to the list-of-messages format if needed
     if chat_data.messages and len(chat_data.messages) > 0:

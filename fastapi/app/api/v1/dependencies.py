@@ -11,9 +11,7 @@ print(f"Loaded API key: {os.getenv('SERVICE1_API_KEY')}")
 logger = logging.getLogger(__name__)
 
 async def get_current_user(authorization: Optional[str] = Header(None)):
-    #logger.debug(f"Received authorization header: {authorization}")
-    #logger.debug(f"Expected API key: Bearer {os.getenv('SERVICE1_API_KEY')}")
-    #logger.debug(f"Actual header: {authorization}")
+    logger.info(f"[DEBUG] Raw authorization header received: {authorization}")
     
     # Check if authorization header exists
     if not authorization:
