@@ -232,25 +232,32 @@ async def chat_endpoint(
         # Process any attached files
         if chat_data.files:
             file_contents = []
+            logger.info(f"Processing {len(chat_data.files)} files")
             for file in chat_data.files:
                 # Extract the relative path from the full URL
                 # Example: from "https://...co/storage/v1/object/public/amaruai-dev/chats/user/uuid/file.txt"
                 # we want "chats/user/uuid/file.txt"
-                file_url = file.url
+                file_url = file.url.strip(';')  # Remove any trailing semicolons
                 try:
                     relative_url = file_url.split("/public/amaruai-dev/")[1]
-                    logger.info(f"Looking up asset with relative URL: {relative_url}")
+                    logger.info(f"Processing file: {file.name}")
+                    logger.info(f"Full URL: {file_url}")
+                    logger.info(f"Relative URL: {relative_url}")
                     
                     asset = crud.get_asset_by_file_url(db, relative_url)
-                    if asset and asset.content:
-                        file_contents.append(f"\nFile: {file.name}\nContent:\n{asset.content}\n")
-                        logger.info(f"Found content for file {file.name}")
+                    if asset:
+                        logger.info(f"Found asset in database: {asset.id}")
+                        if asset.content:
+                            file_contents.append(f"\nFile: {file.name}\nContent:\n{asset.content}\n")
+                            logger.info(f"Added content from file {file.name} ({len(asset.content)} characters)")
+                        else:
+                            logger.warning(f"No content found in asset {asset.id} for file {file.name}")
                     else:
-                        logger.warning(f"No content found for file {file.name} with URL {relative_url}")
+                        logger.warning(f"No asset found for file {file.name} with relative URL {relative_url}")
                 except Exception as e:
-                    logger.error(f"Error processing file {file.name}: {str(e)}")
+                    logger.error(f"Error processing file {file.name}: {str(e)}", exc_info=True)
                     continue
-        
+            
             if file_contents:
                 # Append file contents to the last user message
                 for i in range(len(local_messages) - 1, -1, -1):

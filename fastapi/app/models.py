@@ -1,5 +1,7 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, Text, Enum
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, Text, Enum, UUID, BigInteger, TIMESTAMP
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.sql import text
 import enum
 
 Base = declarative_base()
@@ -134,3 +136,20 @@ class WorkflowStep(Base):
     prompt_template = relationship("PromptTemplate", back_populates="workflow_steps")
     chat_model = relationship("ChatModel", back_populates="workflow_steps")
     persona = relationship("Persona", back_populates="workflow_steps")
+
+class Asset(Base):
+    __tablename__ = "assets"
+
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
+    title = Column(String, nullable=False)
+    file_name = Column(String, nullable=False)
+    file_url = Column(String, nullable=False)
+    file_type = Column(String, nullable=False)
+    mime_type = Column(String, nullable=False)
+    size = Column(BigInteger, nullable=False)
+    content = Column(Text, nullable=True)
+    token_count = Column(Integer, nullable=True, server_default='0')
+    uploaded_by = Column(PGUUID(as_uuid=True), ForeignKey('auth.users.id'), nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('now()'))
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('now()'))
+    storage_id = Column(PGUUID(as_uuid=True), ForeignKey('storage.objects.id'), nullable=True)
