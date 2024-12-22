@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.v1.router import create_public_router
+from app.api.v1.router import create_protected_router
 from app import crud
 from app.database import get_db
 
@@ -43,8 +43,8 @@ logger.addFilter(CorrelationIdFilter())
 
 active_connections = 0
 
-# Initialize router
-router = create_public_router()
+# Create a protected router specifically for chat endpoints
+router = create_protected_router(prefix="chatsse", tags=["chat"])
 
 class Message(BaseModel):
     role: str = Field(..., description="The role of the sender (e.g. user, assistant, system)")

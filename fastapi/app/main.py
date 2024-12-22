@@ -81,17 +81,18 @@ app.include_router(
 )
 
 # Mount public chatsse route
-app.include_router(
-    chatsse.router,
-    prefix="/api/v1/chatsse",
-    tags=["chat"]
-)
+# app.include_router(
+#     chatsse.router,
+#     prefix="/api/v1/chatsse",
+#     tags=["chat"]
+# )
 
 # Mount all protected routes with authentication
 protected_routes = [
     categories,
     chat_models,
     chat,
+    chatsse,
     personas,
     prompt_templates,
     tags,
