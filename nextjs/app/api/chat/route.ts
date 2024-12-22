@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3) Forward request to FastAPI server with all parameters
-    const externalApiUrl = `${getApiUrl()}/chatsse`
+    const externalApiUrl = `${getApiUrl()}/chat`
     console.log('Sending request to external API:', externalApiUrl)
 
     const lastMessage = messages[messages.length - 1]

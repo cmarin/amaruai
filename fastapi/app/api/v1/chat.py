@@ -44,7 +44,7 @@ logger.addFilter(CorrelationIdFilter())
 active_connections = 0
 
 # Create a protected router specifically for chat endpoints
-router = create_protected_router(prefix="chatsse", tags=["chat"])
+router = create_protected_router(prefix="chat", tags=["chat"])
 
 class Message(BaseModel):
     role: str = Field(..., description="The role of the sender (e.g. user, assistant, system)")

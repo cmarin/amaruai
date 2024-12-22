@@ -10,7 +10,7 @@ from app.api.v1 import (
     categories,
     chat_models,
     chat,
-    chatsse,
+    chat_old,
     personas,
     prompt_templates,
     tags,
@@ -80,19 +80,12 @@ app.include_router(
     tags=["auth"]
 )
 
-# Mount public chatsse route
-# app.include_router(
-#     chatsse.router,
-#     prefix="/api/v1/chatsse",
-#     tags=["chat"]
-# )
-
 # Mount all protected routes with authentication
 protected_routes = [
     categories,
     chat_models,
     chat,
-    chatsse,
+    chat_old,
     personas,
     prompt_templates,
     tags,

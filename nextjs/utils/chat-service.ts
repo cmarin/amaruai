@@ -109,7 +109,7 @@ export class ChatService {
                 }
 
                 const response = await fetchWithRetry(async () => {
-                    const res = await fetch(`${getApiUrl()}/chat`, {
+                    const res = await fetch(`${getApiUrl()}/chat_old`, {
                         method: 'POST',
                         headers,
                         body: JSON.stringify(payload),
