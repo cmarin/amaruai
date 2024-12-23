@@ -23,23 +23,14 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-
-class CorrelationIdFilter(logging.Filter):
-    def filter(self, record):
-        if not hasattr(record, 'correlation_id'):
-            record.correlation_id = 'NO_CORRELATION_ID'
-        return True
-
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 formatter = logging.Formatter(
-    '%(asctime)s - %(levelname)s - [%(correlation_id)s] - %(message)s'
+    '%(asctime)s - %(levelname)s - %(message)s'
 )
 handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 logger.handlers = [handler]
-logger.addFilter(CorrelationIdFilter())
 
 active_connections = 0
 
@@ -94,15 +85,10 @@ def format_openai_message(content: str, finish_reason: str = None) -> dict:
         "object": "chat.completion.chunk",
     }
 
-
-async def cleanup_connection(correlation_id: str):
+async def cleanup_connection():
     global active_connections
     active_connections -= 1
-    logger.info(
-        f"Connection cleanup completed. Remaining connections: {active_connections}",
-        extra={"correlation_id": correlation_id},
-    )
-
+    logger.info(f"Connection cleanup completed. Remaining connections: {active_connections}")
 
 @router.post("")
 async def chat_endpoint(
@@ -163,30 +149,17 @@ async def chat_endpoint(
         raise HTTPException(status_code=422, detail="No message(s) provided.")
         
     global active_connections
-    correlation_id = str(uuid.uuid4())
     start_time = time.time()
 
     active_connections += 1
-    background_tasks.add_task(cleanup_connection, correlation_id)
-    logger.info(
-        f"New chat connection. Active connections: {active_connections}",
-        extra={"correlation_id": correlation_id},
-    )
-    logger.info("=" * 50, extra={"correlation_id": correlation_id})
-    logger.info(
-        f"REQUEST HEADERS:\n{json.dumps(dict(request.headers), indent=2)}",
-        extra={"correlation_id": correlation_id},
-    )
-    logger.info(
-        f"URL PARAMETERS:\n{json.dumps(dict(request.query_params), indent=2)}",
-        extra={"correlation_id": correlation_id},
-    )
+    background_tasks.add_task(cleanup_connection)
+    logger.info(f"New chat connection. Active connections: {active_connections}")
+    logger.info("=" * 50)
+    logger.info(f"REQUEST HEADERS:\n{json.dumps(dict(request.headers), indent=2)}")
+    logger.info(f"URL PARAMETERS:\n{json.dumps(dict(request.query_params), indent=2)}")
     # Log the entire request body as received by Pydantic
-    logger.info(
-        f"REQUEST BODY:\n{json.dumps(chat_data.dict(), indent=2)}",
-        extra={"correlation_id": correlation_id},
-    )
-    logger.info("=" * 50, extra={"correlation_id": correlation_id})
+    logger.info(f"REQUEST BODY:\n{json.dumps(chat_data.dict(), indent=2)}")
+    logger.info("=" * 50)
 
     # Get system message from persona if specified
     system_message = ""
@@ -207,7 +180,7 @@ async def chat_endpoint(
 
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
-        logger.error("OpenRouter API key not configured", extra={"correlation_id": correlation_id})
+        logger.error("OpenRouter API key not configured")
         raise HTTPException(status_code=500, detail="OpenRouter API key not configured")
 
     headers = {
@@ -279,10 +252,7 @@ async def chat_endpoint(
                 },
             ) as resp:
                 api_response_time = time.time() - start_time
-                logger.info(
-                    f"OpenRouter API response received in {api_response_time:.2f}s - Status: {resp.status}",
-                    extra={"correlation_id": correlation_id},
-                )
+                logger.info(f"OpenRouter API response received in {api_response_time:.2f}s - Status: {resp.status}")
                 
                 # Log the final message structure being sent
                 logger.info("=" * 50)
@@ -297,13 +267,8 @@ async def chat_endpoint(
 
                 if resp.status != 200:
                     error_detail = f"Error from OpenRouter API: {resp.status}"
-                    logger.error(
-                        error_detail,
-                        extra={
-                            "correlation_id": correlation_id,
-                            "response_text": await resp.text(),
-                        },
-                    )
+                    logger.error(error_detail)
+                    logger.error(f"Response text: {await resp.text()}")
                     raise HTTPException(status_code=resp.status, detail=error_detail)
 
                 # Read the response line by line (SSE)
@@ -342,39 +307,23 @@ async def chat_endpoint(
                                         f"Stream progress - "
                                         f"Chunks: {chunks_received}, "
                                         f"Tokens: {total_tokens}, "
-                                        f"Duration: {stream_duration:.2f}s",
-                                        extra={"correlation_id": correlation_id},
+                                        f"Duration: {stream_duration:.2f}s"
                                     )
 
                             except json.JSONDecodeError as e:
-                                logger.error(
-                                    f"Failed to parse SSE data: {data_str}",
-                                    extra={
-                                        "correlation_id": correlation_id,
-                                        "error": str(e),
-                                    },
-                                    exc_info=True,
-                                )
+                                logger.error(f"Failed to parse SSE data: {data_str}", exc_info=True)
                             except Exception as e:
-                                logger.error(
-                                    "Error processing event",
-                                    extra={"correlation_id": correlation_id, "error": str(e)},
-                                    exc_info=True,
-                                )
+                                logger.error("Error processing event", exc_info=True)
                                 # Optionally send an error message down the stream
                                 error_data = format_openai_message(f"Error: {str(e)}")
                                 yield f"data: {json.dumps(error_data)}\n\n"
 
-                logger.info(
-                    f"Stream completed - Total chunks: {chunks_received}, Total tokens: {total_tokens}",
-                    extra={"correlation_id": correlation_id},
-                )
+                logger.info(f"Stream completed - Total chunks: {chunks_received}, Total tokens: {total_tokens}")
 
         end_time = time.time()
         logger.info(
             f"Chat request completed in {end_time - start_time:.2f}s. Remaining connections: {active_connections}",
             extra={
-                "correlation_id": correlation_id,
                 "total_chunks": chunks_received,
                 "total_tokens": total_tokens,
                 "active_connections": active_connections,
