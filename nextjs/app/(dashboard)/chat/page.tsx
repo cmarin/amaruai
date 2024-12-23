@@ -195,11 +195,12 @@ export default function Chat() {
     setMessages3(prev => [...prev, newMessage])
     setMessages4(prev => [...prev, newMessage])
     setInput('')
-    setUploadedFiles([])
 
     // Generate a new multi_conversation_id if in multi-chat mode and none exists
-    if ((mode === 'dual' || mode === 'quad') && !multiConversationId) {
-      setMultiConversationId(crypto.randomUUID())
+    let currentMultiConversationId = multiConversationId
+    if ((mode === 'dual' || mode === 'quad') && !currentMultiConversationId) {
+      currentMultiConversationId = crypto.randomUUID()
+      setMultiConversationId(currentMultiConversationId)
     }
 
     // Shared streaming logic
@@ -210,10 +211,12 @@ export default function Chat() {
     ) => {
       try {
         // Get or create conversation_id for this chat window
-        if (!conversationIds[chatId]) {
+        let currentConversationId = conversationIds[chatId]
+        if (!currentConversationId) {
+          currentConversationId = crypto.randomUUID()
           setConversationIds(prev => ({
             ...prev,
-            [chatId]: crypto.randomUUID()
+            [chatId]: currentConversationId
           }))
         }
 
@@ -235,8 +238,8 @@ export default function Chat() {
             model_id: selectedModel?.id,
             persona_id: selectedPersona?.id,
             files: uploadedFiles.map(f => ({ name: f.name, url: f.url })),
-            conversation_id: conversationIds[chatId],
-            ...(multiConversationId && { multi_conversation_id: multiConversationId })
+            conversation_id: currentConversationId,
+            ...(currentMultiConversationId && { multi_conversation_id: currentMultiConversationId })
           }),
         })
 
