@@ -69,6 +69,8 @@ export default function Chat() {
     chat3: 'default',
     chat4: 'default'
   })
+  const [conversationIds, setConversationIds] = useState<{ [key: string]: string }>({})
+  const [multiConversationId, setMultiConversationId] = useState<string | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [showUploadModal, setShowUploadModal] = useState(false)
 
@@ -179,10 +181,15 @@ export default function Chat() {
     e.preventDefault()
     if (!input.trim() && uploadedFiles.length === 0) return
 
+    // Create message with both text and files
+    const messageText = input.trim()
+    const fileUrls = uploadedFiles.map(f => f.url).join('\n')
+    const fullMessage = [messageText, fileUrls].filter(Boolean).join('\n')
+
     setIsLoading(true)
     setError(null)
 
-    const newMessage: Message = { role: 'user', content: input.trim() }
+    const newMessage: Message = { role: 'user', content: fullMessage }
     setMessages(prev => [...prev, newMessage])
     setMessages2(prev => [...prev, newMessage])
     setMessages3(prev => [...prev, newMessage])
@@ -190,17 +197,31 @@ export default function Chat() {
     setInput('')
     setUploadedFiles([])
 
+    // Generate a new multi_conversation_id if in multi-chat mode and none exists
+    if ((mode === 'dual' || mode === 'quad') && !multiConversationId) {
+      setMultiConversationId(crypto.randomUUID())
+    }
+
+    // Shared streaming logic
     const makeApiCall = async (
       prevMessagesLocal: Message[],
       setMessagesFunction: React.Dispatch<React.SetStateAction<Message[]>>,
       chatId: string
     ) => {
       try {
+        // Get or create conversation_id for this chat window
+        if (!conversationIds[chatId]) {
+          setConversationIds(prev => ({
+            ...prev,
+            [chatId]: crypto.randomUUID()
+          }))
+        }
+
         // Get the selected model and persona for this chat
         const modelId = selectedModels[chatId]
         const personaId = selectedPersonas[chatId]
-        const selectedModel = chatModels.find(model => model.id.toString() === modelId)
-        const selectedPersona = personas.find(p => p.id.toString() === personaId)
+        const selectedModel = chatModels?.find(model => model.id.toString() === modelId)
+        const selectedPersona = personas?.find(p => p.id.toString() === personaId)
 
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -213,7 +234,9 @@ export default function Chat() {
             user_id: session?.user?.id,
             model_id: selectedModel?.id,
             persona_id: selectedPersona?.id,
-            files: uploadedFiles.map(f => ({ name: f.name, url: f.url }))
+            files: uploadedFiles.map(f => ({ name: f.name, url: f.url })),
+            conversation_id: conversationIds[chatId],
+            ...(multiConversationId && { multi_conversation_id: multiConversationId })
           }),
         })
 

@@ -10,6 +10,8 @@ interface ChatRequestBody {
   model_id?: string
   persona_id?: string
   files?: Array<{ name: string; url: string }>
+  conversation_id: string
+  multi_conversation_id?: string
 }
 
 export async function POST(req: NextRequest) {
@@ -18,7 +20,15 @@ export async function POST(req: NextRequest) {
 
     // 1) Parse request body
     const body: ChatRequestBody = await req.json()
-    const { messages, user_id, model_id, persona_id, files } = body
+    const { 
+      messages, 
+      user_id, 
+      model_id, 
+      persona_id, 
+      files,
+      conversation_id,
+      multi_conversation_id 
+    } = body
     
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: 'Invalid request body' }), {
@@ -43,7 +53,14 @@ export async function POST(req: NextRequest) {
 
     const lastMessage = messages[messages.length - 1]
     console.log('Last message:', JSON.stringify(lastMessage))
-    console.log('Forwarding with params:', { user_id, model_id, persona_id, files })
+    console.log('Forwarding with params:', { 
+      user_id, 
+      model_id, 
+      persona_id, 
+      files,
+      conversation_id,
+      multi_conversation_id 
+    })
 
     const response = await fetch(externalApiUrl, {
       method: 'POST',
@@ -58,6 +75,8 @@ export async function POST(req: NextRequest) {
         model_id,
         persona_id,
         files,
+        conversation_id,
+        multi_conversation_id
       }),
     })
 

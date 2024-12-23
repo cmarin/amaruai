@@ -196,7 +196,6 @@ async def chat_endpoint(
             system_message = (
                 f"Role: {persona.role}\n"
                 f"Goal: {persona.goal}\n"
-                f"Backstory: {persona.backstory}"
             )
 
     # Get the model name
