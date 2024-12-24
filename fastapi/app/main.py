@@ -10,7 +10,6 @@ from app.api.v1 import (
     categories,
     chat_models,
     chat,
-    chat_old,
     personas,
     prompt_templates,
     tags,
