@@ -84,7 +84,6 @@ protected_routes = [
     categories,
     chat_models,
     chat,
-    chat_old,
     personas,
     prompt_templates,
     tags,
