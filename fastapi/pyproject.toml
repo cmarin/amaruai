@@ -21,6 +21,7 @@ aiohttp = "^3.11.11"
 llama-index-core = "^0.12.8"
 crewai = {extras = ["tools"], version = "^0.86.0"}
 llama-index-llms-openai = "^0.3.12"
+sse-starlette = "^2.2.0"
 
 
 [build-system]
