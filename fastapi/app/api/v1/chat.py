@@ -17,7 +17,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-
+from app.schemas import ChatMessage, Message, FileInfo
 from app.api.v1.router import create_protected_router
 from app import crud
 from app.database import get_db
@@ -73,51 +73,6 @@ class ConversationManager:
             chat_store_key=conversation_id,  # the unique key for this conversation
             llm=self.llm
         )
-# --------------------------------------------------------------------------- #
-
-
-class Message(BaseModel):
-    role: str = Field(..., description="The role of the sender (e.g. user, assistant, system)")
-    content: str = Field(..., description="The content of the message")
-
-class FileInfo(BaseModel):
-    name: str = Field(..., description="Name of the file")
-    url: str = Field(..., description="URL of the file")
-
-class ChatMessage(BaseModel):
-    # Either a single message or a list of messages
-    message: Optional[str] = Field(
-        None,
-        description="Single message if you're not passing a list of messages"
-    )
-    messages: Optional[List[Message]] = Field(
-        None,
-        description="List of chat messages"
-    )
-    model_id: Optional[int] = Field(None, description="ID of the chat model to use")
-    persona_id: Optional[int] = Field(None, description="ID of the persona to use")
-    user_id: Optional[str] = Field(None, description="ID of the user")
-    files: List[FileInfo] = Field(default_factory=list, description="List of files to process")
-
-    # -------------------- NEW FIELDS FOR MEMORY -------------------- #
-    conversation_id: Optional[str] = Field(
-        None,
-        description="Unique conversation_id (UUID as str) sent by the client"
-    )
-    multi_conversation_id: Optional[str] = Field(
-        None,
-        description="Unique multi_conversation_id (UUID as str) sent by the client"
-    )
-    # --------------------------------------------------------------- #
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "messages": [{"role": "user", "content": "Tell me a joke"}],
-                "user_id": "user123",
-                "files": [{"name": "doc.txt", "url": "https://..."}]
-            }
-        }
 
 def format_openai_message(content: str, finish_reason: str = None) -> dict:
     """Format message to match OpenAI's chat completion response format."""
