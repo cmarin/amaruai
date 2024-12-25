@@ -20,11 +20,10 @@ from app.database import get_db
 # ------------------- NEW IMPORTS FOR LLAMAINDEX MEMORY ------------------- #
 from dotenv import load_dotenv
 from uuid import UUID
-from llama_index_core.llms import ChatMessage as LlamaChatMessage, MessageRole
-from llama_index_llms_openai import OpenAI
-from llama_index_core.memory import ChatSummaryMemoryBuffer
-from llama_index_core.memory import ChatMemoryBuffer
-from llama_index_storage_postgres import PostgresChatStore
+from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
+from llama_index.llms.openai import OpenAI
+from llama_index.core.memory import ChatSummaryMemoryBuffer, ChatMemoryBuffer
+from llama_index.storage.postgresql import PostgresChatStore
 #from llama_index.core.memory import ChatMemoryBuffer
 # ------------------------------------------------------------------------- #
 
