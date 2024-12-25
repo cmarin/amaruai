@@ -22,7 +22,7 @@ from app.schemas import ChatMessage, Message, FileInfo
 from app.api.v1.router import create_protected_router
 from app import crud
 from app.database import get_db
-from app.utils import format_openai_message
+from app.utils import format_openai_message, log_chat_request
 
 logging.basicConfig(
     level=logging.INFO,
@@ -78,7 +78,7 @@ async def cleanup_connection():
     active_connections -= 1
     logger.info(f"Connection cleanup completed. Remaining connections: {active_connections}")
 
-# We instantiate one conversation manager (can be re-instantiated each time if needd)
+# We instantiate one conversation manager (can be re-instantiated each time if needed
 conversation_manager = ConversationManager()
 
 @router.post("")
@@ -100,34 +100,7 @@ async def chat_endpoint(
           ]
         }
     """
-    logger.info("=" * 50)
-    logger.info("Incoming Chat Request")
-    logger.info("=" * 50)
-    
-    # Log raw request body before Pydantic validation
-    raw_body = await request.body()
-    try:
-        raw_json = json.loads(raw_body)
-        logger.info("Raw JSON before Pydantic validation:")
-        logger.info(json.dumps(raw_json, indent=2))
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse raw JSON: {str(e)}")
-    
-    # Log the Pydantic model after validation
-    logger.info("Pydantic validated data:")
-    logger.info(json.dumps(chat_data.dict(), indent=2))
-    
-    # Log headers
-    headers = dict(request.headers)
-    auth_header = headers.get('authorization', 'NO AUTH HEADER FOUND')
-    logger.info(f"Authorization header: {auth_header}")
-    logger.info(f"All request headers:\n{json.dumps(headers, indent=2)}")
-    
-    # Log request URL
-    logger.info(f"Request URL: {request.url}")
-    logger.info(f"Request method: {request.method}")
-    
-    logger.info("=" * 50)
+    log_chat_request(request, raw_body, chat_data.dict())
 
     # Convert single message to the list-of-messages format if needed
     if chat_data.messages and len(chat_data.messages) > 0:
