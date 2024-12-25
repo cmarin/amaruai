@@ -17,17 +17,6 @@ from app.api.v1.router import create_protected_router
 from app import crud
 from app.database import get_db
 
-# ------------------- NEW IMPORTS FOR LLAMAINDEX MEMORY ------------------- #
-from dotenv import load_dotenv
-from uuid import UUID
-from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
-from llama_index.llms.openai import OpenAI
-from llama_index.core.memory import ChatSummaryMemoryBuffer, ChatMemoryBuffer
-#from llama_index.storage.postgresql import PostgresChatStore
-from llama_index.storage.chat_store.postgres import PostgresChatStore
-#from llama_index.core.memory import ChatMemoryBuffer
-# ------------------------------------------------------------------------- #
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -47,39 +36,6 @@ active_connections = 0
 
 # Create a protected router specifically for chat endpoints
 router = create_protected_router(prefix="chat", tags=["chat"])
-
-# --------------------- Load env vars for memory --------------------- #
-load_dotenv()
-ASYNC_DATABASE_URL = os.environ.get("ASYNC_DATABASE_URL")
-if not ASYNC_DATABASE_URL:
-    raise ValueError("ASYNC_DATABASE_URL environment variable is not set")
-
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY environment variable is not set")
-# -------------------------------------------------------------------- #
-
-
-# ---------------------- LLamaIndex ConversationManager ---------------------- #
-class ConversationManager:
-    """
-    Manages retrieval/storage of conversation messages using
-    LLamaIndex + PostgresChatStore.
-    """
-    def __init__(self, token_limit: int = 3000):
-        self.llm = OpenAI(api_key=OPENAI_API_KEY)
-        self.chat_store = PostgresChatStore.from_uri(uri=ASYNC_DATABASE_URL)
-        self.token_limit = token_limit
-
-    def get_memory_buffer(self, conversation_id: str) -> ChatSummaryMemoryBuffer:
-        return ChatSummaryMemoryBuffer.from_defaults(
-            token_limit=self.token_limit,
-            chat_store=self.chat_store,
-            chat_store_key=conversation_id,  # the unique key for this conversation
-            llm=self.llm
-        )
-# --------------------------------------------------------------------------- #
-
 
 class Message(BaseModel):
     role: str = Field(..., description="The role of the sender (e.g. user, assistant, system)")
@@ -103,17 +59,6 @@ class ChatMessage(BaseModel):
     persona_id: Optional[int] = Field(None, description="ID of the persona to use")
     user_id: Optional[str] = Field(None, description="ID of the user")
     files: List[FileInfo] = Field(default_factory=list, description="List of files to process")
-
-    # -------------------- NEW FIELDS FOR MEMORY -------------------- #
-    conversation_id: Optional[str] = Field(
-        None,
-        description="Unique conversation_id (UUID as str) sent by the client"
-    )
-    multi_conversation_id: Optional[str] = Field(
-        None,
-        description="Unique multi_conversation_id (UUID as str) sent by the client"
-    )
-    # --------------------------------------------------------------- #
 
     class Config:
         json_schema_extra = {
@@ -145,11 +90,6 @@ async def cleanup_connection():
     active_connections -= 1
     logger.info(f"Connection cleanup completed. Remaining connections: {active_connections}")
 
-
-# We instantiate one conversation manager (or you can re-instantiate each time if you prefer)
-conversation_manager = ConversationManager()
-
-
 @router.post("")
 async def chat_endpoint(
     request: Request,
@@ -168,8 +108,7 @@ async def chat_endpoint(
             {"role": "user", "content": "tell me a joke"}
           ]
         }
-
-    Now also supports `conversation_id` and `multi_conversation_id` for memory.
+    and transforms them to a unified structure for processing.
     """
     logger.info("=" * 50)
     logger.info("Incoming Chat Request")
@@ -218,6 +157,7 @@ async def chat_endpoint(
     logger.info("=" * 50)
     logger.info(f"REQUEST HEADERS:\n{json.dumps(dict(request.headers), indent=2)}")
     logger.info(f"URL PARAMETERS:\n{json.dumps(dict(request.query_params), indent=2)}")
+    # Log the entire request body as received by Pydantic
     logger.info(f"REQUEST BODY:\n{json.dumps(chat_data.dict(), indent=2)}")
     logger.info("=" * 50)
 
@@ -243,22 +183,12 @@ async def chat_endpoint(
         logger.error("OpenRouter API key not configured")
         raise HTTPException(status_code=500, detail="OpenRouter API key not configured")
 
-    # Prepare standard headers for openrouter.ai
     headers = {
         "Accept": "text/event-stream",
         "Authorization": f"Bearer {api_key}",
         "HTTP-Referer": "https://chat.example.com",
         "Content-Type": "application/json",
     }
-
-    # ---------------------- SET UP MEMORY ---------------------- #
-    # If the client didn't provide conversation_id, generate one for them
-    conversation_id = chat_data.conversation_id or str(uuid.uuid4())
-    multi_conversation_id = chat_data.multi_conversation_id or str(uuid.uuid4())
-
-    # Get a memory buffer for this conversation
-    memory = conversation_manager.get_memory_buffer(conversation_id=conversation_id)
-    # ----------------------------------------------------------- #
 
     # Create an async generator to stream the response
     async def event_generator() -> AsyncGenerator[str, None]:
@@ -311,32 +241,6 @@ async def chat_endpoint(
                         logger.info(f"Added content from {len(file_contents)} files to user message")
                         break
 
-        # ---------------------- PUT USER MESSAGES INTO MEMORY ---------------------- #
-        for msg in local_messages:
-            if msg["role"] == "user":
-                user_message = LlamaChatMessage(
-                    role=MessageRole.USER,
-                    content=msg["content"],
-                    additional_kwargs={
-                        "user_id": chat_data.user_id or "unknown_user",
-                        "multi_conversation_id": multi_conversation_id
-                    }
-                )
-                memory.put(user_message)
-            elif msg["role"] == "system":
-                # Optionally store system messages if you want them in memory
-                system_msg = LlamaChatMessage(
-                    role=MessageRole.SYSTEM,
-                    content=msg["content"],
-                    additional_kwargs={
-                        "multi_conversation_id": multi_conversation_id
-                    }
-                )
-                memory.put(system_msg)
-        # --------------------------------------------------------------------------- #
-
-        assistant_response_accumulator = []
-
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 "https://openrouter.ai/api/v1/chat/completions",
@@ -383,19 +287,15 @@ async def chat_endpoint(
                             # Parse JSON and forward the content as SSE
                             try:
                                 data = json.loads(data_str)
+                                # The data should already be in OpenAI-like format
                                 if "choices" in data and data["choices"]:
                                     delta = data["choices"][0].get("delta", {})
                                     content = delta.get("content", "")
-                                    # Accumulate for final memory storage
-                                    assistant_response_accumulator.append(content)
-
                                     total_tokens += len(content.split())
                                     yield f"data: {json.dumps(data)}\n\n"
                                 else:
                                     # If the data is not in the expected format, wrap it:
                                     content = data.get("content", "")
-                                    assistant_response_accumulator.append(content)
-
                                     total_tokens += len(content.split())
                                     formatted_data = format_openai_message(content)
                                     yield f"data: {json.dumps(formatted_data)}\n\n"
@@ -419,19 +319,6 @@ async def chat_endpoint(
                                 yield f"data: {json.dumps(error_data)}\n\n"
 
                 logger.info(f"Stream completed - Total chunks: {chunks_received}, Total tokens: {total_tokens}")
-
-        # ---------------------- PUT ASSISTANT MESSAGE INTO MEMORY ---------------------- #
-        final_assistant_content = "".join(assistant_response_accumulator)
-        assistant_message = LlamaChatMessage(
-            role=MessageRole.ASSISTANT,
-            content=final_assistant_content,
-            additional_kwargs={
-                "user_id": chat_data.user_id or "unknown_user",
-                "multi_conversation_id": multi_conversation_id
-            }
-        )
-        memory.put(assistant_message)
-        # ------------------------------------------------------------------------------- #
 
         end_time = time.time()
         logger.info(
