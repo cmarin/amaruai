@@ -1,3 +1,5 @@
+from llama_index.storage.chat_store.postgres import PostgresChatStore
+
 import os
 import json
 import uuid
