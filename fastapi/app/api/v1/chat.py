@@ -23,7 +23,8 @@ from uuid import UUID
 from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
 from llama_index.llms.openai import OpenAI
 from llama_index.core.memory import ChatSummaryMemoryBuffer, ChatMemoryBuffer
-from llama_index.storage.postgresql import PostgresChatStore
+#from llama_index.storage.postgresql import PostgresChatStore
+from llama_index.storage.chat_store.postgres import PostgresChatStore
 #from llama_index.core.memory import ChatMemoryBuffer
 # ------------------------------------------------------------------------- #
 
