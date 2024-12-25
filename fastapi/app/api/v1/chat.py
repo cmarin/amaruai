@@ -100,7 +100,10 @@ async def chat_endpoint(
           ]
         }
     """
+    # Log request details
+    raw_body = await request.body()
     log_chat_request(request, raw_body, chat_data.dict())
+
 
     # Convert single message to the list-of-messages format if needed
     if chat_data.messages and len(chat_data.messages) > 0:

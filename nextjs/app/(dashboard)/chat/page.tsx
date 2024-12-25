@@ -181,15 +181,10 @@ export default function Chat() {
     e.preventDefault()
     if (!input.trim() && uploadedFiles.length === 0) return
 
-    // Create message with both text and files
-    const messageText = input.trim()
-    const fileUrls = uploadedFiles.map(f => f.url).join('\n')
-    const fullMessage = [messageText, fileUrls].filter(Boolean).join('\n')
-
     setIsLoading(true)
     setError(null)
 
-    const newMessage: Message = { role: 'user', content: fullMessage }
+    const newMessage: Message = { role: 'user', content: input.trim() }
     setMessages(prev => [...prev, newMessage])
     setMessages2(prev => [...prev, newMessage])
     setMessages3(prev => [...prev, newMessage])
