@@ -1,17 +1,18 @@
-from llama_index.storage.chat_store.postgres import PostgresChatStore
-from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
-from llama_index.llms.openai import OpenAI
-from llama_index.core.memory import ChatSummaryMemoryBuffer, ChatMemoryBuffer
+
 import os
 import json
 import uuid
 import time
 import logging
+import aiohttp
 from datetime import datetime
 from typing import AsyncGenerator, List, Optional, Dict
 from dotenv import load_dotenv
 from uuid import UUID
-import aiohttp
+from llama_index.storage.chat_store.postgres import PostgresChatStore
+from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
+from llama_index.llms.openai import OpenAI
+from llama_index.core.memory import ChatSummaryMemoryBuffer, ChatMemoryBuffer
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,7 +44,7 @@ active_connections = 0
 # Create a protected router specifically for chat endpoints
 router = create_protected_router(prefix="chat", tags=["chat"])
 
-# --------------------- Load env vars for memory --------------------- #
+#  Load env vars for memory
 load_dotenv()
 ASYNC_DATABASE_URL = os.environ.get("ASYNC_DATABASE_URL")
 if not ASYNC_DATABASE_URL:
@@ -52,10 +53,8 @@ if not ASYNC_DATABASE_URL:
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY environment variable is not set")
-# -------------------------------------------------------------------- #
 
-
-# ---------------------- LLamaIndex ConversationManager ---------------------- #
+# LLamaIndex ConversationManage
 class ConversationManager:
     """
     Manages retrieval/storage of conversation messages using
@@ -79,10 +78,8 @@ async def cleanup_connection():
     active_connections -= 1
     logger.info(f"Connection cleanup completed. Remaining connections: {active_connections}")
 
-
-# We instantiate one conversation manager (or you can re-instantiate each time if you prefer)
+# We instantiate one conversation manager (can be re-instantiated each time if needd)
 conversation_manager = ConversationManager()
-
 
 @router.post("")
 async def chat_endpoint(
@@ -102,8 +99,6 @@ async def chat_endpoint(
             {"role": "user", "content": "tell me a joke"}
           ]
         }
-
-    Now also supports `conversation_id` and `multi_conversation_id` for memory.
     """
     logger.info("=" * 50)
     logger.info("Incoming Chat Request")
@@ -185,14 +180,12 @@ async def chat_endpoint(
         "Content-Type": "application/json",
     }
 
-    # ---------------------- SET UP MEMORY ---------------------- #
-    # If the client didn't provide conversation_id, generate one for them
+    # Setup memorty, if the client didn't provide conversation_id, generate one for them
     conversation_id = chat_data.conversation_id or str(uuid.uuid4())
     multi_conversation_id = chat_data.multi_conversation_id or str(uuid.uuid4())
 
     # Get a memory buffer for this conversation
     memory = conversation_manager.get_memory_buffer(conversation_id=conversation_id)
-    # ----------------------------------------------------------- #
 
     # Create an async generator to stream the response
     async def event_generator() -> AsyncGenerator[str, None]:
@@ -210,7 +203,7 @@ async def chat_endpoint(
             file_contents = []
             logger.info(f"Processing {len(chat_data.files)} files")
             for file in chat_data.files:
-                file_url = file.url.strip(';')  # Remove any trailing semicolons
+                file_url = file.url.strip(';')
                 try:
                     # Find the index of "chats/" and take everything after it
                     chats_index = file_url.find("chats/")
@@ -245,7 +238,7 @@ async def chat_endpoint(
                         logger.info(f"Added content from {len(file_contents)} files to user message")
                         break
 
-        # ---------------------- PUT USER MESSAGES INTO MEMORY ---------------------- #
+        # Put user messages into memory
         for msg in local_messages:
             if msg["role"] == "user":
                 user_message = LlamaChatMessage(
@@ -258,7 +251,7 @@ async def chat_endpoint(
                 )
                 memory.put(user_message)
             elif msg["role"] == "system":
-                # Optionally store system messages if you want them in memory
+                # Put system messages in memory
                 system_msg = LlamaChatMessage(
                     role=MessageRole.SYSTEM,
                     content=msg["content"],
@@ -267,7 +260,6 @@ async def chat_endpoint(
                     }
                 )
                 memory.put(system_msg)
-        # --------------------------------------------------------------------------- #
 
         assistant_response_accumulator = []
 
@@ -354,7 +346,7 @@ async def chat_endpoint(
 
                 logger.info(f"Stream completed - Total chunks: {chunks_received}, Total tokens: {total_tokens}")
 
-        # ---------------------- PUT ASSISTANT MESSAGE INTO MEMORY ---------------------- #
+        # Put assistant message into memory
         final_assistant_content = "".join(assistant_response_accumulator)
         assistant_message = LlamaChatMessage(
             role=MessageRole.ASSISTANT,
@@ -365,7 +357,6 @@ async def chat_endpoint(
             }
         )
         memory.put(assistant_message)
-        # ------------------------------------------------------------------------------- #
 
         end_time = time.time()
         logger.info(
