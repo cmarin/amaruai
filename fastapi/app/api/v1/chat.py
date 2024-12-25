@@ -21,7 +21,7 @@ from app.schemas import ChatMessage, Message, FileInfo
 from app.api.v1.router import create_protected_router
 from app import crud
 from app.database import get_db
-
+from app.utils import format_openai_message
 
 logging.basicConfig(
     level=logging.INFO,
@@ -73,22 +73,6 @@ class ConversationManager:
             chat_store_key=conversation_id,  # the unique key for this conversation
             llm=self.llm
         )
-
-def format_openai_message(content: str, finish_reason: str = None) -> dict:
-    """Format message to match OpenAI's chat completion response format."""
-    return {
-        "choices": [
-            {
-                "delta": {"content": content},
-                "index": 0,
-                "finish_reason": finish_reason,
-            }
-        ],
-        "created": None,
-        "id": "chat",
-        "model": "openai/gpt-4o",
-        "object": "chat.completion.chunk",
-    }
 
 async def cleanup_connection():
     global active_connections
