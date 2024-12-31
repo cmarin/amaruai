@@ -1,0 +1,10 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile.worker"
+
+[deploy]
+startCommand = "python -m app.workers.asset_transcription"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+# No ports needed for worker
