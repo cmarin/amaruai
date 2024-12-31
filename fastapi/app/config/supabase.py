@@ -11,15 +11,19 @@ supabase_key = os.getenv("SUPABASE_ANON_KEY")
 if not supabase_url or not supabase_key:
     raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY must be set in environment variables")
 
-# Create the Supabase client
-supabase: Client = create_client(supabase_url, supabase_key)
+# Create options dictionary with headers
+options = {
+    'headers': {
+        'X-Client-Info': 'supabase-py/0.0.1',
+    },
+    'db': {
+        'schema': 'pgmq_public'
+    }
+}
 
-# Also create a client with the original name for the assets module
-supabase_client = create_client(
-    supabase_url,
-    supabase_key,
-    { 'db': { 'schema': 'pgmq_public' } }
-)
+# Create the Supabase clients
+supabase: Client = create_client(supabase_url, supabase_key, options)
+supabase_client = supabase  # Use the same client instance
 
 # Export all needed variables
 __all__ = ['supabase', 'supabase_client', 'supabase_url', 'supabase_key']
