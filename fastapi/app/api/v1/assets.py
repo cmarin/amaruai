@@ -5,7 +5,7 @@ from app.api.v1.router import create_protected_router
 from app import crud
 from uuid import UUID
 import logging
-from app.config.supabase import supabase
+from app.config.supabase import supabase_client
 import json
 
 # Configure logging
@@ -45,16 +45,17 @@ async def transcribe_asset(
         
         # Queue the transcription task
         try:
-            # Send to Supabase queue
-            result = await supabase.rpc(
-                "enqueue",
+            # Send to Supabase queue using raw SQL
+            data = await supabase_client.postgrest.rpc(
+                'pgmq_enqueue',
                 {
-                    "queue_name": "asset_transcription",
-                    "message_body": json.dumps(message_payload),
-                    "message_metadata": {"asset_id": str(asset_id)}
+                    'queue_name': 'asset_transcription',
+                    'message_body': json.dumps(message_payload),
+                    'message_metadata': json.dumps({"asset_id": str(asset_id)})
                 }
-            )
-            logger.info(f"Successfully queued transcription task: {result}")
+            ).execute()
+            
+            logger.info(f"Successfully queued transcription task: {data}")
             
         except Exception as e:
             logger.error(f"Failed to queue transcription task: {str(e)}", exc_info=True)
