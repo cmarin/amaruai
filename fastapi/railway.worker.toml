@@ -1,10 +1,9 @@
 [build]
 builder = "dockerfile"
 dockerfilePath = "fastapi/Dockerfile.worker"
+buildContext = "fastapi"
 
 [deploy]
 startCommand = "python -m app.workers.asset_transcription"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
-
-# No ports needed for worker

@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip install "poetry==$POETRY_VERSION"
 
-COPY pyproject.toml poetry.lock ./
+COPY ./pyproject.toml ./poetry.lock ./
 RUN poetry install --only main
 
 FROM base as runtime
@@ -37,7 +37,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/.venv ./.venv
-COPY ./app ./app
+COPY app/ ./app/
 
 # Different command for the worker
 CMD ["python", "-m", "app.workers.asset_transcription"]
