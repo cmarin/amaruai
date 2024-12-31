@@ -47,13 +47,12 @@ async def transcribe_asset(
         try:
             # Send to Supabase queue using pgmq_public.send
             data = supabase_client.rpc(
-                'send',
+                'pgmq_public.send',
                 {
                     'queue_name': 'asset_transcription',
                     'msg': json.dumps(message_payload),
                     'metadata': json.dumps({"asset_id": str(asset_id)})
-                },
-                schema='pgmq_public'
+                }
             ).execute()
             
             logger.info(f"Successfully queued transcription task: {data}")
