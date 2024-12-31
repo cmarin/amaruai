@@ -81,3 +81,22 @@ async def transcribe_asset(
     except Exception as e:
         logger.error(f"Unexpected error in transcribe_asset: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/test-queue")
+async def test_queue():
+    try:
+        data = supabase_client.rpc(
+            'send',
+            {
+                'queue_name': 'asset_transcription',
+                'msg': json.dumps({"test": "message"})  # Note: using 'msg' not 'message'
+            }
+        ).execute()
+        
+        return {"message": "Queue test successful"}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Queue test failed: {str(e)}"
+        )

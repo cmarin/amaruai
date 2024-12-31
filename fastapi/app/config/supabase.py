@@ -15,7 +15,11 @@ if not supabase_url or not supabase_key:
 supabase: Client = create_client(supabase_url, supabase_key)
 
 # Also create a client with the original name for the assets module
-supabase_client = supabase
+supabase_client = create_client(
+    supabase_url,
+    supabase_key,
+    { 'db': { 'schema': 'pgmq_public' } }
+)
 
 # Export all needed variables
 __all__ = ['supabase', 'supabase_client', 'supabase_url', 'supabase_key']
