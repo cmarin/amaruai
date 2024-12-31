@@ -1,6 +1,6 @@
 [build]
 builder = "dockerfile"
-dockerfilePath = "Dockerfile.worker"
+dockerfilePath = "fastapi/Dockerfile.worker"
 
 [deploy]
 startCommand = "python -m app.workers.asset_transcription"
