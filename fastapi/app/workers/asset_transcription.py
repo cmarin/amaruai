@@ -37,9 +37,10 @@ class TranscriptionWorker:
                 'archive',
                 {
                     'queue_name': 'asset_transcription',
-                    'msg_id': message['msg_id']
+                    'message_id': message['msg_id']  # Changed from msg_id to message_id
                 }
             ).execute()
+
             
         except Exception as e:
             logger.error(f"Worker {self.worker_id} failed to process message: {str(e)}")
@@ -56,10 +57,11 @@ class TranscriptionWorker:
                     'read',
                     {
                         'queue_name': 'asset_transcription',
-                        'n': 1,  # Number of messages to read
-                        'sleep_seconds': 0  # Required parameter
+                        'sleep_seconds': 0,  # Required parameter
+                        'n': 1  # Required parameter - number of messages to read
                     }
                 ).execute()
+
 
                 if result.data and len(result.data) > 0:
                     message = result.data[0]
