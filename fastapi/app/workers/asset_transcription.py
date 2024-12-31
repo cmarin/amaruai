@@ -51,14 +51,16 @@ class TranscriptionWorker:
         while True:
             try:
                 # Try to read a message from the queue
+                # Update the read RPC call in the TranscriptionWorker class
                 result = supabase_client.rpc(
                     'read',
                     {
                         'queue_name': 'asset_transcription',
-                        'visibility_timeout': self.visibility_timeout
+                        'n': 1,  # Number of messages to read
+                        'sleep_seconds': 0  # Required parameter
                     }
                 ).execute()
-                
+
                 if result.data and len(result.data) > 0:
                     message = result.data[0]
                     await self.process_message(message)
