@@ -3,6 +3,9 @@ from . import models, schemas
 from sqlalchemy import desc, Enum as SQLAlchemyEnum, asc, func  # Add func to the import
 from fastapi import HTTPException
 import logging
+from uuid import UUID, uuid4
+
+logger = logging.getLogger(__name__)
 
 def get_persona(db: Session, persona_id: int):
     return db.query(models.Persona).filter(models.Persona.id == persona_id).first()
@@ -464,3 +467,48 @@ def get_asset_by_file_url(db: Session, file_url: str):
     The file_url should be in the format: chats/user_id/uuid/filename.txt
     """
     return db.query(models.Asset).filter(models.Asset.file_url == file_url).first()
+
+def get_asset(db: Session, asset_id: UUID):
+    logger = logging.getLogger(__name__)
+    logger.info(f"Attempting to get asset with ID: {asset_id}")
+    try:
+        asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+        if asset:
+            logger.info(f"Found asset: {asset.__dict__}")
+        else:
+            logger.warning(f"No asset found with ID: {asset_id}")
+            # Let's also check if the asset exists with a different case
+            all_assets = db.query(models.Asset).all()
+            logger.info(f"All asset IDs in database: {[str(a.id) for a in all_assets]}")
+        return asset
+    except Exception as e:
+        logger.error(f"Error getting asset: {str(e)}", exc_info=True)
+        return None
+
+def update_asset_status(db: Session, asset_id: UUID, status: str):
+    """
+    Update the status of an asset.
+    
+    Args:
+        db (Session): The database session
+        asset_id (UUID): The ID of the asset to update
+        status (str): The new status to set
+        
+    Returns:
+        models.Asset: The updated asset or None if not found
+    """
+    try:
+        asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+        if asset:
+            asset.status = status
+            db.commit()
+            db.refresh(asset)
+            logger.info(f"Updated status of asset {asset_id} to {status}")
+            return asset
+        else:
+            logger.warning(f"No asset found with ID: {asset_id}")
+            return None
+    except Exception as e:
+        logger.error(f"Error updating asset status: {str(e)}", exc_info=True)
+        db.rollback()
+        raise

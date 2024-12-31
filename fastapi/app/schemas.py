@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from enum import Enum
+from uuid import UUID
+from datetime import datetime
 
 class ToolBase(BaseModel):
     name: str
@@ -208,5 +210,30 @@ class ChatMessage(BaseModel):
                 "files": [{"name": "doc.txt", "url": "https://..."}]
             }
         }
+
+class AssetBase(BaseModel):
+    title: str
+    file_name: str
+    file_url: str
+    file_type: str
+    mime_type: str
+    size: int
+    content: Optional[str] = None
+    token_count: Optional[int] = 0
+    status: Optional[str] = None
+
+class AssetCreate(AssetBase):
+    uploaded_by: UUID
+    storage_id: Optional[UUID] = None
+
+class Asset(AssetBase):
+    id: UUID
+    uploaded_by: UUID
+    storage_id: Optional[UUID] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
 
 Workflow.update_forward_refs()
