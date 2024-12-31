@@ -52,9 +52,9 @@ async def transcribe_asset(
                     'queue_name': 'asset_transcription',
                     'msg': json.dumps(message_payload),
                     'metadata': json.dumps({"asset_id": str(asset_id)})
-                },
-                schema='pgmq'
+                }
             ).execute()
+
             
             logger.info(f"Successfully queued transcription task: {data}")
             
