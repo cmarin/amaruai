@@ -20,10 +20,6 @@ async def transcribe_asset(
     asset_id: UUID,
     db: Session = Depends(get_db)
 ):
-    """
-    Queue an asset for transcription using Supabase queues.
-    The asset will be marked as 'processing' and added to the asset_transcription queue.
-    """
     logger.info(f"Transcribe endpoint called with asset_id: {asset_id}")
     
     try:
@@ -43,14 +39,15 @@ async def transcribe_asset(
             }
         }
         
-        # Queue the transcription task
+        # Queue the transcription task using direct SQL
         try:
-            # Send to Supabase queue using pgmq_public.send
-            data = supabase_client.table('pgmq.send').insert({
-                'queue_name': 'asset_transcription',
-                'msg': json.dumps(message_payload),
-                'metadata': json.dumps({"asset_id": str(asset_id)})
-            }).execute()
+            data = supabase_client.rpc(
+                'send',
+                {
+                    'queue_name': 'asset_transcription',
+                    'message': json.dumps(message_payload)
+                },
+            ).execute()
             
             logger.info(f"Successfully queued transcription task: {data}")
             
@@ -61,7 +58,7 @@ async def transcribe_asset(
                 detail=f"Failed to queue transcription task: {str(e)}"
             )
         
-        # Update the asset status to 'processing'
+        # Update the asset status
         try:
             updated_asset = crud.update_asset_status(
                 db=db,
@@ -70,10 +67,8 @@ async def transcribe_asset(
             )
             if not updated_asset:
                 logger.error(f"Failed to update asset status for asset_id: {asset_id}")
-                # Don't raise here since the task is already queued
         except Exception as e:
             logger.error(f"Error updating asset status: {str(e)}", exc_info=True)
-            # Don't raise here since the task is already queued
         
         return {
             "message": "Transcription queued successfully",
@@ -85,4 +80,4 @@ async def transcribe_asset(
         raise
     except Exception as e:
         logger.error(f"Unexpected error in transcribe_asset: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
