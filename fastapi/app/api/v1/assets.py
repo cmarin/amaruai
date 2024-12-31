@@ -51,8 +51,6 @@ async def transcribe_asset(
                 'msg': json.dumps(message_payload),
                 'metadata': json.dumps({"asset_id": str(asset_id)})
             }).execute()
-
-
             
             logger.info(f"Successfully queued transcription task: {data}")
             
