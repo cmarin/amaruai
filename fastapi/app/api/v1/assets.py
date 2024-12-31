@@ -45,8 +45,9 @@ async def transcribe_asset(
                 'send',
                 {
                     'queue_name': 'asset_transcription',
-                    'message': json.dumps(message_payload)
-                },
+                    'message': json.dumps(message_payload),
+                    'sleep_seconds': 0
+                }
             ).execute()
             
             logger.info(f"Successfully queued transcription task: {data}")
@@ -89,7 +90,8 @@ async def test_queue():
             'send',
             {
                 'queue_name': 'asset_transcription',
-                'msg': json.dumps({"test": "message"})  # Note: using 'msg' not 'message'
+                'message': json.dumps({"test": "message"}),
+                'sleep_seconds': 0
             }
         ).execute()
         
