@@ -16,6 +16,7 @@ from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import tiktoken
 
 # Load environment variables
 load_dotenv()
@@ -85,6 +86,11 @@ class TranscriptionWorker:
             }
         )
 
+    def count_tokens(self, text: str) -> int:
+        """Count tokens in text using GPT-3.5/4 tokenizer"""
+        encoder = tiktoken.encoding_for_model("gpt-3.5-turbo")
+        return len(encoder.encode(text))    
+
         
     async def process_message(self, message):
         try:
@@ -136,6 +142,7 @@ class TranscriptionWorker:
                         asset = crud.get_asset(db, asset_id=asset_id)
                         if asset:
                             asset.content = extracted_text
+                            asset.tokens = self.count_tokens(extracted_text)
                             asset.status = "completed"
                             db.commit()
                             logger.info(f"Successfully updated asset {asset_id} with extracted text")
