@@ -54,14 +54,36 @@ logging.getLogger('httpcore').setLevel(logging.WARNING)
 class TranscriptionWorker:
     def __init__(self, worker_id):
         self.worker_id = worker_id
-        self.visibility_timeout = 300  # 5 minutes
-        self.poll_interval = 30  # seconds between polls if queue is empty
-        
-        # Get bucket name from environment
+        self.visibility_timeout = 300
+        self.poll_interval = 30
         self.bucket_name = os.getenv("SUPABASE_BUCKET")
         if not self.bucket_name:
             logger.error("SUPABASE_BUCKET environment variable is not set")
             raise ValueError("SUPABASE_BUCKET environment variable must be set")
+        
+        # Initialize EasyOCR and Docling converter once during worker initialization
+        import easyocr
+        self.reader = easyocr.Reader(['en'], model_storage_directory='/root/.EasyOCR/model')
+        
+        # Initialize converter with multiple format support
+        pipeline_options = PdfPipelineOptions(artifacts_path="/app/models")
+        self.converter = DocumentConverter(
+            allowed_formats=[
+                InputFormat.PDF,
+                InputFormat.DOCX,
+                InputFormat.PPTX,
+                InputFormat.HTML,
+                InputFormat.IMAGE
+            ],
+            format_options={
+                InputFormat.PDF: PdfFormatOption(
+                    pipeline_options=pipeline_options
+                ),
+                InputFormat.DOCX: WordFormatOption(
+                    pipeline_cls=SimplePipeline
+                )
+            }
+        )
         
     async def process_message(self, message):
         try:
