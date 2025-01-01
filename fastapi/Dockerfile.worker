@@ -39,18 +39,21 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /app/.venv ./.venv
 COPY app/ ./app/
 
-# Create a directory for model artifacts
-RUN mkdir -p /app/models
+# Create directories for both Docling and EasyOCR models
+RUN mkdir -p /app/models && \
+    mkdir -p /root/.EasyOCR/model
 
 # Install git-lfs for downloading large model files
 RUN apt-get update && apt-get install -y git-lfs && rm -rf /var/lib/apt/lists/*
 RUN git lfs install
 
-# Download Docling models
-RUN python -c "from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline; StandardPdfPipeline.download_models_hf('/app/models')"
+# Download both Docling and EasyOCR models
+RUN python -c "from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline; StandardPdfPipeline.download_models_hf('/app/models')" && \
+    python -c "import easyocr; reader = easyocr.Reader(['en'], model_storage_directory='/root/.EasyOCR/model')"
 
-# Set environment variable to use local models
-ENV DOCLING_ARTIFACTS_PATH=/app/models
+# Set environment variables for model paths
+ENV DOCLING_ARTIFACTS_PATH=/app/models \
+    EASYOCR_MODULE_PATH=/root/.EasyOCR
 
 # Different command for the worker
 CMD ["python", "-m", "app.workers.asset_transcription"]
