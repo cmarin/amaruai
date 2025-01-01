@@ -149,7 +149,7 @@ class Asset(Base):
     size = Column(BigInteger, nullable=False)
     content = Column(Text, nullable=True)
     token_count = Column(Integer, nullable=True, server_default='0')
-    uploaded_by = Column(PGUUID(as_uuid=True), ForeignKey('auth.users.id'), nullable=False)
+    uploaded_by = Column(PGUUID(as_uuid=True), nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('now()'))
     updated_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('now()'))
     storage_id = Column(PGUUID(as_uuid=True), nullable=True)
