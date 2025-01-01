@@ -10,6 +10,8 @@ import tempfile
 from pathlib import Path
 from docling.document_converter import DocumentConverter
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 # Load environment variables
 load_dotenv()
@@ -20,6 +22,16 @@ root_path = file_path.parents[2]  # Go up two levels from app/workers/asset_tran
 sys.path.append(str(root_path))
 
 from app.config.supabase import supabase_client
+from app import crud
+from app.database import get_db, Base
+
+# Configure database
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable must be set")
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Configure logging
 logging.basicConfig(
@@ -61,6 +73,7 @@ class TranscriptionWorker:
                 raise ValueError("Invalid message format")
                 
             file_url = msg_data['payload']['file_url']
+            asset_id = msg_data['payload']['asset_id']
             
             # Use the full path from file_url - it already has the correct structure
             # Example: chats/user_id/uuid/filename.pdf
@@ -91,8 +104,31 @@ class TranscriptionWorker:
                     logger.info(extracted_text)
                     logger.info("=" * 50)
                     
+                    # Get a database session
+                    db = SessionLocal()
+                    try:
+                        # Update the asset with the extracted text and mark as completed
+                        asset = crud.get_asset(db, asset_id=asset_id)
+                        if asset:
+                            asset.content = extracted_text
+                            asset.status = "completed"
+                            db.commit()
+                            logger.info(f"Successfully updated asset {asset_id} with extracted text")
+                        else:
+                            logger.error(f"Asset {asset_id} not found in database")
+                            raise ValueError(f"Asset {asset_id} not found")
+                    finally:
+                        db.close()
+                    
                 except Exception as e:
                     logger.error(f"Error processing file: {str(e)}", exc_info=True)
+                    
+                    # Update asset status to failed if there was an error
+                    db = SessionLocal()
+                    try:
+                        crud.update_asset_status(db, asset_id=asset_id, status="failed")
+                    finally:
+                        db.close()
                     raise
             
             # Archive message after successful processing
