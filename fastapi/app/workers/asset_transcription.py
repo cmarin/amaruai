@@ -5,7 +5,10 @@ from datetime import datetime
 from multiprocessing import Pool
 import os
 import sys
+import json
+import tempfile
 from pathlib import Path
+from docling.document_converter import DocumentConverter
 
 # Add the parent directory to sys.path to allow imports from app
 file_path = Path(__file__).resolve()
@@ -26,24 +29,63 @@ class TranscriptionWorker:
         self.worker_id = worker_id
         self.visibility_timeout = 300  # 5 minutes
         self.poll_interval = 30  # seconds between polls if queue is empty
+        self.bucket_name = os.getenv("SUPABASE_BUCKET")
+        if not self.bucket_name:
+            raise ValueError("SUPABASE_BUCKET environment variable must be set")
         
     async def process_message(self, message):
         try:
             logger.info(f"Worker {self.worker_id} processing message: {message['msg_id']}")
-            # TODO: Implement your transcription logic here
+            
+            # Parse the message body
+            msg_data = json.loads(message['message_body'])
+            file_url = msg_data['payload']['file_url']
+            
+            # Extract the relative path from the file_url
+            # Example: chats/user_id/uuid/filename.pdf -> user_id/uuid/filename.pdf
+            relative_path = '/'.join(file_url.split('/')[1:])
+            logger.info(f"Downloading file from path: {relative_path}")
+            
+            # Create a temporary directory for processing
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Download the file
+                try:
+                    data = supabase_client.storage.from_(self.bucket_name).download(relative_path)
+                    temp_file_path = os.path.join(temp_dir, os.path.basename(file_url))
+                    
+                    # Write the binary data to a temporary file
+                    with open(temp_file_path, 'wb') as f:
+                        f.write(data)
+                    
+                    logger.info(f"File downloaded successfully to: {temp_file_path}")
+                    
+                    # Initialize docling converter
+                    converter = DocumentConverter()
+                    
+                    # Convert the document
+                    result = converter.convert(temp_file_path)
+                    extracted_text = result.document.export_to_markdown()
+                    
+                    logger.info("Successfully extracted text from document:")
+                    logger.info("=" * 50)
+                    logger.info(extracted_text)
+                    logger.info("=" * 50)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing file: {str(e)}", exc_info=True)
+                    raise
             
             # Archive message after successful processing
             supabase_client.rpc(
                 'archive',
                 {
                     'queue_name': 'asset_transcription',
-                    'message_id': message['msg_id']  # Changed from msg_id to message_id
+                    'message_id': message['msg_id']
                 }
             ).execute()
-
             
         except Exception as e:
-            logger.error(f"Worker {self.worker_id} failed to process message: {str(e)}")
+            logger.error(f"Worker {self.worker_id} failed to process message: {str(e)}", exc_info=True)
             # Message will become visible again after visibility timeout
     
     async def run(self):
@@ -52,7 +94,6 @@ class TranscriptionWorker:
         while True:
             try:
                 # Try to read a message from the queue
-                # Update the read RPC call in the TranscriptionWorker class
                 result = supabase_client.rpc(
                     'read',
                     {
@@ -61,7 +102,6 @@ class TranscriptionWorker:
                         'n': 1  # Required parameter - number of messages to read
                     }
                 ).execute()
-
 
                 if result.data and len(result.data) > 0:
                     message = result.data[0]
