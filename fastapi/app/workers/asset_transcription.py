@@ -84,6 +84,7 @@ class TranscriptionWorker:
                 )
             }
         )
+
         
     async def process_message(self, message):
         try:
@@ -118,28 +119,9 @@ class TranscriptionWorker:
                     
                     logger.info(f"File downloaded successfully to: {temp_file_path}")
                     
-                    # Initialize converter with multiple format support
-                    pipeline_options = PdfPipelineOptions(artifacts_path="/app/models")
-                    converter = DocumentConverter(
-                        allowed_formats=[
-                            InputFormat.PDF,
-                            InputFormat.DOCX,
-                            InputFormat.PPTX,
-                            InputFormat.HTML,
-                            InputFormat.IMAGE
-                        ],
-                        format_options={
-                            InputFormat.PDF: PdfFormatOption(
-                                pipeline_options=pipeline_options
-                            ),
-                            InputFormat.DOCX: WordFormatOption(
-                                pipeline_cls=SimplePipeline
-                            )
-                        }
-                    )
-                    
                     # Convert the document
-                    result = converter.convert(temp_file_path)
+                    result = self.converter.convert(temp_file_path)
+
                     extracted_text = result.document.export_to_markdown()
                     
                     logger.info("Successfully extracted text:")
