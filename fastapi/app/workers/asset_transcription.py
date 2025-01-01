@@ -8,7 +8,11 @@ import sys
 import json
 import tempfile
 from pathlib import Path
-from docling.document_converter import DocumentConverter
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.document_converter import DocumentConverter, PdfFormatOption, WordFormatOption
+from docling.pipeline.simple_pipeline import SimplePipeline
+from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -92,8 +96,25 @@ class TranscriptionWorker:
                     
                     logger.info(f"File downloaded successfully to: {temp_file_path}")
                     
-                    # Initialize docling converter
-                    converter = DocumentConverter()
+                    # Initialize converter with multiple format support
+                    pipeline_options = PdfPipelineOptions(artifacts_path="/app/models")
+                    converter = DocumentConverter(
+                        allowed_formats=[
+                            InputFormat.PDF,
+                            InputFormat.DOCX,
+                            InputFormat.PPTX,
+                            InputFormat.HTML,
+                            InputFormat.IMAGE
+                        ],
+                        format_options={
+                            InputFormat.PDF: PdfFormatOption(
+                                pipeline_options=pipeline_options
+                            ),
+                            InputFormat.DOCX: WordFormatOption(
+                                pipeline_cls=SimplePipeline
+                            )
+                        }
+                    )
                     
                     # Convert the document
                     result = converter.convert(temp_file_path)
