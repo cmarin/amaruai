@@ -26,7 +26,14 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(process)d - %(message)s'
 )
+
+# Get our application logger
 logger = logging.getLogger(__name__)
+
+# Suppress noisy HTTP/2 logs
+logging.getLogger('hpack').setLevel(logging.WARNING)
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
 
 class TranscriptionWorker:
     def __init__(self, worker_id):
@@ -45,8 +52,8 @@ class TranscriptionWorker:
             logger.info(f"Worker {self.worker_id} processing message: {message['msg_id']}")
             logger.debug(f"Full message structure: {message}")
             
-            # Parse the message body - PGMQ uses 'msg' instead of 'message_body'
-            msg_data = json.loads(message.get('msg', '{}'))
+            # Parse the message body - PGMQ uses 'message' field
+            msg_data = json.loads(message.get('message', '{}'))
             logger.debug(f"Parsed message data: {msg_data}")
             
             if not msg_data or 'payload' not in msg_data:
