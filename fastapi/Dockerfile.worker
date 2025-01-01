@@ -39,5 +39,18 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /app/.venv ./.venv
 COPY app/ ./app/
 
+# Create a directory for model artifacts
+RUN mkdir -p /app/models
+
+# Install git-lfs for downloading large model files
+RUN apt-get update && apt-get install -y git-lfs && rm -rf /var/lib/apt/lists/*
+RUN git lfs install
+
+# Download Docling models
+RUN python -c "from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline; StandardPdfPipeline.download_models_hf('/app/models')"
+
+# Set environment variable to use local models
+ENV DOCLING_ARTIFACTS_PATH=/app/models
+
 # Different command for the worker
 CMD ["python", "-m", "app.workers.asset_transcription"]
