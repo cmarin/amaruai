@@ -142,7 +142,7 @@ class TranscriptionWorker:
                         asset = crud.get_asset(db, asset_id=asset_id)
                         if asset:
                             asset.content = extracted_text
-                            asset.tokens = self.count_tokens(extracted_text)
+                            asset.token_count = self.count_tokens(extracted_text)
                             asset.status = "completed"
                             db.commit()
                             logger.info(f"Successfully updated asset {asset_id} with extracted text")
