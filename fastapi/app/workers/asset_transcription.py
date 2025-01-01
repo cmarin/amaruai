@@ -80,7 +80,7 @@ class TranscriptionWorker:
                     result = converter.convert(temp_file_path)
                     extracted_text = result.document.export_to_markdown()
                     
-                    logger.info("Successfully extracted text from document:")
+                    logger.info("Successfully extracted text:")
                     logger.info("=" * 50)
                     logger.info(extracted_text)
                     logger.info("=" * 50)
