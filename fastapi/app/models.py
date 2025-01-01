@@ -152,5 +152,5 @@ class Asset(Base):
     uploaded_by = Column(PGUUID(as_uuid=True), ForeignKey('auth.users.id'), nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('now()'))
     updated_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('now()'))
-    storage_id = Column(PGUUID(as_uuid=True), ForeignKey('storage.objects.id'), nullable=True)
+    storage_id = Column(PGUUID(as_uuid=True), nullable=True)
     status = Column(String, nullable=True)
