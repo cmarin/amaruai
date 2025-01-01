@@ -23,7 +23,7 @@ from app.config.supabase import supabase_client
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(process)d - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -43,9 +43,16 @@ class TranscriptionWorker:
     async def process_message(self, message):
         try:
             logger.info(f"Worker {self.worker_id} processing message: {message['msg_id']}")
+            logger.debug(f"Full message structure: {message}")
             
-            # Parse the message body
-            msg_data = json.loads(message['message_body'])
+            # Parse the message body - PGMQ uses 'msg' instead of 'message_body'
+            msg_data = json.loads(message.get('msg', '{}'))
+            logger.debug(f"Parsed message data: {msg_data}")
+            
+            if not msg_data or 'payload' not in msg_data:
+                logger.error(f"Invalid message format. Expected 'payload' in message data: {msg_data}")
+                raise ValueError("Invalid message format")
+                
             file_url = msg_data['payload']['file_url']
             
             # Extract the relative path from the file_url
