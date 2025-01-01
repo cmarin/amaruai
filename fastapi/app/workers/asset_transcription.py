@@ -62,16 +62,15 @@ class TranscriptionWorker:
                 
             file_url = msg_data['payload']['file_url']
             
-            # Extract the relative path from the file_url
-            # Example: chats/user_id/uuid/filename.pdf -> user_id/uuid/filename.pdf
-            relative_path = '/'.join(file_url.split('/')[1:])
-            logger.info(f"Downloading file from path: {relative_path}")
+            # Use the full path from file_url - it already has the correct structure
+            # Example: chats/user_id/uuid/filename.pdf
+            logger.info(f"Downloading file from path: {file_url}")
             
             # Create a temporary directory for processing
             with tempfile.TemporaryDirectory() as temp_dir:
                 # Download the file
                 try:
-                    data = supabase_client.storage.from_(self.bucket_name).download(relative_path)
+                    data = supabase_client.storage.from_(self.bucket_name).download(file_url)
                     temp_file_path = os.path.join(temp_dir, os.path.basename(file_url))
                     
                     # Write the binary data to a temporary file
