@@ -9,6 +9,10 @@ import json
 import tempfile
 from pathlib import Path
 from docling.document_converter import DocumentConverter
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add the parent directory to sys.path to allow imports from app
 file_path = Path(__file__).resolve()
@@ -29,8 +33,11 @@ class TranscriptionWorker:
         self.worker_id = worker_id
         self.visibility_timeout = 300  # 5 minutes
         self.poll_interval = 30  # seconds between polls if queue is empty
+        
+        # Get bucket name from environment
         self.bucket_name = os.getenv("SUPABASE_BUCKET")
         if not self.bucket_name:
+            logger.error("SUPABASE_BUCKET environment variable is not set")
             raise ValueError("SUPABASE_BUCKET environment variable must be set")
         
     async def process_message(self, message):
