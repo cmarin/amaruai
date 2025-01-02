@@ -8,11 +8,17 @@ import sys
 import json
 import tempfile
 from pathlib import Path
+
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import tiktoken
+
+# Local utilities
 from .docling_util import DoclingService
+from .whisper_utility import WhisperUtility
+
+# Load environment variables
 load_dotenv()
 
 # Adjust sys.path for local imports
@@ -31,7 +37,6 @@ if not DATABASE_URL:
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# 4) Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(process)d - %(message)s'
@@ -42,7 +47,6 @@ logger = logging.getLogger(__name__)
 logging.getLogger('hpack').setLevel(logging.WARNING)
 logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('httpcore').setLevel(logging.WARNING)
-
 
 class TranscriptionWorker:
     def __init__(self, worker_id: int):
@@ -56,6 +60,9 @@ class TranscriptionWorker:
 
         # Instantiate the DoclingService
         self.docling_service = DoclingService()
+
+        # Instantiate the Whisper utility for audio
+        self.whisper_utility = WhisperUtility(model_name="turbo")
 
     def count_tokens(self, text: str) -> int:
         """
@@ -84,8 +91,8 @@ class TranscriptionWorker:
 
             # Create a temporary directory for processing
             with tempfile.TemporaryDirectory() as temp_dir:
-                # Download file from Supabase
                 try:
+                    # Download file from Supabase
                     data = supabase_client.storage.from_(self.bucket_name).download(file_url)
                     temp_file_path = os.path.join(temp_dir, os.path.basename(file_url))
 
@@ -95,8 +102,12 @@ class TranscriptionWorker:
 
                     logger.info(f"File downloaded successfully to: {temp_file_path}")
 
-                    # Convert the document (uses Docling under the hood)
-                    extracted_text = self.docling_service.convert_file(temp_file_path)
+                    # Detect file extension: route to either Whisper (mp3/wav) or Docling
+                    file_ext = os.path.splitext(file_url)[1].lower()
+                    if file_ext in [".mp3", ".wav"]:
+                        extracted_text = self.whisper_utility.transcribe_audio(temp_file_path)
+                    else:
+                        extracted_text = self.docling_service.convert_file(temp_file_path)
 
                     logger.info("Successfully extracted text:")
                     logger.info("=" * 50)
@@ -144,7 +155,6 @@ class TranscriptionWorker:
 
     async def run(self):
         logger.info(f"Worker {self.worker_id} started")
-
         while True:
             try:
                 # Try to read a message from the queue
@@ -185,7 +195,6 @@ def start_workers():
     num_workers = min(os.cpu_count() - 1, 4)  # Leave at least one CPU free
     logger.info(f"Starting {num_workers} workers")
 
-    from multiprocessing import Pool
     with Pool(processes=num_workers) as pool:
         try:
             pool.map(worker_process, range(num_workers))

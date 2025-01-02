@@ -23,7 +23,9 @@ sse-starlette = "^2.2.0"
 llama-index = "^0.12.8"
 llama-index-storage-chat-store-postgres = "^0.2.0"
 docling = "^2.14.0"
-
+numba = ">=0.56.0"
+llvmlite = ">=0.43.0"
+openai-whisper = "^20240930"
 
 [build-system]
 requires = ["poetry-core"]
