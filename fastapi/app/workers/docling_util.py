@@ -20,7 +20,13 @@ class DoclingService:
         pipeline_artifacts_path: str = "/app/models"
     ):
         # Initialize EasyOCR
-        self.reader = easyocr.Reader(['en'], model_storage_directory=model_storage_directory)
+        # Disable downloads to prevent concurrency conflicts
+        self.reader = easyocr.Reader(
+            ['en'], 
+            model_storage_directory=model_storage_directory,
+            download_enabled=False
+        )
+
 
         # Set up Docling PDF pipeline options
         pipeline_options = PdfPipelineOptions(artifacts_path=pipeline_artifacts_path)
