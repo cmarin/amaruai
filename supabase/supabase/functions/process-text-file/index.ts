@@ -3,7 +3,13 @@ import { serve } from "jsr:@std/http@^0.224.0/server"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2?no-check"
 import { resolvePDFJS } from 'npm:pdfjs-serverless'
 import mammoth from "npm:mammoth@1.6.0"
-import pptxParser from "https://esm.sh/pptx-parser@1.1.1"
+import JSZip from "https://esm.sh/jszip@3.10.1"
+import { XMLParser } from "https://esm.sh/fast-xml-parser@4.3.2"
+
+// Simple token estimation function
+function estimateTokenCount(text: string): number {
+  return text.split(/\s+/).length + (text.match(/[.,!?;]|\n/g)?.length || 0);
+}
 
 serve(async (req) => {
   try {
@@ -56,18 +62,46 @@ serve(async (req) => {
       extractedText = result.value;
     } else if (asset.mime_type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
       const buffer = await fileData.arrayBuffer();
-      const presentation = await pptxParser.parsePresentation(new Uint8Array(buffer));
+      const zip = new JSZip();
+      const contents = await zip.loadAsync(buffer);
       const texts = [];
       
-      for (const slide of presentation.slides) {
-        for (const shape of slide.shapes) {
-          if (shape.text) {
-            texts.push(shape.text);
-          }
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        parseAttributeValue: true
+      });
+      
+      // Process each slide XML file
+      for (const filename of Object.keys(contents.files)) {
+        if (filename.startsWith('ppt/slides/slide') && filename.endsWith('.xml')) {
+          const content = await contents.files[filename].async('string');
+          const result = parser.parse(content);
+          
+          // Navigate through the parsed XML to find text elements
+          const extractTextFromNode = (node: any) => {
+            if (typeof node === 'string') {
+              texts.push(node.trim());
+            } else if (node && typeof node === 'object') {
+              for (const key in node) {
+                if (key === 'a:t') {
+                  // Found text content
+                  if (typeof node[key] === 'string') {
+                    texts.push(node[key].trim());
+                  }
+                } else {
+                  extractTextFromNode(node[key]);
+                }
+              }
+            } else if (Array.isArray(node)) {
+              node.forEach(item => extractTextFromNode(item));
+            }
+          };
+          
+          extractTextFromNode(result);
         }
       }
       
-      extractedText = texts.join('\n');
+      extractedText = texts.filter(text => text.length > 0).join('\n');
     } else {
       throw new Error(`Unsupported mime type: ${asset.mime_type}`);
     }
@@ -76,7 +110,7 @@ serve(async (req) => {
       .from('assets')
       .update({
         content: extractedText,
-        token_count: extractedText.split(/\s+/).length,
+        token_count: estimateTokenCount(extractedText),
         updated_at: new Date().toISOString()
       })
       .eq('id', asset.id);

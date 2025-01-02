@@ -11,5 +11,9 @@
   "description": "",
   "devDependencies": {
     "supabase": "^1.223.10"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "xml-parser": "^1.2.1"
   }
 }
