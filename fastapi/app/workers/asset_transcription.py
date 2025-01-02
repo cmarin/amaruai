@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import tiktoken
-from docling_util import DoclingService
+from .docling_util import DoclingService
 load_dotenv()
 
 # Adjust sys.path for local imports
