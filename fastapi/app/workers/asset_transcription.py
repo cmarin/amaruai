@@ -62,7 +62,7 @@ class TranscriptionWorker:
         self.docling_service = DoclingService()
 
         # Instantiate the Whisper utility for audio
-        self.whisper_utility = WhisperUtility(model_name="turbo")
+        self.whisper_utility = WhisperUtility(model_name="medium")
 
     def count_tokens(self, text: str) -> int:
         """
@@ -192,9 +192,10 @@ def worker_process(worker_id: int):
         raise
 
 def start_workers():
-    num_workers = min(os.cpu_count() - 1, 4)  # Leave at least one CPU free
+    num_workers = min(os.cpu_count() - 2, 4)  # Leave at least one CPU free
     logger.info(f"Starting {num_workers} workers")
 
+    from multiprocessing import Pool
     with Pool(processes=num_workers) as pool:
         try:
             pool.map(worker_process, range(num_workers))
