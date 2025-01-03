@@ -17,6 +17,8 @@ import tiktoken
 # Local utilities
 from .docling_util import DoclingService
 from .whisper_util import WhisperService
+from .video_utils import VideoService
+
 
 # Load environment variables
 load_dotenv()
@@ -58,11 +60,11 @@ class TranscriptionWorker:
             logger.error("SUPABASE_BUCKET environment variable is not set")
             raise ValueError("SUPABASE_BUCKET environment variable must be set")
 
-        # Instantiate the DoclingService
+        # Instantiate DoclingService, WhisperService, and VideoService
         self.docling_service = DoclingService()
-
-        # Instantiate the Whisper utility for audio
-        self.whisper_sevice = WhisperService(model_name="medium")
+        self.whisper_service = WhisperService(model_name="medium")
+        self.video_service = VideoService()
+  
 
     def count_tokens(self, text: str) -> int:
         """
@@ -102,10 +104,16 @@ class TranscriptionWorker:
 
                     logger.info(f"File downloaded successfully to: {temp_file_path}")
 
-                    # Detect file extension: route to either Whisper (mp3/wav) or Docling
+                    # Detect file extension
                     file_ext = os.path.splitext(file_url)[1].lower()
+
                     if file_ext in [".mp3", ".wav"]:
                         extracted_text = self.whisper_service.transcribe_audio(temp_file_path)
+                    elif file_ext in [".mp4", ".mov"]:
+                        # 1) Extract MP3 audio
+                        mp3_path = self.video_service.extract_audio(temp_file_path)
+                        # 2) Then transcribe
+                        extracted_text = self.whisper_service.transcribe_audio(mp3_path)
                     else:
                         extracted_text = self.docling_service.convert_file(temp_file_path)
 
