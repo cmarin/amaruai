@@ -17,7 +17,7 @@ class WhisperService:
     large files into 25MB chunks.
     """
 
-    def __init__(self, model_name: str = "turbo"):
+    def __init__(self, model_name: str = "medium"):
         """
         :param model_name: The name of the Whisper model to load, e.g. "turbo", "base", "small", etc.
         """
@@ -79,17 +79,28 @@ class WhisperService:
             f"into {num_chunks} chunk(s) (<=25MB each)."
         )
 
-        with open(file_path, "rb") as source_file:
-            for _ in range(num_chunks):
-                chunk_data = source_file.read(bytes_per_chunk)
-                if not chunk_data:
-                    break
+        # Create a unique temporary directory for this transcription job
+        temp_dir = tempfile.mkdtemp(prefix="whisper_chunks_")
+        try:
+            with open(file_path, "rb") as source_file:
+                for chunk_idx in range(num_chunks):
+                    chunk_data = source_file.read(bytes_per_chunk)
+                    if not chunk_data:
+                        break
 
-                # Create a temp file for each chunk
-                chunk_path = os.path.join(tempfile.gettempdir(), f"whisper_chunk_{uuid.uuid4()}.wav")
-                with open(chunk_path, "wb") as chunk_file:
-                    chunk_file.write(chunk_data)
+                    # Create chunk file in our unique temp directory
+                    chunk_path = os.path.join(temp_dir, f"chunk_{chunk_idx}_{uuid.uuid4()}.wav")
+                    with open(chunk_path, "wb") as chunk_file:
+                        chunk_file.write(chunk_data)
 
-                chunks.append(chunk_path)
+                    chunks.append(chunk_path)
 
-        return chunks
+            return chunks
+        except Exception as e:
+            # Clean up temp directory on error
+            for chunk_path in chunks:
+                if os.path.exists(chunk_path):
+                    os.remove(chunk_path)
+            if os.path.exists(temp_dir):
+                os.rmdir(temp_dir)
+            raise e

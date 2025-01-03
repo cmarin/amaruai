@@ -18,26 +18,27 @@ class VideoService:
         Extract audio from the given video file and return the path to the audio file (MP3).
         Uses ffmpeg under the hood.
         """
-        # Create a temporary file for the extracted audio
-        temp_dir = tempfile.gettempdir()
-        base_name = os.path.splitext(os.path.basename(input_file))[0]
-        output_file_path = os.path.join(temp_dir, f"{base_name}.mp3")
+        # Create a unique temporary directory for this extraction
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base_name = os.path.splitext(os.path.basename(input_file))[0]
+            output_file_path = os.path.join(temp_dir, f"{base_name}.mp3")
 
-        # ffmpeg command: -i input.mp4 -vn -acodec libmp3lame output.mp3
-        command = [
-            "ffmpeg",
-            "-i", input_file,
-            "-vn",  # no video
-            "-acodec", "libmp3lame",
-            "-q:a", "2",  # audio quality
-            output_file_path
-        ]
+            # ffmpeg command: -i input.mp4 -vn -acodec libmp3lame output.mp3
+            command = [
+                "ffmpeg",
+                "-i", input_file,
+                "-vn",  # no video
+                "-acodec", "libmp3lame",
+                "-q:a", "2",  # audio quality
+                "-y",  # overwrite output file if it exists
+                output_file_path
+            ]
 
-        try:
-            logger.debug(f"Extracting audio from video with command: {' '.join(command)}")
-            subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            logger.info(f"Audio extracted successfully: {output_file_path}")
-            return output_file_path
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to extract audio from video: {e.stderr.decode('utf-8', errors='ignore')}")
-            raise
+            try:
+                logger.debug(f"Extracting audio from video with command: {' '.join(command)}")
+                subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                logger.info(f"Audio extracted successfully: {output_file_path}")
+                return output_file_path
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Failed to extract audio from video: {e.stderr.decode('utf-8', errors='ignore')}")
+                raise
