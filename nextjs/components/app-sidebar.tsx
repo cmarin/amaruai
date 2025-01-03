@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { FileText, BookOpen, Brain, Workflow, MessageSquare, ChevronLeft, ChevronRight, User2 } from "lucide-react"
+import { FileText, BookOpen, Brain, Workflow, MessageSquare, ChevronLeft, ChevronRight, User2, Files } from "lucide-react"
 import { useRouter } from 'next/navigation'
 import { useData } from '@/components/data-context'
 import { useSidebar } from '@/components/sidebar-context'
@@ -43,6 +43,11 @@ const aiTools = [
     title: "Workflows",
     href: "/workflows",
     icon: Workflow,
+  },
+  {
+    title: "Batch Flow",
+    href: "/batch-flow",
+    icon: Files,
   },
 ]
 
