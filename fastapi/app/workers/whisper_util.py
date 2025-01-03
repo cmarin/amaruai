@@ -1,5 +1,3 @@
-# whisper_utility.py
-
 import os
 import uuid
 import tempfile
@@ -13,7 +11,7 @@ logger = logging.getLogger(__name__)
 MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB in bytes
 
 
-class WhisperUtility:
+class WhisperService:
     """
     Utility for transcribing MP3/WAV files using Whisper, with support for splitting
     large files into 25MB chunks.

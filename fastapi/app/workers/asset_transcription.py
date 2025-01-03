@@ -16,7 +16,7 @@ import tiktoken
 
 # Local utilities
 from .docling_util import DoclingService
-from .whisper_utility import WhisperUtility
+from .whisper_util import WhisperService
 
 # Load environment variables
 load_dotenv()
@@ -62,7 +62,7 @@ class TranscriptionWorker:
         self.docling_service = DoclingService()
 
         # Instantiate the Whisper utility for audio
-        self.whisper_utility = WhisperUtility(model_name="medium")
+        self.whisper_sevice = WhisperService(model_name="medium")
 
     def count_tokens(self, text: str) -> int:
         """
@@ -105,7 +105,7 @@ class TranscriptionWorker:
                     # Detect file extension: route to either Whisper (mp3/wav) or Docling
                     file_ext = os.path.splitext(file_url)[1].lower()
                     if file_ext in [".mp3", ".wav"]:
-                        extracted_text = self.whisper_utility.transcribe_audio(temp_file_path)
+                        extracted_text = self.whisper_service.transcribe_audio(temp_file_path)
                     else:
                         extracted_text = self.docling_service.convert_file(temp_file_path)
 
