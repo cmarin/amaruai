@@ -103,40 +103,48 @@ class TranscriptionWorker:
                         f.write(data)
 
                     logger.info(f"File downloaded successfully to: {temp_file_path}")
-
-                    # Detect file extension
+                    
+                    # Extract file extension
                     file_ext = os.path.splitext(file_url)[1].lower()
+                    audio_temp_dir = None
 
-                    if file_ext in [".mp3", ".wav"]:
-                        extracted_text = self.whisper_service.transcribe_audio(temp_file_path)
-                    elif file_ext in [".mp4", ".mov"]:
-                        # 1) Extract MP3 audio
-                        mp3_path = self.video_service.extract_audio(temp_file_path)
-                        # 2) Then transcribe
-                        extracted_text = self.whisper_service.transcribe_audio(mp3_path)
-                    else:
-                        extracted_text = self.docling_service.convert_file(temp_file_path)
-
-                    logger.info("Successfully extracted text:")
-                    logger.info("=" * 50)
-                    logger.info(extracted_text)
-                    logger.info("=" * 50)
-
-                    # Update database
-                    db = SessionLocal()
                     try:
-                        asset = crud.get_asset(db, asset_id=asset_id)
-                        if asset:
-                            asset.content = extracted_text
-                            asset.token_count = self.count_tokens(extracted_text)
-                            asset.status = "completed"
-                            db.commit()
-                            logger.info(f"Successfully updated asset {asset_id} with extracted text")
+                        if file_ext in [".mp3", ".wav"]:
+                            extracted_text = self.whisper_service.transcribe_audio(temp_file_path)
+                        elif file_ext in [".mp4", ".mov"]:
+                            # 1) Extract MP3 audio
+                            mp3_path, audio_temp_dir = self.video_service.extract_audio(temp_file_path)
+                            # 2) Then transcribe
+                            extracted_text = self.whisper_service.transcribe_audio(mp3_path)
                         else:
-                            logger.error(f"Asset {asset_id} not found in database")
-                            raise ValueError(f"Asset {asset_id} not found")
+                            extracted_text = self.docling_service.convert_file(temp_file_path)
+
+                        logger.info("Successfully extracted text:")
+                        logger.info("=" * 50)
+                        logger.info(extracted_text)
+                        logger.info("=" * 50)
+
+                        # Update database
+                        db = SessionLocal()
+                        try:
+                            asset = crud.get_asset(db, asset_id=asset_id)
+                            if asset:
+                                asset.content = extracted_text
+                                asset.token_count = self.count_tokens(extracted_text)
+                                asset.status = "completed"
+                                db.commit()
+                                logger.info(f"Successfully updated asset {asset_id} with extracted text")
+                            else:
+                                logger.error(f"Asset {asset_id} not found in database")
+                                raise ValueError(f"Asset {asset_id} not found")
+                        finally:
+                            db.close()
+
                     finally:
-                        db.close()
+                        # Clean up audio temp directory if it exists
+                        if audio_temp_dir and os.path.exists(audio_temp_dir):
+                            import shutil
+                            shutil.rmtree(audio_temp_dir)
 
                 except Exception as e:
                     logger.error(f"Error processing file: {str(e)}", exc_info=True)

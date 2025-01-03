@@ -13,13 +13,15 @@ class VideoService:
     def __init__(self):
         pass  # If you need any class-level initialization, do it here
 
-    def extract_audio(self, input_file: str) -> str:
+    def extract_audio(self, input_file: str) -> tuple[str, str]:
         """
         Extract audio from the given video file and return the path to the audio file (MP3).
         Uses ffmpeg under the hood.
+        Returns: Tuple of (file_path, temp_dir_path)
         """
         # Create a unique temporary directory for this extraction
-        with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = tempfile.mkdtemp(prefix="video_audio_")
+        try:
             base_name = os.path.splitext(os.path.basename(input_file))[0]
             output_file_path = os.path.join(temp_dir, f"{base_name}.mp3")
 
@@ -34,11 +36,14 @@ class VideoService:
                 output_file_path
             ]
 
-            try:
-                logger.debug(f"Extracting audio from video with command: {' '.join(command)}")
-                subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                logger.info(f"Audio extracted successfully: {output_file_path}")
-                return output_file_path
-            except subprocess.CalledProcessError as e:
-                logger.error(f"Failed to extract audio from video: {e.stderr.decode('utf-8', errors='ignore')}")
-                raise
+            logger.debug(f"Extracting audio from video with command: {' '.join(command)}")
+            subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            logger.info(f"Audio extracted successfully: {output_file_path}")
+            return output_file_path, temp_dir
+        except Exception as e:
+            # Clean up temp directory on error
+            if os.path.exists(temp_dir):
+                import shutil
+                shutil.rmtree(temp_dir)
+            logger.error(f"Failed to extract audio from video: {str(e)}")
+            raise
