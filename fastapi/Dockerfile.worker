@@ -51,8 +51,9 @@ RUN git lfs install
 
 # (A) Download Docling PDFs & EasyOCR models at build time
 RUN python -c "from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline; \
-    StandardPdfPipeline.download_models_hf('/app/models')" && \
-    python -c "import easyocr; easyocr.Reader(['en'], model_storage_directory='/root/.EasyOCR/model', download_enabled=False)"
+    StandardPdfPipeline.download_models_hf('/app/models')" \
+    && python -c "import easyocr; easyocr.Reader(['en'], model_storage_directory='/root/.EasyOCR/model', download_enabled=True)"
+
 
 # (B) Preload the Whisper “turbo” model at build time
 RUN python -c "import whisper; whisper.load_model('turbo')"
