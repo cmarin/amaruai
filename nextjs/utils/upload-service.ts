@@ -31,7 +31,13 @@ export class UploadService {
             'text/markdown',              // Markdown MIME type
             'application/vnd.openxmlformats-officedocument.presentationml.presentation', // PPTX
             'application/vnd.ms-powerpoint', // PPT
-            'wav','mp3'  // Audio
+            'audio/wav',                  // WAV audio
+            'audio/mpeg',                 // MP3 audio
+            'audio/flac',                 // FLAC audio
+            'video/mp4',                  // MP4 video
+            'video/quicktime',            // MOV video
+            '.wav', '.mp3', '.flac',     // Audio extensions
+            '.mp4', '.mov'               // Video extensions
         ],
         storageFolder: 'chats',
         storageBucket: 'amaruai-dev'
