@@ -1,29 +1,42 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSession } from '@/app/utils/session/session';
 import { useData } from '@/components/data-context';
 import { UploadService, type UploadedFile } from '@/utils/upload-service';
 import { BatchFlowStep, executeBatchFlow } from '@/utils/batch-flow-service';
+import { useSupabase } from '@/app/contexts/SupabaseContext';
+import { AppSidebar } from '@/components/app-sidebar';
+import { useSidebar } from '@/components/sidebar-context';
 import Dashboard from '@uppy/react/lib/Dashboard';
 import '@uppy/core/dist/style.min.css';
 import '@uppy/dashboard/dist/style.min.css';
-import { useSupabase } from '@/app/contexts/SupabaseContext';
 
 type WizardStep = 'upload' | 'workflow' | 'instructions' | 'processing';
+
+const steps = [
+  { id: 'upload', label: '1. Upload Files' },
+  { id: 'workflow', label: '2. Configure Workflow' },
+  { id: 'instructions', label: '3. Custom Instructions' },
+  { id: 'processing', label: '4. Processing' }
+];
 
 export default function BatchFlow() {
   const { session } = useSession();
   const supabase = useSupabase();
   const { promptTemplates, chatModels, personas } = useData();
+  const { sidebarOpen } = useSidebar();
   const [currentStep, setCurrentStep] = useState<WizardStep>('upload');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [workflowSteps, setWorkflowSteps] = useState<BatchFlowStep[]>([]);
+  const [workflowSteps, setWorkflowSteps] = useState<BatchFlowStep[]>([{
+    prompt_template_id: '',
+    chat_model_id: '',
+    persona_id: ''
+  }]);
   const [customInstructions, setCustomInstructions] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
@@ -52,8 +65,10 @@ export default function BatchFlow() {
   }, []);
 
   const handleRemoveStep = useCallback((index: number) => {
-    setWorkflowSteps(prev => prev.filter((_, i) => i !== index));
-  }, []);
+    if (workflowSteps.length > 1) {
+      setWorkflowSteps(prev => prev.filter((_, i) => i !== index));
+    }
+  }, [workflowSteps.length]);
 
   const handleExecute = useCallback(async () => {
     if (!session) return;
@@ -103,142 +118,226 @@ export default function BatchFlow() {
     );
   }, [session, handleFileUpload]);
 
+  const handleNext = useCallback(() => {
+    const currentIndex = steps.findIndex(step => step.id === currentStep);
+    if (currentIndex < steps.length - 1) {
+      setCurrentStep(steps[currentIndex + 1].id as WizardStep);
+    }
+  }, [currentStep]);
+
+  const handlePrevious = useCallback(() => {
+    const currentIndex = steps.findIndex(step => step.id === currentStep);
+    if (currentIndex > 0) {
+      setCurrentStep(steps[currentIndex - 1].id as WizardStep);
+    }
+  }, [currentStep]);
+
   if (!session || !uppy) return null;
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Batch Flow</h1>
+    <div className="flex h-screen">
+      <AppSidebar toggleChatbot={() => {}} />
+      <div className={`flex-1 overflow-hidden transition-all ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className="container mx-auto p-6">
+          <h1 className="text-2xl font-bold mb-6">Batch Flow</h1>
 
-      <Tabs value={currentStep} onValueChange={(value) => setCurrentStep(value as WizardStep)}>
-        <TabsList>
-          <TabsTrigger value="upload">1. Upload Files</TabsTrigger>
-          <TabsTrigger value="workflow">2. Configure Workflow</TabsTrigger>
-          <TabsTrigger value="instructions">3. Custom Instructions</TabsTrigger>
-          <TabsTrigger value="processing">4. Processing</TabsTrigger>
-        </TabsList>
+          <div className="flex justify-center mb-8">
+            <div className="flex items-center space-x-4">
+              {steps.map((step, index) => (
+                <React.Fragment key={step.id}>
+                  {index > 0 && (
+                    <div className="h-[2px] w-8 bg-blue-200" />
+                  )}
+                  <div
+                    className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                      currentStep === step.id
+                        ? 'border-blue-500 bg-blue-500 text-white'
+                        : 'border-blue-200 text-blue-500'
+                    }`}
+                  >
+                    {index + 1}
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
 
-        <TabsContent value="upload">
-          <Card>
+          <Card className="mt-4">
             <CardContent className="pt-6">
-              <Dashboard
-                uppy={uppy}
-                proudlyDisplayPoweredByUppy={false}
-                showProgressDetails
-                height={400}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="workflow">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                {workflowSteps.map((step, index) => (
-                  <div key={index} className="flex gap-4 items-start">
-                    <Select
-                      value={step.prompt_template_id}
-                      onValueChange={(value) => handleUpdateStep(index, 'prompt_template_id', value)}
-                    >
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Select prompt" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {promptTemplates.map((template) => (
-                          <SelectItem key={template.id} value={template.id.toString()}>
-                            {template.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Select
-                      value={step.chat_model_id}
-                      onValueChange={(value) => handleUpdateStep(index, 'chat_model_id', value)}
-                    >
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Select model" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {chatModels.map((model) => (
-                          <SelectItem key={model.id} value={model.id.toString()}>
-                            {model.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Select
-                      value={step.persona_id}
-                      onValueChange={(value) => handleUpdateStep(index, 'persona_id', value)}
-                    >
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Select persona" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {personas.map((persona) => (
-                          <SelectItem key={persona.id} value={persona.id.toString()}>
-                            {persona.role}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
+              {currentStep === 'upload' && (
+                <div>
+                  <Dashboard
+                    uppy={uppy}
+                    proudlyDisplayPoweredByUppy={false}
+                    showProgressDetails
+                    height={400}
+                  />
+                  <div className="flex justify-between mt-4">
                     <Button
-                      variant="destructive"
-                      onClick={() => handleRemoveStep(index)}
+                      variant="outline"
+                      onClick={handlePrevious}
+                      disabled={true}
                     >
-                      Remove
+                      Previous
+                    </Button>
+                    <Button
+                      variant="default"
+                      onClick={handleNext}
+                      disabled={uploadedFiles.length === 0}
+                    >
+                      Next
                     </Button>
                   </div>
-                ))}
+                </div>
+              )}
 
-                <Button onClick={handleAddStep}>Add Step</Button>
+              {currentStep === 'workflow' && (
+                <div className="space-y-6">
+                  {workflowSteps.map((step, index) => (
+                    <div key={index} className="flex gap-4 items-start p-4 border rounded-lg bg-slate-50">
+                      <div className="space-y-4 flex-1">
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium mb-2">Prompt Template</label>
+                            <Select
+                              value={step.prompt_template_id}
+                              onValueChange={(value) => handleUpdateStep(index, 'prompt_template_id', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select prompt" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {promptTemplates.map((template) => (
+                                  <SelectItem key={template.id} value={template.id.toString()}>
+                                    {template.title}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
 
-                {workflowSteps.length > 0 && (
+                          <div>
+                            <label className="block text-sm font-medium mb-2">Chat Model</label>
+                            <Select
+                              value={step.chat_model_id}
+                              onValueChange={(value) => handleUpdateStep(index, 'chat_model_id', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select model" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {chatModels.map((model) => (
+                                  <SelectItem key={model.id} value={model.id.toString()}>
+                                    {model.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium mb-2">Persona</label>
+                            <Select
+                              value={step.persona_id}
+                              onValueChange={(value) => handleUpdateStep(index, 'persona_id', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select persona" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {personas.map((persona) => (
+                                  <SelectItem key={persona.id} value={persona.id.toString()}>
+                                    {persona.role}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="destructive"
+                        onClick={() => handleRemoveStep(index)}
+                        disabled={workflowSteps.length === 1}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+
                   <Button
-                    className="ml-4"
-                    onClick={() => setCurrentStep('instructions')}
+                    variant="outline"
+                    onClick={handleAddStep}
+                    className="mt-4"
                   >
-                    Next
+                    Add Step
                   </Button>
-                )}
-              </div>
+
+                  <div className="flex justify-between mt-6">
+                    <Button variant="outline" onClick={handlePrevious}>
+                      Previous
+                    </Button>
+                    <Button
+                      variant="default"
+                      onClick={handleNext}
+                      disabled={!workflowSteps.some(step => 
+                        step.prompt_template_id && step.chat_model_id && step.persona_id
+                      )}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {currentStep === 'instructions' && (
+                <div>
+                  <Textarea
+                    placeholder="Enter any custom instructions for processing..."
+                    value={customInstructions}
+                    onChange={(e) => setCustomInstructions(e.target.value)}
+                    className="min-h-[200px]"
+                  />
+
+                  <div className="flex justify-between mt-4">
+                    <Button variant="outline" onClick={handlePrevious}>
+                      Previous
+                    </Button>
+                    <Button
+                      variant="default"
+                      onClick={handleExecute}
+                    >
+                      Start Processing
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {currentStep === 'processing' && (
+                <div className="space-y-4">
+                  <div className="text-lg font-medium text-blue-500">{processingStatus}</div>
+                  {isProcessing && (
+                    <div className="flex items-center justify-center p-4">
+                      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between mt-4">
+                    <Button
+                      variant="outline"
+                      onClick={handlePrevious}
+                      disabled={isProcessing}
+                    >
+                      Previous
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="instructions">
-          <Card>
-            <CardContent className="pt-6">
-              <Textarea
-                placeholder="Enter any custom instructions for processing..."
-                value={customInstructions}
-                onChange={(e) => setCustomInstructions(e.target.value)}
-                className="min-h-[200px]"
-              />
-
-              <div className="mt-4 space-x-4">
-                <Button onClick={() => setCurrentStep('workflow')}>Back</Button>
-                <Button onClick={handleExecute}>Start Processing</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="processing">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                <div className="text-lg">{processingStatus}</div>
-                {isProcessing && (
-                  <div className="animate-pulse">Processing...</div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
 }
