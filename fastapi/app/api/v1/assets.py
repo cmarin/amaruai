@@ -110,13 +110,27 @@ async def get_asset_status(
 ):
     """
     Get asset status by file URL.
-    The URL parameter should be in the format: chats/user_id/uuid/filename.txt
+    The URL parameter can be either:
+    1. Relative path: chats/user_id/uuid/filename.txt
+    2. Full Supabase URL: https://.../storage/v1/object/public/bucket/chats/user_id/uuid/filename.txt
     """
     logger.info(f"Getting asset status for URL: {url}")
     
     try:
+        # Extract the relative path if a full URL is provided
+        if url.startswith('http'):
+            # Find the index of "chats/" and take everything after it
+            chats_index = url.find("chats/")
+            if chats_index == -1:
+                raise HTTPException(status_code=400, detail="Invalid URL format: 'chats/' not found in path")
+            file_url = url[chats_index:]
+        else:
+            file_url = url
+            
+        logger.info(f"Looking up asset with file_url: {file_url}")
+        
         # Find the asset by file URL
-        asset = crud.get_asset_by_file_url(db, file_url=url)
+        asset = crud.get_asset_by_file_url(db, file_url=file_url)
         if not asset:
             raise HTTPException(status_code=404, detail="Asset not found")
             

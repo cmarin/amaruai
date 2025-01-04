@@ -55,8 +55,8 @@ RUN python -c "from docling.pipeline.standard_pdf_pipeline import StandardPdfPip
     && python -c "import easyocr; easyocr.Reader(['en'], model_storage_directory='/root/.EasyOCR/model', download_enabled=True)"
 
 
-# (B) Preload the Whisper “turbo” model at build time
-RUN python -c "import whisper; whisper.load_model('medium')"
+# (B) Preload the Whisper “medium” model at build time if not using OpenAI API
+# RUN python -c "import whisper; whisper.load_model('medium')"
 
 # Set environment variables for model paths
 ENV DOCLING_ARTIFACTS_PATH=/app/models \
