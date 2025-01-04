@@ -25,13 +25,14 @@ import type { UploadedFile, FileStatus, BatchFlowStep } from '@/types';
 
 const MAX_TOKENS = 100000;
 
-type WizardStep = 'upload' | 'process' | 'configure' | 'review';
+type WizardStep = 'upload' | 'process' | 'configure' | 'review' | 'results';
 
 const steps: { id: WizardStep; label: string }[] = [
   { id: 'upload', label: 'Upload Files' },
   { id: 'process', label: 'Process Files' },
   { id: 'configure', label: 'Configure Workflow' },
-  { id: 'review', label: 'Review & Start' },
+  { id: 'review', label: 'Review' },
+  { id: 'results', label: 'Results' },
 ];
 
 export default function BatchFlow() {
@@ -49,6 +50,7 @@ export default function BatchFlow() {
   const [customInstructions, setCustomInstructions] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
+  const [fileResponses, setFileResponses] = useState<Record<string, string>>({});
 
   const totalTokens = uploadedFiles.reduce((sum, file) => sum + (file.status.token_count || 0), 0);
   const tokenPercentage = Math.min((totalTokens / MAX_TOKENS) * 100, 100);
@@ -109,18 +111,19 @@ export default function BatchFlow() {
   }, []);
 
   const uppy = React.useMemo(() => {
-    if (!session) return null;
+    if (!session || !supabase) return null;
 
-    const uppyInstance = UploadService.createUppy(
+    return UploadService.createUppy(
       'batch-flow-uploader',
-      {},
+      {
+        maxFiles: 10,
+        allowedFileTypes: ['video/*', 'image/*', '.pdf', '.doc', '.docx', '.txt']
+      },
       handleFileUpload,
       undefined,
       supabase
     );
-
-    return uppyInstance;
-  }, [session, handleFileUpload, supabase]);
+  }, [session, supabase, handleFileUpload]);
 
   const handleNext = useCallback(() => {
     const currentIndex = steps.findIndex(step => step.id === currentStep);
@@ -177,6 +180,7 @@ export default function BatchFlow() {
     if (!session) return;
     
     setIsProcessing(true);
+    setFileResponses({});
     
     try {
       await executeBatchFlow(
@@ -193,7 +197,14 @@ export default function BatchFlow() {
             );
           } else if (message.type === 'error') {
             setProcessingStatus(`Error: ${message.error}`);
-          } else if (message.type === 'completion') {
+          } else if (message.type === 'completion' && message.fileId && message.response) {
+            setFileResponses(prev => {
+              const newResponses = { ...prev };
+              if (message.fileId) {
+                newResponses[message.fileId] = message.response || '';
+              }
+              return newResponses;
+            });
             setProcessingStatus('Processing complete!');
           }
         }
@@ -456,13 +467,78 @@ export default function BatchFlow() {
                 </div>
 
                 <div className="flex justify-between mt-4">
-                  <Button variant="outline" onClick={handlePrevious}>
+                  <Button 
+                    variant="outline" 
+                    onClick={handlePrevious}
+                  >
                     Previous
                   </Button>
-                  <Button variant="default" onClick={handleExecute}>
+                  <Button 
+                    variant="default"
+                    onClick={() => {
+                      handleExecute();
+                      setCurrentStep('results');
+                    }}
+                  >
                     Execute
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {currentStep === 'results' && (
+              <div className="space-y-6">
+                <div className="text-lg font-semibold mb-4">Processing Results</div>
+                
+                {isProcessing ? (
+                  <div className="text-center py-8">
+                    <div className="mb-4 text-gray-600">{processingStatus}</div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {uploadedFiles.map((file, index) => (
+                      <div 
+                        key={file.url || index}
+                        className="p-4 border rounded-lg bg-white"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="font-medium">{file.status.file_name}</div>
+                          <div className={
+                            file.status.status === 'completed' ? 'text-green-500' :
+                            file.status.status === 'failed' ? 'text-red-500' :
+                            'text-blue-500'
+                          }>
+                            {file.status.status}
+                          </div>
+                        </div>
+                        {file.status.status === 'completed' && fileResponses[file.status.id] && (
+                          <div className="text-sm text-gray-600 whitespace-pre-wrap">
+                            {fileResponses[file.status.id]}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    <div className="flex justify-between mt-6">
+                      <Button
+                        variant="outline"
+                        onClick={handlePrevious}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setUploadedFiles([]);
+                          setCurrentStep('upload');
+                        }}
+                      >
+                        Start New Batch
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
