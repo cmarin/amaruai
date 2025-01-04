@@ -62,7 +62,7 @@ class TranscriptionWorker:
 
         # Instantiate DoclingService, WhisperService, and VideoService
         self.docling_service = DoclingService()
-        self.whisper_service = WhisperService(model_name="medium")
+        self.whisper_service = WhisperService()  # Let WhisperService handle model selection from env vars
         self.video_service = VideoService()
   
 

@@ -57,7 +57,7 @@ export async function executeBatchFlow(
   onComplete?: () => void,
 ): Promise<void> {
   try {
-    const response = await fetch(`${getApiUrl()}/api/v1/bulk-flow`, {
+    const response = await fetch(`${getApiUrl()}/bulk-flow`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -103,7 +103,7 @@ export async function executeBatchFlow(
 }
 
 export async function getAssetStatus(url: string, accessToken: string): Promise<AssetStatus> {
-  const response = await fetch(`${getApiUrl()}/api/v1/assets/status?url=${encodeURIComponent(url)}`, {
+  const response = await fetch(`${getApiUrl()}/assets/status?url=${encodeURIComponent(url)}`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`
     }
