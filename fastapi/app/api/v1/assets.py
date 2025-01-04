@@ -7,6 +7,7 @@ from uuid import UUID
 import logging
 from app.config.supabase import supabase_client
 import json
+from urllib.parse import unquote
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -127,7 +128,9 @@ async def get_asset_status(
         else:
             file_url = url
             
-        logger.info(f"Looking up asset with file_url: {file_url}")
+        # URL decode the file_url to handle spaces and special characters
+        file_url = unquote(file_url)
+        logger.info(f"Looking up asset with decoded file_url: {file_url}")
         
         # Find the asset by file URL
         asset = crud.get_asset_by_file_url(db, file_url=file_url)

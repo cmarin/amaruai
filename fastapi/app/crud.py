@@ -466,7 +466,17 @@ def get_asset_by_file_url(db: Session, file_url: str):
     Get an asset by its file_url.
     The file_url should be in the format: chats/user_id/uuid/filename.txt
     """
-    return db.query(models.Asset).filter(models.Asset.file_url == file_url).first()
+    logger = logging.getLogger(__name__)
+    logger.info(f"Searching for asset with file_url: {file_url}")
+        
+    # Perform the actual query
+    asset = db.query(models.Asset).filter(models.Asset.file_url == file_url).first()
+    if asset:
+        logger.info(f"Found matching asset: {asset.id}")
+    else:
+        logger.info("No matching asset found")
+    
+    return asset
 
 def get_asset(db: Session, asset_id: UUID):
     logger = logging.getLogger(__name__)
