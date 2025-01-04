@@ -272,7 +272,7 @@ export default function BatchFlow() {
                     Previous
                   </Button>
                   <Button
-                    variant="outline"
+                    variant="default"
                     onClick={handleNext}
                     disabled={uploadedFiles.length === 0}
                   >
@@ -342,7 +342,7 @@ export default function BatchFlow() {
                     Previous
                   </Button>
                   <Button
-                    variant="default"
+                    variant="outline"
                     onClick={handleNext}
                     disabled={!uploadedFiles.every(f => 
                       ['completed', 'failed', 'max_attempts_exceeded'].includes(f.status.status)
@@ -442,7 +442,7 @@ export default function BatchFlow() {
                     Previous
                   </Button>
                   <Button
-                    variant="default"
+                    variant="outline"
                     onClick={handleNext}
                     disabled={!workflowSteps.some(step => 
                       step.prompt_template_id && step.chat_model_id && step.persona_id
@@ -474,7 +474,7 @@ export default function BatchFlow() {
                     Previous
                   </Button>
                   <Button 
-                    variant="default"
+                    variant="outline"
                     onClick={() => {
                       handleExecute();
                       setCurrentStep('results');
@@ -497,28 +497,20 @@ export default function BatchFlow() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {uploadedFiles.map((file, index) => (
-                      <div 
-                        key={file.url || index}
-                        className="p-4 border rounded-lg bg-white"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="font-medium">{file.status.file_name}</div>
-                          <div className={
-                            file.status.status === 'completed' ? 'text-green-500' :
-                            file.status.status === 'failed' ? 'text-red-500' :
-                            'text-blue-500'
-                          }>
-                            {file.status.status}
+                    {Object.entries(fileResponses).map(([fileId, response]) => {
+                      const file = uploadedFiles.find(f => f.status.id === fileId);
+                      return (
+                        <div 
+                          key={fileId}
+                          className="p-4 border rounded-lg bg-white"
+                        >
+                          <div className="font-medium mb-2">{file?.status.file_name}</div>
+                          <div className="text-sm text-gray-600 whitespace-pre-wrap">
+                            {response}
                           </div>
                         </div>
-                        {file.status.status === 'completed' && fileResponses[file.status.id] && (
-                          <div className="text-sm text-gray-600 whitespace-pre-wrap">
-                            {fileResponses[file.status.id]}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     <div className="flex justify-between mt-6">
                       <Button
