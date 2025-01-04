@@ -40,6 +40,7 @@ export default function BatchFlow() {
   const { sidebarOpen } = useSidebar();
   const [currentStep, setCurrentStep] = useState<WizardStep>('upload');
   const [uploadedFiles, setUploadedFiles] = useState<FileStatus[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<FileStatus[]>([]);
   const [workflowSteps, setWorkflowSteps] = useState<BatchFlowStep[]>([{
     prompt_template_id: '',
     chat_model_id: '',
@@ -48,12 +49,26 @@ export default function BatchFlow() {
   const [customInstructions, setCustomInstructions] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
-  const totalTokens = uploadedFiles.reduce((sum, file) => sum + (file.status?.token_count || 0), 0);
+  const totalTokens = uploadedFiles.reduce((sum, file) => sum + (file.status.token_count || 0), 0);
   const tokenPercentage = Math.min((totalTokens / MAX_TOKENS) * 100, 100);
 
+  const handleFileSelected = useCallback((file: UploadedFile) => {
+    const fileStatus: FileStatus = {
+      ...file,
+      status: {
+        id: '',
+        status: 'pending',
+        token_count: 0,
+        file_name: file.name
+      }
+    };
+    setSelectedFiles(prev => [...prev, fileStatus]);
+  }, []);
+
   const startPollingStatus = useCallback((file: FileStatus) => {
-    if (!session) return;
+    if (!session || !file.url) return;
 
     const intervalId = setInterval(async () => {
       try {
@@ -82,19 +97,14 @@ export default function BatchFlow() {
     return intervalId;
   }, [session]);
 
-  const handleFileUpload = useCallback((file: UploadedFile) => {
-    const fileStatus: FileStatus = {
-      ...file,
-      status: {
-        id: '',  // This will be populated by the API response
-        status: 'pending',
-        token_count: 0,
-        file_name: file.name
-      }
-    };
-    setUploadedFiles(prev => [...prev, fileStatus]);
-    startPollingStatus(fileStatus);
-  }, [startPollingStatus]);
+  const handleStartUpload = useCallback(() => {
+    setIsUploading(true);
+    setUploadedFiles(prev => [...prev, ...selectedFiles]);
+    selectedFiles.forEach(file => {
+      startPollingStatus(file);
+    });
+    setSelectedFiles([]);
+  }, [selectedFiles, startPollingStatus]);
 
   // Cleanup intervals on unmount
   useEffect(() => {
@@ -174,11 +184,11 @@ export default function BatchFlow() {
     return UploadService.createUppy(
       'batch-flow-uploader',
       {},
-      handleFileUpload,
-      () => setCurrentStep('workflow'),
+      handleFileSelected,
+      undefined,  // Remove the auto-navigation onComplete handler
       supabase
     );
-  }, [session, handleFileUpload]);
+  }, [session, handleFileSelected]);
 
   const handleNext = useCallback(() => {
     const currentIndex = steps.findIndex(step => step.id === currentStep);
@@ -234,6 +244,18 @@ export default function BatchFlow() {
                     showProgressDetails
                     height={400}
                   />
+
+                  {selectedFiles.length > 0 && (
+                    <div className="mt-4">
+                      <Button
+                        variant="default"
+                        onClick={handleStartUpload}
+                        disabled={isUploading}
+                      >
+                        {isUploading ? 'Uploading...' : `Upload ${selectedFiles.length} File${selectedFiles.length > 1 ? 's' : ''}`}
+                      </Button>
+                    </div>
+                  )}
 
                   {uploadedFiles.length > 0 && (
                     <div className="mt-6 space-y-4">
