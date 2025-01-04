@@ -116,6 +116,11 @@ class TranscriptionWorker:
                             mp3_path, audio_temp_dir = self.video_service.extract_audio(temp_file_path)
                             # 2) Then transcribe
                             extracted_text = self.whisper_service.transcribe_audio(mp3_path)
+                        elif file_ext == ".txt":
+                            # For .txt files, just read the content directly
+                            with open(temp_file_path, 'r', encoding='utf-8') as f:
+                                extracted_text = f.read()
+                            logger.info("Successfully read text file content")
                         else:
                             extracted_text = self.docling_service.convert_file(temp_file_path)
 
