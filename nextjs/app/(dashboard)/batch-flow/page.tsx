@@ -60,14 +60,17 @@ export default function BatchFlow() {
   const startPollingStatus = useCallback((file: FileStatus) => {
     if (!session || !file.url) return;
 
+    console.log('Starting polling for file:', file.url);
     const intervalId = setInterval(async () => {
       try {
         const status = await getAssetStatus(file.url || '', session.access_token);
+        console.log('Received status:', status);
         
         setUploadedFiles(prev => prev.map(f => {
           if (f.url === file.url) {
             // If status is terminal, clear the interval
             if (['completed', 'max_attempts_exceeded', 'failed'].includes(status.status)) {
+              console.log('Clearing interval for completed file:', file.url);
               clearInterval(intervalId);
             }
             return { ...f, status };
@@ -88,6 +91,7 @@ export default function BatchFlow() {
   }, [session]);
 
   const handleFileUpload = useCallback((file: UploadedFile) => {
+    console.log('File uploaded:', file);
     const fileStatus: FileStatus = {
       ...file,
       status: {
@@ -114,13 +118,21 @@ export default function BatchFlow() {
 
   const uppy = React.useMemo(() => {
     if (!session) return null;
-    return UploadService.createUppy(
+
+    const uppyInstance = UploadService.createUppy(
       'batch-flow-uploader',
       {},
       handleFileUpload,
       undefined,
       supabase
     );
+
+    // Only show file list after upload is complete
+    uppyInstance.on('upload-success', (file, response) => {
+      console.log('Upload success:', file, response);
+    });
+
+    return uppyInstance;
   }, [session, handleFileUpload, supabase]);
 
   const handleAddStep = useCallback(() => {
@@ -261,10 +273,11 @@ export default function BatchFlow() {
                     proudlyDisplayPoweredByUppy={false}
                     showProgressDetails
                     height={400}
-                    showRemoveButtonAfterComplete={false}
+                    showRemoveButtonAfterComplete={true}
                     hideUploadButton={false}
                     hideRetryButton={true}
-                    hideCancelButton={true}
+                    hideCancelButton={false}
+                    doneButtonHandler={null}
                   />
 
                   {uploadedFiles.length > 0 && (
