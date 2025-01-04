@@ -45,7 +45,6 @@ export default function BatchFlow() {
   const { sidebarOpen } = useSidebar();
   const [currentStep, setCurrentStep] = useState<WizardStep>('upload');
   const [uploadedFiles, setUploadedFiles] = useState<FileStatus[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<FileStatus[]>([]);
   const [workflowSteps, setWorkflowSteps] = useState<BatchFlowStep[]>([{
     prompt_template_id: '',
     chat_model_id: '',
@@ -54,23 +53,9 @@ export default function BatchFlow() {
   const [customInstructions, setCustomInstructions] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
 
   const totalTokens = uploadedFiles.reduce((sum, file) => sum + (file.status.token_count || 0), 0);
   const tokenPercentage = Math.min((totalTokens / MAX_TOKENS) * 100, 100);
-
-  const handleFileSelected = useCallback((file: UploadedFile) => {
-    const fileStatus: FileStatus = {
-      ...file,
-      status: {
-        id: '',
-        status: 'pending',
-        token_count: 0,
-        file_name: file.name
-      }
-    };
-    setSelectedFiles(prev => [...prev, fileStatus]);
-  }, []);
 
   const startPollingStatus = useCallback((file: FileStatus) => {
     if (!session || !file.url) return;
@@ -102,14 +87,19 @@ export default function BatchFlow() {
     return intervalId;
   }, [session]);
 
-  const handleStartUpload = useCallback(() => {
-    setIsUploading(true);
-    setUploadedFiles(prev => [...prev, ...selectedFiles]);
-    selectedFiles.forEach(file => {
-      startPollingStatus(file);
-    });
-    setSelectedFiles([]);
-  }, [selectedFiles, startPollingStatus]);
+  const handleFileUpload = useCallback((file: UploadedFile) => {
+    const fileStatus: FileStatus = {
+      ...file,
+      status: {
+        id: '',
+        status: 'pending',
+        token_count: 0,
+        file_name: file.name
+      }
+    };
+    setUploadedFiles(prev => [...prev, fileStatus]);
+    startPollingStatus(fileStatus);
+  }, [startPollingStatus]);
 
   // Cleanup intervals on unmount
   useEffect(() => {
@@ -121,6 +111,17 @@ export default function BatchFlow() {
       });
     };
   }, [uploadedFiles]);
+
+  const uppy = React.useMemo(() => {
+    if (!session) return null;
+    return UploadService.createUppy(
+      'batch-flow-uploader',
+      {},
+      handleFileUpload,
+      undefined,
+      supabase
+    );
+  }, [session, handleFileUpload, supabase]);
 
   const handleAddStep = useCallback(() => {
     setWorkflowSteps(prev => [
@@ -183,17 +184,6 @@ export default function BatchFlow() {
       setIsProcessing(false);
     }
   }, [session, uploadedFiles, workflowSteps, customInstructions]);
-
-  const uppy = React.useMemo(() => {
-    if (!session) return null;
-    return UploadService.createUppy(
-      'batch-flow-uploader',
-      {},
-      handleFileSelected,
-      undefined,  // Remove the auto-navigation onComplete handler
-      supabase
-    );
-  }, [session, handleFileSelected]);
 
   const handleRemoveFile = useCallback((fileToRemove: FileStatus) => {
     setUploadedFiles(prev => {
@@ -271,19 +261,11 @@ export default function BatchFlow() {
                     proudlyDisplayPoweredByUppy={false}
                     showProgressDetails
                     height={400}
+                    showRemoveButtonAfterComplete={false}
+                    hideUploadButton={false}
+                    hideRetryButton={true}
+                    hideCancelButton={true}
                   />
-
-                  {selectedFiles.length > 0 && (
-                    <div className="mt-4">
-                      <Button
-                        variant="default"
-                        onClick={handleStartUpload}
-                        disabled={isUploading}
-                      >
-                        {isUploading ? 'Uploading...' : `Upload ${selectedFiles.length} File${selectedFiles.length > 1 ? 's' : ''}`}
-                      </Button>
-                    </div>
-                  )}
 
                   {uploadedFiles.length > 0 && (
                     <div className="mt-6 space-y-4">
