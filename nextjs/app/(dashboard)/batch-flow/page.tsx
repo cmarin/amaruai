@@ -5,7 +5,10 @@ import { useSession } from '@/app/utils/session/session';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { useData } from '@/components/data-context';
 import { useSidebar } from '@/components/sidebar-context';
+import { AppSidebar } from '@/components/app-sidebar';
 import { Dashboard } from '@uppy/react';
+import '@uppy/core/dist/style.min.css';
+import '@uppy/dashboard/dist/style.min.css';
 import { FileVideo, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from "@/components/ui/textarea";
@@ -208,268 +211,261 @@ export default function BatchFlow() {
   }
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Batch Flow</h2>
-      </div>
+    <div className="flex h-screen">
+      <AppSidebar toggleChatbot={() => {}} />
+      <div className={`flex-1 overflow-hidden transition-all ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className="container mx-auto p-6">
+          <h1 className="text-2xl font-bold mb-6">Batch Flow</h1>
 
-      <div className="space-y-4">
-        <div className="flex space-x-4">
-          {steps.map((step, index) => {
-            const isCurrent = step.id === currentStep;
-            const isComplete = steps.findIndex(s => s.id === currentStep) > index;
-            
-            return (
-              <button
-                key={step.id}
-                onClick={() => handleStepClick(step.id)}
-                className={`flex items-center space-x-2 ${
-                  isCurrent ? 'text-blue-500' : 
-                  isComplete ? 'text-green-500' : 
-                  'text-gray-500'
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                  isCurrent ? 'border-blue-500 bg-blue-50' :
-                  isComplete ? 'border-green-500 bg-green-50' :
-                  'border-gray-300'
-                }`}>
+          <div className="flex justify-center mb-8">
+            {steps.map((step, index) => (
+              <React.Fragment key={step.id}>
+                <button
+                  onClick={() => handleStepClick(step.id)}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    step.id === currentStep
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white text-blue-500 border border-blue-500'
+                  }`}
+                >
                   {index + 1}
-                </div>
-                <span>{step.label}</span>
-              </button>
-            );
-          })}
-        </div>
+                </button>
+                {index < steps.length - 1 && (
+                  <div className="w-16 h-px bg-gray-300 mx-2 mt-4" />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
 
-        <div className="border rounded-lg p-4">
-          {currentStep === 'upload' && (
-            <div>
-              <Dashboard
-                uppy={uppy}
-                proudlyDisplayPoweredByUppy={false}
-                showProgressDetails
-                height={400}
-                showRemoveButtonAfterComplete={true}
-                hideUploadButton={false}
-                hideRetryButton={true}
-                hideCancelButton={false}
-                doneButtonHandler={null}
-              />
-
-              <div className="flex justify-between mt-4">
-                <Button
-                  variant="outline"
-                  onClick={handlePrevious}
-                  disabled={true}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="default"
-                  onClick={handleNext}
-                  disabled={uploadedFiles.length === 0}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {currentStep === 'process' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium">
-                  Token Usage: {totalTokens.toLocaleString()} of {MAX_TOKENS.toLocaleString()}
-                </div>
-                <div className="text-sm text-gray-500">
-                  {tokenPercentage.toFixed(0)}% used
-                </div>
-              </div>
-              
-              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-blue-500 transition-all duration-500"
-                  style={{ width: `${tokenPercentage}%` }}
+          <div className="border rounded-lg p-4">
+            {currentStep === 'upload' && (
+              <div>
+                <Dashboard
+                  uppy={uppy}
+                  proudlyDisplayPoweredByUppy={false}
+                  showProgressDetails
+                  height={400}
+                  showRemoveButtonAfterComplete={true}
+                  hideUploadButton={false}
+                  hideRetryButton={true}
+                  hideCancelButton={false}
+                  doneButtonHandler={null}
                 />
-              </div>
 
-              <div className="space-y-3">
-                <div className="text-lg font-semibold">Processing Files:</div>
-                {uploadedFiles.map((file, index) => (
-                  <div 
-                    key={file.url || index}
-                    className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
-                  >
-                    <FileVideo className="w-5 h-5 text-blue-500" />
-                    <div className="flex-1">
-                      <div className="font-medium">{file.status.file_name}</div>
-                      <div className="flex items-center space-x-2 text-sm">
-                        <span>Status: </span>
-                        <span className={
-                          file.status.status === 'completed' ? 'text-green-500' :
-                          file.status.status === 'failed' ? 'text-red-500' :
-                          file.status.status === 'max_attempts_exceeded' ? 'text-orange-500' :
-                          'text-blue-500'
-                        }>
-                          {file.status.status}
-                        </span>
-                        <span>•</span>
-                        <span>Tokens: {file.status.token_count.toLocaleString()}</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveFile(file)}
-                      className="p-1 hover:bg-gray-200 rounded-full"
-                    >
-                      <X className="w-4 h-4 text-gray-500" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-between mt-4">
-                <Button
-                  variant="outline"
-                  onClick={handlePrevious}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="default"
-                  onClick={handleNext}
-                  disabled={!uploadedFiles.every(f => 
-                    ['completed', 'failed', 'max_attempts_exceeded'].includes(f.status.status)
-                  )}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {currentStep === 'configure' && (
-            <div className="space-y-6">
-              {workflowSteps.map((step, index) => (
-                <div key={index} className="flex gap-4 items-start p-4 border rounded-lg bg-slate-50">
-                  <div className="space-y-4 flex-1">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Prompt Template</label>
-                        <Select
-                          value={step.prompt_template_id}
-                          onValueChange={(value) => handleUpdateStep(index, 'prompt_template_id', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select prompt" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {promptTemplates.map((template) => (
-                              <SelectItem key={template.id} value={template.id.toString()}>
-                                {template.title}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Chat Model</label>
-                        <Select
-                          value={step.chat_model_id}
-                          onValueChange={(value) => handleUpdateStep(index, 'chat_model_id', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select model" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {chatModels.map((model) => (
-                              <SelectItem key={model.id} value={model.id.toString()}>
-                                {model.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Persona</label>
-                        <Select
-                          value={step.persona_id}
-                          onValueChange={(value) => handleUpdateStep(index, 'persona_id', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select persona" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {personas.map((persona) => (
-                              <SelectItem key={persona.id} value={persona.id.toString()}>
-                                {persona.role}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-
+                <div className="flex justify-between mt-4">
                   <Button
-                    variant="destructive"
-                    onClick={() => handleRemoveStep(index)}
-                    disabled={workflowSteps.length === 1}
+                    variant="outline"
+                    onClick={handlePrevious}
+                    disabled={true}
                   >
-                    Remove
+                    Previous
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={handleNext}
+                    disabled={uploadedFiles.length === 0}
+                  >
+                    Next
                   </Button>
                 </div>
-              ))}
+              </div>
+            )}
 
-              <Button
-                variant="outline"
-                onClick={handleAddStep}
-                className="mt-4"
-              >
-                Add Step
-              </Button>
+            {currentStep === 'process' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium">
+                    Token Usage: {totalTokens.toLocaleString()} of {MAX_TOKENS.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {tokenPercentage.toFixed(0)}% used
+                  </div>
+                </div>
+                
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-blue-500 transition-all duration-500"
+                    style={{ width: `${tokenPercentage}%` }}
+                  />
+                </div>
 
-              <div className="flex justify-between mt-6">
-                <Button variant="outline" onClick={handlePrevious}>
-                  Previous
-                </Button>
+                <div className="space-y-3">
+                  <div className="text-lg font-semibold">Processing Files:</div>
+                  {uploadedFiles.map((file, index) => (
+                    <div 
+                      key={file.url || index}
+                      className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
+                    >
+                      <FileVideo className="w-5 h-5 text-blue-500" />
+                      <div className="flex-1">
+                        <div className="font-medium">{file.status.file_name}</div>
+                        <div className="flex items-center space-x-2 text-sm">
+                          <span>Status: </span>
+                          <span className={
+                            file.status.status === 'completed' ? 'text-green-500' :
+                            file.status.status === 'failed' ? 'text-red-500' :
+                            file.status.status === 'max_attempts_exceeded' ? 'text-orange-500' :
+                            'text-blue-500'
+                          }>
+                            {file.status.status}
+                          </span>
+                          <span>•</span>
+                          <span>Tokens: {file.status.token_count.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveFile(file)}
+                        className="p-1 hover:bg-gray-200 rounded-full"
+                      >
+                        <X className="w-4 h-4 text-gray-500" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between mt-4">
+                  <Button
+                    variant="outline"
+                    onClick={handlePrevious}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={handleNext}
+                    disabled={!uploadedFiles.every(f => 
+                      ['completed', 'failed', 'max_attempts_exceeded'].includes(f.status.status)
+                    )}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {currentStep === 'configure' && (
+              <div className="space-y-6">
+                {workflowSteps.map((step, index) => (
+                  <div key={index} className="flex gap-4 items-start p-4 border rounded-lg bg-slate-50">
+                    <div className="space-y-4 flex-1">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Prompt Template</label>
+                          <Select
+                            value={step.prompt_template_id}
+                            onValueChange={(value) => handleUpdateStep(index, 'prompt_template_id', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select prompt" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {promptTemplates.map((template) => (
+                                <SelectItem key={template.id} value={template.id.toString()}>
+                                  {template.title}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Chat Model</label>
+                          <Select
+                            value={step.chat_model_id}
+                            onValueChange={(value) => handleUpdateStep(index, 'chat_model_id', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select model" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {chatModels.map((model) => (
+                                <SelectItem key={model.id} value={model.id.toString()}>
+                                  {model.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Persona</label>
+                          <Select
+                            value={step.persona_id}
+                            onValueChange={(value) => handleUpdateStep(index, 'persona_id', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select persona" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {personas.map((persona) => (
+                                <SelectItem key={persona.id} value={persona.id.toString()}>
+                                  {persona.role}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      variant="destructive"
+                      onClick={() => handleRemoveStep(index)}
+                      disabled={workflowSteps.length === 1}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+
                 <Button
-                  variant="default"
-                  onClick={handleNext}
-                  disabled={!workflowSteps.some(step => 
-                    step.prompt_template_id && step.chat_model_id && step.persona_id
-                  )}
+                  variant="outline"
+                  onClick={handleAddStep}
+                  className="mt-4"
                 >
-                  Next
+                  Add Step
                 </Button>
-              </div>
-            </div>
-          )}
 
-          {currentStep === 'review' && (
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium mb-2">Custom Instructions (Optional)</label>
-                <Textarea
-                  value={customInstructions}
-                  onChange={(e) => setCustomInstructions(e.target.value)}
-                  placeholder="Add any custom instructions for processing..."
-                  className="h-32"
-                />
+                <div className="flex justify-between mt-6">
+                  <Button variant="outline" onClick={handlePrevious}>
+                    Previous
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={handleNext}
+                    disabled={!workflowSteps.some(step => 
+                      step.prompt_template_id && step.chat_model_id && step.persona_id
+                    )}
+                  >
+                    Next
+                  </Button>
+                </div>
               </div>
+            )}
 
-              <div className="flex justify-between mt-4">
-                <Button variant="outline" onClick={handlePrevious}>
-                  Previous
-                </Button>
-                <Button variant="default" onClick={handleExecute}>
-                  Execute
-                </Button>
+            {currentStep === 'review' && (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Custom Instructions (Optional)</label>
+                  <Textarea
+                    value={customInstructions}
+                    onChange={(e) => setCustomInstructions(e.target.value)}
+                    placeholder="Add any custom instructions for processing..."
+                    className="h-32"
+                  />
+                </div>
+
+                <div className="flex justify-between mt-4">
+                  <Button variant="outline" onClick={handlePrevious}>
+                    Previous
+                  </Button>
+                  <Button variant="default" onClick={handleExecute}>
+                    Execute
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
