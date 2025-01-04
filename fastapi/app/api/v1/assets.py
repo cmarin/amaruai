@@ -102,3 +102,33 @@ async def test_queue():
             status_code=500,
             detail=f"Queue test failed: {str(e)}"
         )
+
+@router.get("/status")
+async def get_asset_status(
+    url: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get asset status by file URL.
+    The URL parameter should be in the format: chats/user_id/uuid/filename.txt
+    """
+    logger.info(f"Getting asset status for URL: {url}")
+    
+    try:
+        # Find the asset by file URL
+        asset = crud.get_asset_by_file_url(db, file_url=url)
+        if not asset:
+            raise HTTPException(status_code=404, detail="Asset not found")
+            
+        return {
+            "id": str(asset.id),
+            "status": asset.status,
+            "token_count": asset.token_count,
+            "file_name": asset.file_name
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting asset status: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

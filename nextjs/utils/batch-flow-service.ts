@@ -8,7 +8,7 @@ export interface BatchFlowStep {
 }
 
 export interface BatchFlowRequest {
-  files: UploadedFile[];
+  file_ids: string[];
   steps: BatchFlowStep[];
   customInstructions?: string;
 }
@@ -40,6 +40,13 @@ export interface BatchFlowStreamMessage {
   totalSteps?: number;
   response?: string;
   error?: string;
+}
+
+export interface AssetStatus {
+  id: string;
+  status: 'pending' | 'processing' | 'completed' | 'max_attempts_exceeded' | 'failed';
+  token_count: number;
+  file_name: string;
 }
 
 export async function executeBatchFlow(
@@ -93,4 +100,18 @@ export async function executeBatchFlow(
   } catch (error) {
     onError?.(error instanceof Error ? error : new Error('Unknown error occurred'));
   }
+}
+
+export async function getAssetStatus(url: string, accessToken: string): Promise<AssetStatus> {
+  const response = await fetch(`${getApiUrl()}/api/v1/assets/status?url=${encodeURIComponent(url)}`, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch asset status');
+  }
+
+  return await response.json();
 }

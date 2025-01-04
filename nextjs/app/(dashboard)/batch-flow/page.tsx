@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useSession } from '@/app/utils/session/session';
 import { useData } from '@/components/data-context';
 import { UploadService, type UploadedFile } from '@/utils/upload-service';
-import { BatchFlowStep, executeBatchFlow } from '@/utils/batch-flow-service';
+import { BatchFlowStep, executeBatchFlow, getAssetStatus, type AssetStatus } from '@/utils/batch-flow-service';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { AppSidebar } from '@/components/app-sidebar';
 import { useSidebar } from '@/components/sidebar-context';
+import { FileVideo } from 'lucide-react';
 import Dashboard from '@uppy/react/lib/Dashboard';
 import '@uppy/core/dist/style.min.css';
 import '@uppy/dashboard/dist/style.min.css';
@@ -25,13 +26,20 @@ const steps = [
   { id: 'processing', label: '4. Processing' }
 ];
 
+const MAX_TOKENS = 100000;
+
+interface FileStatus extends UploadedFile {
+  status: AssetStatus;
+  intervalId?: NodeJS.Timeout;
+}
+
 export default function BatchFlow() {
   const { session } = useSession();
   const supabase = useSupabase();
   const { promptTemplates, chatModels, personas } = useData();
   const { sidebarOpen } = useSidebar();
   const [currentStep, setCurrentStep] = useState<WizardStep>('upload');
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<FileStatus[]>([]);
   const [workflowSteps, setWorkflowSteps] = useState<BatchFlowStep[]>([{
     prompt_template_id: '',
     chat_model_id: '',
@@ -41,9 +49,58 @@ export default function BatchFlow() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
 
+  const totalTokens = uploadedFiles.reduce((sum, file) => sum + (file.status?.token_count || 0), 0);
+  const tokenPercentage = Math.min((totalTokens / MAX_TOKENS) * 100, 100);
+
+  const startPollingStatus = useCallback((file: FileStatus) => {
+    if (!session) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const status = await getAssetStatus(file.url || '', session.access_token);
+        
+        setUploadedFiles(prev => prev.map(f => {
+          if (f.url === file.url) {
+            // If status is terminal, clear the interval
+            if (['completed', 'max_attempts_exceeded', 'failed'].includes(status.status)) {
+              clearInterval(intervalId);
+            }
+            return { ...f, status };
+          }
+          return f;
+        }));
+      } catch (error) {
+        console.error('Failed to fetch asset status:', error);
+      }
+    }, 3000);
+
+    // Update the file with its interval ID
+    setUploadedFiles(prev => prev.map(f => 
+      f.url === file.url ? { ...f, intervalId } : f
+    ));
+
+    return intervalId;
+  }, [session]);
+
   const handleFileUpload = useCallback((file: UploadedFile) => {
-    setUploadedFiles(prev => [...prev, file]);
-  }, []);
+    const fileStatus: FileStatus = {
+      ...file,
+      status: { status: 'pending', token_count: 0 }
+    };
+    setUploadedFiles(prev => [...prev, fileStatus]);
+    startPollingStatus(fileStatus);
+  }, [startPollingStatus]);
+
+  // Cleanup intervals on unmount
+  useEffect(() => {
+    return () => {
+      uploadedFiles.forEach(file => {
+        if (file.intervalId) {
+          clearInterval(file.intervalId);
+        }
+      });
+    };
+  }, [uploadedFiles]);
 
   const handleAddStep = useCallback(() => {
     setWorkflowSteps(prev => [
@@ -79,7 +136,7 @@ export default function BatchFlow() {
     try {
       await executeBatchFlow(
         {
-          files: uploadedFiles,
+          file_ids: uploadedFiles.map(file => file.status.id),
           steps: workflowSteps,
           customInstructions
         },
@@ -172,6 +229,55 @@ export default function BatchFlow() {
                     showProgressDetails
                     height={400}
                   />
+
+                  {uploadedFiles.length > 0 && (
+                    <div className="mt-6 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium">
+                          Token Usage: {totalTokens.toLocaleString()} of {MAX_TOKENS.toLocaleString()}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {tokenPercentage.toFixed(0)}% used
+                        </div>
+                      </div>
+                      
+                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-blue-500 transition-all duration-500"
+                          style={{ width: `${tokenPercentage}%` }}
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="text-lg font-semibold">Uploaded Files:</div>
+                        {uploadedFiles.map((file, index) => (
+                          <div 
+                            key={file.url || index}
+                            className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
+                          >
+                            <FileVideo className="w-5 h-5 text-blue-500" />
+                            <div className="flex-1">
+                              <div className="font-medium">{file.status.file_name}</div>
+                              <div className="flex items-center space-x-2 text-sm">
+                                <span>Job Status: </span>
+                                <span className={
+                                  file.status?.status === 'completed' ? 'text-green-500' :
+                                  file.status?.status === 'failed' ? 'text-red-500' :
+                                  file.status?.status === 'max_attempts_exceeded' ? 'text-orange-500' :
+                                  'text-blue-500'
+                                }>
+                                  {file.status?.status}
+                                </span>
+                                <span>•</span>
+                                <span>Tokens: {file.status?.token_count.toLocaleString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex justify-between mt-4">
                     <Button
                       variant="outline"
@@ -183,7 +289,7 @@ export default function BatchFlow() {
                     <Button
                       variant="default"
                       onClick={handleNext}
-                      disabled={uploadedFiles.length === 0}
+                      disabled={uploadedFiles.length === 0 || !uploadedFiles.every(f => f.status?.status === 'completed')}
                     >
                       Next
                     </Button>
