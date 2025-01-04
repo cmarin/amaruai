@@ -12,18 +12,23 @@ import { BatchFlowStep, executeBatchFlow, getAssetStatus, type AssetStatus } fro
 import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { AppSidebar } from '@/components/app-sidebar';
 import { useSidebar } from '@/components/sidebar-context';
-import { FileVideo } from 'lucide-react';
+import { FileVideo, X } from 'lucide-react';
 import Dashboard from '@uppy/react/lib/Dashboard';
 import '@uppy/core/dist/style.min.css';
 import '@uppy/dashboard/dist/style.min.css';
 
-type WizardStep = 'upload' | 'workflow' | 'instructions' | 'processing';
+type WizardStep = 'upload' | 'workflow' | 'review' | 'processing';
 
-const steps = [
-  { id: 'upload', label: '1. Upload Files' },
-  { id: 'workflow', label: '2. Configure Workflow' },
-  { id: 'instructions', label: '3. Custom Instructions' },
-  { id: 'processing', label: '4. Processing' }
+interface Step {
+  id: WizardStep;
+  label: string;
+}
+
+const steps: Step[] = [
+  { id: 'upload', label: 'Upload Files' },
+  { id: 'workflow', label: 'Configure Workflow' },
+  { id: 'review', label: 'Review' },
+  { id: 'processing', label: 'Processing' }
 ];
 
 const MAX_TOKENS = 100000;
@@ -190,6 +195,30 @@ export default function BatchFlow() {
     );
   }, [session, handleFileSelected]);
 
+  const handleRemoveFile = useCallback((fileToRemove: FileStatus) => {
+    setUploadedFiles(prev => {
+      // Clear the interval if it exists
+      if (fileToRemove.intervalId) {
+        clearInterval(fileToRemove.intervalId);
+      }
+      return prev.filter(file => file.url !== fileToRemove.url);
+    });
+  }, []);
+
+  const handleStepClick = useCallback((stepId: WizardStep) => {
+    const currentIndex = steps.findIndex(step => step.id === currentStep);
+    const targetIndex = steps.findIndex(step => step.id === stepId);
+    
+    // Only allow moving forward if files are uploaded and processed
+    if (currentStep === 'upload' && targetIndex > currentIndex) {
+      if (uploadedFiles.length === 0 || !uploadedFiles.every(f => f.status.status === 'completed')) {
+        return;
+      }
+    }
+    
+    setCurrentStep(stepId);
+  }, [currentStep, uploadedFiles]);
+
   const handleNext = useCallback(() => {
     const currentIndex = steps.findIndex(step => step.id === currentStep);
     if (currentIndex < steps.length - 1) {
@@ -214,24 +243,23 @@ export default function BatchFlow() {
           <h1 className="text-2xl font-bold mb-6">Batch Flow</h1>
 
           <div className="flex justify-center mb-8">
-            <div className="flex items-center space-x-4">
-              {steps.map((step, index) => (
-                <React.Fragment key={step.id}>
-                  {index > 0 && (
-                    <div className="h-[2px] w-8 bg-blue-200" />
-                  )}
-                  <div
-                    className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                      currentStep === step.id
-                        ? 'border-blue-500 bg-blue-500 text-white'
-                        : 'border-blue-200 text-blue-500'
-                    }`}
-                  >
-                    {index + 1}
-                  </div>
-                </React.Fragment>
-              ))}
-            </div>
+            {steps.map((step, index) => (
+              <React.Fragment key={step.id}>
+                <button
+                  onClick={() => handleStepClick(step.id)}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    step.id === currentStep
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white text-blue-500 border border-blue-500'
+                  }`}
+                >
+                  {index + 1}
+                </button>
+                {index < steps.length - 1 && (
+                  <div className="w-16 h-px bg-gray-300 mx-2 mt-4" />
+                )}
+              </React.Fragment>
+            ))}
           </div>
 
           <Card className="mt-4">
@@ -299,6 +327,12 @@ export default function BatchFlow() {
                                 <span>Tokens: {file.status.token_count.toLocaleString()}</span>
                               </div>
                             </div>
+                            <button
+                              onClick={() => handleRemoveFile(file)}
+                              className="p-1 hover:bg-gray-200 rounded-full"
+                            >
+                              <X className="w-4 h-4 text-gray-500" />
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -424,24 +458,24 @@ export default function BatchFlow() {
                 </div>
               )}
 
-              {currentStep === 'instructions' && (
-                <div>
-                  <Textarea
-                    placeholder="Enter any custom instructions for processing..."
-                    value={customInstructions}
-                    onChange={(e) => setCustomInstructions(e.target.value)}
-                    className="min-h-[200px]"
-                  />
+              {currentStep === 'review' && (
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Custom Instructions (Optional)</label>
+                    <Textarea
+                      value={customInstructions}
+                      onChange={(e) => setCustomInstructions(e.target.value)}
+                      placeholder="Add any custom instructions for processing..."
+                      className="h-32"
+                    />
+                  </div>
 
                   <div className="flex justify-between mt-4">
                     <Button variant="outline" onClick={handlePrevious}>
                       Previous
                     </Button>
-                    <Button
-                      variant="default"
-                      onClick={handleExecute}
-                    >
-                      Start Processing
+                    <Button variant="default" onClick={handleExecute}>
+                      Execute
                     </Button>
                   </div>
                 </div>
