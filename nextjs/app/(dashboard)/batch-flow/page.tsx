@@ -85,7 +85,12 @@ export default function BatchFlow() {
   const handleFileUpload = useCallback((file: UploadedFile) => {
     const fileStatus: FileStatus = {
       ...file,
-      status: { status: 'pending', token_count: 0 }
+      status: {
+        id: '',  // This will be populated by the API response
+        status: 'pending',
+        token_count: 0,
+        file_name: file.name
+      }
     };
     setUploadedFiles(prev => [...prev, fileStatus]);
     startPollingStatus(fileStatus);
@@ -261,15 +266,15 @@ export default function BatchFlow() {
                               <div className="flex items-center space-x-2 text-sm">
                                 <span>Job Status: </span>
                                 <span className={
-                                  file.status?.status === 'completed' ? 'text-green-500' :
-                                  file.status?.status === 'failed' ? 'text-red-500' :
-                                  file.status?.status === 'max_attempts_exceeded' ? 'text-orange-500' :
+                                  file.status.status === 'completed' ? 'text-green-500' :
+                                  file.status.status === 'failed' ? 'text-red-500' :
+                                  file.status.status === 'max_attempts_exceeded' ? 'text-orange-500' :
                                   'text-blue-500'
                                 }>
-                                  {file.status?.status}
+                                  {file.status.status}
                                 </span>
                                 <span>•</span>
-                                <span>Tokens: {file.status?.token_count.toLocaleString()}</span>
+                                <span>Tokens: {file.status.token_count.toLocaleString()}</span>
                               </div>
                             </div>
                           </div>
@@ -289,7 +294,7 @@ export default function BatchFlow() {
                     <Button
                       variant="default"
                       onClick={handleNext}
-                      disabled={uploadedFiles.length === 0 || !uploadedFiles.every(f => f.status?.status === 'completed')}
+                      disabled={uploadedFiles.length === 0 || !uploadedFiles.every(f => f.status.status === 'completed')}
                     >
                       Next
                     </Button>
