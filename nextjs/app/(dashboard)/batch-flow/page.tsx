@@ -257,7 +257,7 @@ export default function BatchFlow() {
                   showProgressDetails
                   height={400}
                   showRemoveButtonAfterComplete={true}
-                  hideUploadButton={false}
+                  hideUploadButton={true}
                   hideRetryButton={true}
                   hideCancelButton={false}
                   doneButtonHandler={null}
@@ -272,7 +272,7 @@ export default function BatchFlow() {
                     Previous
                   </Button>
                   <Button
-                    variant="default"
+                    variant="outline"
                     onClick={handleNext}
                     disabled={uploadedFiles.length === 0}
                   >
