@@ -71,7 +71,7 @@ export function StreamingResults({
         const decoder = new TextDecoder();
         let buffer = '';
 
-        // Initialize empty content for each file
+        // Initialize empty content for each file for this step
         const fileContents: Record<string, string> = {};
         uploadedFiles.forEach(file => {
           fileContents[file.status.id] = '';
@@ -86,8 +86,7 @@ export function StreamingResults({
           buffer = lines.pop() || '';
 
           for (const line of lines) {
-            if (line.trim() === '') continue;
-            if (!line.startsWith('data: ')) continue;
+            if (line.trim() === '' || !line.startsWith('data: ')) continue;
 
             const jsonData = line.slice(5).trim();
             if (jsonData === '[DONE]') continue;
@@ -98,28 +97,27 @@ export function StreamingResults({
                 const currentFileId = uploadedFiles[0].status.id; // TODO: Handle multiple files
                 fileContents[currentFileId] += parsed.choices[0].delta.content;
 
-                // Update results with the latest content
+                // Update results with the latest content for this specific step
                 setResults(prev => {
-                  const existingResult = prev.find(
+                  const newResults = [...prev];
+                  const existingResultIndex = newResults.findIndex(
                     r => r.stepIndex === stepIndex && r.fileId === currentFileId
                   );
 
-                  if (existingResult) {
-                    return prev.map(r =>
-                      r.stepIndex === stepIndex && r.fileId === currentFileId
-                        ? { ...r, content: fileContents[currentFileId] }
-                        : r
-                    );
+                  if (existingResultIndex >= 0) {
+                    newResults[existingResultIndex] = {
+                      ...newResults[existingResultIndex],
+                      content: fileContents[currentFileId],
+                    };
                   } else {
-                    return [
-                      ...prev,
-                      {
-                        stepIndex,
-                        fileId: currentFileId,
-                        content: fileContents[currentFileId],
-                      },
-                    ];
+                    newResults.push({
+                      stepIndex,
+                      fileId: currentFileId,
+                      content: fileContents[currentFileId],
+                    });
                   }
+
+                  return newResults;
                 });
               }
             } catch (e) {
@@ -128,7 +126,7 @@ export function StreamingResults({
           }
         }
 
-        // Move to next step
+        // Move to next step only after current step is complete
         if (stepIndex < steps.length - 1) {
           setCurrentStepIndex(stepIndex + 1);
           await processStep(stepIndex + 1);
@@ -143,6 +141,7 @@ export function StreamingResults({
       }
     };
 
+    // Start processing from the current step
     processStep(currentStepIndex);
 
     return () => {
@@ -150,7 +149,7 @@ export function StreamingResults({
         abortController.current.abort();
       }
     };
-  }, [isProcessing, currentStepIndex, steps, uploadedFiles, customInstructions, session.access_token]);
+  }, [isProcessing, steps, uploadedFiles, customInstructions, session.access_token]);
 
   const getStepResults = (stepIndex: number) => {
     // Combine all file results for this step into one string
