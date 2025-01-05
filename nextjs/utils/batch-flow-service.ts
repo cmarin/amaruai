@@ -57,7 +57,7 @@ export async function executeBatchFlow(
   onComplete?: () => void,
 ): Promise<void> {
   try {
-    const response = await fetch(`${getApiUrl()}/bulk-flow`, {
+    const response = await fetch(`${getApiUrl()}/batch-flow`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

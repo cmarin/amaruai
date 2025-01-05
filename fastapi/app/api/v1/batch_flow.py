@@ -1,4 +1,4 @@
-# bulk_flow.py
+# batch_flow.py
 
 import os
 import json
@@ -39,19 +39,21 @@ if not OPENROUTER_API_KEY:
 
 active_connections = 0
 
-router = create_protected_router(prefix="bulk-flow", tags=["bulk-flow"])
+router = create_protected_router(prefix="batch-flow", tags=["batch-flow"])
 
 
 # ----------------------------------------------------
-# Pydantic models for the Bulk Flow request
+# Pydantic models for the Batch Flow request
 # ----------------------------------------------------
 class Step(BaseModel):
     prompt_template_id: str
     chat_model_id: str
     persona_id: Optional[str] = None
+    model_id: Optional[str] = None
+    model_config: Optional[dict] = None
 
 
-class BulkFlowPayload(BaseModel):
+class BatchFlowPayload(BaseModel):
     file_ids: List[str]
     steps: List[Step]
     customInstructions: Optional[str] = None
@@ -67,17 +69,17 @@ async def cleanup_connection():
 
 
 # ----------------------------------------------------
-# Main Bulk Flow Endpoint
+# Main Batch Flow Endpoint
 # ----------------------------------------------------
 @router.post("")
-async def bulk_flow_endpoint(
+async def batch_flow_endpoint(
     request: Request,
-    bulk_flow_data: BulkFlowPayload,
+    batch_flow_data: BatchFlowPayload,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     """
-    Process a bulk flow request where:
+    Process a batch flow request where:
       - We retrieve a prompt template by ID.
       - We optionally retrieve a persona by ID.
       - We retrieve one or more file assets by ID.
@@ -86,28 +88,28 @@ async def bulk_flow_endpoint(
     """
     # Log request details
     raw_body = await request.body()
-    log_chat_request(request, raw_body, bulk_flow_data.dict())
+    log_chat_request(request, raw_body, batch_flow_data.dict())
 
     global active_connections
     start_time = time.time()
     active_connections += 1
     background_tasks.add_task(cleanup_connection)
 
-    logger.info(f"New bulk flow connection. Active connections: {active_connections}")
+    logger.info(f"New batch flow connection. Active connections: {active_connections}")
     logger.info("=" * 50)
     logger.info(f"REQUEST HEADERS:\n{json.dumps(dict(request.headers), indent=2)}")
     logger.info(f"URL PARAMETERS:\n{json.dumps(dict(request.query_params), indent=2)}")
-    logger.info(f"REQUEST BODY:\n{json.dumps(bulk_flow_data.dict(), indent=2)}")
+    logger.info(f"REQUEST BODY:\n{json.dumps(batch_flow_data.dict(), indent=2)}")
     logger.info("=" * 50)
 
     # ----------------------------------------------------------------
     # For simplicity, we’ll handle just the first step in this example.
     # You can extend for multiple steps if needed.
     # ----------------------------------------------------------------
-    if not bulk_flow_data.steps:
+    if not batch_flow_data.steps:
         raise HTTPException(status_code=422, detail="No steps provided.")
 
-    step = bulk_flow_data.steps[0]
+    step = batch_flow_data.steps[0]
 
     # Retrieve prompt template
     prompt_template = crud.get_prompt_template(db, step.prompt_template_id)
@@ -138,8 +140,8 @@ async def bulk_flow_endpoint(
 
     # Retrieve file assets by ID
     file_contents = []
-    if bulk_flow_data.file_ids:
-        for file_id in bulk_flow_data.file_ids:
+    if batch_flow_data.file_ids:
+        for file_id in batch_flow_data.file_ids:
             asset = crud.get_asset(db, file_id)
             if asset and asset.content:
                 file_contents.append(asset.content)
@@ -147,8 +149,8 @@ async def bulk_flow_endpoint(
 
     # Construct final user prompt: {prompt_template.prompt}\n{customInstructions}\n{all asset.content}
     final_prompt_parts = [prompt_template.prompt]
-    if bulk_flow_data.customInstructions:
-        final_prompt_parts.append(bulk_flow_data.customInstructions)
+    if batch_flow_data.customInstructions:
+        final_prompt_parts.append(batch_flow_data.customInstructions)
     for fc in file_contents:
         final_prompt_parts.append(fc)
     final_user_prompt = "\n\n".join(final_prompt_parts)
@@ -260,7 +262,7 @@ async def bulk_flow_endpoint(
 
         end_time = time.time()
         logger.info(
-            f"Bulk flow request completed in {end_time - start_time:.2f}s. "
+            f"Batch flow request completed in {end_time - start_time:.2f}s. "
             f"Remaining connections: {active_connections}",
             extra={
                 "total_chunks": chunks_received,
