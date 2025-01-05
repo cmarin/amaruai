@@ -3,8 +3,8 @@
 import * as React from "react"
 import * as ToastPrimitives from "@radix-ui/react-toast"
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/utils/utils"
-import { Cross2Icon } from "@radix-ui/react-icons"
+import { X } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 const ToastProvider = ToastPrimitives.Provider
 
@@ -82,7 +82,7 @@ const ToastClose = React.forwardRef<
     toast-close=""
     {...props}
   >
-    <Cross2Icon className="h-4 w-4" />
+    <X className="h-4 w-4" />
   </ToastPrimitives.Close>
 ))
 ToastClose.displayName = ToastPrimitives.Close.displayName
@@ -111,13 +111,11 @@ const ToastDescription = React.forwardRef<
 ))
 ToastDescription.displayName = ToastPrimitives.Description.displayName
 
-type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>
-
-type ToastActionElement = React.ReactElement<typeof ToastAction>
+interface ToastProps extends React.ComponentPropsWithoutRef<typeof Toast> {
+  variant?: "default" | "destructive"
+}
 
 export {
-  type ToastProps,
-  type ToastActionElement,
   ToastProvider,
   ToastViewport,
   Toast,
@@ -125,4 +123,5 @@ export {
   ToastDescription,
   ToastClose,
   ToastAction,
+  type ToastProps,
 }
