@@ -2,13 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { FileVideo, X } from "lucide-react";
-import type { BatchFlowUploadedFile } from "@/types";
+import type { BatchFlowFile } from "@/types";
 
 interface FileProcessingProps {
   totalTokens: number;
   maxTokens: number;
-  uploadedFiles: BatchFlowUploadedFile[];
-  onRemoveFile: (file: BatchFlowUploadedFile) => void;
+  uploadedFiles: BatchFlowFile[];
+  onRemoveFile: (file: BatchFlowFile) => void;
   onPrevious: () => void;
   onNext: () => void;
 }
@@ -43,7 +43,7 @@ export function FileProcessing({
 
       <div className="space-y-3">
         <div className="text-lg font-semibold">Processing Files:</div>
-        {uploadedFiles.map((file: BatchFlowUploadedFile, index) => (
+        {uploadedFiles.map((file: BatchFlowFile, index) => (
           <div 
             key={file.url || index}
             className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
@@ -85,7 +85,7 @@ export function FileProcessing({
         <Button
           variant="outline"
           onClick={onNext}
-          disabled={!uploadedFiles.every((f: BatchFlowUploadedFile) => 
+          disabled={!uploadedFiles.every((f: BatchFlowFile) => 
             ['completed', 'failed', 'max_attempts_exceeded'].includes(f.status.status)
           )}
         >

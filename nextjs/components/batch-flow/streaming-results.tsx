@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ReactMarkdown from 'react-markdown';
 import { Loader2 } from 'lucide-react';
-import type { BatchFlowStep, BatchFlowUploadedFile } from '@/types';
+import type { BatchFlowStep, BatchFlowFile } from '@/types';
 
 interface StreamingResultsProps {
   isProcessing: boolean;
   processingStatus: string;
-  uploadedFiles: BatchFlowUploadedFile[];
+  uploadedFiles: BatchFlowFile[];
   steps: BatchFlowStep[];
   customInstructions: string;
   onPrevious: () => void;

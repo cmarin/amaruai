@@ -12,8 +12,8 @@ import '@uppy/dashboard/dist/style.min.css';
 import { Button } from '@/components/ui/button';
 import { getAssetStatus, executeBatchFlow } from '@/utils/batch-flow-service';
 import { UploadService } from '@/utils/upload-service';
-import type { BatchFlowStep, BatchFlowUploadedFile, PromptTemplateOption, ChatModelOption, PersonaOption } from '@/types';
-import type { UploadedFile as BaseUploadedFile } from '@/utils/upload-service';
+import type { BatchFlowStep, BatchFlowFile, PromptTemplateOption, ChatModelOption, PersonaOption } from '@/types';
+import type { UploadedFile } from '@/utils/upload-service';
 import { WorkflowSteps } from '@/components/batch-flow/workflow-steps';
 import { FileProcessing } from '@/components/batch-flow/file-processing';
 import { ReviewStep } from '@/components/batch-flow/review-step';
@@ -38,7 +38,7 @@ export default function BatchFlow() {
   const { sidebarOpen, toggleSidebar } = useSidebar();
 
   const [currentStep, setCurrentStep] = useState<StepId>('upload');
-  const [uploadedFiles, setUploadedFiles] = useState<BatchFlowUploadedFile[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<BatchFlowFile[]>([]);
   const [workflowSteps, setWorkflowSteps] = useState<BatchFlowStep[]>([{
     prompt_template_id: '',
     chat_model_id: '',
@@ -57,8 +57,8 @@ export default function BatchFlow() {
     setTotalTokens(newTotal);
   }, [uploadedFiles]);
 
-  const handleFileUpload = useCallback((file: BaseUploadedFile) => {
-    const fileWithStatus: BatchFlowUploadedFile = {
+  const handleFileUpload = useCallback((file: UploadedFile) => {
+    const fileWithStatus: BatchFlowFile = {
       ...file,
       status: {
         id: '',
@@ -70,7 +70,7 @@ export default function BatchFlow() {
     setUploadedFiles(prev => [...prev, fileWithStatus]);
   }, []);
 
-  const handleRemoveFile = useCallback((file: BatchFlowUploadedFile) => {
+  const handleRemoveFile = useCallback((file: BatchFlowFile) => {
     setUploadedFiles(prev => prev.filter(f => f !== file));
   }, []);
 
