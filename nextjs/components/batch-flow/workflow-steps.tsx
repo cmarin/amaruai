@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { BatchFlowStep } from "@/types";
-import type { PromptTemplateOption, ChatModelOption, PersonaOption } from "./types";
+import type { PromptTemplateOption, ChatModelOption, PersonaOption } from "@/types";
 
 interface WorkflowStepsProps {
   steps: BatchFlowStep[];

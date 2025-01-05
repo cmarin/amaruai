@@ -50,7 +50,7 @@ export function FileProcessing({
           >
             <FileVideo className="w-5 h-5 text-blue-500" />
             <div className="flex-1">
-              <div className="font-medium">{file.status.file_name}</div>
+              <div className="font-medium">{file.file_name}</div>
               <div className="flex items-center space-x-2 text-sm">
                 <span>Status: </span>
                 <span className={

@@ -1,13 +1,13 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import type { UploadedFile } from "./types";
+import type { BatchFlowFile } from "@/types";
 
 interface ProcessingResultsProps {
   isProcessing: boolean;
   processingStatus: string;
   fileResponses: Record<string, string>;
-  uploadedFiles: UploadedFile[];
+  uploadedFiles: BatchFlowFile[];
   onPrevious: () => void;
   onStartNewBatch: () => void;
 }

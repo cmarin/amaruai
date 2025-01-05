@@ -60,6 +60,7 @@ export default function BatchFlow() {
   const handleFileUpload = useCallback((file: UploadedFile) => {
     const fileWithStatus: BatchFlowFile = {
       ...file,
+      file_name: file.name,
       status: {
         id: '',
         status: 'pending',

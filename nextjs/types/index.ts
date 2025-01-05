@@ -1,13 +1,17 @@
 import type { AssetStatus } from '@/utils/batch-flow-service';
 import type { UploadedFile as BaseUploadedFile } from '@/utils/upload-service';
 
-// Re-export the base UploadedFile type
-export type { UploadedFile } from '@/utils/upload-service';
-
 // Batch flow specific interfaces
-export interface FileStatus extends AssetStatus {}
+export interface FileStatus extends AssetStatus {
+  status: "pending" | "processing" | "completed" | "max_attempts_exceeded" | "failed";
+  token_count: number;
+  file_name: string;
+  progress?: number;
+  error?: string;
+}
 
 export interface BatchFlowFile extends BaseUploadedFile {
+  file_name: string;
   status: FileStatus;
 }
 
