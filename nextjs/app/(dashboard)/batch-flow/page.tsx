@@ -98,7 +98,7 @@ export default function BatchFlow() {
       )) {
         clearInterval(pollInterval);
       }
-    }, 5000); // Poll every 5 seconds
+    }, 1000); // Poll every second
 
     return () => clearInterval(pollInterval);
   }, [session, uploadedFiles, currentStep]);

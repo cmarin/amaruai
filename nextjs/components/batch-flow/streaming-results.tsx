@@ -46,6 +46,7 @@ export function StreamingResults({
 
     const processStep = async (stepIndex: number) => {
       try {
+        console.log(`Processing step ${stepIndex + 1}`);
         abortController.current = new AbortController();
         const response = await fetch('/api/batch-flow', {
           method: 'POST',
@@ -62,7 +63,7 @@ export function StreamingResults({
         });
 
         if (!response.ok) {
-          throw new Error('Failed to process batch flow step');
+          throw new Error(`Failed to process batch flow step ${stepIndex + 1}`);
         }
 
         const reader = response.body?.getReader();
@@ -70,12 +71,7 @@ export function StreamingResults({
 
         const decoder = new TextDecoder();
         let buffer = '';
-
-        // Initialize empty content for each file for this step
-        const fileContents: Record<string, string> = {};
-        uploadedFiles.forEach(file => {
-          fileContents[file.status.id] = '';
-        });
+        let stepContent = '';
 
         while (true) {
           const { done, value } = await reader.read();
@@ -94,26 +90,24 @@ export function StreamingResults({
             try {
               const parsed = JSON.parse(jsonData);
               if (parsed.choices && parsed.choices[0].delta.content) {
-                const currentFileId = uploadedFiles[0].status.id; // TODO: Handle multiple files
-                fileContents[currentFileId] += parsed.choices[0].delta.content;
+                const content = parsed.choices[0].delta.content;
+                stepContent += content;
 
-                // Update results with the latest content for this specific step
+                // Update results for this specific step
                 setResults(prev => {
                   const newResults = [...prev];
-                  const existingResultIndex = newResults.findIndex(
-                    r => r.stepIndex === stepIndex && r.fileId === currentFileId
-                  );
+                  const existingIndex = newResults.findIndex(r => r.stepIndex === stepIndex);
 
-                  if (existingResultIndex >= 0) {
-                    newResults[existingResultIndex] = {
-                      ...newResults[existingResultIndex],
-                      content: fileContents[currentFileId],
+                  if (existingIndex >= 0) {
+                    newResults[existingIndex] = {
+                      ...newResults[existingIndex],
+                      content: stepContent,
                     };
                   } else {
                     newResults.push({
                       stepIndex,
-                      fileId: currentFileId,
-                      content: fileContents[currentFileId],
+                      fileId: uploadedFiles[0].status.id,
+                      content: stepContent,
                     });
                   }
 
@@ -126,7 +120,7 @@ export function StreamingResults({
           }
         }
 
-        // Move to next step only after current step is complete
+        // Move to next step after current step is complete
         if (stepIndex < steps.length - 1) {
           setCurrentStepIndex(stepIndex + 1);
           await processStep(stepIndex + 1);
@@ -141,8 +135,9 @@ export function StreamingResults({
       }
     };
 
-    // Start processing from the current step
-    processStep(currentStepIndex);
+    // Start from the first step
+    setCurrentStepIndex(0);
+    processStep(0);
 
     return () => {
       if (abortController.current) {
