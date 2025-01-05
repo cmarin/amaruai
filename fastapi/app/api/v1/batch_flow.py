@@ -49,8 +49,6 @@ class Step(BaseModel):
     prompt_template_id: str
     chat_model_id: str
     persona_id: Optional[str] = None
-    model_id: Optional[str] = None
-    model_config: Optional[dict] = None
 
 
 class BatchFlowPayload(BaseModel):
