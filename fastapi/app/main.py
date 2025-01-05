@@ -15,7 +15,8 @@ from app.api.v1 import (
     tags,
     tools,
     workflows,
-    assets
+    assets,
+    bulk_flow
 )
 from app.database import engine, Base
 from app.admin import admin_router
@@ -90,7 +91,8 @@ protected_routes = [
     tags,
     tools,
     workflows,
-    assets
+    assets,
+    bulk_flow
 ]
 
 for module in protected_routes:

@@ -1,4 +1,3 @@
-# dependencies.py
 from fastapi import Depends, HTTPException, Header
 from typing import Optional
 import logging

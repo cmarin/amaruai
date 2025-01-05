@@ -16,8 +16,8 @@ import type { BatchFlowStep } from '@/types';
 import { WorkflowSteps } from '@/components/batch-flow/workflow-steps';
 import { FileProcessing } from '@/components/batch-flow/file-processing';
 import { ReviewStep } from '@/components/batch-flow/review-step';
-import { ProcessingResults } from '@/components/batch-flow/processing-results';
-import type { UploadedFile, PromptTemplateOption, ChatModelOption, PersonaOption, FileStatus } from '@/components/batch-flow/types';
+import { StreamingResults } from '@/components/batch-flow/streaming-results';
+import type { UploadedFile, PromptTemplateOption, ChatModelOption, PersonaOption } from '@/components/batch-flow/types';
 import type { UploadedFile as BaseUploadedFile } from '@/utils/upload-service';
 
 const MAX_TOKENS = 100_000;
@@ -299,16 +299,18 @@ export default function BatchFlow() {
             )}
 
             {currentStep === 'results' && (
-              <ProcessingResults
+              <StreamingResults
                 isProcessing={isProcessing}
                 processingStatus={processingStatus}
-                fileResponses={fileResponses}
                 uploadedFiles={uploadedFiles}
+                steps={workflowSteps}
+                customInstructions={customInstructions}
                 onPrevious={handlePrevious}
                 onStartNewBatch={() => {
                   setUploadedFiles([]);
                   setCurrentStep('upload');
                 }}
+                session={session}
               />
             )}
           </div>
