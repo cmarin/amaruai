@@ -1,14 +1,16 @@
 import type { AssetStatus } from '@/utils/batch-flow-service';
 import type { UploadedFile as BaseUploadedFile } from '@/utils/upload-service';
 
-export interface UploadedFile {
+// Base interface for uploaded files
+export interface UploadedFile extends BaseUploadedFile {
   name: string;
   url?: string;
 }
 
+// Batch flow specific interfaces
 export interface FileStatus extends AssetStatus {}
 
-export interface BatchFlowUploadedFile extends BaseUploadedFile {
+export interface BatchFlowUploadedFile extends UploadedFile {
   status: FileStatus;
 }
 

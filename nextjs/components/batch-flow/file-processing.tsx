@@ -43,7 +43,7 @@ export function FileProcessing({
 
       <div className="space-y-3">
         <div className="text-lg font-semibold">Processing Files:</div>
-        {uploadedFiles.map((file, index) => (
+        {uploadedFiles.map((file: BatchFlowUploadedFile, index) => (
           <div 
             key={file.url || index}
             className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
@@ -85,7 +85,7 @@ export function FileProcessing({
         <Button
           variant="outline"
           onClick={onNext}
-          disabled={!uploadedFiles.every(f => 
+          disabled={!uploadedFiles.every((f: BatchFlowUploadedFile) => 
             ['completed', 'failed', 'max_attempts_exceeded'].includes(f.status.status)
           )}
         >
