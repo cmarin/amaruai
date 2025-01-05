@@ -19,12 +19,14 @@ export function ReviewStep({
   return (
     <div className="space-y-6">
       <div>
-        <label className="block text-sm font-medium mb-2">Custom Instructions (Optional)</label>
+        <label className="block text-sm font-medium mb-2">
+          Custom Instructions (Optional)
+        </label>
         <Textarea
+          className="min-h-[100px] w-full"
+          placeholder="Add any custom instructions for processing..."
           value={customInstructions}
           onChange={(e) => onInstructionsChange(e.target.value)}
-          placeholder="Add any custom instructions for processing..."
-          className="h-32"
         />
       </div>
 

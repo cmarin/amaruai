@@ -39,15 +39,26 @@ export function StreamingResults({
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [results, setResults] = useState<StepResult[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const abortController = useRef<AbortController | null>(null);
+  const abortControllers = useRef<AbortController[]>([]);
 
   useEffect(() => {
     if (!isProcessing) return;
 
-    const processStep = async (stepIndex: number) => {
+    // Initialize abort controllers for each step
+    abortControllers.current = steps.map(() => new AbortController());
+
+    // Process all steps concurrently
+    const processSteps = async () => {
       try {
-        console.log(`Processing step ${stepIndex + 1}`);
-        abortController.current = new AbortController();
+        await Promise.all(steps.map((step, stepIndex) => processStep(step, stepIndex)));
+      } catch (error) {
+        console.error('Error processing steps:', error);
+        setError(error instanceof Error ? error.message : 'Unknown error occurred');
+      }
+    };
+
+    const processStep = async (step: BatchFlowStep, stepIndex: number) => {
+      try {
         const response = await fetch('/api/batch-flow', {
           method: 'POST',
           headers: {
@@ -56,10 +67,10 @@ export function StreamingResults({
           },
           body: JSON.stringify({
             file_ids: uploadedFiles.map(f => f.status.id),
-            steps: [steps[stepIndex]],
+            steps: [step],
             customInstructions,
           }),
-          signal: abortController.current.signal,
+          signal: abortControllers.current[stepIndex].signal,
         });
 
         if (!response.ok) {
@@ -93,7 +104,6 @@ export function StreamingResults({
                 const content = parsed.choices[0].delta.content;
                 stepContent += content;
 
-                // Update results for this specific step
                 setResults(prev => {
                   const newResults = [...prev];
                   const existingIndex = newResults.findIndex(r => r.stepIndex === stepIndex);
@@ -119,30 +129,19 @@ export function StreamingResults({
             }
           }
         }
-
-        // Move to next step after current step is complete
-        if (stepIndex < steps.length - 1) {
-          setCurrentStepIndex(stepIndex + 1);
-          await processStep(stepIndex + 1);
-        }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
-          console.log('Batch flow processing aborted');
+          console.log(`Batch flow step ${stepIndex + 1} aborted`);
         } else {
-          console.error('Error processing batch flow step:', err);
-          setError(err instanceof Error ? err.message : 'Unknown error occurred');
+          throw err;
         }
       }
     };
 
-    // Start from the first step
-    setCurrentStepIndex(0);
-    processStep(0);
+    processSteps();
 
     return () => {
-      if (abortController.current) {
-        abortController.current.abort();
-      }
+      abortControllers.current.forEach(controller => controller.abort());
     };
   }, [isProcessing, steps, uploadedFiles, customInstructions, session.access_token]);
 
