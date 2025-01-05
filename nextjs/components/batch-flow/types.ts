@@ -1,11 +1,7 @@
-import type { UploadedFile as BaseUploadedFile } from '@/types';
+import type { UploadedFile as BaseUploadedFile } from '@/utils/upload-service';
+import type { AssetStatus } from '@/utils/batch-flow-service';
 
-export interface FileStatus {
-  id: string;
-  status: 'pending' | 'completed' | 'failed' | 'max_attempts_exceeded';
-  token_count: number;
-  file_name: string;
-}
+export interface FileStatus extends AssetStatus {}
 
 export interface UploadedFile extends BaseUploadedFile {
   status: FileStatus;
