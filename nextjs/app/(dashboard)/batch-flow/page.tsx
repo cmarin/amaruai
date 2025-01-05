@@ -232,10 +232,10 @@ export default function BatchFlow() {
   }));
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-white">
       <AppSidebar toggleChatbot={(modelId: string) => {}} />
       
-      <div className={`flex-1 p-8 ${sidebarOpen ? 'ml-64' : ''}`}>
+      <div className={`flex-1 p-8 bg-white ${sidebarOpen ? 'ml-64' : ''}`}>
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl font-bold mb-8">Batch Flow</h1>
 
@@ -258,7 +258,7 @@ export default function BatchFlow() {
             ))}
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow">
+          <div className="p-6 border rounded-lg">
             {currentStep === 'upload' && (
               <div>
                 <Dashboard
