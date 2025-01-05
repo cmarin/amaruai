@@ -1,3 +1,5 @@
+# bulk_flow.py
+
 import os
 import json
 import uuid
@@ -39,6 +41,7 @@ active_connections = 0
 
 router = create_protected_router(prefix="bulk-flow", tags=["bulk-flow"])
 
+
 # ----------------------------------------------------
 # Pydantic models for the Bulk Flow request
 # ----------------------------------------------------
@@ -47,10 +50,12 @@ class Step(BaseModel):
     chat_model_id: str
     persona_id: Optional[str] = None
 
+
 class BulkFlowPayload(BaseModel):
     file_ids: List[str]
     steps: List[Step]
     customInstructions: Optional[str] = None
+
 
 # ----------------------------------------------------
 # Utility to decrement active connections after SSE ends
@@ -59,6 +64,7 @@ async def cleanup_connection():
     global active_connections
     active_connections -= 1
     logger.info(f"Connection cleanup completed. Remaining connections: {active_connections}")
+
 
 # ----------------------------------------------------
 # Main Bulk Flow Endpoint
@@ -85,7 +91,6 @@ async def bulk_flow_endpoint(
     global active_connections
     start_time = time.time()
     active_connections += 1
-
     background_tasks.add_task(cleanup_connection)
 
     logger.info(f"New bulk flow connection. Active connections: {active_connections}")
@@ -97,7 +102,7 @@ async def bulk_flow_endpoint(
 
     # ----------------------------------------------------------------
     # For simplicity, we’ll handle just the first step in this example.
-    # You can loop over `bulk_flow_data.steps` if you need multi-step logic.
+    # You can extend for multiple steps if needed.
     # ----------------------------------------------------------------
     if not bulk_flow_data.steps:
         raise HTTPException(status_code=422, detail="No steps provided.")
@@ -144,10 +149,8 @@ async def bulk_flow_endpoint(
     final_prompt_parts = [prompt_template.prompt]
     if bulk_flow_data.customInstructions:
         final_prompt_parts.append(bulk_flow_data.customInstructions)
-
     for fc in file_contents:
         final_prompt_parts.append(fc)
-
     final_user_prompt = "\n\n".join(final_prompt_parts)
 
     # -------------------------------------------------------
@@ -159,17 +162,11 @@ async def bulk_flow_endpoint(
         stream_start_time = time.time()
 
         # Prepare a standard set of messages for the OpenRouter call
-        # We'll use a system message for persona (if present), and a single user message.
-        messages_for_llm = []
+        # We'll use a system message for persona (if present), plus one user message
+        local_messages = []
         if system_message:
-            messages_for_llm.append({
-                "role": "system",
-                "content": system_message
-            })
-        messages_for_llm.append({
-            "role": "user",
-            "content": final_user_prompt
-        })
+            local_messages.append({"role": "system", "content": system_message})
+        local_messages.append({"role": "user", "content": final_user_prompt})
 
         # Build the request headers
         headers = {
@@ -179,7 +176,9 @@ async def bulk_flow_endpoint(
             "Content-Type": "application/json",
         }
 
-        # Make SSE request to OpenRouter
+        # We'll accumulate the full assistant response in case you want it later
+        assistant_response_accumulator = []
+
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 "https://openrouter.ai/api/v1/chat/completions",
@@ -187,7 +186,7 @@ async def bulk_flow_endpoint(
                 json={
                     "model": model_name,
                     "stream": True,
-                    "messages": messages_for_llm,
+                    "messages": local_messages,
                 },
             ) as resp:
                 api_response_time = time.time() - start_time
@@ -199,7 +198,7 @@ async def bulk_flow_endpoint(
                 logger.info("=" * 50)
                 logger.info(f"Using model: {model_name}")
                 logger.info("Messages sent to LLM:")
-                for m in messages_for_llm:
+                for m in local_messages:
                     logger.info(f"  - Role: {m['role']}, Content length: {len(m['content'])}")
                 logger.info("=" * 50)
 
@@ -212,6 +211,7 @@ async def bulk_flow_endpoint(
                 # Read the response line by line (SSE)
                 async for line_bytes in resp.content:
                     line = line_bytes.decode("utf-8", errors="replace").strip()
+
                     if not line:
                         continue
 
@@ -227,11 +227,15 @@ async def bulk_flow_endpoint(
                                 if "choices" in data and data["choices"]:
                                     delta = data["choices"][0].get("delta", {})
                                     content = delta.get("content", "")
+                                    assistant_response_accumulator.append(content)
                                     total_tokens += len(content.split())
+
+                                    # Forward the raw JSON chunk
                                     yield f"data: {json.dumps(data)}\n\n"
                                 else:
                                     # If the data is not in the expected format, wrap it
                                     content = data.get("content", "")
+                                    assistant_response_accumulator.append(content)
                                     total_tokens += len(content.split())
                                     formatted_data = format_openai_message(content)
                                     yield f"data: {json.dumps(formatted_data)}\n\n"
@@ -245,11 +249,10 @@ async def bulk_flow_endpoint(
                                         f"Duration: {stream_duration:.2f}s"
                                     )
 
-                            except json.JSONDecodeError:
+                            except json.JSONDecodeError as e:
                                 logger.error(f"Failed to parse SSE data: {data_str}", exc_info=True)
                             except Exception as e:
                                 logger.error("Error processing event", exc_info=True)
-                                # Optionally send an error message down the stream
                                 error_data = format_openai_message(f"Error: {str(e)}")
                                 yield f"data: {json.dumps(error_data)}\n\n"
 
