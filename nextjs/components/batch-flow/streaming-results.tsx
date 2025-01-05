@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import ReactMarkdown from 'react-markdown';
 import { Loader2 } from 'lucide-react';
 import type { BatchFlowStep, BatchFlowFile } from '@/types';
+import { useData } from "@/components/data-context";
 
 interface StreamingResultsProps {
   isProcessing: boolean;
@@ -34,6 +35,7 @@ export function StreamingResults({
   onStartNewBatch,
   session,
 }: StreamingResultsProps) {
+  const { promptTemplates, chatModels, personas } = useData();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [results, setResults] = useState<StepResult[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -150,8 +152,20 @@ export function StreamingResults({
     };
   }, [isProcessing, currentStepIndex, steps, uploadedFiles, customInstructions, session.access_token]);
 
-  const getStepResults = (stepIndex: number, fileId: string) => {
-    return results.find(r => r.stepIndex === stepIndex && r.fileId === fileId)?.content || '';
+  const getStepResults = (stepIndex: number) => {
+    // Combine all file results for this step into one string
+    return results
+      .filter(r => r.stepIndex === stepIndex)
+      .map(r => r.content)
+      .join('\n\n');
+  };
+
+  const getStepConfig = (step: BatchFlowStep) => {
+    const model = chatModels.find(m => m.id === Number(step.chat_model_id))?.name || 'Unknown Model';
+    const persona = personas.find(p => p.id === Number(step.persona_id))?.role || 'Unknown Persona';
+    const template = promptTemplates.find(t => t.id === Number(step.prompt_template_id))?.title || 'Unknown Template';
+    
+    return { model, persona, template };
   };
 
   return (
@@ -164,32 +178,33 @@ export function StreamingResults({
         </div>
       ) : (
         <div className="space-y-8">
-          {steps.map((step, stepIndex) => (
-            <div key={stepIndex} className="border rounded-lg p-4">
-              <div className="font-medium mb-4">
-                Step {stepIndex + 1}
-                {stepIndex === currentStepIndex && isProcessing && (
-                  <span className="ml-2 text-blue-500 inline-flex items-center">
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Processing...
-                  </span>
-                )}
-              </div>
-              
-              <div className="space-y-4">
-                {uploadedFiles.map((file) => (
-                  <div key={file.status.id} className="bg-gray-50 rounded-lg p-4">
-                    <div className="font-medium mb-2">{file.status.file_name}</div>
-                    <ScrollArea className="h-[200px] w-full rounded border p-4">
-                      <ReactMarkdown>
-                        {getStepResults(stepIndex, file.status.id)}
-                      </ReactMarkdown>
-                    </ScrollArea>
+          {steps.map((step, stepIndex) => {
+            const config = getStepConfig(step);
+            return (
+              <div key={stepIndex} className="border rounded-lg p-4">
+                <div className="space-y-2 mb-4">
+                  <div className="font-medium">Step {stepIndex + 1}</div>
+                  <div className="text-sm text-gray-600">
+                    <div>Model: {config.model}</div>
+                    <div>Persona: {config.persona}</div>
+                    <div>Template: {config.template}</div>
                   </div>
-                ))}
+                  {stepIndex === currentStepIndex && isProcessing && (
+                    <div className="text-blue-500 flex items-center">
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </div>
+                  )}
+                </div>
+                
+                <ScrollArea className="h-[200px] w-full rounded border p-4 bg-gray-50">
+                  <ReactMarkdown>
+                    {getStepResults(stepIndex)}
+                  </ReactMarkdown>
+                </ScrollArea>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
