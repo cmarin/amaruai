@@ -12,13 +12,12 @@ import '@uppy/dashboard/dist/style.min.css';
 import { Button } from '@/components/ui/button';
 import { getAssetStatus, executeBatchFlow } from '@/utils/batch-flow-service';
 import { UploadService } from '@/utils/upload-service';
-import type { BatchFlowStep } from '@/types';
+import type { BatchFlowStep, BatchFlowUploadedFile, PromptTemplateOption, ChatModelOption, PersonaOption } from '@/types';
+import type { UploadedFile as BaseUploadedFile } from '@/utils/upload-service';
 import { WorkflowSteps } from '@/components/batch-flow/workflow-steps';
 import { FileProcessing } from '@/components/batch-flow/file-processing';
 import { ReviewStep } from '@/components/batch-flow/review-step';
 import { StreamingResults } from '@/components/batch-flow/streaming-results';
-import type { UploadedFile, PromptTemplateOption, ChatModelOption, PersonaOption } from '@/components/batch-flow/types';
-import type { UploadedFile as BaseUploadedFile } from '@/utils/upload-service';
 
 const MAX_TOKENS = 100_000;
 
@@ -39,7 +38,7 @@ export default function BatchFlow() {
   const { sidebarOpen, toggleSidebar } = useSidebar();
 
   const [currentStep, setCurrentStep] = useState<StepId>('upload');
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<BatchFlowUploadedFile[]>([]);
   const [workflowSteps, setWorkflowSteps] = useState<BatchFlowStep[]>([{
     prompt_template_id: '',
     chat_model_id: '',
@@ -59,7 +58,7 @@ export default function BatchFlow() {
   }, [uploadedFiles]);
 
   const handleFileUpload = useCallback((file: BaseUploadedFile) => {
-    const fileWithStatus: UploadedFile = {
+    const fileWithStatus: BatchFlowUploadedFile = {
       ...file,
       status: {
         id: '',
@@ -71,7 +70,7 @@ export default function BatchFlow() {
     setUploadedFiles(prev => [...prev, fileWithStatus]);
   }, []);
 
-  const handleRemoveFile = useCallback((file: UploadedFile) => {
+  const handleRemoveFile = useCallback((file: BatchFlowUploadedFile) => {
     setUploadedFiles(prev => prev.filter(f => f !== file));
   }, []);
 

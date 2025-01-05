@@ -2,13 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { FileVideo, X } from "lucide-react";
-import type { UploadedFile } from "./types";
+import type { BatchFlowUploadedFile } from "@/types";
 
 interface FileProcessingProps {
   totalTokens: number;
   maxTokens: number;
-  uploadedFiles: UploadedFile[];
-  onRemoveFile: (file: UploadedFile) => void;
+  uploadedFiles: BatchFlowUploadedFile[];
+  onRemoveFile: (file: BatchFlowUploadedFile) => void;
   onPrevious: () => void;
   onNext: () => void;
 }
