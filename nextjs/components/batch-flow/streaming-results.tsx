@@ -70,6 +70,12 @@ export function StreamingResults({
         const decoder = new TextDecoder();
         let buffer = '';
 
+        // Initialize empty content for each file
+        const fileContents: Record<string, string> = {};
+        uploadedFiles.forEach(file => {
+          fileContents[file.status.id] = '';
+        });
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -82,18 +88,38 @@ export function StreamingResults({
             if (line.trim() === '') continue;
             if (!line.startsWith('data: ')) continue;
 
-            const data = line.slice(5);
+            const jsonData = line.slice(5).trim();
+            if (jsonData === '[DONE]') continue;
+
             try {
-              const parsed = JSON.parse(data);
-              if (parsed.type === 'completion' && parsed.fileId && parsed.response) {
-                setResults(prev => [
-                  ...prev,
-                  {
-                    stepIndex,
-                    fileId: parsed.fileId,
-                    content: parsed.response,
-                  },
-                ]);
+              const parsed = JSON.parse(jsonData);
+              if (parsed.choices && parsed.choices[0].delta.content) {
+                const currentFileId = uploadedFiles[0].status.id; // TODO: Handle multiple files
+                fileContents[currentFileId] += parsed.choices[0].delta.content;
+
+                // Update results with the latest content
+                setResults(prev => {
+                  const existingResult = prev.find(
+                    r => r.stepIndex === stepIndex && r.fileId === currentFileId
+                  );
+
+                  if (existingResult) {
+                    return prev.map(r =>
+                      r.stepIndex === stepIndex && r.fileId === currentFileId
+                        ? { ...r, content: fileContents[currentFileId] }
+                        : r
+                    );
+                  } else {
+                    return [
+                      ...prev,
+                      {
+                        stepIndex,
+                        fileId: currentFileId,
+                        content: fileContents[currentFileId],
+                      },
+                    ];
+                  }
+                });
               }
             } catch (e) {
               console.error('Failed to parse SSE data:', e);

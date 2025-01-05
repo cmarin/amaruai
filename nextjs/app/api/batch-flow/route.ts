@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
         Authorization: authHeader,
       },
       body: JSON.stringify({
@@ -80,9 +81,41 @@ export async function POST(req: NextRequest) {
     }
 
     // 4) Stream the SSE response
-    return new Response(response.body, {
-      headers: { 'Content-Type': 'text/event-stream' },
-    })
+    const reader = response.body?.getReader()
+    const encoder = new TextEncoder()
+
+    return new Response(
+      new ReadableStream({
+        async start(controller) {
+          if (!reader) {
+            controller.close()
+            return
+          }
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+
+              // Forward the chunks as-is
+              controller.enqueue(value)
+            }
+          } catch (e) {
+            console.error('Error while streaming response:', e)
+          } finally {
+            controller.close()
+            reader.releaseLock()
+          }
+        },
+      }),
+      {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      }
+    )
   } catch (error) {
     console.error('Error in batch flow API route:', error)
     return new Response(
