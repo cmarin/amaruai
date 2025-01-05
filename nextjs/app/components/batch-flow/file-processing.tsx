@@ -3,6 +3,9 @@
 import { Button } from "@/components/ui/button";
 import { FileVideo, X } from "lucide-react";
 import type { BatchFlowFile } from "@/types";
+import { useEffect } from "react";
+import { getAssetStatus } from "@/utils/batch-flow-service";
+import { useSession } from "@/app/utils/session/session";
 
 interface FileProcessingProps {
   totalTokens: number;
@@ -21,7 +24,68 @@ export function FileProcessing({
   onPrevious,
   onNext,
 }: FileProcessingProps) {
+  const { session } = useSession();
   const tokenPercentage = (totalTokens / maxTokens) * 100;
+
+  useEffect(() => {
+    if (!session || uploadedFiles.length === 0) return;
+
+    const pollInterval = setInterval(async () => {
+      const updatedFiles = await Promise.all(
+        uploadedFiles.map(async (file) => {
+          if (!file.status.id) return file;
+          try {
+            const status = await getAssetStatus(file.status.id, session.access_token);
+            return {
+              ...file,
+              status
+            };
+          } catch (error) {
+            console.error(`Failed to get status for file ${file.file_name}:`, error);
+            return file;
+          }
+        })
+      );
+      
+      // Check if any files were actually updated
+      const hasChanges = updatedFiles.some((newFile, index) => {
+        const oldFile = uploadedFiles[index];
+        return (
+          newFile.status.status !== oldFile.status.status ||
+          newFile.status.token_count !== oldFile.status.token_count
+        );
+      });
+
+      if (hasChanges) {
+        // Update the parent component's state
+        const newFiles = [...updatedFiles];
+        uploadedFiles.forEach((file, index) => {
+          if (newFiles[index].status.id === file.status.id) {
+            newFiles[index] = {
+              ...file,
+              status: updatedFiles[index].status
+            };
+          }
+        });
+        // Notify parent of file updates
+        newFiles.forEach(file => {
+          if (file !== uploadedFiles.find(f => f.status.id === file.status.id)) {
+            onRemoveFile(file);
+            onRemoveFile(file);
+          }
+        });
+      }
+
+      // Stop polling if all files are processed
+      if (updatedFiles.every(
+        file => ['completed', 'max_attempts_exceeded', 'failed'].includes(file.status.status)
+      )) {
+        clearInterval(pollInterval);
+      }
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [session, uploadedFiles, onRemoveFile]);
 
   return (
     <div className="space-y-6">
