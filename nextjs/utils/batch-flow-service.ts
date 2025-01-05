@@ -57,7 +57,7 @@ export async function executeBatchFlow(
   onComplete?: () => void,
 ): Promise<void> {
   try {
-    const response = await fetch(`${getApiUrl()}/batch-flow`, {
+    const response = await fetch('/api/batch-flow', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -85,7 +85,16 @@ export async function executeBatchFlow(
       const messages = chunk
         .split('\n')
         .filter(line => line.trim())
-        .map(line => JSON.parse(line) as BatchFlowStreamMessage);
+        .map(line => {
+          if (!line.startsWith('data: ')) return null;
+          try {
+            return JSON.parse(line.slice(6)) as BatchFlowStreamMessage;
+          } catch (e) {
+            console.error('Failed to parse SSE message:', e);
+            return null;
+          }
+        })
+        .filter((msg): msg is BatchFlowStreamMessage => msg !== null);
 
       for (const message of messages) {
         if (message.type === 'error') {
