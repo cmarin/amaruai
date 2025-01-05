@@ -57,6 +57,52 @@ export default function BatchFlow() {
     setTotalTokens(newTotal);
   }, [uploadedFiles]);
 
+  useEffect(() => {
+    if (!session || uploadedFiles.length === 0 || currentStep !== 'process') {
+      return;
+    }
+
+    const pollInterval = setInterval(async () => {
+      const updatedFiles = await Promise.all(
+        uploadedFiles.map(async (file) => {
+          if (!file.url) return file;
+          try {
+            const status = await getAssetStatus(file.url, session.access_token);
+            return {
+              ...file,
+              status
+            };
+          } catch (error) {
+            console.error(`Failed to get status for file ${file.status.file_name}:`, error);
+            return file;
+          }
+        })
+      );
+
+      // Check if any files were actually updated
+      const hasChanges = updatedFiles.some((newFile, index) => {
+        const oldFile = uploadedFiles[index];
+        return (
+          newFile.status.status !== oldFile.status.status ||
+          newFile.status.token_count !== oldFile.status.token_count
+        );
+      });
+
+      if (hasChanges) {
+        setUploadedFiles(updatedFiles);
+      }
+
+      // Stop polling if all files are processed
+      if (updatedFiles.every(
+        file => ['completed', 'failed', 'max_attempts_exceeded'].includes(file.status.status)
+      )) {
+        clearInterval(pollInterval);
+      }
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [session, uploadedFiles, currentStep]);
+
   const handleFileUpload = useCallback((file: UploadedFile) => {
     const fileWithStatus: BatchFlowFile = {
       ...file,
