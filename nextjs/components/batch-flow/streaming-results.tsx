@@ -8,6 +8,7 @@ import { Loader2, Copy, BookMarked } from 'lucide-react';
 import type { BatchFlowStep, BatchFlowFile } from '@/types';
 import { useData } from "@/components/data-context";
 import { useToast } from "@/hooks/use-toast";
+import { addToScratchPad } from "@/utils/scratch-pad-service";
 
 interface StreamingResultsProps {
   isProcessing: boolean;
@@ -180,7 +181,7 @@ export function StreamingResults({
   };
 
   const handleAddToScratchPad = (content: string) => {
-    // Implement the scratch pad functionality here
+    addToScratchPad(content);
     toast({
       title: "Added to Scratch Pad",
       description: "Content has been added to your scratch pad",
@@ -215,22 +216,22 @@ export function StreamingResults({
                   
                   <div className="flex gap-2">
                     <Button
-                      variant="outline"
-                      size="sm"
+                      variant="ghost"
+                      size="icon"
                       onClick={() => handleCopy(stepContent)}
-                      className="flex items-center gap-2"
+                      className="h-8 w-8"
+                      title="Copy to clipboard"
                     >
                       <Copy className="h-4 w-4" />
-                      Copy
                     </Button>
                     <Button
-                      variant="outline"
-                      size="sm"
+                      variant="ghost"
+                      size="icon"
                       onClick={() => handleAddToScratchPad(stepContent)}
-                      className="flex items-center gap-2"
+                      className="h-8 w-8"
+                      title="Add to Scratch Pad"
                     >
                       <BookMarked className="h-4 w-4" />
-                      Add to Scratch Pad
                     </Button>
                   </div>
                 </div>
