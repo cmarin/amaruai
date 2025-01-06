@@ -43,6 +43,7 @@ export function StreamingResults({
   const [results, setResults] = useState<StepResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const abortControllers = useRef<AbortController[]>([]);
+  const [rawContent, setRawContent] = useState<Record<number, string>>({});
 
   useEffect(() => {
     if (!isProcessing) return;
@@ -107,28 +108,43 @@ export function StreamingResults({
                 const content = parsed.choices[0].delta.content;
                 stepContent += content;
 
-                setResults(prev => {
-                  const newResults = [...prev];
-                  const existingIndex = newResults.findIndex(r => r.stepIndex === stepIndex);
+                // Update both raw content and parsed results
+                setRawContent(prev => ({
+                  ...prev,
+                  [stepIndex]: stepContent
+                }));
 
-                  if (existingIndex >= 0) {
-                    newResults[existingIndex] = {
-                      ...newResults[existingIndex],
-                      content: stepContent,
-                    };
-                  } else {
-                    newResults.push({
-                      stepIndex,
-                      fileId: uploadedFiles[0].status.id,
-                      content: stepContent,
-                    });
-                  }
+                try {
+                  setResults(prev => {
+                    const newResults = [...prev];
+                    const existingIndex = newResults.findIndex(r => r.stepIndex === stepIndex);
 
-                  return newResults;
-                });
+                    if (existingIndex >= 0) {
+                      newResults[existingIndex] = {
+                        ...newResults[existingIndex],
+                        content: stepContent,
+                      };
+                    } else {
+                      newResults.push({
+                        stepIndex,
+                        fileId: uploadedFiles[0].status.id,
+                        content: stepContent,
+                      });
+                    }
+
+                    return newResults;
+                  });
+                } catch (parseError) {
+                  console.error('Error updating parsed results:', parseError);
+                }
               }
-            } catch (e) {
-              console.error('Failed to parse SSE data:', e);
+            } catch (parseError) {
+              console.error('Failed to parse SSE data:', parseError);
+              // Still update raw content even if parsing fails
+              setRawContent(prev => ({
+                ...prev,
+                [stepIndex]: stepContent
+              }));
             }
           }
         }
@@ -245,7 +261,7 @@ export function StreamingResults({
                 
                 <ScrollArea className="h-[200px] w-full rounded border p-4 bg-gray-50">
                   <ReactMarkdown>
-                    {stepContent}
+                    {getStepResults(stepIndex) || rawContent[stepIndex] || ''}
                   </ReactMarkdown>
                 </ScrollArea>
               </div>
