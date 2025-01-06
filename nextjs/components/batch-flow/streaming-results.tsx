@@ -4,9 +4,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ReactMarkdown from 'react-markdown';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Copy, BookMarked } from 'lucide-react';
 import type { BatchFlowStep, BatchFlowFile } from '@/types';
 import { useData } from "@/components/data-context";
+import { useToast } from "@/hooks/use-toast";
 
 interface StreamingResultsProps {
   isProcessing: boolean;
@@ -35,6 +36,7 @@ export function StreamingResults({
   onStartNewBatch,
   session,
 }: StreamingResultsProps) {
+  const { toast } = useToast();
   const { promptTemplates, chatModels, personas } = useData();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [results, setResults] = useState<StepResult[]>([]);
@@ -161,6 +163,30 @@ export function StreamingResults({
     return { model, persona, template };
   };
 
+  const handleCopy = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      toast({
+        title: "Copied to clipboard",
+        description: "Content has been copied to your clipboard",
+      });
+    } catch (err) {
+      toast({
+        title: "Failed to copy",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddToScratchPad = (content: string) => {
+    // Implement the scratch pad functionality here
+    toast({
+      title: "Added to Scratch Pad",
+      description: "Content has been added to your scratch pad",
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="text-lg font-semibold mb-4">Processing Results</div>
@@ -173,26 +199,52 @@ export function StreamingResults({
         <div className="space-y-8">
           {steps.map((step, stepIndex) => {
             const config = getStepConfig(step);
+            const stepContent = getStepResults(stepIndex);
+            
             return (
               <div key={stepIndex} className="border rounded-lg p-4">
-                <div className="space-y-2 mb-4">
-                  <div className="font-medium">Step {stepIndex + 1}</div>
-                  <div className="text-sm text-gray-600">
-                    <div>Model: {config.model}</div>
-                    <div>Persona: {config.persona}</div>
-                    <div>Template: {config.template}</div>
-                  </div>
-                  {stepIndex === currentStepIndex && isProcessing && (
-                    <div className="text-blue-500 flex items-center">
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Processing...
+                <div className="flex justify-between items-center mb-4">
+                  <div className="space-y-2">
+                    <div className="font-medium">Step {stepIndex + 1}</div>
+                    <div className="text-sm text-gray-600">
+                      <div>Model: {config.model}</div>
+                      <div>Persona: {config.persona}</div>
+                      <div>Template: {config.template}</div>
                     </div>
-                  )}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopy(stepContent)}
+                      className="flex items-center gap-2"
+                    >
+                      <Copy className="h-4 w-4" />
+                      Copy
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAddToScratchPad(stepContent)}
+                      className="flex items-center gap-2"
+                    >
+                      <BookMarked className="h-4 w-4" />
+                      Add to Scratch Pad
+                    </Button>
+                  </div>
                 </div>
+                
+                {stepIndex === currentStepIndex && isProcessing && (
+                  <div className="text-blue-500 flex items-center">
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Processing...
+                  </div>
+                )}
                 
                 <ScrollArea className="h-[200px] w-full rounded border p-4 bg-gray-50">
                   <ReactMarkdown>
-                    {getStepResults(stepIndex)}
+                    {stepContent}
                   </ReactMarkdown>
                 </ScrollArea>
               </div>
