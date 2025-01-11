@@ -2,31 +2,46 @@
 
 import logging
 from datetime import datetime
+from typing import Optional
 
-from llama_index import Document
-from llama_index.node_parser import SimpleNodeParser  # or SemanticSplitterNodeParser
+from llama_index.core import Document, VectorStoreIndex, Settings
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.vector_stores.supabase import SupabaseVectorStore
-from llama_index import StorageContext, VectorStoreIndex
 
 logger = logging.getLogger(__name__)
+
+# ------------------------------------------------------------------------------
+# OPTION A (Global Embedding Model):
+#
+#     # Set the default embedding model *once* for everything:
+#     Settings.embed_model = OpenAIEmbedding()
+#
+# But we show Option B (Per-Index Embedding) in the function below.
+# ------------------------------------------------------------------------------
+
 
 def create_embeddings_for_asset(
     asset_id: str,
     document_content: str,
     document_name: str,
-    postgres_connection_string: str
+    postgres_connection_string: str,
+    table_name: str = "embeddings",
+    use_global_embed_model: bool = False
 ) -> bool:
     """
-    Creates embeddings for the given text and stores them in Supabase.
+    Creates embeddings for an asset's text content and stores them in Supabase.
 
-    :param asset_id: UUID string of the asset
-    :param document_content: The extracted text content
-    :param document_name: The file name or user-friendly doc name
-    :param postgres_connection_string: Connection string to your Postgres DB (Supabase)
-    :return: True if successful, False otherwise
+    Args:
+        asset_id (str): UUID (as string) of the asset
+        document_content (str): Extracted text content
+        document_name (str): Friendly doc name (e.g. filename)
+        postgres_connection_string (str): Connection string to Supabase Postgres
+        table_name (str): Defaults to "embeddings"
+        use_global_embed_model (bool): If True, use global Settings.embed_model
+                                       If False, provide embed_model per-index
+    Returns:
+        bool: True if successful, False otherwise
     """
-
     try:
         # 1) Create a Document with metadata
         document = Document(
@@ -37,30 +52,36 @@ def create_embeddings_for_asset(
                 "created_at": datetime.utcnow().isoformat()
             }
         )
+        # You can also set advanced doc properties here (excluded_llm_metadata_keys, etc.)
 
-        # 2) (Optionally) Split the document into chunks.
-        #    You can use SimpleNodeParser or a more advanced splitter.
-        parser = SimpleNodeParser()
-        nodes = parser.get_nodes_from_documents([document])
+        # 2) Build a list of documents
+        documents = [document]
 
-        # 3) Initialize the embedding model
-        embed_model = OpenAIEmbedding()  # uses OPENAI_API_KEY
-
-        # 4) Initialize the Supabase vector store
+        # 3) Initialize the Supabase vector store
         vector_store = SupabaseVectorStore(
             postgres_connection_string=postgres_connection_string,
-            table_name="embeddings",
-            # dimension=1536,  # You can specify dimension if needed
-            embed_model=embed_model
+            table_name=table_name
         )
 
-        # 5) Create a storage context and index
-        storage_context = StorageContext.from_defaults(vector_store=vector_store)
-        index = VectorStoreIndex(nodes, storage_context=storage_context)
+        # 4) (Optional) Decide how to set your embedding model:
+        if use_global_embed_model:
+            # Option A: Global embedding model for the entire app
+            Settings.embed_model = OpenAIEmbedding()
+            # Then do not pass `embed_model=` to from_documents (it uses the global)
+            index = VectorStoreIndex.from_documents(
+                documents=documents,
+                vector_store=vector_store
+            )
+        else:
+            # Option B: Provide the embedding model per-index
+            embed_model = OpenAIEmbedding()
+            index = VectorStoreIndex.from_documents(
+                documents=documents,
+                embed_model=embed_model,
+                vector_store=vector_store
+            )
 
-        # 6) That’s it! The index creation automatically upserts embeddings into the DB.
-        #    If you need to verify or query them, you can do so via the index’s query engine.
-
+        # The moment we create the index, embeddings are upserted to Supabase
         logger.info(f"Embeddings successfully created for asset {asset_id}")
         return True
 

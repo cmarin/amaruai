@@ -25,6 +25,8 @@ docling = "^2.14.0"
 numba = ">=0.56.0"
 llvmlite = ">=0.43.0"
 openai-whisper = "^20240930"
+llama-index-embeddings-openai = "^0.3.1"
+llama-index-vector-stores-supabase = "^0.3.0"
 
 [build-system]
 requires = ["poetry-core"]

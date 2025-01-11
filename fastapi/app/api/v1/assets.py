@@ -155,56 +155,37 @@ async def get_asset_status(
         raise HTTPException(status_code=500, detail=str(e))
     
 @router.post("/{asset_id}/embed")
-async def embed_asset(
+def embed_asset(
     asset_id: UUID,
     db: Session = Depends(get_db)
 ):
-    """
-    Create embeddings for the specified asset's content
-    and store them in Supabase.
-    """
-    try:
-        # Fetch the asset from the database
-        asset = crud.get_asset(db, asset_id=asset_id)
-        if not asset:
-            raise HTTPException(status_code=404, detail="Asset not found")
+    # 1) Fetch the asset from DB
+    asset = crud.get_asset(db, asset_id=asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
 
-        # Make sure there's content to embed
-        if not asset.content:
-            raise HTTPException(
-                status_code=400,
-                detail="Asset has no content to embed. Please transcribe or extract text first."
-            )
-
-        # Use the same database URL from database.py (DATABASE_URL)
-        postgres_connection_string = DATABASE_URL
-        if not postgres_connection_string:
-            raise HTTPException(
-                status_code=500,
-                detail="DATABASE_URL environment variable is not set."
-            )
-
-        # Call the helper from app.embeddings
-        success = create_embeddings_for_asset(
-            asset_id=str(asset.id),
-            document_content=asset.content,
-            document_name=asset.file_name,
-            postgres_connection_string=postgres_connection_string
+    # 2) Check for content
+    if not asset.content:
+        raise HTTPException(
+            status_code=400,
+            detail="Asset has no text to embed. Transcribe or extract text first."
         )
 
-        if not success:
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to create embeddings for this asset."
-            )
+    # 3) Call the embedding function
+    success = create_embeddings_for_asset(
+        asset_id=str(asset.id),
+        document_content=asset.content,
+        document_name=asset.file_name,
+        postgres_connection_string=DATABASE_URL
+    )
 
-        return {
-            "message": "Embeddings created successfully",
-            "asset_id": str(asset.id),
-        }
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create embeddings for this asset."
+        )
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error creating embeddings for asset {asset_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    return {
+        "message": "Embeddings created successfully",
+        "asset_id": str(asset.id),
+    }
