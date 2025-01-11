@@ -10,22 +10,13 @@ from llama_index.vector_stores.supabase import SupabaseVectorStore
 
 logger = logging.getLogger(__name__)
 
-# ------------------------------------------------------------------------------
-# OPTION A (Global Embedding Model):
-#
-#     # Set the default embedding model *once* for everything:
-#     Settings.embed_model = OpenAIEmbedding()
-#
-# But we show Option B (Per-Index Embedding) in the function below.
-# ------------------------------------------------------------------------------
-
 
 def create_embeddings_for_asset(
     asset_id: str,
     document_content: str,
     document_name: str,
     postgres_connection_string: str,
-    table_name: str = "embeddings",
+    collection_name: str = "embeddings",
     use_global_embed_model: bool = False
 ) -> bool:
     """
@@ -36,7 +27,7 @@ def create_embeddings_for_asset(
         document_content (str): Extracted text content
         document_name (str): Friendly doc name (e.g. filename)
         postgres_connection_string (str): Connection string to Supabase Postgres
-        table_name (str): Defaults to "embeddings"
+        collection_name (str): The "collection_name" param required by SupabaseVectorStore
         use_global_embed_model (bool): If True, use global Settings.embed_model
                                        If False, provide embed_model per-index
     Returns:
@@ -50,24 +41,24 @@ def create_embeddings_for_asset(
                 "asset_id": asset_id,
                 "document_name": document_name,
                 "created_at": datetime.utcnow().isoformat()
-            }
+            },
         )
-        # You can also set advanced doc properties here (excluded_llm_metadata_keys, etc.)
 
-        # 2) Build a list of documents
+        # 2) Build a list of Documents
         documents = [document]
 
         # 3) Initialize the Supabase vector store
+        #    NOTE: "collection_name" is a required param in the latest versions
         vector_store = SupabaseVectorStore(
             postgres_connection_string=postgres_connection_string,
-            table_name=table_name
+            collection_name=collection_name,
+            # dimension=1536  # (Optional) specify if your embed_model outputs a different size
         )
 
-        # 4) (Optional) Decide how to set your embedding model:
+        # 4) Decide how to set your embedding model:
         if use_global_embed_model:
             # Option A: Global embedding model for the entire app
             Settings.embed_model = OpenAIEmbedding()
-            # Then do not pass `embed_model=` to from_documents (it uses the global)
             index = VectorStoreIndex.from_documents(
                 documents=documents,
                 vector_store=vector_store
@@ -81,7 +72,7 @@ def create_embeddings_for_asset(
                 vector_store=vector_store
             )
 
-        # The moment we create the index, embeddings are upserted to Supabase
+        # The moment we create the index, embeddings get upserted to Supabase
         logger.info(f"Embeddings successfully created for asset {asset_id}")
         return True
 

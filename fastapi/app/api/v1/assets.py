@@ -159,12 +159,16 @@ def embed_asset(
     asset_id: UUID,
     db: Session = Depends(get_db)
 ):
-    # 1) Fetch the asset from DB
+    """
+    Create embeddings for the specified asset's content
+    and store them in Supabase.
+    """
+    # 1) Fetch the asset
     asset = crud.get_asset(db, asset_id=asset_id)
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
 
-    # 2) Check for content
+    # 2) Check that content exists
     if not asset.content:
         raise HTTPException(
             status_code=400,
@@ -176,14 +180,12 @@ def embed_asset(
         asset_id=str(asset.id),
         document_content=asset.content,
         document_name=asset.file_name,
-        postgres_connection_string=DATABASE_URL
+        postgres_connection_string=DATABASE_URL,
+        collection_name="embeddings"  # or any name you like
     )
 
     if not success:
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to create embeddings for this asset."
-        )
+        raise HTTPException(status_code=500, detail="Failed to create embeddings for this asset.")
 
     return {
         "message": "Embeddings created successfully",
