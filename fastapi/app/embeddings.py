@@ -1,5 +1,3 @@
-# file: app/embeddings.py
-
 import logging
 import os
 import psycopg2

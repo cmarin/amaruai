@@ -3,25 +3,15 @@ import json
 import logging
 from uuid import UUID
 from urllib.parse import unquote
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-
 from app.database import get_db, DATABASE_URL
 from app.api.v1.router import create_protected_router
 from app import crud
 from app.config.supabase import supabase_client
 from app.embeddings import create_embeddings_for_asset
-
-
-from llama_index.core import Document, VectorStoreIndex
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.vector_stores.supabase import SupabaseVectorStore
-
-from openai import OpenAI
 import psycopg2
-import vecs
-from vecs.collection import CollectionNotFound
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
