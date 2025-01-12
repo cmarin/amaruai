@@ -13,8 +13,18 @@ from app import crud
 from app.config.supabase import supabase_client
 from app.embeddings import create_embeddings_for_asset
 
+
+from llama_index.core import Document, VectorStoreIndex
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.vector_stores.supabase import SupabaseVectorStore
+
+from openai import OpenAI
+import psycopg2
+import vecs
+from vecs.collection import CollectionNotFound
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 # Create a protected router for assets
@@ -154,6 +164,7 @@ async def get_asset_status(
         logger.error(f"Error getting asset status: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
     
+
 @router.post("/{asset_id}/embed")
 def embed_asset(
     asset_id: UUID,
@@ -161,7 +172,7 @@ def embed_asset(
 ):
     """
     Create embeddings for the specified asset's content
-    and store them in Supabase.
+    and store them in vecs.<collection_name> via the direct approach.
     """
     # 1) Fetch the asset
     asset = crud.get_asset(db, asset_id=asset_id)
@@ -175,19 +186,34 @@ def embed_asset(
             detail="Asset has no text to embed. Transcribe or extract text first."
         )
 
-    # 3) Call the embedding function
+    # 3) Attempt to create embeddings
+    from app.embeddings import create_embeddings_for_asset
+
     success = create_embeddings_for_asset(
         asset_id=str(asset.id),
         document_content=asset.content,
         document_name=asset.file_name,
-        postgres_connection_string=DATABASE_URL,
-        collection_name="embeddings"  # or any name you like
+        postgres_connection_string=DATABASE_URL,  # The same env var from database.py
+        collection_name="embeddings",             # or any other collection
+        dimension=1536                            # match text-embedding-ada-002
     )
 
     if not success:
         raise HTTPException(status_code=500, detail="Failed to create embeddings for this asset.")
 
+    # 4) Optionally, return row count from DB
+    row_count = 0
+    try:
+        import psycopg2
+        with psycopg2.connect(DATABASE_URL) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM vecs.embeddings;")
+                (row_count,) = cur.fetchone()
+    except Exception as e:
+        logger.error(f"Could not fetch row count from vecs.embeddings: {str(e)}")
+
     return {
         "message": "Embeddings created successfully",
         "asset_id": str(asset.id),
+        "row_count_in_vecs_embeddings": row_count
     }

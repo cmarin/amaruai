@@ -1,12 +1,12 @@
 # file: app/embeddings.py
 
 import logging
+import os
+import psycopg2
+import vecs
 from datetime import datetime
-from typing import Optional
-
-from llama_index.core import Document, VectorStoreIndex, Settings
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.vector_stores.supabase import SupabaseVectorStore
+from openai import OpenAI
+from vecs.collection import CollectionNotFound
 
 logger = logging.getLogger(__name__)
 
@@ -17,63 +17,72 @@ def create_embeddings_for_asset(
     document_name: str,
     postgres_connection_string: str,
     collection_name: str = "embeddings",
-    use_global_embed_model: bool = False
+    dimension: int = 1536
 ) -> bool:
     """
-    Creates embeddings for an asset's text content and stores them in Supabase.
+    Creates embeddings for an asset using the "manual" approach:
+      1) Creates an embedding with openai.OpenAI
+      2) Upserts it (id, embedding, metadata) into vecs.<collection_name>
+      3) Returns True if successful, False if there's an error.
 
     Args:
-        asset_id (str): UUID (as string) of the asset
-        document_content (str): Extracted text content
-        document_name (str): Friendly doc name (e.g. filename)
-        postgres_connection_string (str): Connection string to Supabase Postgres
-        collection_name (str): The "collection_name" param required by SupabaseVectorStore
-        use_global_embed_model (bool): If True, use global Settings.embed_model
-                                       If False, provide embed_model per-index
-    Returns:
-        bool: True if successful, False otherwise
+        asset_id (str): the UUID of the asset
+        document_content (str): the text to embed
+        document_name (str): filename or a descriptive doc name
+        postgres_connection_string (str): Postgres DB URL for Supabase
+        collection_name (str): name of the vecs collection (default: "embeddings")
+        dimension (int): embedding dimension (default: 1536 for text-embedding-ada-002)
     """
     try:
-        # 1) Create a Document with metadata
-        document = Document(
-            text=document_content,
-            metadata={
-                "asset_id": asset_id,
-                "document_name": document_name,
-                "created_at": datetime.utcnow().isoformat()
-            },
+        # A) Check for an OpenAI key
+        openai_key = os.getenv("OPENAI_API_KEY")
+        if not openai_key:
+            logger.error("No OPENAI_API_KEY found in environment.")
+            return False
+
+        # B) Create OpenAI client
+        client = OpenAI(api_key=openai_key)
+
+        # C) Generate embedding
+        resp = client.embeddings.create(
+            model="text-embedding-ada-002",
+            input=document_content
+        )
+        embedding = resp.data[0].embedding  # list of floats
+
+        # D) Connect to vecs
+        c = vecs.create_client(postgres_connection_string)
+
+        # E) Get or create the collection
+        try:
+            coll = c.get_or_create_collection(name=collection_name, dimension=dimension)
+        except CollectionNotFound:
+            # Should rarely happen because get_or_create_collection auto-creates if needed
+            logger.error(f"Collection {collection_name} could not be found or created.")
+            c.disconnect()
+            return False
+
+        # F) Upsert record
+        record_id = f"asset-{asset_id}-{os.urandom(4).hex()}"
+        metadata = {
+            "asset_id": asset_id,
+            "document_name": document_name,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        coll.upsert(
+            records=[
+                (
+                    record_id,
+                    embedding,
+                    metadata
+                )
+            ]
         )
 
-        # 2) Build a list of Documents
-        documents = [document]
+        # G) Clean up
+        c.disconnect()
 
-        # 3) Initialize the Supabase vector store
-        #    NOTE: "collection_name" is a required param in the latest versions
-        vector_store = SupabaseVectorStore(
-            postgres_connection_string=postgres_connection_string,
-            collection_name=collection_name,
-            # dimension=1536  # (Optional) specify if your embed_model outputs a different size
-        )
-
-        # 4) Decide how to set your embedding model:
-        if use_global_embed_model:
-            # Option A: Global embedding model for the entire app
-            Settings.embed_model = OpenAIEmbedding()
-            index = VectorStoreIndex.from_documents(
-                documents=documents,
-                vector_store=vector_store
-            )
-        else:
-            # Option B: Provide the embedding model per-index
-            embed_model = OpenAIEmbedding()
-            index = VectorStoreIndex.from_documents(
-                documents=documents,
-                embed_model=embed_model,
-                vector_store=vector_store
-            )
-
-        # The moment we create the index, embeddings get upserted to Supabase
-        logger.info(f"Embeddings successfully created for asset {asset_id}")
+        logger.info(f"Embeddings successfully created for asset {asset_id}, record_id={record_id}")
         return True
 
     except Exception as e:
