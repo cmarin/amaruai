@@ -207,3 +207,32 @@ def embed_asset(
         "asset_id": str(asset.id),
         "row_count_in_vecs_embeddings": row_count
     }
+
+@router.get("")
+async def get_assets(
+    managed: bool = True,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all assets with optional filtering by managed status.
+    By default, returns only managed assets.
+    Set managed=false to get unmanaged assets, or exclude the parameter to get all assets.
+    """
+    try:
+        assets = crud.get_assets(
+            db=db,
+            skip=skip,
+            limit=limit,
+            managed=managed if managed is not None else None
+        )
+        
+        return {
+            "total": len(assets),
+            "items": assets
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting assets: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

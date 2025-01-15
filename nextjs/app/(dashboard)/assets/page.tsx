@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -58,7 +58,7 @@ export default function AssetsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const assetsPerPage = 10;
 
-  const loadAssets = async () => {
+  const loadAssets = useCallback(async () => {
     try {
       const headers = getApiHeaders();
       if (!headers) {
@@ -75,11 +75,11 @@ export default function AssetsPage() {
         variant: "destructive",
       });
     }
-  };
+  }, [getApiHeaders, toast]);
 
   useEffect(() => {
     loadAssets();
-  }, []);
+  }, [loadAssets]);
 
   useEffect(() => {
     uppyRef.current = UploadService.createUppy(
@@ -142,9 +142,12 @@ export default function AssetsPage() {
       supabase
     );
 
+    // Cleanup function
     return () => {
       if (uppyRef.current) {
-        uppyRef.current.close();
+        uppyRef.current.cancelAll();
+        // Remove any event listeners
+        uppyRef.current.off();
       }
     };
   }, [supabase, getApiHeaders, toast]);
@@ -153,6 +156,7 @@ export default function AssetsPage() {
     setShowUploadModal(false);
     if (uppyRef.current) {
       uppyRef.current.cancelAll();
+      uppyRef.current.reset();
     }
   };
 
