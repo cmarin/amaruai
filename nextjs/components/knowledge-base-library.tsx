@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Plus, Edit, Trash2 } from 'lucide-react'
+import { Plus, Edit, Trash2, FileText } from 'lucide-react'
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { KnowledgeBaseManager } from '@/components/knowledge-base-manager'
 import { KnowledgeBase, deleteKnowledgeBase } from '@/utils/knowledge-base-service'
@@ -76,10 +77,18 @@ export function KnowledgeBaseLibrary({ knowledgeBases, onUpdateKnowledgeBases }:
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b bg-white">
         <h1 className="text-2xl font-bold">Knowledge Base Library</h1>
-        <Button onClick={handleCreateKnowledgeBase} className="bg-blue-600 hover:bg-blue-700 text-white">
-          <Plus className="mr-2 h-4 w-4" />
-          New Knowledge Base
-        </Button>
+        <div className="flex gap-3">
+          <Link href="/assets">
+            <Button variant="outline" className="flex items-center">
+              <FileText className="mr-2 h-4 w-4" />
+              Manage Assets
+            </Button>
+          </Link>
+          <Button onClick={handleCreateKnowledgeBase} className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Plus className="mr-2 h-4 w-4" />
+            Knowledge Base
+          </Button>
+        </div>
       </div>
       <div className="p-4">
         <Input
