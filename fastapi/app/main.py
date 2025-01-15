@@ -16,6 +16,7 @@ from app.api.v1 import (
     tools,
     workflows,
     assets,
+    knowledge_bases,
     batch_flow
 )
 from app.database import engine, Base
@@ -91,6 +92,7 @@ protected_routes = [
     tags,
     tools,
     workflows,
+    knowledge_bases,
     assets,
     batch_flow
 ]

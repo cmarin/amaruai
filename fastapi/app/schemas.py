@@ -236,4 +236,23 @@ class Asset(AssetBase):
     class Config:
         from_attributes = True
 
+class KnowledgeBaseBase(BaseModel):
+    title: str
+    description: str
+
+class KnowledgeBaseCreate(KnowledgeBaseBase):
+    asset_ids: List[UUID] = []
+
+class KnowledgeBaseUpdate(KnowledgeBaseBase):
+    asset_ids: Optional[List[UUID]] = None
+
+class KnowledgeBase(KnowledgeBaseBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+    assets: List[Asset] = []
+
+    class Config:
+        from_attributes = True
+
 Workflow.update_forward_refs()

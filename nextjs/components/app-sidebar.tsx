@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { FileText, BookOpen, Brain, Workflow, MessageSquare, ChevronLeft, ChevronRight, User2, Files } from "lucide-react"
+import { FileText, BookOpen, Brain, Workflow, MessageSquare, ChevronLeft, ChevronRight, User2, Files, Database, Users, Settings, Menu } from "lucide-react"
 import { useRouter } from 'next/navigation'
 import { useData } from '@/components/data-context'
 import { useSidebar } from '@/components/sidebar-context'
@@ -38,6 +38,11 @@ const aiTools = [
     title: "Persona Library",
     href: "/personas",
     icon: Brain,
+  },
+  {
+    title: "Knowledge Bases",
+    href: "/knowledge-bases",
+    icon: BookOpen,
   },
   {
     title: "Workflows",

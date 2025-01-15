@@ -522,3 +522,54 @@ def update_asset_status(db: Session, asset_id: UUID, status: str):
         logger.error(f"Error updating asset status: {str(e)}", exc_info=True)
         db.rollback()
         raise
+
+def get_knowledge_base(db: Session, knowledge_base_id: UUID):
+    return db.query(models.KnowledgeBase).filter(models.KnowledgeBase.id == knowledge_base_id).first()
+
+def get_knowledge_bases(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.KnowledgeBase).offset(skip).limit(limit).all()
+
+def create_knowledge_base(db: Session, knowledge_base: schemas.KnowledgeBaseCreate):
+    db_knowledge_base = models.KnowledgeBase(
+        title=knowledge_base.title,
+        description=knowledge_base.description
+    )
+    db.add(db_knowledge_base)
+    db.commit()
+    db.refresh(db_knowledge_base)
+    
+    # Add associated assets
+    for asset_id in knowledge_base.asset_ids:
+        asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+        if asset:
+            db_knowledge_base.assets.append(asset)
+    
+    db.commit()
+    db.refresh(db_knowledge_base)
+    return db_knowledge_base
+
+def update_knowledge_base(db: Session, knowledge_base_id: UUID, knowledge_base: schemas.KnowledgeBaseUpdate):
+    db_knowledge_base = db.query(models.KnowledgeBase).filter(models.KnowledgeBase.id == knowledge_base_id).first()
+    if db_knowledge_base:
+        update_data = knowledge_base.dict(exclude_unset=True, exclude={'asset_ids'})
+        for key, value in update_data.items():
+            setattr(db_knowledge_base, key, value)
+        
+        if knowledge_base.asset_ids is not None:
+            db_knowledge_base.assets = []
+            for asset_id in knowledge_base.asset_ids:
+                asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+                if asset:
+                    db_knowledge_base.assets.append(asset)
+        
+        db_knowledge_base.updated_at = func.now()
+        db.commit()
+        db.refresh(db_knowledge_base)
+    return db_knowledge_base
+
+def delete_knowledge_base(db: Session, knowledge_base_id: UUID):
+    db_knowledge_base = db.query(models.KnowledgeBase).filter(models.KnowledgeBase.id == knowledge_base_id).first()
+    if db_knowledge_base:
+        db.delete(db_knowledge_base)
+        db.commit()
+    return db_knowledge_base

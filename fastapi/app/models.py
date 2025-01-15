@@ -31,6 +31,15 @@ tool_persona = Table('tool_persona', Base.metadata,
     Column('persona_id', Integer, ForeignKey('persona.id'), primary_key=True)
 )
 
+# Define the association table before the model classes
+knowledge_base_assets = Table(
+    'knowledge_base_assets',
+    Base.metadata,
+    Column('knowledge_base_id', PGUUID(as_uuid=True), ForeignKey('knowledge_bases.id', ondelete='CASCADE'), primary_key=True),
+    Column('asset_id', PGUUID(as_uuid=True), ForeignKey('assets.id', ondelete='CASCADE'), primary_key=True),
+    Column('created_at', TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+)
+
 class ProcessType(enum.Enum):
     SEQUENTIAL = "SEQUENTIAL"
     HIERARCHICAL = "HIERARCHICAL"  # Ensure this matches the database value
@@ -154,3 +163,16 @@ class Asset(Base):
     updated_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('now()'))
     storage_id = Column(PGUUID(as_uuid=True), nullable=True)
     status = Column(String, nullable=True)
+    knowledge_bases = relationship("KnowledgeBase", secondary=knowledge_base_assets, back_populates="assets")
+
+class KnowledgeBase(Base):
+    __tablename__ = "knowledge_bases"
+
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
+    title = Column(Text, nullable=False)
+    description = Column(Text, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+    
+    # Relationship with assets through the association table
+    assets = relationship("Asset", secondary=knowledge_base_assets, back_populates="knowledge_bases")
