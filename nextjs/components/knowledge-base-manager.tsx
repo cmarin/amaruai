@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { X } from 'lucide-react'
-import { KnowledgeBase, createKnowledgeBase, updateKnowledgeBase } from '@/utils/knowledge-base-service'
+import { KnowledgeBase, createKnowledgeBase, updateKnowledgeBase, KnowledgeBaseCreate } from '@/utils/knowledge-base-service'
 import { useSession } from '@/app/utils/session/session'
 
 type KnowledgeBaseManagerProps = {
@@ -19,7 +19,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   const [currentKnowledgeBase, setCurrentKnowledgeBase] = useState({
     title: '',
     description: '',
-    asset_ids: [] as string[]
+    assets: [] as KnowledgeBase['assets']
   })
   const { getApiHeaders } = useSession();
 
@@ -28,7 +28,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       setCurrentKnowledgeBase({
         title: knowledgeBase.title,
         description: knowledgeBase.description,
-        asset_ids: knowledgeBase.asset_ids
+        assets: knowledgeBase.assets
       })
     }
   }, [knowledgeBase])
@@ -46,10 +46,16 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
         return;
       }
 
+      const payload: KnowledgeBaseCreate = {
+        title: currentKnowledgeBase.title,
+        description: currentKnowledgeBase.description,
+        asset_ids: currentKnowledgeBase.assets.map(asset => asset.id)
+      };
+
       if (knowledgeBase) {
-        await updateKnowledgeBase(knowledgeBase.id, currentKnowledgeBase, headers);
+        await updateKnowledgeBase(knowledgeBase.id, payload, headers);
       } else {
-        await createKnowledgeBase(currentKnowledgeBase, headers);
+        await createKnowledgeBase(payload, headers);
       }
       onSave();
     } catch (error) {
@@ -94,7 +100,28 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
               />
             </div>
 
-            {/* Asset selection will be added here */}
+            <div>
+              <Label>Linked Assets</Label>
+              <div className="mt-2 space-y-2">
+                {currentKnowledgeBase.assets.map((asset) => (
+                  <div key={asset.id} className="flex items-center justify-between p-2 border rounded">
+                    <span>{asset.title}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setCurrentKnowledgeBase(prev => ({
+                          ...prev,
+                          assets: prev.assets.filter(a => a.id !== asset.id)
+                        }))
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="flex justify-end space-x-2 mt-6">
               <Button variant="outline" onClick={onClose}>Cancel</Button>

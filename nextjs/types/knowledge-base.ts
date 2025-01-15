@@ -24,4 +24,8 @@ export interface KnowledgeBase {
   updated_at: string;
 }
 
-export type KnowledgeBaseCreate = Omit<KnowledgeBase, 'id' | 'created_at' | 'updated_at'>; 
+export interface KnowledgeBaseCreate {
+  title: string;
+  description: string;
+  asset_ids: string[];
+} 
