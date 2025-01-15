@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -83,6 +83,7 @@ export default function AssetsPage() {
   }, [getApiHeaders, toast]);
 
   useEffect(() => {
+    setAssets([]);
     loadAssets();
   }, [loadAssets]);
 
@@ -166,23 +167,32 @@ export default function AssetsPage() {
   };
 
   // Sort and paginate assets
-  const sortedAssets = [...assets].sort((a, b) => {
-    const aValue = a[sortKey];
-    const bValue = b[sortKey];
+  const sortedAssets = useMemo(() => {
+    if (!Array.isArray(assets)) return [];
+    
+    return [...assets].sort((a, b) => {
+      const aValue = a?.[sortKey];
+      const bValue = b?.[sortKey];
 
-    if (aValue == null && bValue == null) return 0;
-    if (aValue == null) return sortOrder === 'asc' ? -1 : 1;
-    if (bValue == null) return sortOrder === 'asc' ? 1 : -1;
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return sortOrder === 'asc' ? -1 : 1;
+      if (bValue == null) return sortOrder === 'asc' ? 1 : -1;
 
-    if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-    return 0;
-  });
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [assets, sortKey, sortOrder]);
 
-  const indexOfLastAsset = currentPage * assetsPerPage;
-  const indexOfFirstAsset = indexOfLastAsset - assetsPerPage;
-  const currentAssets = sortedAssets.slice(indexOfFirstAsset, indexOfLastAsset);
-  const totalPages = Math.ceil(sortedAssets.length / assetsPerPage);
+  const currentAssets = useMemo(() => {
+    const indexOfLastAsset = currentPage * assetsPerPage;
+    const indexOfFirstAsset = indexOfLastAsset - assetsPerPage;
+    return sortedAssets.slice(indexOfFirstAsset, indexOfLastAsset);
+  }, [sortedAssets, currentPage, assetsPerPage]);
+
+  const totalPages = useMemo(() => 
+    Math.ceil(sortedAssets.length / assetsPerPage)
+  , [sortedAssets.length, assetsPerPage]);
 
   const handleSort = (key: keyof Asset) => {
     if (sortKey === key) {
