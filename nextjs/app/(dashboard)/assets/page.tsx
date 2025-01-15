@@ -12,7 +12,7 @@ import { UploadedFile, UploadService } from '@/utils/upload-service'
 import { useSupabase } from '@/app/contexts/SupabaseContext'
 import { Dashboard } from '@uppy/react'
 import type { UppyFile } from '@uppy/core'
-import { X, Plus } from 'lucide-react'
+import { X, Plus, ExternalLink, Settings } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -31,6 +31,9 @@ import {
 } from "@/components/ui/pagination"
 import { fetchAssets } from '@/utils/asset-service'
 import { useToast } from "@/hooks/use-toast"
+import { formatFileSize } from '@/lib/utils'
+import type { FileIconProps } from 'react-file-icon';
+import { FileIcon, defaultStyles } from 'react-file-icon'
 
 interface UppyResponse {
   body?: Record<string, unknown>;
@@ -203,6 +206,44 @@ export default function AssetsPage() {
     }
   };
 
+  const handleManageAsset = async (assetId: string) => {
+    try {
+      const headers = getApiHeaders();
+      if (!headers) {
+        console.error('No valid headers available');
+        return;
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/assets/${assetId}`, {
+        method: 'PATCH',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          managed: true
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update asset');
+      }
+
+      await loadAssets();
+      toast({
+        title: "Success",
+        description: "Asset is now managed",
+      });
+    } catch (error) {
+      console.error('Error managing asset:', error);
+      toast({
+        title: "Error",
+        description: "Failed to manage asset",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-white">
@@ -240,11 +281,12 @@ export default function AssetsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[40px]"></TableHead>
                     <TableHead 
                       className="cursor-pointer"
-                      onClick={() => handleSort('file_name')}
+                      onClick={() => handleSort('title')}
                     >
-                      Name {sortKey === 'file_name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      Title {sortKey === 'title' && (sortOrder === 'asc' ? '↑' : '↓')}
                     </TableHead>
                     <TableHead 
                       className="cursor-pointer"
@@ -260,9 +302,15 @@ export default function AssetsPage() {
                     </TableHead>
                     <TableHead 
                       className="cursor-pointer"
+                      onClick={() => handleSort('status')}
+                    >
+                      Status {sortKey === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer"
                       onClick={() => handleSort('created_at')}
                     >
-                      Created At {sortKey === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      Created {sortKey === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
                     </TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -270,12 +318,55 @@ export default function AssetsPage() {
                 <TableBody>
                   {currentAssets.map((asset) => (
                     <TableRow key={asset.id}>
-                      <TableCell>{asset.file_name}</TableCell>
-                      <TableCell>{asset.file_type}</TableCell>
-                      <TableCell>{(asset.size / 1024).toFixed(2)} KB</TableCell>
-                      <TableCell>{new Date(asset.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="w-[40px]">
+                        <div className="w-8">
+                          <FileIcon 
+                            extension={asset.file_type.toLowerCase()}
+                            {...defaultStyles[asset.file_type.toLowerCase()]}
+                          />
+                        </div>
+                      </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm">View</Button>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{asset.title || asset.file_name}</span>
+                          <span className="text-sm text-gray-500">{asset.file_name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{asset.mime_type}</TableCell>
+                      <TableCell>{formatFileSize(asset.size)}</TableCell>
+                      <TableCell>
+                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          asset.managed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {asset.status || (asset.managed ? 'Managed' : 'Unmanaged')}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(asset.created_at).toLocaleDateString(undefined, {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="sm" asChild>
+                            <a href={asset.file_url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              View
+                            </a>
+                          </Button>
+                          {!asset.managed && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleManageAsset(asset.id)}
+                            >
+                              <Settings className="h-4 w-4 mr-1" />
+                              Manage
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
