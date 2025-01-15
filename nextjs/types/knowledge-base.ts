@@ -13,6 +13,7 @@ export interface Asset {
   storage_id: string;
   created_at: string;
   updated_at: string;
+  managed?: boolean;
 }
 
 export interface KnowledgeBase {

@@ -1,8 +1,9 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, Text, Enum, UUID, BigInteger, TIMESTAMP
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, Text, Enum, UUID, BigInteger, TIMESTAMP, DateTime
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import relationship, declarative_base
-from sqlalchemy.sql import text
+from sqlalchemy.sql import text, func
 import enum
+import uuid
 
 Base = declarative_base()
 
@@ -149,21 +150,28 @@ class WorkflowStep(Base):
 class Asset(Base):
     __tablename__ = "assets"
 
-    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
-    title = Column(String, nullable=False)
-    file_name = Column(String, nullable=False)
-    file_url = Column(String, nullable=False)
-    file_type = Column(String, nullable=False)
-    mime_type = Column(String, nullable=False)
-    size = Column(BigInteger, nullable=False)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(String)
+    file_name = Column(String)
+    file_url = Column(String)
+    file_type = Column(String)
+    mime_type = Column(String)
+    size = Column(Integer)
     content = Column(Text, nullable=True)
-    token_count = Column(Integer, nullable=True, server_default='0')
-    uploaded_by = Column(PGUUID(as_uuid=True), nullable=False)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('now()'))
-    updated_at = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('now()'))
-    storage_id = Column(PGUUID(as_uuid=True), nullable=True)
+    token_count = Column(Integer, default=0)
     status = Column(String, nullable=True)
-    knowledge_bases = relationship("KnowledgeBase", secondary=knowledge_base_assets, back_populates="assets")
+    managed = Column(Boolean, default=False)
+    uploaded_by = Column(PGUUID(as_uuid=True), nullable=False)
+    storage_id = Column(PGUUID(as_uuid=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    knowledge_bases = relationship(
+        "KnowledgeBase",
+        secondary=knowledge_base_assets,
+        back_populates="assets"
+    )
 
 class KnowledgeBase(Base):
     __tablename__ = "knowledge_bases"

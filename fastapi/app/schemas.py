@@ -221,6 +221,7 @@ class AssetBase(BaseModel):
     content: Optional[str] = None
     token_count: Optional[int] = 0
     status: Optional[str] = None
+    managed: Optional[bool] = False
 
 class AssetCreate(AssetBase):
     uploaded_by: UUID
