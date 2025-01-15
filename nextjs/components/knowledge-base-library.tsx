@@ -116,7 +116,7 @@ export function KnowledgeBaseLibrary({ knowledgeBases, onUpdateKnowledgeBases }:
                 </CardContent>
                 <CardFooter className="border-t p-4">
                   <div className="text-sm text-gray-500">
-                    {kb.asset_ids.length} asset{kb.asset_ids.length !== 1 ? 's' : ''} linked
+                    {kb.assets.length} asset{kb.assets.length !== 1 ? 's' : ''} linked
                   </div>
                 </CardFooter>
               </Card>
