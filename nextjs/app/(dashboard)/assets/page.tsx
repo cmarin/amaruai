@@ -56,17 +56,19 @@ export default function AssetsPage() {
   const [sortKey, setSortKey] = useState<keyof Asset>('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
   const assetsPerPage = 10;
 
   const loadAssets = useCallback(async () => {
     try {
+      setIsLoading(true);
       const headers = getApiHeaders();
       if (!headers) {
         console.error('No valid headers available');
         return;
       }
       const fetchedAssets = await fetchAssets(headers);
-      setAssets(fetchedAssets);
+      setAssets(fetchedAssets || []);
     } catch (error) {
       console.error('Error fetching assets:', error);
       toast({
@@ -74,6 +76,9 @@ export default function AssetsPage() {
         description: "Failed to load assets",
         variant: "destructive",
       });
+      setAssets([]);
+    } finally {
+      setIsLoading(false);
     }
   }, [getApiHeaders, toast]);
 
@@ -213,89 +218,101 @@ export default function AssetsPage() {
 
           {/* Table */}
           <div className="flex-1 overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead 
-                    className="cursor-pointer"
-                    onClick={() => handleSort('file_name')}
-                  >
-                    Name {sortKey === 'file_name' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer"
-                    onClick={() => handleSort('file_type')}
-                  >
-                    Type {sortKey === 'file_type' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer"
-                    onClick={() => handleSort('size')}
-                  >
-                    Size {sortKey === 'size' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer"
-                    onClick={() => handleSort('created_at')}
-                  >
-                    Created At {sortKey === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentAssets.map((asset) => (
-                  <TableRow key={asset.id}>
-                    <TableCell>{asset.file_name}</TableCell>
-                    <TableCell>{asset.file_type}</TableCell>
-                    <TableCell>{(asset.size / 1024).toFixed(2)} KB</TableCell>
-                    <TableCell>{new Date(asset.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm">View</Button>
-                    </TableCell>
+            {isLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              </div>
+            ) : assets.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No assets found. Upload some assets to get started.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead 
+                      className="cursor-pointer"
+                      onClick={() => handleSort('file_name')}
+                    >
+                      Name {sortKey === 'file_name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer"
+                      onClick={() => handleSort('file_type')}
+                    >
+                      Type {sortKey === 'file_type' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer"
+                      onClick={() => handleSort('size')}
+                    >
+                      Size {sortKey === 'size' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer"
+                      onClick={() => handleSort('created_at')}
+                    >
+                      Created At {sortKey === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {currentAssets.map((asset) => (
+                    <TableRow key={asset.id}>
+                      <TableCell>{asset.file_name}</TableCell>
+                      <TableCell>{asset.file_type}</TableCell>
+                      <TableCell>{(asset.size / 1024).toFixed(2)} KB</TableCell>
+                      <TableCell>{new Date(asset.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm">View</Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </div>
 
-          {/* Pagination */}
-          <div className="mt-4">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
-                  </Button>
-                </PaginationItem>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <PaginationItem key={page}>
-                    <PaginationLink 
-                      onClick={() => setCurrentPage(page)}
-                      isActive={currentPage === page}
+          {/* Show pagination only if we have assets */}
+          {assets.length > 0 && (
+            <div className="mt-4">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
                     >
-                      {page}
-                    </PaginationLink>
+                      Previous
+                    </Button>
                   </PaginationItem>
-                ))}
-                <PaginationItem>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </Button>
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink 
+                        onClick={() => setCurrentPage(page)}
+                        isActive={currentPage === page}
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                    </Button>
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
 
           {/* File upload modal */}
           {showUploadModal && uppyRef.current && (
