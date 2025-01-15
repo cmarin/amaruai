@@ -7,10 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db, DATABASE_URL
 from app.api.v1.router import create_protected_router
-from app import crud
+from app import crud, schemas
 from app.config.supabase import supabase_client
 from app.embeddings import create_embeddings_for_asset
 import psycopg2
+from typing import List
 
 
 logger = logging.getLogger(__name__)
@@ -208,30 +209,31 @@ def embed_asset(
         "row_count_in_vecs_embeddings": row_count
     }
 
-@router.get("")
+@router.get("", response_model=List[schemas.Asset])
 async def get_assets(
-    managed: bool = True,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 10,
+    managed: bool = True,
     db: Session = Depends(get_db)
 ):
     """
-    Get all assets with optional filtering by managed status.
-    By default, returns only managed assets.
-    Set managed=false to get unmanaged assets, or exclude the parameter to get all assets.
+    Get the latest assets, sorted by creation date (newest first).
+    By default, returns the 10 most recent managed assets.
+    
+    Parameters:
+    - skip: Number of records to skip (default: 0)
+    - limit: Maximum number of records to return (default: 10)
+    - managed: Filter for managed assets (default: True)
     """
     try:
         assets = crud.get_assets(
             db=db,
             skip=skip,
             limit=limit,
-            managed=managed if managed is not None else None
+            managed=managed
         )
         
-        return {
-            "total": len(assets),
-            "items": assets
-        }
+        return assets
         
     except Exception as e:
         logger.error(f"Error getting assets: {str(e)}", exc_info=True)

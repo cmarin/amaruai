@@ -574,19 +574,23 @@ def delete_knowledge_base(db: Session, knowledge_base_id: UUID):
         db.commit()
     return db_knowledge_base
 
-def get_assets(db: Session, skip: int = 0, limit: int = 100, managed: bool | None = None):
+def get_assets(db: Session, skip: int = 0, limit: int = 10, managed: bool = True):
     """
-    Get all assets with optional filtering by managed status.
+    Get assets sorted by creation date (newest first) with optional filtering by managed status.
     
     Args:
         db (Session): The database session
-        skip (int): Number of records to skip
-        limit (int): Maximum number of records to return
-        managed (bool | None): Filter by managed status. If None, return all assets
+        skip (int): Number of records to skip (default: 0)
+        limit (int): Maximum number of records to return (default: 10)
+        managed (bool): Filter by managed status (default: True)
     """
     query = db.query(models.Asset)
     
-    if managed is not None:
-        query = query.filter(models.Asset.managed == managed)
-        
+    # Filter by managed status
+    query = query.filter(models.Asset.managed == managed)
+    
+    # Sort by creation date, newest first
+    query = query.order_by(desc(models.Asset.created_at))
+    
+    # Apply pagination
     return query.offset(skip).limit(limit).all()
