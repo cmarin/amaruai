@@ -34,8 +34,16 @@ type StepId = typeof steps[number]['id'];
 export default function BatchFlow() {
   const { session } = useSession();
   const supabase = useSupabase();
-  const { promptTemplates, chatModels, personas } = useData();
+  const { promptTemplates, chatModels, personas, isLoading } = useData();
   const { sidebarOpen, toggleSidebar } = useSidebar();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   const [currentStep, setCurrentStep] = useState<StepId>('upload');
   const [uploadedFiles, setUploadedFiles] = useState<BatchFlowFile[]>([]);
