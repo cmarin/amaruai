@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/app/utils/session/session';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { useData } from '@/components/data-context';
@@ -37,14 +37,6 @@ export default function BatchFlow() {
   const { promptTemplates, chatModels, personas, isLoading } = useData();
   const { sidebarOpen, toggleSidebar } = useSidebar();
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   const [currentStep, setCurrentStep] = useState<StepId>('upload');
   const [uploadedFiles, setUploadedFiles] = useState<BatchFlowFile[]>([]);
   const [workflowSteps, setWorkflowSteps] = useState<BatchFlowStep[]>([{
@@ -57,59 +49,6 @@ export default function BatchFlow() {
   const [processingStatus, setProcessingStatus] = useState('');
   const [fileResponses, setFileResponses] = useState<Record<string, string>>({});
   const [totalTokens, setTotalTokens] = useState(0);
-
-  useEffect(() => {
-    const newTotal = uploadedFiles.reduce((sum, file) => 
-      sum + (file.status.token_count || 0), 0
-    );
-    setTotalTokens(newTotal);
-  }, [uploadedFiles]);
-
-  useEffect(() => {
-    if (!session || uploadedFiles.length === 0 || currentStep !== 'process') {
-      return;
-    }
-
-    const pollInterval = setInterval(async () => {
-      const updatedFiles = await Promise.all(
-        uploadedFiles.map(async (file) => {
-          if (!file.url) return file;
-          try {
-            const status = await getAssetStatus(file.url, session.access_token);
-            return {
-              ...file,
-              status
-            };
-          } catch (error) {
-            console.error(`Failed to get status for file ${file.status.file_name}:`, error);
-            return file;
-          }
-        })
-      );
-
-      // Check if any files were actually updated
-      const hasChanges = updatedFiles.some((newFile, index) => {
-        const oldFile = uploadedFiles[index];
-        return (
-          newFile.status.status !== oldFile.status.status ||
-          newFile.status.token_count !== oldFile.status.token_count
-        );
-      });
-
-      if (hasChanges) {
-        setUploadedFiles(updatedFiles);
-      }
-
-      // Stop polling if all files are processed
-      if (updatedFiles.every(
-        file => ['completed', 'failed', 'max_attempts_exceeded'].includes(file.status.status)
-      )) {
-        clearInterval(pollInterval);
-      }
-    }, 1000); // Poll every second
-
-    return () => clearInterval(pollInterval);
-  }, [session, uploadedFiles, currentStep]);
 
   const handleFileUpload = useCallback((file: UploadedFile) => {
     const fileWithStatus: BatchFlowFile = {
@@ -204,7 +143,7 @@ export default function BatchFlow() {
     }
   }, [session, uploadedFiles, workflowSteps, customInstructions]);
 
-  const uppy = React.useMemo(() => {
+  const uppy = useMemo(() => {
     if (!session || !supabase) return null;
 
     return UploadService.createUppy(
@@ -218,6 +157,67 @@ export default function BatchFlow() {
       supabase
     );
   }, [session, supabase, handleFileUpload]);
+
+  useEffect(() => {
+    const newTotal = uploadedFiles.reduce((sum, file) => 
+      sum + (file.status.token_count || 0), 0
+    );
+    setTotalTokens(newTotal);
+  }, [uploadedFiles]);
+
+  useEffect(() => {
+    if (!session || uploadedFiles.length === 0 || currentStep !== 'process') {
+      return;
+    }
+
+    const pollInterval = setInterval(async () => {
+      const updatedFiles = await Promise.all(
+        uploadedFiles.map(async (file) => {
+          if (!file.url) return file;
+          try {
+            const status = await getAssetStatus(file.url, session.access_token);
+            return {
+              ...file,
+              status
+            };
+          } catch (error) {
+            console.error(`Failed to get status for file ${file.status.file_name}:`, error);
+            return file;
+          }
+        })
+      );
+
+      // Check if any files were actually updated
+      const hasChanges = updatedFiles.some((newFile, index) => {
+        const oldFile = uploadedFiles[index];
+        return (
+          newFile.status.status !== oldFile.status.status ||
+          newFile.status.token_count !== oldFile.status.token_count
+        );
+      });
+
+      if (hasChanges) {
+        setUploadedFiles(updatedFiles);
+      }
+
+      // Stop polling if all files are processed
+      if (updatedFiles.every(
+        file => ['completed', 'failed', 'max_attempts_exceeded'].includes(file.status.status)
+      )) {
+        clearInterval(pollInterval);
+      }
+    }, 1000); // Poll every second
+
+    return () => clearInterval(pollInterval);
+  }, [session, uploadedFiles, currentStep]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (!session || !uppy) {
     return null;

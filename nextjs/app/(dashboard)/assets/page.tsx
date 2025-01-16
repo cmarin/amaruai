@@ -85,10 +85,10 @@ export default function AssetsPage() {
     }
   }, [getApiHeaders, toast]);
 
+  // Initial load of assets
   useEffect(() => {
-    setAssets([]);
     loadAssets();
-  }, [loadAssets]);
+  }, []); // Empty dependency array since loadAssets is stable due to useCallback
 
   useEffect(() => {
     uppyRef.current = UploadService.createUppy(
