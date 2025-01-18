@@ -171,7 +171,11 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
                 asset_ids: updatedSelectedAssets.map(asset => asset.id)
               };
 
+              // Make the PUT request to update the knowledge base
               await updateKnowledgeBase(knowledgeBase.id, updatedKnowledgeBase, headers);
+              
+              // Call onSave to trigger any parent component updates
+              onSave();
             }
           }
 
