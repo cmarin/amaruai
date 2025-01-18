@@ -16,8 +16,8 @@ import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { UploadService, type UploadedFile } from '@/utils/upload-service';
 import { useToast } from "@/hooks/use-toast";
 import { Dashboard } from '@uppy/react';
-import '@uppy/core/dist/style.min.css';
-import '@uppy/dashboard/dist/style.min.css';
+import '@uppy/core/dist/style.css';
+import '@uppy/dashboard/dist/style.css';
 
 type KnowledgeBaseManagerProps = {
   knowledgeBase: KnowledgeBase | null
@@ -314,17 +314,26 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       </Dialog>
 
       {/* Upload Modal */}
-      <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+      <Dialog open={showUploadModal} onOpenChange={(open) => {
+        setShowUploadModal(open);
+        // Reset Uppy instance when modal is closed
+        if (!open && uppyRef.current) {
+          uppyRef.current.cancelAll();
+          uppyRef.current = null;
+        }
+      }}>
         <DialogContent className="max-w-4xl bg-white">
           <DialogHeader className="bg-white">
             <DialogTitle className="text-gray-900">Upload Assets</DialogTitle>
           </DialogHeader>
-          <div className="py-4 bg-white">
-            {uppyRef.current && (
+          <div className="py-4 bg-white min-h-[400px]">
+            {showUploadModal && (
               <Dashboard
                 uppy={uppyRef.current}
-                plugins={['FileBrowser']}
-                height={400}
+                plugins={['Dashboard']}
+                width="100%"
+                height={350}
+                showProgressDetails={true}
               />
             )}
           </div>
