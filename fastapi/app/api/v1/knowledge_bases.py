@@ -80,4 +80,20 @@ def remove_assets_from_knowledge_base(
     )
     if db_knowledge_base is None:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
-    return db_knowledge_base 
+    return db_knowledge_base
+
+@router.get("/{knowledge_base_id}/assets", response_model=List[schemas.Asset])
+def get_knowledge_base_assets(
+    knowledge_base_id: UUID,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all assets associated with a specific knowledge base.
+    
+    Parameters:
+    - knowledge_base_id: UUID of the knowledge base
+    """
+    db_knowledge_base = crud.get_knowledge_base(db, knowledge_base_id=knowledge_base_id)
+    if db_knowledge_base is None:
+        raise HTTPException(status_code=404, detail="Knowledge base not found")
+    return db_knowledge_base.assets 
