@@ -16,36 +16,43 @@ export default function EditKnowledgeBasePage({ params }: { params: { id: string
   const { sidebarOpen } = useSidebar();
   const { getApiHeaders } = useSession();
 
-  useEffect(() => {
-    const loadKnowledgeBase = async () => {
-      try {
-        const headers = getApiHeaders();
-        if (!headers) return;
+  const loadKnowledgeBase = async () => {
+    try {
+      const headers = getApiHeaders();
+      if (!headers) return;
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/knowledge_bases/${params.id}`, {
-          headers
-        });
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/knowledge_bases/${params.id}`, {
+        headers
+      });
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch knowledge base');
-        }
-
-        const data = await response.json();
-        setKnowledgeBase(data);
-      } catch (err) {
-        console.error('Error loading knowledge base:', err);
-        setError('Failed to load knowledge base');
-      } finally {
-        setIsLoading(false);
+      if (!response.ok) {
+        throw new Error('Failed to fetch knowledge base');
       }
-    };
 
+      const data = await response.json();
+      setKnowledgeBase({
+        ...data,
+        assets: data.assets || []
+      });
+    } catch (err) {
+      console.error('Error loading knowledge base:', err);
+      setError('Failed to load knowledge base');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadKnowledgeBase();
-  }, [params.id, getApiHeaders]);
+  }, [params.id]);
 
   const handleSave = async () => {
-    // Save logic here
-    router.push('/knowledge-bases');
+    try {
+      await loadKnowledgeBase();
+      router.push('/knowledge-bases');
+    } catch (error) {
+      console.error('Error saving knowledge base:', error);
+    }
   };
 
   const toggleChatbot = (modelId: string) => {

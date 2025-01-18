@@ -23,8 +23,8 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   const [currentKnowledgeBase, setCurrentKnowledgeBase] = useState({
     title: '',
     description: '',
-    assets: [] as KnowledgeBase['assets']
-  })
+    assets: [] as Asset[]
+  });
   const { getApiHeaders } = useSession();
   const [showAssetSelector, setShowAssetSelector] = useState(false);
   const [availableAssets, setAvailableAssets] = useState<Asset[]>([]);
@@ -35,10 +35,11 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       setCurrentKnowledgeBase({
         title: knowledgeBase.title,
         description: knowledgeBase.description,
-        assets: knowledgeBase.assets
-      })
+        assets: knowledgeBase.assets || []
+      });
+      setSelectedAssets(knowledgeBase.assets || []);
     }
-  }, [knowledgeBase])
+  }, [knowledgeBase]);
 
   useEffect(() => {
     const loadAssets = async () => {
