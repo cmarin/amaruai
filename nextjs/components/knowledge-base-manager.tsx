@@ -20,6 +20,7 @@ import { Dashboard } from '@uppy/react';
 import '@uppy/core/dist/style.css';
 import '@uppy/dashboard/dist/style.css';
 import { v4 as uuidv4 } from 'uuid';
+import { getApiUrl } from '@/utils/api-utils';
 
 type KnowledgeBaseManagerProps = {
   knowledgeBase: KnowledgeBase | null
@@ -146,7 +147,10 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       uppy.on('complete', async (result) => {
         try {
           const headers = getApiHeaders();
-          if (!headers) return;
+          if (!headers) {
+            console.error('No valid headers available');
+            return;
+          }
 
           // Refresh the available assets list
           const assets = await fetchAssets(headers);
@@ -155,16 +159,23 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
           // Add uploaded files to selected assets
           const successfulFiles = result.successful || [];
           if (successfulFiles.length > 0) {
+            // Find the newly uploaded assets
             const newAssets = assets.filter(asset => 
               successfulFiles.some(file => asset.title === file.name)
             );
             
+            if (newAssets.length === 0) {
+              console.error('Could not find uploaded assets in the assets list');
+              return;
+            }
+
             // Add new assets to selected assets
             const updatedSelectedAssets = [...selectedAssets, ...newAssets];
             setSelectedAssets(updatedSelectedAssets);
 
             // Update the knowledge base with the new assets if we have a knowledge base
             if (knowledgeBase?.id) {
+              console.log('Updating knowledge base with new assets:', knowledgeBase.id);
               const updatedKnowledgeBase: KnowledgeBaseCreate = {
                 title: knowledgeBase.title,
                 description: knowledgeBase.description || '',
@@ -172,10 +183,19 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
               };
 
               // Make the PUT request to update the knowledge base
-              await updateKnowledgeBase(knowledgeBase.id, updatedKnowledgeBase, headers);
-              
-              // Call onSave to trigger any parent component updates
-              onSave();
+              try {
+                await updateKnowledgeBase(knowledgeBase.id, updatedKnowledgeBase, headers);
+                console.log('Successfully updated knowledge base with new assets');
+                onSave();
+              } catch (error) {
+                console.error('Failed to update knowledge base with new assets:', error);
+                toast({
+                  title: "Error",
+                  description: "Failed to associate assets with knowledge base",
+                  variant: "destructive",
+                });
+                return;
+              }
             }
           }
 

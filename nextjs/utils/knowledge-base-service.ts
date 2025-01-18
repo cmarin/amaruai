@@ -49,7 +49,12 @@ export async function createKnowledgeBase(knowledgeBase: KnowledgeBaseCreate, he
 }
 
 export const updateKnowledgeBase = async (id: string, data: KnowledgeBaseCreate, headers: HeadersInit) => {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/knowledge_bases/${id}`, {
+  const baseUrl = getApiUrl();
+  if (!baseUrl) {
+    throw new Error('API_BASE_URL is not defined');
+  }
+
+  const response = await fetch(`${baseUrl}/knowledge_bases/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -59,7 +64,9 @@ export const updateKnowledgeBase = async (id: string, data: KnowledgeBaseCreate,
   });
 
   if (!response.ok) {
-    throw new Error('Failed to update knowledge base');
+    const errorText = await response.text();
+    console.error('Error response:', response.status, errorText);
+    throw new Error(`Failed to update knowledge base: ${response.status} ${response.statusText}`);
   }
 
   return response.json();
