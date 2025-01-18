@@ -20,7 +20,6 @@ import { Dashboard } from '@uppy/react';
 import '@uppy/core/dist/style.css';
 import '@uppy/dashboard/dist/style.css';
 import { v4 as uuidv4 } from 'uuid';
-import { getApiUrl } from '@/utils/api-utils';
 
 type KnowledgeBaseManagerProps = {
   knowledgeBase: KnowledgeBase | null
@@ -84,17 +83,38 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   }, [selectedAssets]);
 
   useEffect(() => {
-    if (!uppyRef.current) {
+    if (!uppyRef.current && supabase) {
       const uppy = new Uppy({
+        id: 'knowledge-base-uploader',
+        autoProceed: false,
         restrictions: {
+          maxFileSize: 50 * 1024 * 1024, // 50MB
           maxNumberOfFiles: 10,
-          allowedFileTypes: null
-        },
-        autoProceed: true
+          allowedFileTypes: [
+            'image/*',                    // All image types
+            'application/pdf',            // PDF files
+            '.doc', '.docx',             // Word documents
+            '.ppt', '.pptx',             // PowerPoint presentations
+            '.txt',                       // Text files
+            '.md', '.markdown',           // Markdown files
+            'text/plain',                 // Plain text
+            'text/markdown',              // Markdown MIME type
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation', // PPTX
+            'application/vnd.ms-powerpoint', // PPT
+            'audio/wav',                  // WAV audio
+            'audio/mpeg',                 // MP3 audio
+            'audio/flac',                 // FLAC audio
+            'video/mp4',                  // MP4 video
+            'video/quicktime',            // MOV video
+            '.wav', '.mp3', '.flac',     // Audio extensions
+            '.mp4', '.mov'               // Video extensions
+          ]
+        }
       });
 
       uppy.on('file-added', async (file) => {
         try {
+          // Upload file to Supabase storage
           const { data: { session } } = await supabase.auth.getSession();
           if (!session?.user?.id) {
             throw new Error('User must be authenticated to upload files');
@@ -110,6 +130,11 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
           if (uploadError) {
             throw uploadError;
           }
+
+          toast({
+            title: "File uploaded",
+            description: `${file.name} has been uploaded successfully.`,
+          });
         } catch (error) {
           console.error('Error uploading file:', error);
           toast({
@@ -122,85 +147,27 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
 
       uppy.on('complete', async (result) => {
         try {
-          const successfulFiles = result.successful || [];
-          if (successfulFiles.length === 0) {
-            console.error('No files were uploaded successfully');
-            return;
-          }
-
           const headers = getApiHeaders();
-          if (!headers) {
-            console.error('No valid headers available');
-            return;
-          }
+          if (!headers) return;
 
-          // First, close the modal
-          setShowUploadModal(false);
-
-          // Wait a bit for the files to be processed on the server
-          await new Promise(resolve => setTimeout(resolve, 1000));
-
-          // Then fetch the latest assets
-          console.log('Fetching latest assets...');
+          // Refresh the available assets list
           const assets = await fetchAssets(headers);
-          console.log('Fetched assets:', assets);
+          setAvailableAssets(assets.filter(asset => asset.managed));
 
-          const newAssets = assets.filter(asset => 
-            successfulFiles.some(file => asset.title === file.name)
-          );
-          
-          if (newAssets.length === 0) {
-            console.error('Could not find uploaded assets in the assets list');
-            toast({
-              title: "Error",
-              description: "Failed to find uploaded assets",
-              variant: "destructive",
-            });
-            return;
+          // Add uploaded files to selected assets
+          const successfulFiles = result.successful || [];
+          if (successfulFiles.length > 0) {
+            const newAssets = assets.filter(asset => 
+              successfulFiles.some(file => asset.title === file.name)
+            );
+            setSelectedAssets(prev => [...prev, ...newAssets]);
           }
 
-          console.log('Found new assets:', newAssets);
-
-          // Update selected assets
-          const updatedSelectedAssets = [...selectedAssets, ...newAssets];
-          setSelectedAssets(updatedSelectedAssets);
-
-          // Update the knowledge base immediately if we have one
-          if (knowledgeBase?.id) {
-            console.log('Updating knowledge base with new assets:', knowledgeBase.id);
-            const updatedKnowledgeBase: KnowledgeBaseCreate = {
-              title: knowledgeBase.title,
-              description: knowledgeBase.description || '',
-              asset_ids: updatedSelectedAssets.map(asset => asset.id)
-            };
-
-            try {
-              console.log('Making PUT request to update knowledge base...');
-              await updateKnowledgeBase(knowledgeBase.id, updatedKnowledgeBase, {
-                ...headers,
-                'Content-Type': 'application/json'
-              });
-              console.log('Successfully updated knowledge base with new assets');
-              onSave();
-
-              toast({
-                title: "Success",
-                description: `${successfulFiles.length} file(s) uploaded and associated with knowledge base`,
-              });
-            } catch (error) {
-              console.error('Failed to update knowledge base:', error);
-              toast({
-                title: "Error",
-                description: "Failed to associate assets with knowledge base",
-                variant: "destructive",
-              });
-            }
-          } else {
-            toast({
-              title: "Success",
-              description: `${successfulFiles.length} file(s) uploaded successfully`,
-            });
-          }
+          setShowUploadModal(false);
+          toast({
+            title: "Success",
+            description: `${successfulFiles.length} file(s) uploaded successfully`,
+          });
         } catch (error) {
           console.error('Error processing uploaded files:', error);
           toast({
@@ -214,18 +181,22 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       uppyRef.current = uppy;
     }
 
+    // Cleanup function
     return () => {
       if (uppyRef.current) {
         const uppy = uppyRef.current;
+        // Remove all files
         const files = uppy.getFiles();
         files.forEach(file => uppy.removeFile(file.id));
+        // Remove event listeners
         uppy.off('file-added', () => {});
         uppy.off('complete', () => {});
+        // Clean up the instance
         uppy.cancelAll();
         uppyRef.current = null;
       }
     };
-  }, [supabase, toast, getApiHeaders, knowledgeBase, onSave, selectedAssets]);
+  }, [supabase, toast, getApiHeaders]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -382,14 +353,18 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
 
       {/* Upload Modal */}
       <Dialog open={showUploadModal} onOpenChange={(open) => {
-        if (!open) {
-          if (uppyRef.current) {
-            const uppy = uppyRef.current;
-            const files = uppy.getFiles();
-            files.forEach(file => uppy.removeFile(file.id));
-          }
-        }
         setShowUploadModal(open);
+        if (!open && uppyRef.current) {
+          const uppy = uppyRef.current;
+          // Remove all files
+          const files = uppy.getFiles();
+          files.forEach(file => uppy.removeFile(file.id));
+          // Remove event listeners
+          uppy.off('file-added', () => {});
+          uppy.off('complete', () => {});
+          // Clean up the instance
+          uppy.cancelAll();
+        }
       }}>
         <DialogContent className="max-w-4xl bg-white">
           <DialogHeader className="bg-white">
