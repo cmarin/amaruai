@@ -12,7 +12,7 @@ import { Asset } from '@/types/knowledge-base';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, X, ExternalLink, Settings, BookOpen, Trash2 } from 'lucide-react';
+import { Plus, X, ExternalLink, Settings, BookOpen, Trash2, Check, Copy } from 'lucide-react';
 import { Dashboard } from '@uppy/react';
 import {
   Table,
@@ -46,6 +46,7 @@ export default function AssetsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const assetsPerPage = 10;
   const router = useRouter();
+  const [copiedAssetId, setCopiedAssetId] = useState<string | null>(null);
 
   const loadAssets = useCallback(async () => {
     try {
@@ -219,6 +220,26 @@ export default function AssetsPage() {
     };
   }, [supabase, getApiHeaders, loadAssets, toast]);
 
+  const handleCopyTranscript = async (content: string, assetId: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedAssetId(assetId);
+      toast({
+        title: "Success",
+        description: "Transcript copied to clipboard",
+      });
+      // Reset copied state after 2 seconds
+      setTimeout(() => setCopiedAssetId(null), 2000);
+    } catch (error) {
+      console.error('Error copying transcript:', error);
+      toast({
+        title: "Error",
+        description: "Failed to copy transcript",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-white">
@@ -307,10 +328,7 @@ export default function AssetsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{asset.title || asset.file_name}</span>
-                          <span className="text-sm text-gray-500">{asset.file_name}</span>
-                        </div>
+                        <span className="font-medium">{asset.title || asset.file_name}</span>
                       </TableCell>
                       <TableCell>{asset.mime_type}</TableCell>
                       <TableCell>{formatFileSize(asset.size)}</TableCell>
@@ -326,11 +344,18 @@ export default function AssetsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm" asChild>
-                            <a href={asset.file_url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-4 w-4 mr-1" />
-                              View
-                            </a>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleCopyTranscript(asset.content, asset.id)}
+                            className="text-gray-600 hover:text-gray-700"
+                          >
+                            {copiedAssetId === asset.id ? (
+                              <Check className="h-4 w-4 mr-1" />
+                            ) : (
+                              <Copy className="h-4 w-4 mr-1" />
+                            )}
+                            Transcript
                           </Button>
                           {!asset.managed && (
                             <Button 
