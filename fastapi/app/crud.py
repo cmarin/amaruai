@@ -594,3 +594,33 @@ def get_assets(db: Session, skip: int = 0, limit: int = 10, managed: bool = True
     
     # Apply pagination
     return query.offset(skip).limit(limit).all()
+
+
+def delete_asset(db: Session, asset_id: UUID):
+    """
+    Delete an asset from the database.
+    
+    Args:
+        db (Session): The database session
+        asset_id (UUID): The ID of the asset to delete
+        
+    Returns:
+        models.Asset: The deleted asset or None if not found
+    """
+    try:
+        asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+        if asset:
+            # Remove any knowledge base associations first
+            asset.knowledge_bases = []
+            db.delete(asset)
+            db.commit()
+            logger.info(f"Successfully deleted asset {asset_id}")
+            return asset
+        else:
+            logger.warning(f"No asset found with ID: {asset_id}")
+            return None
+    except Exception as e:
+        logger.error(f"Error deleting asset: {str(e)}", exc_info=True)
+        db.rollback()
+        raise
+

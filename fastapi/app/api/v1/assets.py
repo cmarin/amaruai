@@ -238,3 +238,40 @@ async def get_assets(
     except Exception as e:
         logger.error(f"Error getting assets: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{asset_id}", response_model=schemas.Asset)
+async def delete_asset(
+    asset_id: UUID,
+    db: Session = Depends(get_db)
+):
+    """
+    Delete an asset by its ID.
+    Returns the deleted asset details if successful.
+    """
+    try:
+        # First verify the asset exists
+        asset = crud.get_asset(db, asset_id=asset_id)
+        if not asset:
+            raise HTTPException(status_code=404, detail="Asset not found")
+            
+        # Try to delete the asset from Supabase storage first
+        try:
+            supabase_client.storage.from_(os.getenv("SUPABASE_BUCKET")).remove([asset.file_url])
+            logger.info(f"Successfully deleted file from storage: {asset.file_url}")
+        except Exception as e:
+            logger.warning(f"Could not delete file from storage: {str(e)}")
+            # Continue with database deletion even if storage deletion fails
+            
+        # Delete from database
+        deleted_asset = crud.delete_asset(db, asset_id=asset_id)
+        if not deleted_asset:
+            raise HTTPException(status_code=404, detail="Asset not found")
+            
+        return deleted_asset
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting asset: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
