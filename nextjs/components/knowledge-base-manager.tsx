@@ -156,7 +156,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
         }
       });
 
-      uppy.on('complete', async (result: UploadResult<Record<string, unknown>>) => {
+      uppy.on('complete', async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
         try {
           const headers = getApiHeaders();
           if (!headers) return;
@@ -166,9 +166,10 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
           setAvailableAssets(assets.filter(asset => asset.managed));
 
           // Add uploaded files to selected assets
-          if (result.successful && result.successful.length > 0) {
+          const successfulFiles = result.successful || [];
+          if (successfulFiles.length > 0) {
             const newAssets = assets.filter(asset => 
-              result.successful.some(file => asset.title === file.name)
+              successfulFiles.some(file => asset.title === file.name)
             );
             setSelectedAssets(prev => [...prev, ...newAssets]);
           }
@@ -176,7 +177,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
           setShowUploadModal(false);
           toast({
             title: "Success",
-            description: "Files uploaded successfully",
+            description: `${successfulFiles.length} file(s) uploaded successfully`,
           });
         } catch (error) {
           console.error('Error processing uploaded files:', error);
