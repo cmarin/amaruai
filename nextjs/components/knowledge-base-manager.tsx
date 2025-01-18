@@ -112,10 +112,10 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   };
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col h-screen">
-      <div className="h-full w-full overflow-y-auto p-6">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex justify-between items-center mb-4">
+    <div className="fixed inset-0 bg-background z-50 flex flex-col h-screen">
+      <div className="flex-1 overflow-y-auto">
+        <div className="container max-w-4xl mx-auto py-6">
+          <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">
               {knowledgeBase?.id ? 'Edit Knowledge Base' : 'Create Knowledge Base'}
             </h2>
@@ -124,47 +124,59 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             </Button>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                name="title"
-                value={currentKnowledgeBase.title}
-                onChange={handleInputChange}
-                placeholder="Enter knowledge base title"
-              />
-            </div>
+          <div className="space-y-6">
+            {/* Title and Description Panel */}
+            <div className="rounded-lg border bg-card text-card-foreground shadow">
+              <div className="p-6 space-y-4">
+                <div>
+                  <Label htmlFor="title" className="text-base">Title</Label>
+                  <Input
+                    id="title"
+                    name="title"
+                    value={currentKnowledgeBase.title}
+                    onChange={handleInputChange}
+                    placeholder="Enter knowledge base title"
+                    className="mt-1.5"
+                  />
+                </div>
 
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                name="description"
-                value={currentKnowledgeBase.description}
-                onChange={handleInputChange}
-                placeholder="Enter knowledge base description"
-                className="min-h-[100px]"
-              />
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Assets</h3>
-                <Button onClick={() => setShowAssetSelector(true)}>
-                  Select Assets
-                </Button>
+                <div>
+                  <Label htmlFor="description" className="text-base">Description</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    value={currentKnowledgeBase.description}
+                    onChange={handleInputChange}
+                    placeholder="Enter knowledge base description"
+                    className="mt-1.5 min-h-[100px]"
+                  />
+                </div>
               </div>
-              <AssetsTable 
-                assets={selectedAssets}
-                onDeleteAsset={handleRemoveAsset}
-                showActions={true}
-              />
             </div>
 
-            <div className="flex justify-end space-x-2 mt-6">
+            {/* Assets Panel */}
+            <div className="rounded-lg border bg-card text-card-foreground shadow">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Assets</h3>
+                  <Button onClick={() => setShowAssetSelector(true)}>
+                    Select Assets
+                  </Button>
+                </div>
+                <div className="overflow-hidden rounded-md border">
+                  <AssetsTable 
+                    assets={selectedAssets}
+                    onDeleteAsset={handleRemoveAsset}
+                    showActions={true}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-2 sticky bottom-0 py-4 bg-background border-t">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button onClick={handleSave} className="bg-primary hover:bg-primary/90 text-primary-foreground">
                 Save Changes
               </Button>
             </div>
@@ -173,18 +185,20 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       </div>
 
       <Dialog open={showAssetSelector} onOpenChange={setShowAssetSelector}>
-        <DialogContent className="max-w-4xl bg-white">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Select Assets</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <AssetsTable 
-              assets={availableAssets.filter(asset => 
-                !selectedAssets.some(selected => selected.id === asset.id)
-              )}
-              showActions={true}
-              onManageAsset={handleAddAsset}
-            />
+            <div className="overflow-hidden rounded-md border">
+              <AssetsTable 
+                assets={availableAssets.filter(asset => 
+                  !selectedAssets.some(selected => selected.id === asset.id)
+                )}
+                showActions={true}
+                onManageAsset={handleAddAsset}
+              />
+            </div>
           </div>
           <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setShowAssetSelector(false)}>

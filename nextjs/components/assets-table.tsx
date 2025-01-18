@@ -41,87 +41,93 @@ export function AssetsTable({
   };
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-[40px]"></TableHead>
-          <TableHead>Title</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Size</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Created</TableHead>
-          {showActions && <TableHead>Actions</TableHead>}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {assets.map((asset) => (
-          <TableRow key={asset.id}>
-            <TableCell className="w-[40px]">
-              <div className="w-8">
-                <FileIcon 
-                  extension={asset.file_type.toLowerCase()}
-                  {...defaultStyles[asset.file_type.toLowerCase()]}
-                />
-              </div>
-            </TableCell>
-            <TableCell>
-              <span className="font-medium">{asset.title || asset.file_name}</span>
-            </TableCell>
-            <TableCell>{asset.mime_type}</TableCell>
-            <TableCell>{formatFileSize(asset.size)}</TableCell>
-            <TableCell>
-              <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                asset.managed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-              }`}>
-                {asset.status || (asset.managed ? 'Managed' : 'Unmanaged')}
-              </div>
-            </TableCell>
-            <TableCell>
-              {new Date(asset.created_at).toLocaleDateString()}
-            </TableCell>
+    <div className="w-full overflow-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[40px]"></TableHead>
+            <TableHead className="min-w-[200px]">Title</TableHead>
+            <TableHead className="w-[120px]">Type</TableHead>
+            <TableHead className="w-[100px]">Size</TableHead>
+            <TableHead className="w-[100px]">Status</TableHead>
+            <TableHead className="w-[120px]">Created</TableHead>
             {showActions && (
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => handleCopyTranscript(asset.content, asset.id)}
-                    className="text-gray-600 hover:text-gray-700"
-                  >
-                    {copiedAssetId === asset.id ? (
-                      <Check className="h-4 w-4 mr-1" />
-                    ) : (
-                      <Copy className="h-4 w-4 mr-1" />
-                    )}
-                    Transcript
-                  </Button>
-                  {onManageAsset && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => onManageAsset(asset)}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add
-                    </Button>
-                  )}
-                  {onDeleteAsset && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => onDeleteAsset(asset.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Delete
-                    </Button>
-                  )}
-                </div>
-              </TableCell>
+              <TableHead className="w-[120px] text-right">Actions</TableHead>
             )}
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {assets.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={showActions ? 7 : 6} className="h-24 text-center">
+                No assets found.
+              </TableCell>
+            </TableRow>
+          ) : (
+            assets.map((asset) => (
+              <TableRow key={asset.id}>
+                <TableCell className="w-[40px]">
+                  <div className="w-8 h-8">
+                    <FileIcon 
+                      extension={asset.file_type.split('/')[1]} 
+                      {...defaultStyles[asset.file_type.split('/')[1]]} 
+                    />
+                  </div>
+                </TableCell>
+                <TableCell className="font-medium truncate max-w-[200px]">
+                  {asset.title || asset.file_name}
+                </TableCell>
+                <TableCell>{asset.mime_type}</TableCell>
+                <TableCell>{formatFileSize(asset.size)}</TableCell>
+                <TableCell>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                    ${asset.managed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                    {asset.status || (asset.managed ? 'Managed' : 'Unmanaged')}
+                  </span>
+                </TableCell>
+                <TableCell>{new Date(asset.created_at).toLocaleDateString()}</TableCell>
+                {showActions && (
+                  <TableCell className="text-right space-x-2">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => handleCopyTranscript(asset.content, asset.id)}
+                      className="h-8 w-8 text-gray-600 hover:text-gray-700"
+                    >
+                      {copiedAssetId === asset.id ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                    {onManageAsset && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => onManageAsset(asset)}
+                        className="h-8 w-8"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {onDeleteAsset && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => onDeleteAsset(asset.id)}
+                        className="h-8 w-8 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </TableCell>
+                )}
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
   );
 } 
