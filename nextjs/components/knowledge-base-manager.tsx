@@ -15,12 +15,11 @@ import { fetchAssets } from '@/utils/asset-service';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { UploadService, type UploadedFile } from '@/utils/upload-service';
 import { useToast } from "@/hooks/use-toast";
-import Uppy, { UppyFile, UploadResult } from '@uppy/core';
+import Uppy from '@uppy/core';
 import { Dashboard } from '@uppy/react';
-import DashboardPlugin from '@uppy/dashboard';
-import { v4 as uuidv4 } from 'uuid';
 import '@uppy/core/dist/style.css';
 import '@uppy/dashboard/dist/style.css';
+import { v4 as uuidv4 } from 'uuid';
 
 type KnowledgeBaseManagerProps = {
   knowledgeBase: KnowledgeBase | null
@@ -42,7 +41,6 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   const supabase = useSupabase();
   const { toast } = useToast();
   const uppyRef = useRef<Uppy | null>(null);
-  const dashboardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (knowledgeBase) {
@@ -85,7 +83,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   }, [selectedAssets]);
 
   useEffect(() => {
-    if (showUploadModal && !uppyRef.current && supabase && dashboardRef.current) {
+    if (!uppyRef.current && supabase) {
       const uppy = new Uppy({
         id: 'knowledge-base-uploader',
         autoProceed: false,
@@ -112,15 +110,6 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             '.mp4', '.mov'               // Video extensions
           ]
         }
-      });
-
-      // Add the Dashboard plugin
-      uppy.use(DashboardPlugin, {
-        inline: true,
-        target: dashboardRef.current,
-        showProgressDetails: true,
-        height: 350,
-        width: '100%'
       });
 
       uppy.on('file-added', async (file) => {
@@ -156,7 +145,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
         }
       });
 
-      uppy.on('complete', async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+      uppy.on('complete', async (result) => {
         try {
           const headers = getApiHeaders();
           if (!headers) return;
@@ -207,7 +196,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
         uppyRef.current = null;
       }
     };
-  }, [showUploadModal, supabase, toast, getApiHeaders]);
+  }, [supabase, toast, getApiHeaders]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -375,7 +364,6 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
           uppy.off('complete', () => {});
           // Clean up the instance
           uppy.cancelAll();
-          uppyRef.current = null;
         }
       }}>
         <DialogContent className="max-w-4xl bg-white">
@@ -383,7 +371,16 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             <DialogTitle className="text-gray-900">Upload Assets</DialogTitle>
           </DialogHeader>
           <div className="py-4 bg-white min-h-[400px]">
-            <div ref={dashboardRef} className="uppy-dashboard-container" />
+            {uppyRef.current && (
+              <Dashboard
+                uppy={uppyRef.current}
+                showProgressDetails
+                hideUploadButton={false}
+                height={350}
+                width="100%"
+                proudlyDisplayPoweredByUppy={false}
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>
