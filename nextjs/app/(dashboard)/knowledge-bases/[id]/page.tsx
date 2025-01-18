@@ -21,39 +21,36 @@ export default function EditKnowledgeBasePage({ params }: { params: { id: string
       const headers = getApiHeaders();
       if (!headers) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/knowledge_bases/${params.id}`, {
+      // First, fetch the knowledge base
+      const kbResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/knowledge_bases/${params.id}`, {
         headers
       });
 
-      if (!response.ok) {
+      if (!kbResponse.ok) {
         throw new Error('Failed to fetch knowledge base');
       }
 
-      const data = await response.json();
-      console.log('API Response:', {
-        fullData: data,
-        hasAssets: 'assets' in data,
-        assetsType: data.assets ? typeof data.assets : 'no assets',
-        assetsLength: data.assets ? data.assets.length : 0
+      const kbData = await kbResponse.json();
+      console.log('Knowledge Base API Response:', kbData);
+
+      // Then fetch the associated assets
+      const assetsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/knowledge_bases/${params.id}/assets`, {
+        headers
       });
 
-      // If assets are nested differently, adjust the path
-      const assets = Array.isArray(data.assets) ? data.assets : 
-                    Array.isArray(data.knowledge_base_assets) ? data.knowledge_base_assets :
-                    [];
+      if (!assetsResponse.ok) {
+        throw new Error('Failed to fetch knowledge base assets');
+      }
+
+      const assetsData = await assetsResponse.json();
+      console.log('Assets API Response:', assetsData);
 
       const knowledgeBaseWithAssets = {
-        ...data,
-        assets: assets
+        ...kbData,
+        assets: assetsData || []
       };
-      
-      console.log('Processed knowledge base:', {
-        id: knowledgeBaseWithAssets.id,
-        title: knowledgeBaseWithAssets.title,
-        assetsCount: knowledgeBaseWithAssets.assets.length,
-        firstAsset: knowledgeBaseWithAssets.assets[0]
-      });
 
+      console.log('Final Knowledge Base with Assets:', knowledgeBaseWithAssets);
       setKnowledgeBase(knowledgeBaseWithAssets);
     } catch (err) {
       console.error('Error loading knowledge base:', err);
