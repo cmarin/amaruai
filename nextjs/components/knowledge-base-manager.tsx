@@ -112,8 +112,11 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   };
 
   return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col h-screen">
-      <div className="flex-1 overflow-y-auto">
+    <div className="fixed top-0 right-0 bottom-0 z-50 flex flex-col h-screen" style={{ 
+      left: 'var(--sidebar-width)',
+      transition: 'left 0.3s ease-in-out'
+    }}>
+      <div className="flex-1 overflow-y-auto bg-background">
         <div className="container max-w-4xl mx-auto py-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">
@@ -185,12 +188,12 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       </div>
 
       <Dialog open={showAssetSelector} onOpenChange={setShowAssetSelector}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl bg-background">
           <DialogHeader>
             <DialogTitle>Select Assets</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <div className="overflow-hidden rounded-md border">
+            <div className="overflow-hidden rounded-md border bg-white">
               <AssetsTable 
                 assets={availableAssets.filter(asset => 
                   !selectedAssets.some(selected => selected.id === asset.id)

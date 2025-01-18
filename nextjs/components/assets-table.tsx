@@ -41,10 +41,10 @@ export function AssetsTable({
   };
 
   return (
-    <div className="w-full overflow-auto">
+    <div className="w-full overflow-auto bg-white">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-gray-50 hover:bg-gray-50">
             <TableHead className="w-[40px]"></TableHead>
             <TableHead className="min-w-[200px]">Title</TableHead>
             <TableHead className="w-[120px]">Type</TableHead>
@@ -58,14 +58,14 @@ export function AssetsTable({
         </TableHeader>
         <TableBody>
           {assets.length === 0 ? (
-            <TableRow>
+            <TableRow className="hover:bg-gray-50">
               <TableCell colSpan={showActions ? 7 : 6} className="h-24 text-center">
                 No assets found.
               </TableCell>
             </TableRow>
           ) : (
             assets.map((asset) => (
-              <TableRow key={asset.id}>
+              <TableRow key={asset.id} className="hover:bg-gray-50">
                 <TableCell className="w-[40px]">
                   <div className="w-8 h-8">
                     <FileIcon 
