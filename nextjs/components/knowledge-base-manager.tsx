@@ -41,7 +41,8 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>(knowledgeBase?.assets || []);
   const supabase = useSupabase();
   const { toast } = useToast();
-  const uppyRef = useRef<any>(null);
+  const uppyRef = useRef<Uppy | null>(null);
+  const dashboardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (knowledgeBase) {
@@ -84,8 +85,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   }, [selectedAssets]);
 
   useEffect(() => {
-    // Only initialize Uppy when the modal is shown
-    if (showUploadModal && !uppyRef.current && supabase) {
+    if (showUploadModal && !uppyRef.current && supabase && dashboardRef.current) {
       const uppy = new Uppy({
         id: 'knowledge-base-uploader',
         autoProceed: false,
@@ -117,7 +117,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       // Add the Dashboard plugin
       uppy.use(DashboardPlugin, {
         inline: true,
-        target: '.uppy-dashboard-container',
+        target: dashboardRef.current,
         showProgressDetails: true,
         height: 350,
         width: '100%'
@@ -192,13 +192,22 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       uppyRef.current = uppy;
     }
 
+    // Cleanup function
     return () => {
       if (uppyRef.current) {
-        uppyRef.current.close();
+        const uppy = uppyRef.current;
+        // Remove all files
+        const files = uppy.getFiles();
+        files.forEach(file => uppy.removeFile(file.id));
+        // Remove event listeners
+        uppy.off('file-added', () => {});
+        uppy.off('complete', () => {});
+        // Clean up the instance
+        uppy.cancelAll();
         uppyRef.current = null;
       }
     };
-  }, [showUploadModal, supabase, getApiHeaders, toast]);
+  }, [showUploadModal, supabase, toast, getApiHeaders]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -357,7 +366,15 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       <Dialog open={showUploadModal} onOpenChange={(open) => {
         setShowUploadModal(open);
         if (!open && uppyRef.current) {
-          uppyRef.current.close();
+          const uppy = uppyRef.current;
+          // Remove all files
+          const files = uppy.getFiles();
+          files.forEach(file => uppy.removeFile(file.id));
+          // Remove event listeners
+          uppy.off('file-added', () => {});
+          uppy.off('complete', () => {});
+          // Clean up the instance
+          uppy.cancelAll();
           uppyRef.current = null;
         }
       }}>
@@ -366,7 +383,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             <DialogTitle className="text-gray-900">Upload Assets</DialogTitle>
           </DialogHeader>
           <div className="py-4 bg-white min-h-[400px]">
-            <div className="uppy-dashboard-container" />
+            <div ref={dashboardRef} className="uppy-dashboard-container" />
           </div>
         </DialogContent>
       </Dialog>
