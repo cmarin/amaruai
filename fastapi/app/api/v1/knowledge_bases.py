@@ -36,4 +36,48 @@ def delete_knowledge_base(knowledge_base_id: UUID, db: Session = Depends(get_db)
     db_knowledge_base = crud.delete_knowledge_base(db, knowledge_base_id=knowledge_base_id)
     if db_knowledge_base is None:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
+    return db_knowledge_base
+
+@router.post("/{knowledge_base_id}/assets", response_model=schemas.KnowledgeBase)
+def add_assets_to_knowledge_base(
+    knowledge_base_id: UUID,
+    asset_ids: schemas.AssetIds,
+    db: Session = Depends(get_db)
+):
+    """
+    Add one or more assets to a knowledge base.
+    
+    Parameters:
+    - knowledge_base_id: UUID of the knowledge base
+    - asset_ids: List of asset UUIDs to add
+    """
+    db_knowledge_base = crud.add_assets_to_knowledge_base(
+        db=db,
+        knowledge_base_id=knowledge_base_id,
+        asset_ids=asset_ids.asset_ids
+    )
+    if db_knowledge_base is None:
+        raise HTTPException(status_code=404, detail="Knowledge base not found")
+    return db_knowledge_base
+
+@router.delete("/{knowledge_base_id}/assets", response_model=schemas.KnowledgeBase)
+def remove_assets_from_knowledge_base(
+    knowledge_base_id: UUID,
+    asset_ids: schemas.AssetIds,
+    db: Session = Depends(get_db)
+):
+    """
+    Remove one or more assets from a knowledge base.
+    
+    Parameters:
+    - knowledge_base_id: UUID of the knowledge base
+    - asset_ids: List of asset UUIDs to remove
+    """
+    db_knowledge_base = crud.remove_assets_from_knowledge_base(
+        db=db,
+        knowledge_base_id=knowledge_base_id,
+        asset_ids=asset_ids.asset_ids
+    )
+    if db_knowledge_base is None:
+        raise HTTPException(status_code=404, detail="Knowledge base not found")
     return db_knowledge_base 

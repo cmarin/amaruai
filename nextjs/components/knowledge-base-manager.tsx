@@ -162,17 +162,24 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       </div>
 
       <Dialog open={showAssetSelector} onOpenChange={setShowAssetSelector}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl bg-white">
           <DialogHeader>
             <DialogTitle>Select Assets</DialogTitle>
           </DialogHeader>
-          <AssetsTable 
-            assets={availableAssets.filter(asset => 
-              !selectedAssets.some(selected => selected.id === asset.id)
-            )}
-            showActions={false}
-            onManageAsset={handleAddAsset}
-          />
+          <div className="py-4">
+            <AssetsTable 
+              assets={availableAssets.filter(asset => 
+                !selectedAssets.some(selected => selected.id === asset.id)
+              )}
+              showActions={true}
+              onManageAsset={handleAddAsset}
+            />
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowAssetSelector(false)}>
+              Cancel
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

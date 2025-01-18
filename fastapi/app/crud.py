@@ -4,6 +4,7 @@ from sqlalchemy import desc, Enum as SQLAlchemyEnum, asc, func  # Add func to th
 from fastapi import HTTPException
 import logging
 from uuid import UUID, uuid4
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -621,6 +622,78 @@ def delete_asset(db: Session, asset_id: UUID):
             return None
     except Exception as e:
         logger.error(f"Error deleting asset: {str(e)}", exc_info=True)
+        db.rollback()
+        raise
+
+def add_assets_to_knowledge_base(db: Session, knowledge_base_id: UUID, asset_ids: List[UUID]):
+    """
+    Add one or more assets to a knowledge base.
+    
+    Args:
+        db (Session): The database session
+        knowledge_base_id (UUID): The ID of the knowledge base
+        asset_ids (List[UUID]): List of asset IDs to add
+        
+    Returns:
+        models.KnowledgeBase: The updated knowledge base or None if not found
+    """
+    try:
+        db_knowledge_base = db.query(models.KnowledgeBase).filter(
+            models.KnowledgeBase.id == knowledge_base_id
+        ).first()
+        
+        if db_knowledge_base:
+            # Get the assets to add
+            for asset_id in asset_ids:
+                asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+                if asset and asset not in db_knowledge_base.assets:
+                    db_knowledge_base.assets.append(asset)
+            
+            db_knowledge_base.updated_at = func.now()
+            db.commit()
+            db.refresh(db_knowledge_base)
+            logger.info(f"Successfully added assets to knowledge base {knowledge_base_id}")
+            
+        return db_knowledge_base
+        
+    except Exception as e:
+        logger.error(f"Error adding assets to knowledge base: {str(e)}", exc_info=True)
+        db.rollback()
+        raise
+
+def remove_assets_from_knowledge_base(db: Session, knowledge_base_id: UUID, asset_ids: List[UUID]):
+    """
+    Remove one or more assets from a knowledge base.
+    
+    Args:
+        db (Session): The database session
+        knowledge_base_id (UUID): The ID of the knowledge base
+        asset_ids (List[UUID]): List of asset IDs to remove
+        
+    Returns:
+        models.KnowledgeBase: The updated knowledge base or None if not found
+    """
+    try:
+        db_knowledge_base = db.query(models.KnowledgeBase).filter(
+            models.KnowledgeBase.id == knowledge_base_id
+        ).first()
+        
+        if db_knowledge_base:
+            # Remove the specified assets
+            db_knowledge_base.assets = [
+                asset for asset in db_knowledge_base.assets 
+                if asset.id not in asset_ids
+            ]
+            
+            db_knowledge_base.updated_at = func.now()
+            db.commit()
+            db.refresh(db_knowledge_base)
+            logger.info(f"Successfully removed assets from knowledge base {knowledge_base_id}")
+            
+        return db_knowledge_base
+        
+    except Exception as e:
+        logger.error(f"Error removing assets from knowledge base: {str(e)}", exc_info=True)
         db.rollback()
         raise
 

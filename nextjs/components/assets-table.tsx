@@ -95,7 +95,7 @@ export function AssetsTable({
                     )}
                     Transcript
                   </Button>
-                  {onManageAsset && !asset.managed && (
+                  {onManageAsset && (
                     <Button 
                       variant="outline" 
                       size="sm"

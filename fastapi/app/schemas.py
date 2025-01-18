@@ -256,4 +256,7 @@ class KnowledgeBase(KnowledgeBaseBase):
     class Config:
         from_attributes = True
 
+class AssetIds(BaseModel):
+    asset_ids: List[UUID]
+
 Workflow.update_forward_refs()
