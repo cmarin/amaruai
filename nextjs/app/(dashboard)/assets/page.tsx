@@ -1,18 +1,19 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import Link from 'next/link'
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { AppSidebar } from '@/components/app-sidebar'
-import { useSidebar } from '@/components/sidebar-context'
-import { useSession } from '@/app/utils/session/session'
-import { Asset } from '@/types/knowledge-base'
-import { UploadedFile, UploadService } from '@/utils/upload-service'
-import { useSupabase } from '@/app/contexts/SupabaseContext'
-import { Dashboard } from '@uppy/react'
-import type { UppyFile } from '@uppy/core'
-import { X, Plus, ExternalLink, Settings } from 'lucide-react'
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { AppSidebar } from '@/components/app-sidebar';
+import { useSidebar } from '@/components/sidebar-context';
+import { useSession } from '@/app/utils/session/session';
+import { useSupabase } from '@/app/contexts/SupabaseContext';
+import { UploadService, type UploadedFile } from '@/utils/upload-service';
+import { fetchAssets } from '@/utils/asset-service';
+import { Asset } from '@/types/knowledge-base';
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Plus, X, ExternalLink, Settings } from 'lucide-react';
+import { Dashboard } from '@uppy/react';
 import {
   Table,
   TableBody,
@@ -20,32 +21,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
+import { FileIcon, defaultStyles } from 'react-file-icon';
+import { formatFileSize } from '@/lib/utils';
 import {
   Pagination,
   PaginationContent,
   PaginationItem,
   PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination"
-import { fetchAssets } from '@/utils/asset-service'
-import { useToast } from "@/hooks/use-toast"
-import { formatFileSize } from '@/lib/utils'
-import type { FileIconProps } from 'react-file-icon';
-import { FileIcon, defaultStyles } from 'react-file-icon'
-
-interface UppyResponse {
-  body?: Record<string, unknown>;
-  status: number;
-  bytesUploaded?: number;
-  uploadURL?: string;
-  id: string;
-}
-
-interface UploadedUppyFile extends UppyFile<Record<string, unknown>, Record<string, unknown>> {
-  response?: UppyResponse;
-}
+} from "@/components/ui/pagination";
 
 export default function AssetsPage() {
   const { sidebarOpen } = useSidebar();
@@ -70,7 +54,9 @@ export default function AssetsPage() {
         console.error('No valid headers available');
         return;
       }
+      console.log('Fetching assets...');
       const fetchedAssets = await fetchAssets(headers);
+      console.log('Fetched assets:', fetchedAssets);
       setAssets(fetchedAssets || []);
     } catch (error) {
       console.error('Error fetching assets:', error);
@@ -88,131 +74,60 @@ export default function AssetsPage() {
   // Initial load of assets
   useEffect(() => {
     loadAssets();
-  }, []); // Empty dependency array since loadAssets is stable due to useCallback
-
-  useEffect(() => {
-    uppyRef.current = UploadService.createUppy(
-      'asset-uploader',
-      {
-        maxFiles: 10,
-        storageFolder: 'assets',
-      },
-      (file) => {
-        setUploadedFiles(prev => [...prev, file]);
-      },
-      async (result) => {
-        try {
-          const headers = getApiHeaders();
-          if (!headers) {
-            console.error('No valid headers available');
-            return;
-          }
-
-          const updatePromises = result.successful.map(async (file: UploadedUppyFile) => {
-            if (!file.response?.id) {
-              console.error('No file ID in response');
-              return;
-            }
-
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/assets/${file.response.id}`, {
-              method: 'PATCH',
-              headers: {
-                ...headers,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                managed: true
-              }),
-            });
-
-            if (!response.ok) {
-              throw new Error(`Failed to update asset managed status: ${response.statusText}`);
-            }
-
-            return response.json();
-          });
-
-          await Promise.all(updatePromises);
-          setShowUploadModal(false);
-          await loadAssets();
-          toast({
-            title: "Success",
-            description: "Assets uploaded successfully",
-          });
-        } catch (error) {
-          console.error('Error updating asset managed status:', error);
-          toast({
-            title: "Error",
-            description: "Failed to update asset status",
-            variant: "destructive",
-          });
-        }
-      },
-      supabase
-    );
-
-    // Cleanup function
-    return () => {
-      if (uppyRef.current) {
-        uppyRef.current.cancelAll();
-        // Remove any event listeners
-        uppyRef.current.off();
-      }
-    };
-  }, [supabase, getApiHeaders, toast]);
-
-  const handleCloseUploadModal = () => {
-    setShowUploadModal(false);
-    if (uppyRef.current) {
-      uppyRef.current.cancelAll();
-      uppyRef.current.reset();
-    }
-  };
+  }, [loadAssets]); // Include loadAssets in dependencies since it's stable due to useCallback
 
   // Sort and paginate assets
-  const sortedAssets = useMemo(() => {
-    if (!Array.isArray(assets)) return [];
-    
+  const sortedAssets = React.useMemo(() => {
     return [...assets].sort((a, b) => {
-      const aValue = a?.[sortKey];
-      const bValue = b?.[sortKey];
-
+      const aValue = a[sortKey];
+      const bValue = b[sortKey];
+      
+      // Handle null/undefined values
       if (aValue == null && bValue == null) return 0;
       if (aValue == null) return sortOrder === 'asc' ? -1 : 1;
       if (bValue == null) return sortOrder === 'asc' ? 1 : -1;
 
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
+      // Special handling for dates
+      if (sortKey === 'created_at' || sortKey === 'updated_at') {
+        const aDate = new Date(aValue as string).getTime();
+        const bDate = new Date(bValue as string).getTime();
+        return sortOrder === 'asc' ? aDate - bDate : bDate - aDate;
+      }
+
+      // Handle string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+
+      // Handle number comparison
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+
+      // Fallback to string comparison
+      return sortOrder === 'asc'
+        ? String(aValue).localeCompare(String(bValue))
+        : String(bValue).localeCompare(String(aValue));
     });
   }, [assets, sortKey, sortOrder]);
 
-  const currentAssets = useMemo(() => {
-    const indexOfLastAsset = currentPage * assetsPerPage;
-    const indexOfFirstAsset = indexOfLastAsset - assetsPerPage;
-    return sortedAssets.slice(indexOfFirstAsset, indexOfLastAsset);
-  }, [sortedAssets, currentPage, assetsPerPage]);
-
-  const totalPages = useMemo(() => 
-    Math.ceil(sortedAssets.length / assetsPerPage)
-  , [sortedAssets.length, assetsPerPage]);
+  const totalPages = Math.ceil(sortedAssets.length / assetsPerPage);
+  const currentAssets = sortedAssets.slice(
+    (currentPage - 1) * assetsPerPage,
+    currentPage * assetsPerPage
+  );
 
   const handleSort = (key: keyof Asset) => {
-    if (sortKey === key) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortKey(key);
-      setSortOrder('asc');
-    }
+    setSortKey(key);
+    setSortOrder(current => current === 'asc' ? 'desc' : 'asc');
   };
 
   const handleManageAsset = async (assetId: string) => {
     try {
       const headers = getApiHeaders();
-      if (!headers) {
-        console.error('No valid headers available');
-        return;
-      }
+      if (!headers) return;
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/assets/${assetId}`, {
         method: 'PATCH',
@@ -220,14 +135,10 @@ export default function AssetsPage() {
           ...headers,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          managed: true
-        }),
+        body: JSON.stringify({ managed: true }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to update asset');
-      }
+      if (!response.ok) throw new Error('Failed to manage asset');
 
       await loadAssets();
       toast({
@@ -244,38 +155,72 @@ export default function AssetsPage() {
     }
   };
 
+  // Initialize Uppy
+  useEffect(() => {
+    uppyRef.current = UploadService.createUppy(
+      'asset-uploader',
+      {
+        maxFiles: 10,
+        storageFolder: 'assets',
+      },
+      (file) => {
+        setUploadedFiles(prev => [...prev, file]);
+      },
+      async (result) => {
+        try {
+          const headers = getApiHeaders();
+          if (!headers) return;
+
+          // Update assets after upload
+          await loadAssets();
+          setShowUploadModal(false);
+          toast({
+            title: "Success",
+            description: "Assets uploaded successfully",
+          });
+        } catch (error) {
+          console.error('Error handling upload:', error);
+          toast({
+            title: "Error",
+            description: "Failed to process uploaded assets",
+            variant: "destructive",
+          });
+        }
+      },
+      supabase
+    );
+
+    return () => {
+      if (uppyRef.current) {
+        uppyRef.current.cancelAll();
+      }
+    };
+  }, [supabase, getApiHeaders, loadAssets, toast]);
+
   return (
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-white">
-        <AppSidebar toggleChatbot={(modelId: string) => {}} />
-        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 p-8 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-          <header className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold">Assets</h1>
-            <div className="flex gap-3">
-              <Link href="/knowledge-bases">
-                <Button variant="outline">
-                  Manage Knowledge Bases
-                </Button>
-              </Link>
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => setShowUploadModal(true)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Asset
-              </Button>
-            </div>
-          </header>
+        <AppSidebar toggleChatbot={() => {}} />
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+          <div className="flex items-center justify-between p-4 border-b">
+            <h1 className="text-2xl font-bold">Assets</h1>
+            <Button onClick={() => setShowUploadModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Plus className="mr-2 h-4 w-4" />
+              Upload Assets
+            </Button>
+          </div>
 
-          {/* Table */}
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto p-4">
             {isLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              <div className="flex items-center justify-center h-full">
+                <div className="text-lg text-gray-500">Loading assets...</div>
               </div>
             ) : assets.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No assets found. Upload some assets to get started.
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <div className="text-lg text-gray-500 mb-4">No assets found</div>
+                <Button onClick={() => setShowUploadModal(true)} variant="outline">
+                  Upload some assets to get started
+                </Button>
               </div>
             ) : (
               <Table>
@@ -342,11 +287,7 @@ export default function AssetsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {new Date(asset.created_at).toLocaleDateString(undefined, {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
+                        {new Date(asset.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -421,7 +362,7 @@ export default function AssetsPage() {
               <div className="bg-white p-4 rounded-lg max-w-2xl w-full">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-semibold">Upload Assets</h2>
-                  <Button variant="ghost" size="icon" onClick={handleCloseUploadModal}>
+                  <Button variant="ghost" size="icon" onClick={() => setShowUploadModal(false)}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
