@@ -134,21 +134,38 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             return;
           }
 
+          // First, close the modal
           setShowUploadModal(false);
 
+          // Wait a bit for the files to be processed on the server
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Then fetch the latest assets
+          console.log('Fetching latest assets...');
           const assets = await fetchAssets(headers);
+          console.log('Fetched assets:', assets);
+
           const newAssets = assets.filter(asset => 
             successfulFiles.some(file => asset.title === file.name)
           );
           
           if (newAssets.length === 0) {
             console.error('Could not find uploaded assets in the assets list');
+            toast({
+              title: "Error",
+              description: "Failed to find uploaded assets",
+              variant: "destructive",
+            });
             return;
           }
 
+          console.log('Found new assets:', newAssets);
+
+          // Update selected assets
           const updatedSelectedAssets = [...selectedAssets, ...newAssets];
           setSelectedAssets(updatedSelectedAssets);
 
+          // Update the knowledge base immediately if we have one
           if (knowledgeBase?.id) {
             console.log('Updating knowledge base with new assets:', knowledgeBase.id);
             const updatedKnowledgeBase: KnowledgeBaseCreate = {
@@ -157,15 +174,33 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
               asset_ids: updatedSelectedAssets.map(asset => asset.id)
             };
 
-            await updateKnowledgeBase(knowledgeBase.id, updatedKnowledgeBase, headers);
-            console.log('Successfully updated knowledge base with new assets');
-            onSave();
-          }
+            try {
+              console.log('Making PUT request to update knowledge base...');
+              await updateKnowledgeBase(knowledgeBase.id, updatedKnowledgeBase, {
+                ...headers,
+                'Content-Type': 'application/json'
+              });
+              console.log('Successfully updated knowledge base with new assets');
+              onSave();
 
-          toast({
-            title: "Success",
-            description: `${successfulFiles.length} file(s) uploaded successfully`,
-          });
+              toast({
+                title: "Success",
+                description: `${successfulFiles.length} file(s) uploaded and associated with knowledge base`,
+              });
+            } catch (error) {
+              console.error('Failed to update knowledge base:', error);
+              toast({
+                title: "Error",
+                description: "Failed to associate assets with knowledge base",
+                variant: "destructive",
+              });
+            }
+          } else {
+            toast({
+              title: "Success",
+              description: `${successfulFiles.length} file(s) uploaded successfully`,
+            });
+          }
         } catch (error) {
           console.error('Error processing uploaded files:', error);
           toast({
