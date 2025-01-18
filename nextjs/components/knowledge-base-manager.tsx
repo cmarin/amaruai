@@ -15,7 +15,10 @@ import { fetchAssets } from '@/utils/asset-service';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { UploadService, type UploadedFile } from '@/utils/upload-service';
 import { useToast } from "@/hooks/use-toast";
+import Uppy, { UppyFile, UploadResult } from '@uppy/core';
 import { Dashboard } from '@uppy/react';
+import DashboardPlugin from '@uppy/dashboard';
+import { v4 as uuidv4 } from 'uuid';
 import '@uppy/core/dist/style.css';
 import '@uppy/dashboard/dist/style.css';
 
@@ -80,44 +83,15 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
     console.log('AssetsTable assets updated:', selectedAssets);
   }, [selectedAssets]);
 
-  const handleFileUploaded = async (file: UploadedFile) => {
-    try {
-      const headers = getApiHeaders();
-      if (!headers) return;
-
-      // Refresh the available assets list
-      const assets = await fetchAssets(headers);
-      setAvailableAssets(assets.filter(asset => asset.managed));
-
-      // Find the newly uploaded asset
-      const uploadedAsset = assets.find(asset => asset.title === file.name);
-      if (uploadedAsset) {
-        // Add it to the selected assets
-        setSelectedAssets(prev => [...prev, uploadedAsset]);
-      }
-
-      toast({
-        title: "File uploaded successfully",
-        description: `${file.name} has been uploaded and added to the knowledge base.`,
-      });
-    } catch (error) {
-      console.error('Error handling uploaded file:', error);
-      toast({
-        title: "Error",
-        description: "Failed to process uploaded file.",
-        variant: "destructive",
-      });
-    }
-  };
-
   useEffect(() => {
     // Only initialize Uppy when the modal is shown
     if (showUploadModal && !uppyRef.current && supabase) {
-      uppyRef.current = UploadService.createUppy(
-        'knowledge-base-uploader',
-        {
+      const uppy = new Uppy({
+        id: 'knowledge-base-uploader',
+        autoProceed: false,
+        restrictions: {
           maxFileSize: 50 * 1024 * 1024, // 50MB
-          maxFiles: 10,
+          maxNumberOfFiles: 10,
           allowedFileTypes: [
             'image/*',                    // All image types
             'application/pdf',            // PDF files
@@ -136,29 +110,94 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             'video/quicktime',            // MOV video
             '.wav', '.mp3', '.flac',     // Audio extensions
             '.mp4', '.mov'               // Video extensions
-          ],
-          storageFolder: 'knowledge-bases',
-        },
-        handleFileUploaded,
-        () => {
-          setShowUploadModal(false);
-          // Reset Uppy instance when upload is complete
-          if (uppyRef.current) {
-            uppyRef.current.cancelAll();
-            uppyRef.current = null;
+          ]
+        }
+      });
+
+      // Add the Dashboard plugin
+      uppy.use(DashboardPlugin, {
+        inline: true,
+        target: '.uppy-dashboard-container',
+        showProgressDetails: true,
+        height: 350,
+        width: '100%'
+      });
+
+      uppy.on('file-added', async (file) => {
+        try {
+          // Upload file to Supabase storage
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.user?.id) {
+            throw new Error('User must be authenticated to upload files');
           }
-        },
-        supabase
-      );
+
+          const fileUuid = uuidv4();
+          const filePath = `knowledge-bases/${session.user.id}/${fileUuid}/${file.name}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('amaruai-dev')
+            .upload(filePath, file.data);
+
+          if (uploadError) {
+            throw uploadError;
+          }
+
+          toast({
+            title: "File uploaded",
+            description: `${file.name} has been uploaded successfully.`,
+          });
+        } catch (error) {
+          console.error('Error uploading file:', error);
+          toast({
+            title: "Error",
+            description: "Failed to upload file",
+            variant: "destructive",
+          });
+        }
+      });
+
+      uppy.on('complete', async (result: UploadResult<Record<string, unknown>>) => {
+        try {
+          const headers = getApiHeaders();
+          if (!headers) return;
+
+          // Refresh the available assets list
+          const assets = await fetchAssets(headers);
+          setAvailableAssets(assets.filter(asset => asset.managed));
+
+          // Add uploaded files to selected assets
+          if (result.successful && result.successful.length > 0) {
+            const newAssets = assets.filter(asset => 
+              result.successful.some(file => asset.title === file.name)
+            );
+            setSelectedAssets(prev => [...prev, ...newAssets]);
+          }
+
+          setShowUploadModal(false);
+          toast({
+            title: "Success",
+            description: "Files uploaded successfully",
+          });
+        } catch (error) {
+          console.error('Error processing uploaded files:', error);
+          toast({
+            title: "Error",
+            description: "Failed to process uploaded files",
+            variant: "destructive",
+          });
+        }
+      });
+
+      uppyRef.current = uppy;
     }
 
     return () => {
       if (uppyRef.current) {
-        uppyRef.current.cancelAll();
+        uppyRef.current.close();
         uppyRef.current = null;
       }
     };
-  }, [showUploadModal, supabase]);
+  }, [showUploadModal, supabase, getApiHeaders, toast]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -316,9 +355,8 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       {/* Upload Modal */}
       <Dialog open={showUploadModal} onOpenChange={(open) => {
         setShowUploadModal(open);
-        // Reset Uppy instance when modal is closed
         if (!open && uppyRef.current) {
-          uppyRef.current.cancelAll();
+          uppyRef.current.close();
           uppyRef.current = null;
         }
       }}>
@@ -327,15 +365,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             <DialogTitle className="text-gray-900">Upload Assets</DialogTitle>
           </DialogHeader>
           <div className="py-4 bg-white min-h-[400px]">
-            {showUploadModal && (
-              <Dashboard
-                uppy={uppyRef.current}
-                plugins={['Dashboard']}
-                width="100%"
-                height={350}
-                showProgressDetails={true}
-              />
-            )}
+            <div className="uppy-dashboard-container" />
           </div>
         </DialogContent>
       </Dialog>
