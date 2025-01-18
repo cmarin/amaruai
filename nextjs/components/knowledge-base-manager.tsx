@@ -146,57 +146,72 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       uppy.on('complete', async (result) => {
         try {
           const headers = getApiHeaders();
-          if (!headers) return;
-
-          // Wait for the assets to be processed by the backend
-          // Add a small delay to ensure the backend has processed the uploads
-          await new Promise(resolve => setTimeout(resolve, 2000));
-
-          // Refresh the available assets list
-          const assets = await fetchAssets(headers);
-          const managedAssets = assets.filter(asset => asset.managed);
-          setAvailableAssets(managedAssets);
-
-          // Find the newly uploaded assets
-          const successfulFiles = result.successful || [];
-          if (successfulFiles.length > 0) {
-            const newAssets = managedAssets.filter(asset => 
-              successfulFiles.some(file => asset.file_name === file.name)
-            );
-            
-            if (newAssets.length > 0) {
-              console.log('New assets to associate:', newAssets);
-
-              // If we have a knowledge base ID, update it with the new assets
-              if (knowledgeBase?.id) {
-                // Combine existing and new assets
-                const updatedAssets = [...selectedAssets, ...newAssets];
-                console.log('Updating knowledge base with assets:', updatedAssets);
-
-                const updatePayload: KnowledgeBaseCreate = {
-                  title: currentKnowledgeBase.title,
-                  description: currentKnowledgeBase.description,
-                  asset_ids: updatedAssets.map(asset => asset.id)
-                };
-
-                // Update the knowledge base with the new assets
-                await updateKnowledgeBase(knowledgeBase.id, updatePayload, headers);
-                
-                // Update local state
-                setSelectedAssets(updatedAssets);
-              } else {
-                // If no knowledge base ID (creating new), just update local state
-                setSelectedAssets(prev => [...prev, ...newAssets]);
-              }
-
-              toast({
-                title: "Success",
-                description: `${successfulFiles.length} file(s) uploaded and associated with knowledge base`,
-              });
-            }
+          if (!headers) {
+            console.error('No headers available');
+            return;
           }
 
+          const successfulFiles = result.successful || [];
+          if (successfulFiles.length === 0) {
+            console.log('No files were successfully uploaded');
+            return;
+          }
+
+          console.log('Files uploaded successfully:', successfulFiles);
+
+          // Wait for backend processing
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
+          // Fetch latest assets
+          const assets = await fetchAssets(headers);
+          const managedAssets = assets.filter(asset => asset.managed);
+          
+          // Update available assets list
+          setAvailableAssets(managedAssets);
+          
+          // Find newly uploaded assets by matching filenames
+          const newAssets = managedAssets.filter(asset => 
+            successfulFiles.some(file => file.name === asset.file_name)
+          );
+
+          console.log('New assets found:', newAssets);
+
+          if (newAssets.length > 0) {
+            // Update knowledge base if we have an ID
+            if (knowledgeBase?.id) {
+              const updatedAssets = [...selectedAssets, ...newAssets];
+              
+              const updatePayload: KnowledgeBaseCreate = {
+                title: currentKnowledgeBase.title,
+                description: currentKnowledgeBase.description,
+                asset_ids: updatedAssets.map(asset => asset.id)
+              };
+
+              console.log('Updating knowledge base with payload:', updatePayload);
+              await updateKnowledgeBase(knowledgeBase.id, updatePayload, headers);
+              
+              // Update local state after successful API call
+              setSelectedAssets(updatedAssets);
+            } else {
+              // Just update local state for new knowledge bases
+              setSelectedAssets(prev => [...prev, ...newAssets]);
+            }
+
+            toast({
+              title: "Success",
+              description: `${successfulFiles.length} file(s) uploaded and associated with knowledge base`,
+            });
+          }
+
+          // Close the modal and clean up Uppy
+          if (uppyRef.current) {
+            // Clear all files and reset upload state
+            uppyRef.current.cancelAll();
+            const files = uppyRef.current.getFiles();
+            files.forEach(file => uppyRef.current?.removeFile(file.id));
+          }
           setShowUploadModal(false);
+
         } catch (error) {
           console.error('Error processing uploaded files:', error);
           toast({
@@ -381,20 +396,18 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       </Dialog>
 
       {/* Upload Modal */}
-      <Dialog open={showUploadModal} onOpenChange={(open) => {
-        setShowUploadModal(open);
-        if (!open && uppyRef.current) {
-          const uppy = uppyRef.current;
-          // Remove all files
-          const files = uppy.getFiles();
-          files.forEach(file => uppy.removeFile(file.id));
-          // Remove event listeners
-          uppy.off('file-added', () => {});
-          uppy.off('complete', () => {});
-          // Clean up the instance
-          uppy.cancelAll();
-        }
-      }}>
+      <Dialog 
+        open={showUploadModal} 
+        onOpenChange={(open) => {
+          if (!open && uppyRef.current) {
+            // Clear all files and reset upload state
+            uppyRef.current.cancelAll();
+            const files = uppyRef.current.getFiles();
+            files.forEach(file => uppyRef.current?.removeFile(file.id));
+          }
+          setShowUploadModal(open);
+        }}
+      >
         <DialogContent className="max-w-4xl bg-white">
           <DialogHeader className="bg-white">
             <DialogTitle className="text-gray-900">Upload Assets</DialogTitle>
