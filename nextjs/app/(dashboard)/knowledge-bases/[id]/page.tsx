@@ -18,20 +18,40 @@ export default function EditKnowledgeBasePage({ params }: { params: { id: string
 
   const loadKnowledgeBase = async () => {
     try {
+      console.log('loadKnowledgeBase called for ID:', params.id);
       const headers = getApiHeaders();
+      console.log('API Headers:', headers);
+      
       if (!headers) {
         console.error('No API headers available');
         return;
       }
-      console.log('Fetching knowledge base with ID:', params.id);
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, ''); // Remove trailing slash if present
+      console.log('Base API URL:', apiUrl);
+      
+      if (!apiUrl) {
+        console.error('API URL is not defined');
+        return;
+      }
+
+      const kbUrl = `${apiUrl}/knowledge_bases/${params.id}`;
+      console.log('Fetching knowledge base from:', kbUrl);
 
       // First, fetch the knowledge base
-      const kbResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/knowledge_bases/${params.id}`, {
-        headers
+      const kbResponse = await fetch(kbUrl, {
+        headers,
+        cache: 'no-store' // Disable caching
       });
 
       if (!kbResponse.ok) {
-        throw new Error('Failed to fetch knowledge base');
+        const errorText = await kbResponse.text();
+        console.error('Knowledge base fetch failed:', {
+          status: kbResponse.status,
+          statusText: kbResponse.statusText,
+          error: errorText
+        });
+        throw new Error(`Failed to fetch knowledge base: ${errorText}`);
       }
 
       const kbData = await kbResponse.json();
@@ -41,12 +61,22 @@ export default function EditKnowledgeBasePage({ params }: { params: { id: string
       }
 
       // Then fetch the associated assets
-      const assetsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/knowledge_bases/${params.id}/assets`, {
-        headers
+      const assetsUrl = `${apiUrl}/knowledge_bases/${params.id}/assets`;
+      console.log('Fetching assets from:', assetsUrl);
+
+      const assetsResponse = await fetch(assetsUrl, {
+        headers,
+        cache: 'no-store' // Disable caching
       });
 
       if (!assetsResponse.ok) {
-        throw new Error('Failed to fetch knowledge base assets');
+        const errorText = await assetsResponse.text();
+        console.error('Assets fetch failed:', {
+          status: assetsResponse.status,
+          statusText: assetsResponse.statusText,
+          error: errorText
+        });
+        throw new Error(`Failed to fetch knowledge base assets: ${errorText}`);
       }
 
       const assetsData = await assetsResponse.json();
@@ -72,8 +102,9 @@ export default function EditKnowledgeBasePage({ params }: { params: { id: string
   };
 
   useEffect(() => {
+    console.log('useEffect triggered with ID:', params.id);
     loadKnowledgeBase();
-  }, [params.id]);
+  }, [params.id, getApiHeaders]);
 
   const handleSave = async () => {
     try {
