@@ -8,6 +8,10 @@ import { Label } from "@/components/ui/label"
 import { X } from 'lucide-react'
 import { KnowledgeBase, createKnowledgeBase, updateKnowledgeBase, KnowledgeBaseCreate } from '@/utils/knowledge-base-service'
 import { useSession } from '@/app/utils/session/session'
+import { AssetsTable } from './assets-table';
+import { Asset } from '@/types/knowledge-base';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { fetchAssets } from '@/utils/asset-service';
 
 type KnowledgeBaseManagerProps = {
   knowledgeBase: KnowledgeBase | null
@@ -22,6 +26,9 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
     assets: [] as KnowledgeBase['assets']
   })
   const { getApiHeaders } = useSession();
+  const [showAssetSelector, setShowAssetSelector] = useState(false);
+  const [availableAssets, setAvailableAssets] = useState<Asset[]>([]);
+  const [selectedAssets, setSelectedAssets] = useState<Asset[]>(knowledgeBase?.assets || []);
 
   useEffect(() => {
     if (knowledgeBase) {
@@ -32,6 +39,27 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       })
     }
   }, [knowledgeBase])
+
+  useEffect(() => {
+    const loadAssets = async () => {
+      try {
+        const headers = getApiHeaders();
+        if (!headers) return;
+        const assets = await fetchAssets(headers);
+        setAvailableAssets(assets.filter(asset => asset.managed));
+      } catch (error) {
+        console.error('Error loading assets:', error);
+      }
+    };
+    loadAssets();
+  }, [getApiHeaders]);
+
+  useEffect(() => {
+    setCurrentKnowledgeBase(prev => ({
+      ...prev,
+      assets: selectedAssets
+    }));
+  }, [selectedAssets]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -49,7 +77,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       const payload: KnowledgeBaseCreate = {
         title: currentKnowledgeBase.title,
         description: currentKnowledgeBase.description,
-        asset_ids: currentKnowledgeBase.assets.map(asset => asset.id)
+        asset_ids: selectedAssets.map(asset => asset.id)
       };
 
       if (knowledgeBase) {
@@ -63,8 +91,17 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
     }
   }
 
+  const handleAddAsset = (asset: Asset) => {
+    setSelectedAssets(prev => [...prev, asset]);
+    setShowAssetSelector(false);
+  };
+
+  const handleRemoveAsset = (assetId: string) => {
+    setSelectedAssets(prev => prev.filter(asset => asset.id !== assetId));
+  };
+
   return (
-    <div className="absolute inset-0 bg-white z-50">
+    <div className="fixed inset-0 bg-white z-50 flex flex-col h-screen">
       <div className="h-full w-full overflow-y-auto p-6">
         <div className="max-w-2xl mx-auto">
           <div className="flex justify-between items-center mb-4">
@@ -100,27 +137,18 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
               />
             </div>
 
-            <div>
-              <Label>Linked Assets</Label>
-              <div className="mt-2 space-y-2">
-                {currentKnowledgeBase.assets.map((asset) => (
-                  <div key={asset.id} className="flex items-center justify-between p-2 border rounded">
-                    <span>{asset.title}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setCurrentKnowledgeBase(prev => ({
-                          ...prev,
-                          assets: prev.assets.filter(a => a.id !== asset.id)
-                        }))
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Assets</h3>
+                <Button onClick={() => setShowAssetSelector(true)}>
+                  Select Assets
+                </Button>
               </div>
+              <AssetsTable 
+                assets={selectedAssets}
+                onDeleteAsset={handleRemoveAsset}
+                showActions={true}
+              />
             </div>
 
             <div className="flex justify-end space-x-2 mt-6">
@@ -132,6 +160,21 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
           </div>
         </div>
       </div>
+
+      <Dialog open={showAssetSelector} onOpenChange={setShowAssetSelector}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Select Assets</DialogTitle>
+          </DialogHeader>
+          <AssetsTable 
+            assets={availableAssets.filter(asset => 
+              !selectedAssets.some(selected => selected.id === asset.id)
+            )}
+            showActions={false}
+            onManageAsset={handleAddAsset}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 

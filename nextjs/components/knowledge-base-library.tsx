@@ -30,7 +30,7 @@ export function KnowledgeBaseLibrary({ knowledgeBases, onUpdateKnowledgeBases }:
   )
 
   const handleCreateKnowledgeBase = () => {
-    setIsCreating(true)
+    router.push('/knowledge-bases/create');
   }
 
   const handleEditKnowledgeBase = (knowledgeBase: KnowledgeBase) => {
