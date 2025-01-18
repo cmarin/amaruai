@@ -32,11 +32,14 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
 
   useEffect(() => {
     if (knowledgeBase) {
-      setCurrentKnowledgeBase({
+      console.log('KnowledgeBaseManager received knowledgeBase:', knowledgeBase);
+      const initialState = {
         title: knowledgeBase.title,
         description: knowledgeBase.description,
         assets: knowledgeBase.assets || []
-      });
+      };
+      console.log('Setting initial state:', initialState);
+      setCurrentKnowledgeBase(initialState);
       setSelectedAssets(knowledgeBase.assets || []);
     }
   }, [knowledgeBase]);
@@ -56,10 +59,15 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   }, [getApiHeaders]);
 
   useEffect(() => {
+    console.log('Selected assets updated:', selectedAssets);
     setCurrentKnowledgeBase(prev => ({
       ...prev,
       assets: selectedAssets
     }));
+  }, [selectedAssets]);
+
+  useEffect(() => {
+    console.log('AssetsTable assets updated:', selectedAssets);
   }, [selectedAssets]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

@@ -30,10 +30,31 @@ export default function EditKnowledgeBasePage({ params }: { params: { id: string
       }
 
       const data = await response.json();
-      setKnowledgeBase({
-        ...data,
-        assets: data.assets || []
+      console.log('API Response:', {
+        fullData: data,
+        hasAssets: 'assets' in data,
+        assetsType: data.assets ? typeof data.assets : 'no assets',
+        assetsLength: data.assets ? data.assets.length : 0
       });
+
+      // If assets are nested differently, adjust the path
+      const assets = Array.isArray(data.assets) ? data.assets : 
+                    Array.isArray(data.knowledge_base_assets) ? data.knowledge_base_assets :
+                    [];
+
+      const knowledgeBaseWithAssets = {
+        ...data,
+        assets: assets
+      };
+      
+      console.log('Processed knowledge base:', {
+        id: knowledgeBaseWithAssets.id,
+        title: knowledgeBaseWithAssets.title,
+        assetsCount: knowledgeBaseWithAssets.assets.length,
+        firstAsset: knowledgeBaseWithAssets.assets[0]
+      });
+
+      setKnowledgeBase(knowledgeBaseWithAssets);
     } catch (err) {
       console.error('Error loading knowledge base:', err);
       setError('Failed to load knowledge base');
