@@ -12,7 +12,7 @@ import { Asset } from '@/types/knowledge-base';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, X, ExternalLink, Settings } from 'lucide-react';
+import { Plus, X, ExternalLink, Settings, BookOpen } from 'lucide-react';
 import { Dashboard } from '@uppy/react';
 import {
   Table,
@@ -45,6 +45,7 @@ export default function AssetsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const assetsPerPage = 10;
+  const router = useRouter();
 
   const loadAssets = useCallback(async () => {
     try {
@@ -204,10 +205,23 @@ export default function AssetsPage() {
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <div className="flex items-center justify-between p-4 border-b">
             <h1 className="text-2xl font-bold">Assets</h1>
-            <Button onClick={() => setShowUploadModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
-              <Plus className="mr-2 h-4 w-4" />
-              Upload Assets
-            </Button>
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => router.push('/knowledge-bases')}
+                className="h-10"
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                Manage Knowledge Bases
+              </Button>
+              <Button 
+                onClick={() => setShowUploadModal(true)} 
+                className="bg-blue-600 hover:bg-blue-700 text-white h-10"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Upload Assets
+              </Button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-auto p-4">
