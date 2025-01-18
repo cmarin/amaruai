@@ -148,39 +148,55 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
           const headers = getApiHeaders();
           if (!headers) return;
 
+          // Wait for the assets to be processed by the backend
+          // Add a small delay to ensure the backend has processed the uploads
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
           // Refresh the available assets list
           const assets = await fetchAssets(headers);
-          setAvailableAssets(assets.filter(asset => asset.managed));
+          const managedAssets = assets.filter(asset => asset.managed);
+          setAvailableAssets(managedAssets);
 
-          // Add uploaded files to selected assets
+          // Find the newly uploaded assets
           const successfulFiles = result.successful || [];
           if (successfulFiles.length > 0) {
-            const newAssets = assets.filter(asset => 
-              successfulFiles.some(file => asset.title === file.name)
+            const newAssets = managedAssets.filter(asset => 
+              successfulFiles.some(file => asset.file_name === file.name)
             );
             
-            // Add new assets to selected assets
-            const updatedSelectedAssets = [...selectedAssets, ...newAssets];
-            setSelectedAssets(updatedSelectedAssets);
+            if (newAssets.length > 0) {
+              console.log('New assets to associate:', newAssets);
 
-            // Update the knowledge base with the new assets if we have a knowledge base
-            if (knowledgeBase?.id) {
-              const updatedKnowledgeBase: KnowledgeBaseCreate = {
-                title: knowledgeBase.title,
-                description: knowledgeBase.description || '',
-                asset_ids: updatedSelectedAssets.map(asset => asset.id)
-              };
+              // If we have a knowledge base ID, update it with the new assets
+              if (knowledgeBase?.id) {
+                // Combine existing and new assets
+                const updatedAssets = [...selectedAssets, ...newAssets];
+                console.log('Updating knowledge base with assets:', updatedAssets);
 
-              await updateKnowledgeBase(knowledgeBase.id, updatedKnowledgeBase, headers);
+                const updatePayload: KnowledgeBaseCreate = {
+                  title: currentKnowledgeBase.title,
+                  description: currentKnowledgeBase.description,
+                  asset_ids: updatedAssets.map(asset => asset.id)
+                };
+
+                // Update the knowledge base with the new assets
+                await updateKnowledgeBase(knowledgeBase.id, updatePayload, headers);
+                
+                // Update local state
+                setSelectedAssets(updatedAssets);
+              } else {
+                // If no knowledge base ID (creating new), just update local state
+                setSelectedAssets(prev => [...prev, ...newAssets]);
+              }
+
+              toast({
+                title: "Success",
+                description: `${successfulFiles.length} file(s) uploaded and associated with knowledge base`,
+              });
             }
           }
 
           setShowUploadModal(false);
-          // Show a single success toast at the end
-          toast({
-            title: "Success",
-            description: `${successfulFiles.length} file(s) uploaded successfully`,
-          });
         } catch (error) {
           console.error('Error processing uploaded files:', error);
           toast({
