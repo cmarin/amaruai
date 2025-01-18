@@ -84,15 +84,13 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   }, [selectedAssets]);
 
   useEffect(() => {
-    if (!uppyRef.current && supabase) {
+    if (!uppyRef.current) {
       const uppy = new Uppy({
-        id: 'knowledge-base-uploader',
-        autoProceed: false,
         restrictions: {
-          maxFileSize: 50 * 1024 * 1024, // 50MB
           maxNumberOfFiles: 10,
           allowedFileTypes: null
-        }
+        },
+        autoProceed: true
       });
 
       uppy.on('file-added', async (file) => {
@@ -124,19 +122,20 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
 
       uppy.on('complete', async (result) => {
         try {
-          const headers = getApiHeaders();
-          if (!headers) {
-            console.error('No valid headers available');
-            return;
-          }
-
           const successfulFiles = result.successful || [];
           if (successfulFiles.length === 0) {
             console.error('No files were uploaded successfully');
             return;
           }
 
-          // Refresh the available assets list
+          const headers = getApiHeaders();
+          if (!headers) {
+            console.error('No valid headers available');
+            return;
+          }
+
+          setShowUploadModal(false);
+
           const assets = await fetchAssets(headers);
           const newAssets = assets.filter(asset => 
             successfulFiles.some(file => asset.title === file.name)
@@ -147,11 +146,9 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             return;
           }
 
-          // Add new assets to selected assets
           const updatedSelectedAssets = [...selectedAssets, ...newAssets];
           setSelectedAssets(updatedSelectedAssets);
 
-          // Update the knowledge base with the new assets if we have a knowledge base
           if (knowledgeBase?.id) {
             console.log('Updating knowledge base with new assets:', knowledgeBase.id);
             const updatedKnowledgeBase: KnowledgeBaseCreate = {
@@ -160,26 +157,11 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
               asset_ids: updatedSelectedAssets.map(asset => asset.id)
             };
 
-            // Make the PUT request to update the knowledge base
-            try {
-              await updateKnowledgeBase(knowledgeBase.id, updatedKnowledgeBase, headers);
-              console.log('Successfully updated knowledge base with new assets');
-              onSave();
-            } catch (error) {
-              console.error('Failed to update knowledge base with new assets:', error);
-              toast({
-                title: "Error",
-                description: "Failed to associate assets with knowledge base",
-                variant: "destructive",
-              });
-              return;
-            }
+            await updateKnowledgeBase(knowledgeBase.id, updatedKnowledgeBase, headers);
+            console.log('Successfully updated knowledge base with new assets');
+            onSave();
           }
 
-          // Close the modal after successful upload and association
-          setShowUploadModal(false);
-
-          // Show success toast
           toast({
             title: "Success",
             description: `${successfulFiles.length} file(s) uploaded successfully`,
@@ -197,17 +179,13 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       uppyRef.current = uppy;
     }
 
-    // Cleanup function
     return () => {
       if (uppyRef.current) {
         const uppy = uppyRef.current;
-        // Remove all files
         const files = uppy.getFiles();
         files.forEach(file => uppy.removeFile(file.id));
-        // Remove event listeners with empty callbacks
         uppy.off('file-added', () => {});
         uppy.off('complete', () => {});
-        // Clean up the instance
         uppy.cancelAll();
         uppyRef.current = null;
       }
@@ -369,18 +347,14 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
 
       {/* Upload Modal */}
       <Dialog open={showUploadModal} onOpenChange={(open) => {
-        setShowUploadModal(open);
-        if (!open && uppyRef.current) {
-          const uppy = uppyRef.current;
-          // Remove all files
-          const files = uppy.getFiles();
-          files.forEach(file => uppy.removeFile(file.id));
-          // Remove event listeners
-          uppy.off('file-added', () => {});
-          uppy.off('complete', () => {});
-          // Clean up the instance
-          uppy.cancelAll();
+        if (!open) {
+          if (uppyRef.current) {
+            const uppy = uppyRef.current;
+            const files = uppy.getFiles();
+            files.forEach(file => uppy.removeFile(file.id));
+          }
         }
+        setShowUploadModal(open);
       }}>
         <DialogContent className="max-w-4xl bg-white">
           <DialogHeader className="bg-white">
