@@ -7,12 +7,12 @@ import { useSidebar } from '@/components/sidebar-context';
 import { useSession } from '@/app/utils/session/session';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { UploadService, type UploadedFile } from '@/utils/upload-service';
-import { fetchAssets } from '@/utils/asset-service';
+import { fetchAssets, deleteAsset } from '@/utils/asset-service';
 import { Asset } from '@/types/knowledge-base';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, X, ExternalLink, Settings, BookOpen } from 'lucide-react';
+import { Plus, X, ExternalLink, Settings, BookOpen, Trash2 } from 'lucide-react';
 import { Dashboard } from '@uppy/react';
 import {
   Table,
@@ -151,6 +151,27 @@ export default function AssetsPage() {
       toast({
         title: "Error",
         description: "Failed to manage asset",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteAsset = async (assetId: string) => {
+    try {
+      const headers = getApiHeaders();
+      if (!headers) return;
+
+      await deleteAsset(assetId, headers);
+      await loadAssets();
+      toast({
+        title: "Success",
+        description: "Asset deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting asset:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete asset",
         variant: "destructive",
       });
     }
@@ -321,6 +342,15 @@ export default function AssetsPage() {
                               Manage
                             </Button>
                           )}
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleDeleteAsset(asset.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Delete
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
