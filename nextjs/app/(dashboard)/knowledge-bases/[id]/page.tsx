@@ -19,7 +19,11 @@ export default function EditKnowledgeBasePage({ params }: { params: { id: string
   const loadKnowledgeBase = async () => {
     try {
       const headers = getApiHeaders();
-      if (!headers) return;
+      if (!headers) {
+        console.error('No API headers available');
+        return;
+      }
+      console.log('Fetching knowledge base with ID:', params.id);
 
       // First, fetch the knowledge base
       const kbResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/knowledge_bases/${params.id}`, {
@@ -31,7 +35,10 @@ export default function EditKnowledgeBasePage({ params }: { params: { id: string
       }
 
       const kbData = await kbResponse.json();
-      console.log('Knowledge Base API Response:', kbData);
+      console.log('Raw Knowledge Base API Response:', kbData);
+      if (!kbData.title) {
+        console.warn('Knowledge base data is missing title:', kbData);
+      }
 
       // Then fetch the associated assets
       const assetsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/knowledge_bases/${params.id}/assets`, {
@@ -43,15 +50,19 @@ export default function EditKnowledgeBasePage({ params }: { params: { id: string
       }
 
       const assetsData = await assetsResponse.json();
-      console.log('Assets API Response:', assetsData);
+      console.log('Raw Assets API Response:', assetsData);
+      if (!Array.isArray(assetsData)) {
+        console.warn('Assets data is not an array:', assetsData);
+      }
 
       const knowledgeBaseWithAssets = {
         ...kbData,
         assets: assetsData || []
       };
 
-      console.log('Final Knowledge Base with Assets:', knowledgeBaseWithAssets);
+      console.log('Final Knowledge Base State:', knowledgeBaseWithAssets);
       setKnowledgeBase(knowledgeBaseWithAssets);
+      console.log('State updated with knowledge base');
     } catch (err) {
       console.error('Error loading knowledge base:', err);
       setError('Failed to load knowledge base');
