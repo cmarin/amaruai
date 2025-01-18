@@ -131,12 +131,10 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             throw uploadError;
           }
 
-          toast({
-            title: "File uploaded",
-            description: `${file.name} has been uploaded successfully.`,
-          });
+          // Don't show toast for individual file uploads in knowledge base context
         } catch (error) {
           console.error('Error uploading file:', error);
+          // Only show error toasts
           toast({
             title: "Error",
             description: "Failed to upload file",
@@ -160,10 +158,25 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             const newAssets = assets.filter(asset => 
               successfulFiles.some(file => asset.title === file.name)
             );
-            setSelectedAssets(prev => [...prev, ...newAssets]);
+            
+            // Add new assets to selected assets
+            const updatedSelectedAssets = [...selectedAssets, ...newAssets];
+            setSelectedAssets(updatedSelectedAssets);
+
+            // Update the knowledge base with the new assets if we have a knowledge base
+            if (knowledgeBase?.id) {
+              const updatedKnowledgeBase: KnowledgeBaseCreate = {
+                title: knowledgeBase.title,
+                description: knowledgeBase.description || '',
+                asset_ids: updatedSelectedAssets.map(asset => asset.id)
+              };
+
+              await updateKnowledgeBase(knowledgeBase.id, updatedKnowledgeBase, headers);
+            }
           }
 
           setShowUploadModal(false);
+          // Show a single success toast at the end
           toast({
             title: "Success",
             description: `${successfulFiles.length} file(s) uploaded successfully`,
