@@ -111,8 +111,9 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   };
 
   useEffect(() => {
+    // Only initialize Uppy when the modal is shown
     if (showUploadModal && !uppyRef.current && supabase) {
-      const uppy = UploadService.createUppy(
+      uppyRef.current = UploadService.createUppy(
         'knowledge-base-uploader',
         {
           maxFileSize: 50 * 1024 * 1024, // 50MB
@@ -139,15 +140,21 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
           storageFolder: 'knowledge-bases',
         },
         handleFileUploaded,
-        () => setShowUploadModal(false),
+        () => {
+          setShowUploadModal(false);
+          // Reset Uppy instance when upload is complete
+          if (uppyRef.current) {
+            uppyRef.current.cancelAll();
+            uppyRef.current = null;
+          }
+        },
         supabase
       );
-      uppyRef.current = uppy;
     }
 
     return () => {
       if (uppyRef.current) {
-        uppyRef.current.close();
+        uppyRef.current.cancelAll();
         uppyRef.current = null;
       }
     };
