@@ -89,16 +89,18 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
         asset_ids: selectedAssets.map(asset => asset.id)
       };
 
-      if (knowledgeBase) {
+      if (knowledgeBase?.id) {
+        console.log('Updating existing knowledge base:', knowledgeBase.id);
         await updateKnowledgeBase(knowledgeBase.id, payload, headers);
       } else {
+        console.log('Creating new knowledge base');
         await createKnowledgeBase(payload, headers);
       }
       onSave();
     } catch (error) {
       console.error('Error saving knowledge base:', error);
     }
-  }
+  };
 
   const handleAddAsset = (asset: Asset) => {
     setSelectedAssets(prev => [...prev, asset]);
@@ -115,7 +117,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
         <div className="max-w-2xl mx-auto">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold">
-              {knowledgeBase ? 'Edit Knowledge Base' : 'Create Knowledge Base'}
+              {knowledgeBase?.id ? 'Edit Knowledge Base' : 'Create Knowledge Base'}
             </h2>
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="h-6 w-6" />

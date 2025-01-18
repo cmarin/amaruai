@@ -48,33 +48,22 @@ export async function createKnowledgeBase(knowledgeBase: KnowledgeBaseCreate, he
   }
 }
 
-export async function updateKnowledgeBase(id: string, knowledgeBase: Partial<KnowledgeBaseCreate>, headers: ApiHeaders): Promise<KnowledgeBase> {
-  try {
-    if (!getApiUrl()) {
-      throw new Error('API_BASE_URL is not defined');
-    }
+export const updateKnowledgeBase = async (id: string, data: KnowledgeBaseCreate, headers: HeadersInit) => {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/knowledge_bases/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers
+    },
+    body: JSON.stringify(data)
+  });
 
-    const response = await fetch(`${getApiUrl()}/knowledge_bases/${id}`, {
-      method: 'PUT',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(knowledgeBase),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response:', response.status, errorText);
-      throw new Error(`Failed to update knowledge base: ${response.status} ${response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error updating knowledge base:', error);
-    throw error;
+  if (!response.ok) {
+    throw new Error('Failed to update knowledge base');
   }
-}
+
+  return response.json();
+};
 
 export async function deleteKnowledgeBase(id: string, headers: ApiHeaders): Promise<void> {
   try {
