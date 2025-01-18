@@ -179,7 +179,10 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             {/* Action Buttons */}
             <div className="flex justify-end space-x-2 sticky bottom-0 py-4 bg-background border-t">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={handleSave} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Button 
+                onClick={handleSave} 
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
                 Save Changes
               </Button>
             </div>
@@ -188,12 +191,12 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       </div>
 
       <Dialog open={showAssetSelector} onOpenChange={setShowAssetSelector}>
-        <DialogContent className="max-w-4xl bg-background">
-          <DialogHeader>
-            <DialogTitle>Select Assets</DialogTitle>
+        <DialogContent className="max-w-4xl bg-white">
+          <DialogHeader className="bg-white">
+            <DialogTitle className="text-gray-900">Select Assets</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <div className="overflow-hidden rounded-md border bg-white">
+          <div className="py-4 bg-white">
+            <div className="overflow-hidden rounded-md border">
               <AssetsTable 
                 assets={availableAssets.filter(asset => 
                   !selectedAssets.some(selected => selected.id === asset.id)
@@ -203,7 +206,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
               />
             </div>
           </div>
-          <div className="flex justify-end gap-2 mt-4">
+          <div className="flex justify-end gap-2 mt-4 bg-white">
             <Button variant="outline" onClick={() => setShowAssetSelector(false)}>
               Cancel
             </Button>
