@@ -91,31 +91,12 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
         restrictions: {
           maxFileSize: 50 * 1024 * 1024, // 50MB
           maxNumberOfFiles: 10,
-          allowedFileTypes: [
-            'image/*',                    // All image types
-            'application/pdf',            // PDF files
-            '.doc', '.docx',             // Word documents
-            '.ppt', '.pptx',             // PowerPoint presentations
-            '.txt',                       // Text files
-            '.md', '.markdown',           // Markdown files
-            'text/plain',                 // Plain text
-            'text/markdown',              // Markdown MIME type
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation', // PPTX
-            'application/vnd.ms-powerpoint', // PPT
-            'audio/wav',                  // WAV audio
-            'audio/mpeg',                 // MP3 audio
-            'audio/flac',                 // FLAC audio
-            'video/mp4',                  // MP4 video
-            'video/quicktime',            // MOV video
-            '.wav', '.mp3', '.flac',     // Audio extensions
-            '.mp4', '.mov'               // Video extensions
-          ]
+          allowedFileTypes: null
         }
       });
 
       uppy.on('file-added', async (file) => {
         try {
-          // Upload file to Supabase storage
           const { data: { session } } = await supabase.auth.getSession();
           if (!session?.user?.id) {
             throw new Error('User must be authenticated to upload files');
@@ -131,11 +112,8 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
           if (uploadError) {
             throw uploadError;
           }
-
-          // Don't show toast for individual file uploads in knowledge base context
         } catch (error) {
           console.error('Error uploading file:', error);
-          // Only show error toasts
           toast({
             title: "Error",
             description: "Failed to upload file",
@@ -152,55 +130,56 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             return;
           }
 
+          const successfulFiles = result.successful || [];
+          if (successfulFiles.length === 0) {
+            console.error('No files were uploaded successfully');
+            return;
+          }
+
           // Refresh the available assets list
           const assets = await fetchAssets(headers);
-          setAvailableAssets(assets.filter(asset => asset.managed));
+          const newAssets = assets.filter(asset => 
+            successfulFiles.some(file => asset.title === file.name)
+          );
+          
+          if (newAssets.length === 0) {
+            console.error('Could not find uploaded assets in the assets list');
+            return;
+          }
 
-          // Add uploaded files to selected assets
-          const successfulFiles = result.successful || [];
-          if (successfulFiles.length > 0) {
-            // Find the newly uploaded assets
-            const newAssets = assets.filter(asset => 
-              successfulFiles.some(file => asset.title === file.name)
-            );
-            
-            if (newAssets.length === 0) {
-              console.error('Could not find uploaded assets in the assets list');
+          // Add new assets to selected assets
+          const updatedSelectedAssets = [...selectedAssets, ...newAssets];
+          setSelectedAssets(updatedSelectedAssets);
+
+          // Update the knowledge base with the new assets if we have a knowledge base
+          if (knowledgeBase?.id) {
+            console.log('Updating knowledge base with new assets:', knowledgeBase.id);
+            const updatedKnowledgeBase: KnowledgeBaseCreate = {
+              title: knowledgeBase.title,
+              description: knowledgeBase.description || '',
+              asset_ids: updatedSelectedAssets.map(asset => asset.id)
+            };
+
+            // Make the PUT request to update the knowledge base
+            try {
+              await updateKnowledgeBase(knowledgeBase.id, updatedKnowledgeBase, headers);
+              console.log('Successfully updated knowledge base with new assets');
+              onSave();
+            } catch (error) {
+              console.error('Failed to update knowledge base with new assets:', error);
+              toast({
+                title: "Error",
+                description: "Failed to associate assets with knowledge base",
+                variant: "destructive",
+              });
               return;
-            }
-
-            // Add new assets to selected assets
-            const updatedSelectedAssets = [...selectedAssets, ...newAssets];
-            setSelectedAssets(updatedSelectedAssets);
-
-            // Update the knowledge base with the new assets if we have a knowledge base
-            if (knowledgeBase?.id) {
-              console.log('Updating knowledge base with new assets:', knowledgeBase.id);
-              const updatedKnowledgeBase: KnowledgeBaseCreate = {
-                title: knowledgeBase.title,
-                description: knowledgeBase.description || '',
-                asset_ids: updatedSelectedAssets.map(asset => asset.id)
-              };
-
-              // Make the PUT request to update the knowledge base
-              try {
-                await updateKnowledgeBase(knowledgeBase.id, updatedKnowledgeBase, headers);
-                console.log('Successfully updated knowledge base with new assets');
-                onSave();
-              } catch (error) {
-                console.error('Failed to update knowledge base with new assets:', error);
-                toast({
-                  title: "Error",
-                  description: "Failed to associate assets with knowledge base",
-                  variant: "destructive",
-                });
-                return;
-              }
             }
           }
 
+          // Close the modal after successful upload and association
           setShowUploadModal(false);
-          // Show a single success toast at the end
+
+          // Show success toast
           toast({
             title: "Success",
             description: `${successfulFiles.length} file(s) uploaded successfully`,
@@ -225,7 +204,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
         // Remove all files
         const files = uppy.getFiles();
         files.forEach(file => uppy.removeFile(file.id));
-        // Remove event listeners
+        // Remove event listeners with empty callbacks
         uppy.off('file-added', () => {});
         uppy.off('complete', () => {});
         // Clean up the instance
@@ -233,7 +212,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
         uppyRef.current = null;
       }
     };
-  }, [supabase, toast, getApiHeaders]);
+  }, [supabase, toast, getApiHeaders, knowledgeBase, onSave, selectedAssets]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
