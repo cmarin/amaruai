@@ -76,7 +76,7 @@ export default function KnowledgeBasePage() {
               <Link href="/assets">
                 <Button 
                   variant="outline" 
-                  className="h-10 flex items-center"
+                  className="h-9"
                 >
                   <FileText className="mr-2 h-4 w-4" />
                   Manage Assets
@@ -84,7 +84,7 @@ export default function KnowledgeBasePage() {
               </Link>
               <Button 
                 onClick={handleCreateKnowledgeBase} 
-                className="bg-blue-600 hover:bg-blue-700 text-white h-10"
+                className="bg-blue-600 hover:bg-blue-700 text-white h-9"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Knowledge Base

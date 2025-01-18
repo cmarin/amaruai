@@ -209,14 +209,14 @@ export default function AssetsPage() {
               <Button 
                 variant="outline" 
                 onClick={() => router.push('/knowledge-bases')}
-                className="h-10"
+                className="h-9"
               >
                 <BookOpen className="mr-2 h-4 w-4" />
                 Manage Knowledge Bases
               </Button>
               <Button 
                 onClick={() => setShowUploadModal(true)} 
-                className="bg-blue-600 hover:bg-blue-700 text-white h-10"
+                className="bg-blue-600 hover:bg-blue-700 text-white h-9"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Upload Assets

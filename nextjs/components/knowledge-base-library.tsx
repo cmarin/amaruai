@@ -75,21 +75,6 @@ export function KnowledgeBaseLibrary({ knowledgeBases, onUpdateKnowledgeBases }:
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b bg-white">
-        <h1 className="text-2xl font-bold">Knowledge Base Library</h1>
-        <div className="flex gap-3">
-          <Link href="/assets">
-            <Button variant="outline" className="flex items-center">
-              <FileText className="mr-2 h-4 w-4" />
-              Manage Assets
-            </Button>
-          </Link>
-          <Button onClick={handleCreateKnowledgeBase} className="bg-blue-600 hover:bg-blue-700 text-white">
-            <Plus className="mr-2 h-4 w-4" />
-            Knowledge Base
-          </Button>
-        </div>
-      </div>
       <div className="p-4">
         <Input
           type="search"
