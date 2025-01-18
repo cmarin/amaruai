@@ -1,17 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { X } from 'lucide-react'
+import { X, Upload } from 'lucide-react'
 import { KnowledgeBase, createKnowledgeBase, updateKnowledgeBase, KnowledgeBaseCreate } from '@/utils/knowledge-base-service'
 import { useSession } from '@/app/utils/session/session'
 import { AssetsTable } from './assets-table';
 import { Asset } from '@/types/knowledge-base';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchAssets } from '@/utils/asset-service';
+import { useSupabase } from '@/app/contexts/SupabaseContext';
+import { UploadService, type UploadedFile } from '@/utils/upload-service';
+import { useToast } from "@/hooks/use-toast";
+import { Dashboard } from '@uppy/react';
+import '@uppy/core/dist/style.min.css';
+import '@uppy/dashboard/dist/style.min.css';
 
 type KnowledgeBaseManagerProps = {
   knowledgeBase: KnowledgeBase | null
@@ -27,8 +33,12 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   });
   const { getApiHeaders } = useSession();
   const [showAssetSelector, setShowAssetSelector] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [availableAssets, setAvailableAssets] = useState<Asset[]>([]);
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>(knowledgeBase?.assets || []);
+  const supabase = useSupabase();
+  const { toast } = useToast();
+  const uppyRef = useRef<any>(null);
 
   useEffect(() => {
     if (knowledgeBase) {
@@ -69,6 +79,79 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   useEffect(() => {
     console.log('AssetsTable assets updated:', selectedAssets);
   }, [selectedAssets]);
+
+  const handleFileUploaded = async (file: UploadedFile) => {
+    try {
+      const headers = getApiHeaders();
+      if (!headers) return;
+
+      // Refresh the available assets list
+      const assets = await fetchAssets(headers);
+      setAvailableAssets(assets.filter(asset => asset.managed));
+
+      // Find the newly uploaded asset
+      const uploadedAsset = assets.find(asset => asset.title === file.name);
+      if (uploadedAsset) {
+        // Add it to the selected assets
+        setSelectedAssets(prev => [...prev, uploadedAsset]);
+      }
+
+      toast({
+        title: "File uploaded successfully",
+        description: `${file.name} has been uploaded and added to the knowledge base.`,
+      });
+    } catch (error) {
+      console.error('Error handling uploaded file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process uploaded file.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (showUploadModal && !uppyRef.current && supabase) {
+      const uppy = UploadService.createUppy(
+        'knowledge-base-uploader',
+        {
+          maxFileSize: 50 * 1024 * 1024, // 50MB
+          maxFiles: 10,
+          allowedFileTypes: [
+            'image/*',                    // All image types
+            'application/pdf',            // PDF files
+            '.doc', '.docx',             // Word documents
+            '.ppt', '.pptx',             // PowerPoint presentations
+            '.txt',                       // Text files
+            '.md', '.markdown',           // Markdown files
+            'text/plain',                 // Plain text
+            'text/markdown',              // Markdown MIME type
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation', // PPTX
+            'application/vnd.ms-powerpoint', // PPT
+            'audio/wav',                  // WAV audio
+            'audio/mpeg',                 // MP3 audio
+            'audio/flac',                 // FLAC audio
+            'video/mp4',                  // MP4 video
+            'video/quicktime',            // MOV video
+            '.wav', '.mp3', '.flac',     // Audio extensions
+            '.mp4', '.mov'               // Video extensions
+          ],
+          storageFolder: 'knowledge-bases',
+        },
+        handleFileUploaded,
+        () => setShowUploadModal(false),
+        supabase
+      );
+      uppyRef.current = uppy;
+    }
+
+    return () => {
+      if (uppyRef.current) {
+        uppyRef.current.close();
+        uppyRef.current = null;
+      }
+    };
+  }, [showUploadModal, supabase]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -162,9 +245,18 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Assets</h3>
-                  <Button onClick={() => setShowAssetSelector(true)}>
-                    Select Assets
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => setShowUploadModal(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Upload Assets
+                    </Button>
+                    <Button onClick={() => setShowAssetSelector(true)}>
+                      Select Assets
+                    </Button>
+                  </div>
                 </div>
                 <div className="overflow-hidden rounded-md border">
                   <AssetsTable 
@@ -210,6 +302,24 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             <Button variant="outline" onClick={() => setShowAssetSelector(false)}>
               Cancel
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Modal */}
+      <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+        <DialogContent className="max-w-4xl bg-white">
+          <DialogHeader className="bg-white">
+            <DialogTitle className="text-gray-900">Upload Assets</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 bg-white">
+            {uppyRef.current && (
+              <Dashboard
+                uppy={uppyRef.current}
+                plugins={['FileBrowser']}
+                height={400}
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>
