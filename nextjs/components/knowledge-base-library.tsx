@@ -10,6 +10,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { KnowledgeBaseManager } from '@/components/knowledge-base-manager'
 import { KnowledgeBase, deleteKnowledgeBase } from '@/utils/knowledge-base-service'
 import { useSession } from '@/app/utils/session/session';
+import { useRouter } from 'next/navigation';
 
 type KnowledgeBaseLibraryProps = {
   knowledgeBases: KnowledgeBase[];
@@ -21,6 +22,7 @@ export function KnowledgeBaseLibrary({ knowledgeBases, onUpdateKnowledgeBases }:
   const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState<KnowledgeBase | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const { getApiHeaders } = useSession();
+  const router = useRouter();
 
   const filteredKnowledgeBases = knowledgeBases.filter(kb =>
     kb.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -32,7 +34,7 @@ export function KnowledgeBaseLibrary({ knowledgeBases, onUpdateKnowledgeBases }:
   }
 
   const handleEditKnowledgeBase = (knowledgeBase: KnowledgeBase) => {
-    setSelectedKnowledgeBase(knowledgeBase)
+    router.push(`/knowledge-bases/${knowledgeBase.id}`);
   }
 
   const handleDeleteKnowledgeBase = async (id: string) => {
