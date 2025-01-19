@@ -123,9 +123,16 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
           const fileUuid = uuidv4();
           const filePath = `knowledge-bases/${session.user.id}/${fileUuid}/${file.name}`;
 
+          // Add knowledge base metadata if editing an existing knowledge base
+          const metadata = {
+            knowledge_base_id: knowledgeBase?.id || null
+          };
+
           const { error: uploadError } = await supabase.storage
             .from('amaruai-dev')
-            .upload(filePath, file.data);
+            .upload(filePath, file.data, {
+              metadata
+            });
 
           if (uploadError) {
             throw uploadError;
