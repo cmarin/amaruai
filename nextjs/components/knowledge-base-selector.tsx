@@ -1,0 +1,153 @@
+import { useState, useEffect, ReactNode } from 'react'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { X } from "lucide-react"
+import { KnowledgeBase } from '@/utils/knowledge-base-service'
+import { Asset } from '@/types/knowledge-base'
+
+type KnowledgeBaseSelectorProps = {
+  knowledgeBases: KnowledgeBase[]
+  assets: Asset[]
+  selectedKnowledgeBases: KnowledgeBase[]
+  selectedAssets: Asset[]
+  onSelectKnowledgeBase: (knowledgeBase: KnowledgeBase) => void
+  onDeselectKnowledgeBase: (knowledgeBase: KnowledgeBase) => void
+  onSelectAsset: (asset: Asset) => void
+  onDeselectAsset: (asset: Asset) => void
+  children: ReactNode
+}
+
+export function KnowledgeBaseSelector({
+  knowledgeBases,
+  assets,
+  selectedKnowledgeBases,
+  selectedAssets,
+  onSelectKnowledgeBase,
+  onDeselectKnowledgeBase,
+  onSelectAsset,
+  onDeselectAsset,
+  children
+}: KnowledgeBaseSelectorProps) {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState('knowledge-bases')
+
+  const filteredKnowledgeBases = knowledgeBases.filter(kb =>
+    kb.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    kb.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const filteredAssets = assets.filter(asset =>
+    asset.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    asset.file_name.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        {children}
+      </PopoverTrigger>
+      <PopoverContent className="w-[400px] p-0">
+        <div className="p-2 space-y-2">
+          <Input
+            type="text"
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="mb-2"
+          />
+          
+          <div className="flex flex-wrap gap-1 min-h-[32px]">
+            {selectedKnowledgeBases.map(kb => (
+              <Badge key={kb.id} variant="secondary" className="gap-1 pr-1">
+                {kb.title}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-4 w-4 p-0 hover:bg-transparent"
+                  onClick={() => onDeselectKnowledgeBase(kb)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            ))}
+            {selectedAssets.map(asset => (
+              <Badge key={asset.id} variant="secondary" className="gap-1 pr-1">
+                {asset.title}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-4 w-4 p-0 hover:bg-transparent"
+                  onClick={() => onDeselectAsset(asset)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        <Tabs defaultValue="knowledge-bases" className="w-full" value={activeTab} onValueChange={setActiveTab}>
+          <div className="border-t border-b px-2 py-1">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="knowledge-bases">Knowledge Bases</TabsTrigger>
+              <TabsTrigger value="assets">Assets</TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="knowledge-bases" className="mt-0">
+            <ScrollArea className="h-[300px]">
+              <div className="p-2 space-y-1">
+                {filteredKnowledgeBases.map(kb => (
+                  <Button
+                    key={kb.id}
+                    variant="ghost"
+                    className="w-full justify-start text-left h-auto py-2"
+                    onClick={() => {
+                      onSelectKnowledgeBase(kb)
+                    }}
+                  >
+                    <div>
+                      <div className="font-medium">{kb.title}</div>
+                      {kb.description && (
+                        <div className="text-sm text-muted-foreground line-clamp-2">{kb.description}</div>
+                      )}
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="assets" className="mt-0">
+            <ScrollArea className="h-[300px]">
+              <div className="p-2 space-y-1">
+                {filteredAssets.map(asset => (
+                  <Button
+                    key={asset.id}
+                    variant="ghost"
+                    className="w-full justify-start text-left h-auto py-2"
+                    onClick={() => {
+                      onSelectAsset(asset)
+                    }}
+                  >
+                    <div>
+                      <div className="font-medium">{asset.title}</div>
+                      <div className="text-sm text-muted-foreground line-clamp-2">
+                        {asset.file_name}
+                      </div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
+      </PopoverContent>
+    </Popover>
+  )
+}

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Copy, Trash2, Send, BookOpen, Grid2X2, Columns, Square, MessageSquare,
-  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X
+  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Database
 } from 'lucide-react'
 import {
   Select,
@@ -36,6 +36,10 @@ import Uppy from '@uppy/core'
 import Dashboard from '@uppy/react/lib/Dashboard'
 import { UploadService, type UploadedFile } from '@/utils/upload-service'
 import { FileUploadPills } from '@/components/file-upload-pills'
+import { KnowledgeBaseSelector } from '@/components/knowledge-base-selector'
+import { KnowledgeBase, fetchKnowledgeBases } from '@/utils/knowledge-base-service'
+import { fetchAssets } from '@/utils/asset-service'
+import { Asset } from '@/types/knowledge-base'
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css'
@@ -73,6 +77,10 @@ export default function Chat() {
   const [multiConversationId, setMultiConversationId] = useState<string | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [showUploadModal, setShowUploadModal] = useState(false)
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([])
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([])
+  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([])
 
   const uppyRef = useRef<Uppy | null>(null)
 
@@ -98,6 +106,25 @@ export default function Chat() {
       }
     }
   }, [supabase])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const headers = await getApiHeaders()
+        if (!headers) return
+
+        const [fetchedKnowledgeBases, fetchedAssets] = await Promise.all([
+          fetchKnowledgeBases(headers),
+          fetchAssets(headers)
+        ])
+        setKnowledgeBases(fetchedKnowledgeBases)
+        setAssets(fetchedAssets)
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      }
+    }
+    fetchData()
+  }, [])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesEndRef2 = useRef<HTMLDivElement>(null)
@@ -234,6 +261,8 @@ export default function Chat() {
             persona_id: selectedPersona?.id,
             files: uploadedFiles.map(f => ({ name: f.name, url: f.url })),
             conversation_id: currentConversationId,
+            knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
+            asset_ids: selectedAssets.map(asset => asset.id),
             ...(currentMultiConversationId && { multi_conversation_id: currentMultiConversationId })
           }),
         })
@@ -589,6 +618,25 @@ export default function Chat() {
             </Button>
           </PromptSelector>
 
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowUploadModal(true)}>
+            <Paperclip className="h-4 w-4" />
+          </Button>
+
+          <KnowledgeBaseSelector
+            knowledgeBases={knowledgeBases}
+            assets={assets}
+            selectedKnowledgeBases={selectedKnowledgeBases}
+            selectedAssets={selectedAssets}
+            onSelectKnowledgeBase={(kb) => setSelectedKnowledgeBases(prev => [...prev, kb])}
+            onDeselectKnowledgeBase={(kb) => setSelectedKnowledgeBases(prev => prev.filter(item => item.id !== kb.id))}
+            onSelectAsset={(asset) => setSelectedAssets(prev => [...prev, asset])}
+            onDeselectAsset={(asset) => setSelectedAssets(prev => prev.filter(item => item.id !== asset.id))}
+          >
+            <Button variant="ghost" size="icon" className="h-8 w-8" title="Add Knowledge Base or Asset">
+              <Database className="h-4 w-4" />
+            </Button>
+          </KnowledgeBaseSelector>
+
           <Input
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -601,10 +649,6 @@ export default function Chat() {
             placeholder="Type a message..."
             className="flex-1"
           />
-
-          <Button variant="ghost" size="icon" onClick={handleFileUpload} className="h-8 w-8">
-            <Paperclip className="h-4 w-4" />
-          </Button>
 
           <Button onClick={e => handleSubmit(e)} disabled={isLoading || (!input.trim() && !uploadedFiles.length)}>
             {isLoading ? (
