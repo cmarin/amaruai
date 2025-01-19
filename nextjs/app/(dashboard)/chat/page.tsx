@@ -126,78 +126,34 @@ export default function Chat() {
     fetchData()
   }, [getApiHeaders])
 
-  const [autoScroll, setAutoScroll] = useState<boolean>(true);
-  const [showScrollButton, setShowScrollButton] = useState<boolean>(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef2 = useRef<HTMLDivElement>(null);
+  const messagesEndRef3 = useRef<HTMLDivElement>(null);
+  const messagesEndRef4 = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const isStreamingRef = useRef<boolean>(false);
+  const wasAtBottomRef = useRef<boolean>(true);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const messagesEndRef2 = useRef<HTMLDivElement>(null)
-  const messagesEndRef3 = useRef<HTMLDivElement>(null)
-  const messagesEndRef4 = useRef<HTMLDivElement>(null)
-
-  const isNearBottom = useCallback((containerRef: HTMLElement) => {
+  const isAtBottom = useCallback((containerRef: HTMLElement) => {
     const threshold = 100; // pixels from bottom
     const position = containerRef.scrollTop + containerRef.clientHeight;
     const height = containerRef.scrollHeight;
     return height - position <= threshold;
   }, []);
 
-  const scrollToBottom = useCallback((ref: React.RefObject<HTMLDivElement>, force = false) => {
-    const containerRef = ref.current?.parentElement;
+  const maintainScroll = useCallback((containerRef: HTMLElement) => {
     if (!containerRef) return;
-
-    const shouldScroll = force || (autoScroll && isNearBottom(containerRef));
-    if (shouldScroll) {
-      ref.current?.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'end',
-        inline: 'nearest'
-      });
+    
+    // If we were at the bottom before the update, scroll to bottom
+    if (wasAtBottomRef.current) {
+      containerRef.scrollTop = containerRef.scrollHeight;
     }
-  }, [isNearBottom, autoScroll]);
+  }, []);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLDivElement;
-    const isBottom = isNearBottom(target);
-    setShowScrollButton(!isBottom);
-    if (isBottom) {
-      setAutoScroll(true);
-    }
-  }, [isNearBottom]);
-
-  const handleManualScrollToBottom = useCallback((ref: React.RefObject<HTMLDivElement>) => {
-    setAutoScroll(true);
-    scrollToBottom(ref, true);
-  }, [scrollToBottom]);
-
-  useEffect(() => {
-    if (messagesEndRef.current && messages.length > 0) {
-      const isStreaming = isStreamingRef.current;
-      scrollToBottom(messagesEndRef, !isStreaming);
-    }
-  }, [messages, scrollToBottom]);
-
-  useEffect(() => {
-    if (messagesEndRef2.current && messages2.length > 0) {
-      const isStreaming = isStreamingRef.current;
-      scrollToBottom(messagesEndRef2, !isStreaming);
-    }
-  }, [messages2, scrollToBottom]);
-
-  useEffect(() => {
-    if (messagesEndRef3.current && messages3.length > 0) {
-      const isStreaming = isStreamingRef.current;
-      scrollToBottom(messagesEndRef3, !isStreaming);
-    }
-  }, [messages3, scrollToBottom]);
-
-  useEffect(() => {
-    if (messagesEndRef4.current && messages4.length > 0) {
-      const isStreaming = isStreamingRef.current;
-      scrollToBottom(messagesEndRef4, !isStreaming);
-    }
-  }, [messages4, scrollToBottom]);
+    const container = e.target as HTMLDivElement;
+    wasAtBottomRef.current = isAtBottom(container);
+  }, [isAtBottom]);
 
   const getProviderIcon = (modelId: string, modelName: string) => {
     const nameLower = modelName.toLowerCase()
@@ -277,7 +233,6 @@ export default function Chat() {
     ) => {
       try {
         isStreamingRef.current = true;
-        setAutoScroll(true); // Reset auto-scroll when starting new message
         // Get or create conversation_id for this chat window
         let currentConversationId = conversationIds[chatId]
         if (!currentConversationId) {
@@ -330,12 +285,6 @@ export default function Chat() {
           const { value, done } = await reader.read()
           if (done) {
             isStreamingRef.current = false;
-            // Force scroll to bottom when streaming is complete
-            const ref = chatId === 'chat1' ? messagesEndRef :
-                       chatId === 'chat2' ? messagesEndRef2 :
-                       chatId === 'chat3' ? messagesEndRef3 :
-                       messagesEndRef4;
-            scrollToBottom(ref, true);
             break
           }
           const chunk = decoder.decode(value)
@@ -355,6 +304,10 @@ export default function Chat() {
                         role: 'assistant',
                         content: assistantMessage,
                       }
+                      // Maintain scroll position after state update
+                      if (chatContainerRef.current) {
+                        maintainScroll(chatContainerRef.current);
+                      }
                       return updated
                     })
                   }
@@ -367,7 +320,6 @@ export default function Chat() {
         }
       } catch (err: any) {
         isStreamingRef.current = false;
-        setAutoScroll(true); // Reset auto-scroll on error
         console.error('Error in API call:', err)
         const errMsg = err instanceof Error ? err.message : 'Unknown error'
         setError(prevError =>
@@ -552,7 +504,11 @@ export default function Chat() {
         </div>
 
         {/* Chat messages area */}
-        <ScrollArea className="flex-1 p-4" onScroll={handleScroll}>
+        <ScrollArea 
+          className="flex-1 p-4" 
+          onScroll={handleScroll}
+          ref={chatContainerRef}
+        >
           <div className="space-y-4">
             {messages.map((message, index) => (
               <div
@@ -574,17 +530,8 @@ export default function Chat() {
                 </div>
               </div>
             ))}
-            <div ref={messagesEndRef} className="h-px" />
+            <div ref={messagesEndRef} />
           </div>
-          {showScrollButton && (
-            <Button
-              onClick={() => handleManualScrollToBottom(messagesEndRef)}
-              className="fixed bottom-4 right-4 rounded-full shadow-lg"
-              size="icon"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          )}
         </ScrollArea>
       </div>
     </TooltipProvider>
