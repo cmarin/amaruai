@@ -14,6 +14,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useState } from 'react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface AssetsTableProps {
   assets: Asset[];
@@ -93,18 +99,27 @@ export function AssetsTable({
                 <TableCell>{new Date(asset.created_at).toLocaleDateString()}</TableCell>
                 {showActions && (
                   <TableCell className="text-right space-x-2">
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => handleCopyTranscript(asset.content, asset.id)}
-                      className="h-8 w-8 text-gray-600 hover:text-gray-700"
-                    >
-                      {copiedAssetId === asset.id ? (
-                        <Check className="h-4 w-4" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleCopyTranscript(asset.content || '', asset.id)}
+                            className="h-8 w-8 text-gray-600 hover:text-gray-700"
+                          >
+                            {copiedAssetId === asset.id ? (
+                              <Check className="h-4 w-4" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Copy transcript</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     {onManageAsset && (
                       <Button 
                         variant="ghost" 

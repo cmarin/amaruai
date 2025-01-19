@@ -101,24 +101,17 @@ export async function fetchAssetsForKnowledgeBase(knowledgeBaseId: string, heade
       throw new Error('API_BASE_URL is not defined');
     }
 
-    // First, fetch the knowledge base to get its assets
-    const kbResponse = await fetch(`${baseUrl}/knowledge_bases/${knowledgeBaseId}`, { headers });
-    if (!kbResponse.ok) {
-      throw new Error('Failed to fetch knowledge base');
-    }
-    const knowledgeBase = await kbResponse.json();
-
-    // Then, fetch full asset details for each asset
-    const assetPromises = knowledgeBase.assets.map(async (asset: Asset) => {
-      const assetResponse = await fetch(`${baseUrl}/assets/${asset.id}`, { headers });
-      if (!assetResponse.ok) {
-        console.error(`Failed to fetch asset ${asset.id}`);
-        return asset; // Return basic asset info if full fetch fails
-      }
-      return assetResponse.json();
+    // Fetch the knowledge base with full asset details
+    const response = await fetch(`${baseUrl}/knowledge_bases/${knowledgeBaseId}/assets?include_content=true`, { 
+      headers,
+      cache: 'no-store' // Disable caching to always get fresh content
     });
 
-    const assets = await Promise.all(assetPromises);
+    if (!response.ok) {
+      throw new Error('Failed to fetch knowledge base assets');
+    }
+
+    const assets = await response.json();
     return assets;
   } catch (error) {
     console.error('Error fetching assets for knowledge base:', error);
