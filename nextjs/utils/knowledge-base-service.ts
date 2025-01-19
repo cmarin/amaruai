@@ -96,13 +96,32 @@ export async function deleteKnowledgeBase(id: string, headers: ApiHeaders): Prom
 
 export async function fetchAssetsForKnowledgeBase(knowledgeBaseId: string, headers: HeadersInit): Promise<Asset[]> {
   try {
-    const response = await fetch(`${getApiUrl()}/knowledge_bases/${knowledgeBaseId}/assets`, { headers });
-    if (!response.ok) {
-      throw new Error('Failed to fetch assets for knowledge base');
+    const baseUrl = getApiUrl();
+    if (!baseUrl) {
+      throw new Error('API_BASE_URL is not defined');
     }
-    return await response.json();
+
+    // First, fetch the knowledge base to get its assets
+    const kbResponse = await fetch(`${baseUrl}/knowledge_bases/${knowledgeBaseId}`, { headers });
+    if (!kbResponse.ok) {
+      throw new Error('Failed to fetch knowledge base');
+    }
+    const knowledgeBase = await kbResponse.json();
+
+    // Then, fetch full asset details for each asset
+    const assetPromises = knowledgeBase.assets.map(async (asset: Asset) => {
+      const assetResponse = await fetch(`${baseUrl}/assets/${asset.id}`, { headers });
+      if (!assetResponse.ok) {
+        console.error(`Failed to fetch asset ${asset.id}`);
+        return asset; // Return basic asset info if full fetch fails
+      }
+      return assetResponse.json();
+    });
+
+    const assets = await Promise.all(assetPromises);
+    return assets;
   } catch (error) {
     console.error('Error fetching assets for knowledge base:', error);
     throw error;
   }
-} 
+}

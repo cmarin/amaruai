@@ -32,6 +32,10 @@ export function AssetsTable({
 
   const handleCopyTranscript = async (content: string, assetId: string) => {
     try {
+      if (!content) {
+        console.error('No content available to copy');
+        return;
+      }
       await navigator.clipboard.writeText(content);
       setCopiedAssetId(assetId);
       setTimeout(() => setCopiedAssetId(null), 2000);
