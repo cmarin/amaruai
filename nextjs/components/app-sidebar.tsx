@@ -42,7 +42,7 @@ const aiTools = [
   {
     title: "Knowledge Bases",
     href: "/knowledge-bases",
-    icon: BookOpen,
+    icon: Database,
   },
   {
     title: "Workflows",

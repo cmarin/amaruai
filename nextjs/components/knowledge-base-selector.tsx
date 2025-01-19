@@ -1,11 +1,12 @@
-import { useState, useEffect, ReactNode } from 'react'
+import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { X, BookOpen } from "lucide-react"
+import { X, Database } from "lucide-react"
 import { KnowledgeBase } from '@/utils/knowledge-base-service'
 import { Asset } from '@/types/knowledge-base'
 import { fetchManagedAssets } from '@/utils/asset-service'
@@ -13,19 +14,18 @@ import { useSession } from '@/app/utils/session/session'
 
 type KnowledgeBaseSelectorProps = {
   knowledgeBases: KnowledgeBase[]
-  assets: Asset[]
+  isLoadingKnowledgeBases: boolean
   selectedKnowledgeBases: KnowledgeBase[]
   selectedAssets: Asset[]
   onSelectKnowledgeBase: (knowledgeBase: KnowledgeBase) => void
   onDeselectKnowledgeBase: (knowledgeBase: KnowledgeBase) => void
   onSelectAsset: (asset: Asset) => void
   onDeselectAsset: (asset: Asset) => void
-  children: ReactNode
 }
 
 export function KnowledgeBaseSelector({
   knowledgeBases,
-  assets,
+  isLoadingKnowledgeBases,
   selectedKnowledgeBases,
   selectedAssets,
   onSelectKnowledgeBase,
@@ -72,7 +72,7 @@ export function KnowledgeBaseSelector({
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8" title="Add Knowledge Base or Asset">
-          <BookOpen className="h-4 w-4" />
+          <Database className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[400px] p-0">
@@ -126,23 +126,33 @@ export function KnowledgeBaseSelector({
           <TabsContent value="knowledge-bases" className="mt-0">
             <ScrollArea className="h-[300px]">
               <div className="p-2 space-y-1">
-                {filteredKnowledgeBases.map(kb => (
-                  <Button
-                    key={kb.id}
-                    variant="ghost"
-                    className="w-full justify-start text-left h-auto py-2"
-                    onClick={() => {
-                      onSelectKnowledgeBase(kb)
-                    }}
-                  >
-                    <div>
-                      <div className="font-medium">{kb.title}</div>
-                      {kb.description && (
-                        <div className="text-sm text-muted-foreground line-clamp-2">{kb.description}</div>
-                      )}
-                    </div>
-                  </Button>
-                ))}
+                {isLoadingKnowledgeBases ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="text-sm text-muted-foreground">Loading knowledge bases...</div>
+                  </div>
+                ) : filteredKnowledgeBases.length === 0 ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="text-sm text-muted-foreground">No knowledge bases found</div>
+                  </div>
+                ) : (
+                  filteredKnowledgeBases.map(kb => (
+                    <Button
+                      key={kb.id}
+                      variant="ghost"
+                      className="w-full justify-start text-left h-auto py-2"
+                      onClick={() => {
+                        onSelectKnowledgeBase(kb)
+                      }}
+                    >
+                      <div>
+                        <div className="font-medium">{kb.title}</div>
+                        {kb.description && (
+                          <div className="text-sm text-muted-foreground line-clamp-2">{kb.description}</div>
+                        )}
+                      </div>
+                    </Button>
+                  ))
+                )}
               </div>
             </ScrollArea>
           </TabsContent>

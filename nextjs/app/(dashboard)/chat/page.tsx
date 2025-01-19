@@ -81,6 +81,7 @@ export default function Chat() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([])
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>([])
+  const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(true)
 
   const uppyRef = useRef<Uppy | null>(null)
 
@@ -113,14 +114,17 @@ export default function Chat() {
         const headers = await getApiHeaders()
         if (!headers) return
 
+        setIsLoadingKnowledgeBases(true)
         const fetchedKnowledgeBases = await fetchKnowledgeBases(headers)
         setKnowledgeBases(fetchedKnowledgeBases)
       } catch (error) {
         console.error('Error fetching knowledge bases:', error)
+      } finally {
+        setIsLoadingKnowledgeBases(false)
       }
     }
     fetchData()
-  }, [])
+  }, [getApiHeaders])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesEndRef2 = useRef<HTMLDivElement>(null)
@@ -620,18 +624,14 @@ export default function Chat() {
 
           <KnowledgeBaseSelector
             knowledgeBases={knowledgeBases}
-            assets={assets}
+            isLoadingKnowledgeBases={isLoadingKnowledgeBases}
             selectedKnowledgeBases={selectedKnowledgeBases}
             selectedAssets={selectedAssets}
             onSelectKnowledgeBase={(kb) => setSelectedKnowledgeBases(prev => [...prev, kb])}
             onDeselectKnowledgeBase={(kb) => setSelectedKnowledgeBases(prev => prev.filter(item => item.id !== kb.id))}
             onSelectAsset={(asset) => setSelectedAssets(prev => [...prev, asset])}
             onDeselectAsset={(asset) => setSelectedAssets(prev => prev.filter(item => item.id !== asset.id))}
-          >
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="Add Knowledge Base or Asset">
-              <Database className="h-4 w-4" />
-            </Button>
-          </KnowledgeBaseSelector>
+          />
 
           <Input
             value={input}
