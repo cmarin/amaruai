@@ -20,7 +20,6 @@ import { Dashboard } from '@uppy/react';
 import '@uppy/core/dist/style.css';
 import '@uppy/dashboard/dist/style.css';
 import { v4 as uuidv4 } from 'uuid';
-import type { UppyFile, Meta, UploadResult } from '@uppy/core';
 
 type KnowledgeBaseManagerProps = {
   knowledgeBase: KnowledgeBase | null
@@ -28,26 +27,7 @@ type KnowledgeBaseManagerProps = {
   onClose: () => void
 }
 
-// Define the metadata type
-interface FileMetadata extends Meta {
-  filePath?: string;
-  [key: string]: any; // Add index signature to satisfy Meta constraint
-}
-
-// Update the FileData type to be more specific
-type FileData = Blob | ArrayBuffer | DataView | Uint8Array | string | Buffer;
-
-// Add a better type guard for Buffer
-function isBuffer(value: unknown): value is Buffer {
-  return Boolean(
-    typeof Buffer !== 'undefined' && 
-    value && 
-    value.constructor && 
-    value.constructor.name === 'Buffer'
-  );
-}
-
-export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: KnowledgeBaseManagerProps): JSX.Element {
+export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: KnowledgeBaseManagerProps) {
   const [currentKnowledgeBase, setCurrentKnowledgeBase] = useState({
     title: '',
     description: '',
@@ -132,171 +112,104 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
         }
       });
 
-      // Store handler references for cleanup
-      const handleFileAdded = async (file: UppyFile<Meta, Record<string, never>>) => {
+      uppy.on('file-added', async (file) => {
         try {
+          // Upload file to Supabase storage
           const { data: { session } } = await supabase.auth.getSession();
           if (!session?.user?.id) {
             throw new Error('User must be authenticated to upload files');
           }
 
           const fileUuid = uuidv4();
-          const originalFileName = typeof file.name === 'string' ? file.name : String(file.name);
-          const sanitizedFileName = originalFileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-          
-          // Create storage path segments
-          const pathSegments = [
-            'knowledge-bases',
-            session.user.id,
-            fileUuid,
-            sanitizedFileName
-          ];
+          const filePath = `knowledge-bases/${session.user.id}/${fileUuid}/${file.name}`;
 
-          // Join path segments and clean up any invalid characters
-          const bucketPath = pathSegments
-            .filter(Boolean)  // Remove any empty segments
-            .join('/')
-            .replace(/\/+/g, '/');  // Replace multiple slashes with single slash
-
-          // Ensure we have valid file data
-          if (!file.data) {
-            throw new Error('No file data available');
-          }
-
-          // Convert file data to appropriate format
-          const data = file.data as unknown;
-          let fileData: Blob;
-
-          if (data instanceof Blob) {
-            fileData = data;
-          } else if (ArrayBuffer.isView(data)) {
-            fileData = new Blob([new Uint8Array(data.buffer)]);
-          } else if (data instanceof ArrayBuffer) {
-            fileData = new Blob([new Uint8Array(data)]);
-          } else if (typeof data === 'string') {
-            fileData = new Blob([data]);
-          } else if (isBuffer(data)) {
-            fileData = new Blob([new Uint8Array(data)]);
-          } else {
-            throw new Error('Unsupported file data format');
-          }
-
-          // Upload to Supabase storage with sanitized path
-          const { error: uploadError, data: uploadData } = await supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from('amaruai-dev')
-            .upload(bucketPath, fileData, {
-              contentType: file.type || 'application/octet-stream',
-              upsert: false
-            });
+            .upload(filePath, file.data);
 
           if (uploadError) {
             throw uploadError;
           }
 
-          // Store the path in metadata for matching later
-          file.meta.filePath = bucketPath;
-
+          // Don't show toast for individual file uploads in knowledge base context
         } catch (error) {
           console.error('Error uploading file:', error);
+          // Only show error toasts
           toast({
             title: "Error",
             description: "Failed to upload file",
             variant: "destructive",
           });
         }
-      };
+      });
 
-      const handleComplete = async (result: UploadResult<FileMetadata, Record<string, never>>) => {
+      uppy.on('complete', async (result) => {
         try {
           const headers = getApiHeaders();
           if (!headers) return;
 
-          // Wait for backend processing
-          await new Promise(resolve => setTimeout(resolve, 2000));
-
-          // Fetch latest assets to find our newly uploaded ones
+          // Refresh the available assets list
           const assets = await fetchAssets(headers);
-          const managedAssets = assets.filter(asset => asset.managed);
-          setAvailableAssets(managedAssets);
+          setAvailableAssets(assets.filter(asset => asset.managed));
 
-          // Find newly uploaded assets by matching file paths
-          const newAssets = managedAssets.filter(asset => 
-            result.successful?.some(file => {
-              const filePath = file.meta.filePath;
-              return typeof filePath === 'string' && asset.file_url.includes(filePath);
-            })
-          );
+          // Add uploaded files to selected assets
+          const successfulFiles = result.successful || [];
+          if (successfulFiles.length > 0) {
+            const newAssets = assets.filter(asset => 
+              successfulFiles.some(file => asset.title === file.name)
+            );
+            
+            // Add new assets to selected assets
+            const updatedSelectedAssets = [...selectedAssets, ...newAssets];
+            setSelectedAssets(updatedSelectedAssets);
 
-          console.log('New assets found:', newAssets);
-
-          if (newAssets.length > 0) {
-            // Update knowledge base if we have an ID
+            // Update the knowledge base with the new assets if we have a knowledge base
             if (knowledgeBase?.id) {
-              const updatedAssets = [...selectedAssets, ...newAssets];
-              
-              const updatePayload: KnowledgeBaseCreate = {
-                title: currentKnowledgeBase.title,
-                description: currentKnowledgeBase.description,
-                asset_ids: updatedAssets.map(asset => asset.id)
+              const updatedKnowledgeBase: KnowledgeBaseCreate = {
+                title: knowledgeBase.title,
+                description: knowledgeBase.description || '',
+                asset_ids: updatedSelectedAssets.map(asset => asset.id)
               };
 
-              console.log('Updating knowledge base with payload:', updatePayload);
-              await updateKnowledgeBase(knowledgeBase.id, updatePayload, headers);
-              
-              // Update local state after successful API call
-              setSelectedAssets(updatedAssets);
-            } else {
-              // Just update local state for new knowledge bases
-              setSelectedAssets(prev => [...prev, ...newAssets]);
+              await updateKnowledgeBase(knowledgeBase.id, updatedKnowledgeBase, headers);
             }
-
-            toast({
-              title: 'Success',
-              description: `${newAssets.length} file(s) uploaded and associated with knowledge base`,
-            });
           }
 
-          // Close the modal and clean up
-          if (uppyRef.current) {
-            uppyRef.current.cancelAll();
-            const files = uppyRef.current.getFiles();
-            files.forEach(file => uppyRef.current?.removeFile(file.id));
-          }
           setShowUploadModal(false);
-
+          // Show a single success toast at the end
+          toast({
+            title: "Success",
+            description: `${successfulFiles.length} file(s) uploaded successfully`,
+          });
         } catch (error) {
           console.error('Error processing uploaded files:', error);
           toast({
-            title: 'Error',
-            description: 'Failed to update knowledge base with new assets',
-            variant: 'destructive',
+            title: "Error",
+            description: "Failed to process uploaded files",
+            variant: "destructive",
           });
         }
-      };
-
-      // Add event listeners with stored handlers
-      uppy.on('file-added', handleFileAdded);
-      uppy.on('complete', handleComplete);
+      });
 
       uppyRef.current = uppy;
-
-      // Cleanup function with proper handler removal
-      return () => {
-        if (uppyRef.current) {
-          const uppy = uppyRef.current;
-          const files = uppy.getFiles();
-          files.forEach(file => uppy.removeFile(file.id));
-          
-          // Remove event listeners with the stored handlers
-          uppy.off('file-added', handleFileAdded);
-          uppy.off('complete', handleComplete);
-          
-          uppy.cancelAll();
-          uppyRef.current = null;
-        }
-      };
     }
-  }, [supabase, toast, getApiHeaders, knowledgeBase, selectedAssets]);
+
+    // Cleanup function
+    return () => {
+      if (uppyRef.current) {
+        const uppy = uppyRef.current;
+        // Remove all files
+        const files = uppy.getFiles();
+        files.forEach(file => uppy.removeFile(file.id));
+        // Remove event listeners
+        uppy.off('file-added', () => {});
+        uppy.off('complete', () => {});
+        // Clean up the instance
+        uppy.cancelAll();
+        uppyRef.current = null;
+      }
+    };
+  }, [supabase, toast, getApiHeaders]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -452,18 +365,20 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
       </Dialog>
 
       {/* Upload Modal */}
-      <Dialog 
-        open={showUploadModal} 
-        onOpenChange={(open) => {
-          if (!open && uppyRef.current) {
-            // Clear all files and reset upload state
-            uppyRef.current.cancelAll();
-            const files = uppyRef.current.getFiles();
-            files.forEach(file => uppyRef.current?.removeFile(file.id));
-          }
-          setShowUploadModal(open);
-        }}
-      >
+      <Dialog open={showUploadModal} onOpenChange={(open) => {
+        setShowUploadModal(open);
+        if (!open && uppyRef.current) {
+          const uppy = uppyRef.current;
+          // Remove all files
+          const files = uppy.getFiles();
+          files.forEach(file => uppy.removeFile(file.id));
+          // Remove event listeners
+          uppy.off('file-added', () => {});
+          uppy.off('complete', () => {});
+          // Clean up the instance
+          uppy.cancelAll();
+        }
+      }}>
         <DialogContent className="max-w-4xl bg-white">
           <DialogHeader className="bg-white">
             <DialogTitle className="text-gray-900">Upload Assets</DialogTitle>
