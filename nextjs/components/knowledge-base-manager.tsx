@@ -172,17 +172,6 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             // Add new assets to selected assets
             const updatedSelectedAssets = [...selectedAssets, ...newAssets];
             setSelectedAssets(updatedSelectedAssets);
-
-            // Update the knowledge base with the new assets if we have a knowledge base
-            if (knowledgeBaseId) {
-              const updatedKnowledgeBase: KnowledgeBaseCreate = {
-                title: currentKnowledgeBase.title,
-                description: currentKnowledgeBase.description,
-                asset_ids: updatedSelectedAssets.map(asset => asset.id)
-              };
-
-              await updateKnowledgeBase(knowledgeBaseId, updatedKnowledgeBase, headers);
-            }
           }
 
           setShowUploadModal(false);
