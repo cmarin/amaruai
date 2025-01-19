@@ -1,4 +1,3 @@
-
 import os
 import json
 import uuid
@@ -23,6 +22,7 @@ from app.api.v1.router import create_protected_router
 from app import crud
 from app.database import get_db
 from app.utils import format_openai_message, log_chat_request
+from app.config.asset_utils import collect_reference_content
 
 logging.basicConfig(
     level=logging.INFO,
@@ -212,6 +212,22 @@ async def chat_endpoint(
                     if local_messages[i]["role"] == "user":
                         local_messages[i]["content"] += "\n\nAttached Files:" + "".join(file_contents)
                         logger.info(f"Added content from {len(file_contents)} files to user message")
+                        break
+
+        # Process referenced knowledge bases and assets
+        if chat_data.knowledge_base_ids or chat_data.asset_ids:
+            reference_content, total_tokens = collect_reference_content(
+                db=db,
+                knowledge_base_ids=chat_data.knowledge_base_ids,
+                asset_ids=chat_data.asset_ids
+            )
+            
+            if reference_content:
+                # Append reference content to the last user message
+                for i in range(len(local_messages) - 1, -1, -1):
+                    if local_messages[i]["role"] == "user":
+                        local_messages[i]["content"] += "\n\nReferenced Content:" + reference_content
+                        logger.info(f"Added referenced content with {total_tokens} total tokens to user message")
                         break
 
         # Put user messages into memory

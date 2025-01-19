@@ -166,8 +166,6 @@ class WorkflowStepResult(BaseModel):
 class WorkflowExecutionResult(BaseModel):
     results: List[WorkflowStepResult]
 
-
-
 class Message(BaseModel):
     role: str = Field(..., description="The role of the sender (e.g. user, assistant, system)")
     content: str = Field(..., description="The content of the message")
@@ -190,6 +188,8 @@ class ChatMessage(BaseModel):
     persona_id: Optional[int] = Field(None, description="ID of the persona to use")
     user_id: Optional[str] = Field(None, description="ID of the user")
     files: List[FileInfo] = Field(default_factory=list, description="List of files to process")
+    knowledge_base_ids: List[UUID] = Field(default_factory=list, description="List of knowledge base IDs to reference")
+    asset_ids: List[UUID] = Field(default_factory=list, description="List of asset IDs to reference")
 
     # -------------------- NEW FIELDS FOR MEMORY -------------------- #
     conversation_id: Optional[str] = Field(
@@ -207,7 +207,9 @@ class ChatMessage(BaseModel):
             "example": {
                 "messages": [{"role": "user", "content": "Tell me a joke"}],
                 "user_id": "user123",
-                "files": [{"name": "doc.txt", "url": "https://..."}]
+                "files": [{"name": "doc.txt", "url": "https://..."}],
+                "knowledge_base_ids": ["uuid1", "uuid2"],
+                "asset_ids": ["uuid3"]
             }
         }
 
