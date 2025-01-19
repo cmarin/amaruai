@@ -96,7 +96,7 @@ export async function deleteKnowledgeBase(id: string, headers: ApiHeaders): Prom
 
 export async function fetchAssetsForKnowledgeBase(knowledgeBaseId: string, headers: HeadersInit): Promise<Asset[]> {
   try {
-    const response = await fetch(`${getApiUrl()}/knowledge-bases/${knowledgeBaseId}/assets`, { headers });
+    const response = await fetch(`${getApiUrl()}/knowledge_bases/${knowledgeBaseId}/assets`, { headers });
     if (!response.ok) {
       throw new Error('Failed to fetch assets for knowledge base');
     }
