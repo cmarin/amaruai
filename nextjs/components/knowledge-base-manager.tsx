@@ -20,6 +20,7 @@ import { Dashboard } from '@uppy/react';
 import '@uppy/core/dist/style.css';
 import '@uppy/dashboard/dist/style.css';
 import { v4 as uuidv4 } from 'uuid';
+import { useParams } from 'next/navigation';
 
 type KnowledgeBaseManagerProps = {
   knowledgeBase: KnowledgeBase | null
@@ -28,6 +29,8 @@ type KnowledgeBaseManagerProps = {
 }
 
 export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: KnowledgeBaseManagerProps) {
+  const params = useParams();
+  const knowledgeBaseId = params?.id as string || knowledgeBase?.id || null;
   const [currentKnowledgeBase, setCurrentKnowledgeBase] = useState({
     title: '',
     description: '',
@@ -125,7 +128,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
 
           // Add knowledge base metadata when editing an existing knowledge base
           const metadata = {
-            knowledge_base_id: knowledgeBase?.id || null
+            knowledge_base_id: knowledgeBaseId
           };
 
           const { error: uploadError } = await supabase.storage
@@ -171,14 +174,14 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             setSelectedAssets(updatedSelectedAssets);
 
             // Update the knowledge base with the new assets if we have a knowledge base
-            if (knowledgeBase?.id) {
+            if (knowledgeBaseId) {
               const updatedKnowledgeBase: KnowledgeBaseCreate = {
-                title: knowledgeBase.title,
-                description: knowledgeBase.description || '',
+                title: currentKnowledgeBase.title,
+                description: currentKnowledgeBase.description,
                 asset_ids: updatedSelectedAssets.map(asset => asset.id)
               };
 
-              await updateKnowledgeBase(knowledgeBase.id, updatedKnowledgeBase, headers);
+              await updateKnowledgeBase(knowledgeBaseId, updatedKnowledgeBase, headers);
             }
           }
 
@@ -216,7 +219,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
         uppyRef.current = null;
       }
     };
-  }, [supabase, toast, getApiHeaders]);
+  }, [supabase, toast, getApiHeaders, knowledgeBaseId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -237,9 +240,9 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
         asset_ids: selectedAssets.map(asset => asset.id)
       };
 
-      if (knowledgeBase?.id) {
-        console.log('Updating existing knowledge base:', knowledgeBase.id);
-        await updateKnowledgeBase(knowledgeBase.id, payload, headers);
+      if (knowledgeBaseId) {
+        console.log('Updating existing knowledge base:', knowledgeBaseId);
+        await updateKnowledgeBase(knowledgeBaseId, payload, headers);
       } else {
         console.log('Creating new knowledge base');
         await createKnowledgeBase(payload, headers);
@@ -268,7 +271,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
         <div className="container max-w-4xl mx-auto py-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">
-              {knowledgeBase?.id ? 'Edit Knowledge Base' : 'Create Knowledge Base'}
+              {knowledgeBaseId ? 'Edit Knowledge Base' : 'Create Knowledge Base'}
             </h2>
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="h-6 w-6" />
