@@ -123,7 +123,7 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
           const fileUuid = uuidv4();
           const filePath = `knowledge-bases/${session.user.id}/${fileUuid}/${file.name}`;
 
-          // Add knowledge base metadata if editing an existing knowledge base
+          // Add knowledge base metadata when editing an existing knowledge base
           const metadata = {
             knowledge_base_id: knowledgeBase?.id || null
           };
