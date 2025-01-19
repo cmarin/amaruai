@@ -9,6 +9,12 @@ import type { BatchFlowStep, BatchFlowFile } from '@/types';
 import { useData } from "@/components/data-context";
 import { useToast } from "@/hooks/use-toast";
 import { addToScratchPad } from "@/utils/scratch-pad-service";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface StreamingResultsProps {
   isProcessing: boolean;
@@ -231,24 +237,40 @@ export function StreamingResults({
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleCopy(stepContent)}
-                      className="h-8 w-8"
-                      title="Copy to clipboard"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleAddToScratchPad(stepContent)}
-                      className="h-8 w-8"
-                      title="Add to Scratch Pad"
-                    >
-                      <BookMarked className="h-4 w-4" />
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleCopy(stepContent)}
+                            className="h-8 w-8"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Copy transcript</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleAddToScratchPad(stepContent)}
+                            className="h-8 w-8"
+                          >
+                            <BookMarked className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Add to scratch pad</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
                 
