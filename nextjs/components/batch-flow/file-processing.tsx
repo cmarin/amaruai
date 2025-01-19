@@ -35,13 +35,8 @@ export function FileProcessing({
 
   const handleCopyTranscript = async (file: BatchFlowFile) => {
     try {
-      const response = await fetch(`/api/assets/${file.status.id}/copy`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch transcript');
-      }
-      const { transcript } = await response.json();
-      
-      if (!transcript) {
+      const content = file.status.content;
+      if (!content) {
         console.error('No transcript available to copy');
         toast({
           title: "No transcript available",
@@ -51,7 +46,7 @@ export function FileProcessing({
         return;
       }
 
-      await navigator.clipboard.writeText(transcript);
+      await navigator.clipboard.writeText(content);
       setCopiedFileId(file.status.id);
       setTimeout(() => setCopiedFileId(null), 2000);
       toast({

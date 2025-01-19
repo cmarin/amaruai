@@ -117,19 +117,27 @@ async def get_asset_status(
     """
     Get asset status by file URL.
     The URL parameter can be either:
-    1. Relative path: chats/user_id/uuid/filename.txt
-    2. Full Supabase URL: https://.../storage/v1/object/public/bucket/chats/user_id/uuid/filename.txt
+    1. Relative path: chats/user_id/uuid/filename.txt or assets/user_id/uuid/filename.txt
+    2. Full Supabase URL: https://.../storage/v1/object/public/bucket/[chats|assets]/user_id/uuid/filename.txt
     """
     logger.info(f"Getting asset status for URL: {url}")
     
     try:
         # Extract the relative path if a full URL is provided
         if url.startswith('http'):
-            # Find the index of "chats/" and take everything after it
+            # Find the index of either "chats/" or "assets/"
             chats_index = url.find("chats/")
-            if chats_index == -1:
-                raise HTTPException(status_code=400, detail="Invalid URL format: 'chats/' not found in path")
-            file_url = url[chats_index:]
+            assets_index = url.find("assets/")
+            
+            if chats_index != -1:
+                file_url = url[chats_index:]
+            elif assets_index != -1:
+                file_url = url[assets_index:]
+            else:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Invalid URL format: neither 'chats/' nor 'assets/' found in path"
+                )
         else:
             file_url = url
             
@@ -140,15 +148,17 @@ async def get_asset_status(
         # Find the asset by file URL
         asset = crud.get_asset_by_file_url(db, file_url=file_url)
         if not asset:
+            logger.warning(f"No asset found for file_url: {file_url}")
             raise HTTPException(status_code=404, detail="Asset not found")
             
         return {
             "id": str(asset.id),
             "status": asset.status,
             "token_count": asset.token_count,
-            "file_name": asset.file_name
+            "file_name": asset.file_name,
+            "content": asset.content
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:

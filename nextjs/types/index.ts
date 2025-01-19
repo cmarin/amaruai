@@ -8,6 +8,7 @@ export interface FileStatus extends AssetStatus {
   file_name: string;
   progress?: number;
   error?: string;
+  content?: string;
 }
 
 export interface BatchFlowFile extends BaseUploadedFile {
