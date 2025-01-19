@@ -18,6 +18,21 @@ export async function fetchAssets(headers: ApiHeaders): Promise<Asset[]> {
   });
 }
 
+export async function fetchManagedAssets(headers: ApiHeaders): Promise<Asset[]> {
+  return fetchWithRetry(async () => {
+    if (!getApiUrl()) {
+      throw new Error('API_BASE_URL is not defined');
+    }
+    const response = await fetch(`${getApiUrl()}/assets?managed=true`, {
+      headers
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch managed assets');
+    }
+    return response.json();
+  });
+}
+
 export async function createAsset(file: File, headers: ApiHeaders): Promise<Asset> {
   try {
     if (!getApiUrl()) {

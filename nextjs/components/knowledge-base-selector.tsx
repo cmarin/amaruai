@@ -5,9 +5,11 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { X } from "lucide-react"
+import { X, BookOpen } from "lucide-react"
 import { KnowledgeBase } from '@/utils/knowledge-base-service'
 import { Asset } from '@/types/knowledge-base'
+import { fetchManagedAssets } from '@/utils/asset-service'
+import { useSession } from '@/app/utils/session/session'
 
 type KnowledgeBaseSelectorProps = {
   knowledgeBases: KnowledgeBase[]
@@ -30,18 +32,38 @@ export function KnowledgeBaseSelector({
   onDeselectKnowledgeBase,
   onSelectAsset,
   onDeselectAsset,
-  children
 }: KnowledgeBaseSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('knowledge-bases')
+  const [localAssets, setLocalAssets] = useState<Asset[]>([])
+  const [isLoadingAssets, setIsLoadingAssets] = useState(false)
+  const { getApiHeaders } = useSession()
+
+  const handleTabChange = async (value: string) => {
+    setActiveTab(value)
+    if (value === 'assets' && localAssets.length === 0 && !isLoadingAssets) {
+      setIsLoadingAssets(true)
+      try {
+        const headers = await getApiHeaders()
+        if (headers) {
+          const fetchedAssets = await fetchManagedAssets(headers)
+          setLocalAssets(fetchedAssets)
+        }
+      } catch (error) {
+        console.error('Error fetching managed assets:', error)
+      } finally {
+        setIsLoadingAssets(false)
+      }
+    }
+  }
 
   const filteredKnowledgeBases = knowledgeBases.filter(kb =>
     kb.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     kb.description?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const filteredAssets = assets.filter(asset =>
+  const filteredAssets = localAssets.filter(asset =>
     asset.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     asset.file_name.toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -49,7 +71,9 @@ export function KnowledgeBaseSelector({
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        {children}
+        <Button variant="ghost" size="icon" className="h-8 w-8" title="Add Knowledge Base or Asset">
+          <BookOpen className="h-4 w-4" />
+        </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[400px] p-0">
         <div className="p-2 space-y-2">
@@ -91,7 +115,7 @@ export function KnowledgeBaseSelector({
           </div>
         </div>
 
-        <Tabs defaultValue="knowledge-bases" className="w-full" value={activeTab} onValueChange={setActiveTab}>
+        <Tabs defaultValue="knowledge-bases" className="w-full" value={activeTab} onValueChange={handleTabChange}>
           <div className="border-t border-b px-2 py-1">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="knowledge-bases">Knowledge Bases</TabsTrigger>
@@ -126,23 +150,29 @@ export function KnowledgeBaseSelector({
           <TabsContent value="assets" className="mt-0">
             <ScrollArea className="h-[300px]">
               <div className="p-2 space-y-1">
-                {filteredAssets.map(asset => (
-                  <Button
-                    key={asset.id}
-                    variant="ghost"
-                    className="w-full justify-start text-left h-auto py-2"
-                    onClick={() => {
-                      onSelectAsset(asset)
-                    }}
-                  >
-                    <div>
-                      <div className="font-medium">{asset.title}</div>
-                      <div className="text-sm text-muted-foreground line-clamp-2">
-                        {asset.file_name}
+                {isLoadingAssets ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="text-sm text-muted-foreground">Loading assets...</div>
+                  </div>
+                ) : (
+                  filteredAssets.map(asset => (
+                    <Button
+                      key={asset.id}
+                      variant="ghost"
+                      className="w-full justify-start text-left h-auto py-2"
+                      onClick={() => {
+                        onSelectAsset(asset)
+                      }}
+                    >
+                      <div>
+                        <div className="font-medium">{asset.title}</div>
+                        <div className="text-sm text-muted-foreground line-clamp-2">
+                          {asset.file_name}
+                        </div>
                       </div>
-                    </div>
-                  </Button>
-                ))}
+                    </Button>
+                  ))
+                )}
               </div>
             </ScrollArea>
           </TabsContent>

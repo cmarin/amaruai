@@ -38,7 +38,7 @@ import { UploadService, type UploadedFile } from '@/utils/upload-service'
 import { FileUploadPills } from '@/components/file-upload-pills'
 import { KnowledgeBaseSelector } from '@/components/knowledge-base-selector'
 import { KnowledgeBase, fetchKnowledgeBases } from '@/utils/knowledge-base-service'
-import { fetchAssets } from '@/utils/asset-service'
+import { fetchManagedAssets } from '@/utils/asset-service'
 import { Asset } from '@/types/knowledge-base'
 
 // Import required Uppy CSS
@@ -113,14 +113,10 @@ export default function Chat() {
         const headers = await getApiHeaders()
         if (!headers) return
 
-        const [fetchedKnowledgeBases, fetchedAssets] = await Promise.all([
-          fetchKnowledgeBases(headers),
-          fetchAssets(headers)
-        ])
+        const fetchedKnowledgeBases = await fetchKnowledgeBases(headers)
         setKnowledgeBases(fetchedKnowledgeBases)
-        setAssets(fetchedAssets)
       } catch (error) {
-        console.error('Error fetching data:', error)
+        console.error('Error fetching knowledge bases:', error)
       }
     }
     fetchData()
