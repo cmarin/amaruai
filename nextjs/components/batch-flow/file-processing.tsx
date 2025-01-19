@@ -33,18 +33,30 @@ export function FileProcessing({
   const [copiedFileId, setCopiedFileId] = useState<string | null>(null);
   const tokenPercentage = (totalTokens / maxTokens) * 100;
 
-  const handleCopyTranscript = async (content: string, fileId: string) => {
+  const handleCopyTranscript = async (file: BatchFlowFile) => {
     try {
-      if (!content) {
-        console.error('No content available to copy');
+      const response = await fetch(`/api/assets/${file.status.id}/transcript`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch transcript');
+      }
+      const { transcript } = await response.json();
+      
+      if (!transcript) {
+        console.error('No transcript available to copy');
+        toast({
+          title: "No transcript available",
+          description: "The file is still being processed or has no transcript",
+          variant: "destructive",
+        });
         return;
       }
-      await navigator.clipboard.writeText(content);
-      setCopiedFileId(fileId);
+
+      await navigator.clipboard.writeText(transcript);
+      setCopiedFileId(file.status.id);
       setTimeout(() => setCopiedFileId(null), 2000);
       toast({
         title: "Copied to clipboard",
-        description: "Content has been copied to your clipboard",
+        description: "Transcript has been copied to your clipboard",
       });
     } catch (error) {
       console.error('Error copying transcript:', error);
@@ -99,14 +111,14 @@ export function FileProcessing({
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              {file.status.content && (
+              {file.status.status === 'completed' && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleCopyTranscript(file.status.content, file.status.id)}
+                        onClick={() => handleCopyTranscript(file)}
                         className="h-8 w-8"
                       >
                         {copiedFileId === file.status.id ? (
