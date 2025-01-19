@@ -203,6 +203,56 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             });
           }
 
+        // Inside your useEffect that sets up Uppy:
+        uppy.on('upload-success', async (file, response) => {
+          try {
+            // 1. Parse the JSON your upload endpoint returns.
+            //    Depending on how your backend is structured, sometimes `response` is the entire
+            //    fetch response object, or an object with { status, body, uploadURL } etc.
+            //    Adjust as needed:
+            const { Key, Id: uploadedAssetId } = response.body ?? {};
+
+            if (!uploadedAssetId) {
+              console.error("No asset ID was returned from upload response");
+              return;
+            }
+
+            // 2. If you already hold onto the knowledge base’s current assets in state,
+            //    you can push the new asset ID onto them. For example:
+            const updatedSelectedAssetIds = [
+              ...selectedAssets.map(a => a.id),
+              uploadedAssetId
+            ];
+
+            // 3. Immediately update the knowledge base if the user is editing an existing one.
+            if (knowledgeBase?.id) {
+              const headers = getApiHeaders();
+              if (!headers) return;
+
+              await updateKnowledgeBase(knowledgeBase.id, {
+                title: knowledgeBase.title,
+                description: knowledgeBase.description || "",
+                asset_ids: updatedSelectedAssetIds,
+              }, headers);
+
+              // (Optionally) Refresh the knowledge base or the selected asset list in state
+              // if you want the UI to reflect the newly uploaded asset(s) right away.
+              // For instance, you might want to re-fetch the updated knowledge base or just
+              // push a new `Asset` object into `selectedAssets`.
+              //
+              // setSelectedAssets([...selectedAssets, {
+              //   id: uploadedAssetId,
+              //   file_name: file.name,
+              //   file_url: Key,
+              //   ...
+              // }]);
+            }
+          } catch (error) {
+            console.error('Error attaching newly uploaded asset to knowledge base:', error);
+          }
+        });
+
+
           // Close the modal and clean up Uppy
           if (uppyRef.current) {
             // Clear all files and reset upload state
