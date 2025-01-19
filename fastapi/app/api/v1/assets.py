@@ -275,3 +275,45 @@ async def delete_asset(
     except Exception as e:
         logger.error(f"Error deleting asset: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{asset_id}/copy")
+async def get_asset_copy(
+    asset_id: UUID,
+    db: Session = Depends(get_db)
+):
+    """
+    Get the copy (transcript) of a specific asset.
+    
+    Parameters:
+    - asset_id: UUID of the asset
+    
+    Returns:
+    - The transcript content if available
+    - 404 if asset not found
+    - 400 if asset has no content/transcript
+    """
+    try:
+        # Get the asset
+        asset = crud.get_asset(db, asset_id=asset_id)
+        if not asset:
+            raise HTTPException(status_code=404, detail="Asset not found")
+            
+        # Check if content exists
+        if not asset.content:
+            raise HTTPException(
+                status_code=400,
+                detail="Asset has no transcript. Try transcribing the asset first."
+            )
+            
+        return {
+            "asset_id": str(asset_id),
+            "file_name": asset.file_name,
+            "content": asset.content,
+            "token_count": asset.token_count
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting asset transcript: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

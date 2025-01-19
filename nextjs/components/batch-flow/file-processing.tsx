@@ -35,7 +35,7 @@ export function FileProcessing({
 
   const handleCopyTranscript = async (file: BatchFlowFile) => {
     try {
-      const response = await fetch(`/api/assets/${file.status.id}/transcript`);
+      const response = await fetch(`/api/assets/${file.status.id}/copy`);
       if (!response.ok) {
         throw new Error('Failed to fetch transcript');
       }
