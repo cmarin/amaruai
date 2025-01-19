@@ -21,6 +21,7 @@ import '@uppy/core/dist/style.css';
 import '@uppy/dashboard/dist/style.css';
 import { v4 as uuidv4 } from 'uuid';
 import { useParams } from 'next/navigation';
+import { fetchAssetsForKnowledgeBase } from '@/utils/knowledge-base-service';
 
 type KnowledgeBaseManagerProps = {
   knowledgeBase: KnowledgeBase | null
@@ -172,6 +173,12 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
             // Add new assets to selected assets
             const updatedSelectedAssets = [...selectedAssets, ...newAssets];
             setSelectedAssets(updatedSelectedAssets);
+
+            // Fetch and update the current knowledge base assets if we have a knowledge base ID
+            if (knowledgeBaseId) {
+              const updatedKnowledgeBaseAssets = await fetchAssetsForKnowledgeBase(knowledgeBaseId, headers);
+              setSelectedAssets(updatedKnowledgeBaseAssets);
+            }
           }
 
           setShowUploadModal(false);

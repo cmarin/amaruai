@@ -1,7 +1,7 @@
 import { fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl } from './api-utils';
-import type { KnowledgeBase, KnowledgeBaseCreate } from '@/types/knowledge-base';
+import type { KnowledgeBase, KnowledgeBaseCreate, Asset } from '@/types/knowledge-base';
 
 export type { KnowledgeBase, KnowledgeBaseCreate };
 
@@ -90,6 +90,19 @@ export async function deleteKnowledgeBase(id: string, headers: ApiHeaders): Prom
     }
   } catch (error) {
     console.error('Error deleting knowledge base:', error);
+    throw error;
+  }
+}
+
+export async function fetchAssetsForKnowledgeBase(knowledgeBaseId: string, headers: HeadersInit): Promise<Asset[]> {
+  try {
+    const response = await fetch(`/api/knowledge-bases/${knowledgeBaseId}/assets`, { headers });
+    if (!response.ok) {
+      throw new Error('Failed to fetch assets for knowledge base');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching assets for knowledge base:', error);
     throw error;
   }
 } 
