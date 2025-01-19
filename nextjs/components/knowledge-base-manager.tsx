@@ -117,33 +117,37 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
 
       uppy.on('file-added', async (file) => {
         try {
+          // Upload file to Supabase storage
           const { data: { session } } = await supabase.auth.getSession();
           if (!session?.user?.id) {
             throw new Error('User must be authenticated to upload files');
           }
-      
+
           const fileUuid = uuidv4();
-          const filePath = `knowledge-bases/${session.user.id}/${fileUuid}/${file.name}`;
-      
-          // Create FormData and append metadata before file content
-          const formData = new FormData();
-          formData.append('metadata', JSON.stringify({
-            knowledge_base_id: knowledgeBase?.id
-          }));
-          formData.append('', file.data);
-      
-          file.meta = {
-            ...file.meta,
-            bucketName: 'amaruai-dev',
-            objectName: filePath,
-            contentType: file.type,
-            knowledge_base_id: knowledgeBase?.id
+          const filePath = `knowledge-bases/${knowledgeBaseId}/${fileUuid}/${file.name}`;
+
+          // Add knowledge base metadata when editing an existing knowledge base
+          const metadata = {
+            knowledge_base_id: knowledgeBaseId
           };
+
+          const { error: uploadError } = await supabase.storage
+            .from('amaruai-dev')
+            .upload(filePath, file.data, {
+              metadata
+            });
+
+          if (uploadError) {
+            throw uploadError;
+          }
+
+          // Don't show toast for individual file uploads in knowledge base context
         } catch (error) {
-          console.error('Error setting file metadata:', error);
+          console.error('Error uploading file:', error);
+          // Only show error toasts
           toast({
             title: "Error",
-            description: "Failed to set file metadata",
+            description: "Failed to upload file",
             variant: "destructive",
           });
         }
