@@ -285,6 +285,10 @@ export default function Chat() {
           const { value, done } = await reader.read()
           if (done) {
             isStreamingRef.current = false;
+            // After streaming is complete, ensure content is scrollable
+            if (chatContainerRef.current) {
+              chatContainerRef.current.style.overflowY = 'auto';
+            }
             break
           }
           const chunk = decoder.decode(value)
@@ -304,9 +308,9 @@ export default function Chat() {
                         role: 'assistant',
                         content: assistantMessage,
                       }
-                      // Maintain scroll position after state update
+                      // Ensure content is scrollable during streaming
                       if (chatContainerRef.current) {
-                        maintainScroll(chatContainerRef.current);
+                        chatContainerRef.current.style.overflowY = 'auto';
                       }
                       return updated
                     })
@@ -320,6 +324,9 @@ export default function Chat() {
         }
       } catch (err: any) {
         isStreamingRef.current = false;
+        if (chatContainerRef.current) {
+          chatContainerRef.current.style.overflowY = 'auto';
+        }
         console.error('Error in API call:', err)
         const errMsg = err instanceof Error ? err.message : 'Unknown error'
         setError(prevError =>
@@ -430,112 +437,124 @@ export default function Chat() {
     onClearConversation,
     isCopied,
     chatWindowId
-  }: ChatWindowProps) => (
-    <TooltipProvider>
-      <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
-        {/* Top header (title, copy, clear) */}
-        <div className="flex items-center justify-between p-3 border-b">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              {React.createElement(getModelIcon(chatWindowId), { className: "w-5 h-5" })}
-              <span className="font-medium">{getModelName(chatWindowId)}</span>
+  }: ChatWindowProps) => {
+    const isStreaming = isStreamingRef.current;
+    
+    return (
+      <TooltipProvider>
+        <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
+          {/* Top header (title, copy, clear) */}
+          <div className="flex items-center justify-between p-3 border-b">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                {React.createElement(getModelIcon(chatWindowId), { className: "w-5 h-5" })}
+                <span className="font-medium">{getModelName(chatWindowId)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={selectedPersonas[chatWindowId]} onValueChange={(value) => handlePersonaChange(chatWindowId, value)}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Default" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Default</SelectItem>
+                    {personas?.map((persona) => (
+                      <SelectItem key={persona.id} value={persona.id.toString()}>
+                        {persona.role || "Default"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedModels[chatWindowId]} onValueChange={(value) => handleModelChange(chatWindowId, value)}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder={title} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {chatModels?.map((model) => (
+                      <SelectItem key={model.id} value={model.id.toString()}>
+                        {model.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            {/* Copy, add to scratch pad, clear */}
             <div className="flex items-center gap-2">
-              <Select value={selectedPersonas[chatWindowId]} onValueChange={(value) => handlePersonaChange(chatWindowId, value)}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="Default" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">Default</SelectItem>
-                  {personas?.map((persona) => (
-                    <SelectItem key={persona.id} value={persona.id.toString()}>
-                      {persona.role || "Default"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={selectedModels[chatWindowId]} onValueChange={(value) => handleModelChange(chatWindowId, value)}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder={title} />
-                </SelectTrigger>
-                <SelectContent>
-                  {chatModels?.map((model) => (
-                    <SelectItem key={model.id} value={model.id.toString()}>
-                      {model.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onCopy}>
+                    {isCopied ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {isCopied ? "Copied!" : "Copy chat content"}
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onAddToScratchPad}>
+                    <FileText className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Add to Scratch Pad</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onClearConversation}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Clear Conversation</TooltipContent>
+              </Tooltip>
             </div>
           </div>
-          {/* Copy, add to scratch pad, clear */}
-          <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onCopy}>
-                  {isCopied ? (
-                    <Check className="w-4 h-4" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isCopied ? "Copied!" : "Copy chat content"}
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onAddToScratchPad}>
-                  <FileText className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Add to Scratch Pad</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onClearConversation}>
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Clear Conversation</TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
 
-        {/* Chat messages area */}
-        <ScrollArea 
-          className="flex-1 p-4" 
-          onScroll={handleScroll}
-          ref={chatContainerRef}
-        >
-          <div className="space-y-4">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`mb-4 ${message.role === 'user' ? 'text-right' : 'text-left'}`}
-              >
+          {/* Chat messages area */}
+          <ScrollArea 
+            className="flex-1 p-4 relative" 
+            onScroll={handleScroll}
+            ref={chatContainerRef}
+          >
+            <div className="space-y-4">
+              {messages.map((message, index) => (
                 <div
-                  className={`inline-block p-2 rounded-lg ${
-                    message.role === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-black'
-                  }`}
+                  key={index}
+                  className={`mb-4 ${message.role === 'user' ? 'text-right' : 'text-left'}`}
                 >
-                  {isMarkdown(message.content) ? (
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
-                  ) : (
-                    <p>{message.content}</p>
-                  )}
+                  <div
+                    className={`inline-block p-2 rounded-lg ${
+                      message.role === 'user'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-black'
+                    }`}
+                  >
+                    {isMarkdown(message.content) ? (
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    ) : (
+                      <p>{message.content}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} className="h-4" />
+            </div>
+            {isStreaming && (
+              <div className="sticky bottom-4 w-full flex justify-center">
+                <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Generating response...</span>
                 </div>
               </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
-      </div>
-    </TooltipProvider>
-  )
+            )}
+          </ScrollArea>
+        </div>
+      </TooltipProvider>
+    );
+  };
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
