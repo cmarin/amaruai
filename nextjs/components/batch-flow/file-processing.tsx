@@ -1,8 +1,16 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { FileVideo, X } from "lucide-react";
+import { FileVideo, X, Copy, Check } from "lucide-react";
 import type { BatchFlowFile } from "@/types";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface FileProcessingProps {
   totalTokens: number;
@@ -21,7 +29,32 @@ export function FileProcessing({
   onPrevious,
   onNext,
 }: FileProcessingProps) {
+  const { toast } = useToast();
+  const [copiedFileId, setCopiedFileId] = useState<string | null>(null);
   const tokenPercentage = (totalTokens / maxTokens) * 100;
+
+  const handleCopyTranscript = async (content: string, fileId: string) => {
+    try {
+      if (!content) {
+        console.error('No content available to copy');
+        return;
+      }
+      await navigator.clipboard.writeText(content);
+      setCopiedFileId(fileId);
+      setTimeout(() => setCopiedFileId(null), 2000);
+      toast({
+        title: "Copied to clipboard",
+        description: "Content has been copied to your clipboard",
+      });
+    } catch (error) {
+      console.error('Error copying transcript:', error);
+      toast({
+        title: "Failed to copy",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -65,12 +98,37 @@ export function FileProcessing({
                 <span>Tokens: {file.status.token_count.toLocaleString()}</span>
               </div>
             </div>
-            <button
-              onClick={() => onRemoveFile(file)}
-              className="p-1 hover:bg-gray-200 rounded-full"
-            >
-              <X className="w-4 h-4 text-gray-500" />
-            </button>
+            <div className="flex items-center space-x-2">
+              {file.status.content && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleCopyTranscript(file.status.content, file.status.id)}
+                        className="h-8 w-8"
+                      >
+                        {copiedFileId === file.status.id ? (
+                          <Check className="h-4 w-4" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Copy transcript</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              <button
+                onClick={() => onRemoveFile(file)}
+                className="p-1 hover:bg-gray-200 rounded-full"
+              >
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
           </div>
         ))}
       </div>
