@@ -12,6 +12,8 @@ interface ChatRequestBody {
   files?: Array<{ name: string; url: string }>
   conversation_id: string
   multi_conversation_id?: string
+  knowledge_base_ids?: string[]
+  asset_ids?: string[]
 }
 
 export async function POST(req: NextRequest) {
@@ -27,7 +29,9 @@ export async function POST(req: NextRequest) {
       persona_id, 
       files,
       conversation_id,
-      multi_conversation_id 
+      multi_conversation_id,
+      knowledge_base_ids,
+      asset_ids
     } = body
     
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -59,7 +63,9 @@ export async function POST(req: NextRequest) {
       persona_id, 
       files,
       conversation_id,
-      multi_conversation_id 
+      multi_conversation_id,
+      knowledge_base_ids,
+      asset_ids
     })
 
     const response = await fetch(externalApiUrl, {
@@ -76,7 +82,9 @@ export async function POST(req: NextRequest) {
         persona_id,
         files,
         conversation_id,
-        multi_conversation_id
+        multi_conversation_id,
+        knowledge_base_ids,
+        asset_ids
       }),
     })
 
