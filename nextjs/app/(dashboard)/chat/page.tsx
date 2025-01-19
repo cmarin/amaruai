@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Copy, Trash2, Send, BookOpen, Grid2X2, Columns, Square, MessageSquare,
-  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Database, ChevronDown
+  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Database
 } from 'lucide-react'
 import {
   Select,
@@ -83,7 +83,24 @@ export default function Chat() {
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>([])
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(true)
 
+  // CHANGED: Track auto-scroll separately for each chat window
+  const [autoScrollMap, setAutoScrollMap] = useState<Record<string, boolean>>({
+    chat1: true,
+    chat2: true,
+    chat3: true,
+    chat4: true,
+  })
+
   const uppyRef = useRef<Uppy | null>(null)
+
+  // SSE streaming ref
+  const isStreamingRef = useRef<boolean>(false)
+
+  // Refs for bottom divs
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef2 = useRef<HTMLDivElement>(null)
+  const messagesEndRef3 = useRef<HTMLDivElement>(null)
+  const messagesEndRef4 = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!uppyRef.current) {
@@ -126,38 +143,34 @@ export default function Chat() {
     fetchData()
   }, [getApiHeaders])
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef2 = useRef<HTMLDivElement>(null);
-  const messagesEndRef3 = useRef<HTMLDivElement>(null);
-  const messagesEndRef4 = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-  const isStreamingRef = useRef<boolean>(false);
-  const wasAtBottomRef = useRef<boolean>(true);
+  // CHANGED: A helper to see if user is "near bottom" of a scrollable container
+  const isNearBottom = useCallback((containerRef: HTMLElement) => {
+    const threshold = 100 // px from bottom
+    const position = containerRef.scrollTop + containerRef.clientHeight
+    const height = containerRef.scrollHeight
+    return height - position <= threshold
+  }, [])
 
-  const isAtBottom = useCallback((containerRef: HTMLElement) => {
-    const threshold = 100; // pixels from bottom
-    const position = containerRef.scrollTop + containerRef.clientHeight;
-    const height = containerRef.scrollHeight;
-    return height - position <= threshold;
-  }, []);
+  // CHANGED: A helper to scroll to bottom with optional smooth
+  const scrollToBottom = useCallback(
+    (ref: React.RefObject<HTMLDivElement>, smooth = false) => {
+      if (!ref.current) return
+      const container = ref.current.parentElement // <ScrollArea> child?
+      if (!container) return
 
-  const maintainScroll = useCallback((containerRef: HTMLElement) => {
-    if (!containerRef) return;
-    
-    // If we were at the bottom before the update, scroll to bottom
-    if (wasAtBottomRef.current) {
-      containerRef.scrollTop = containerRef.scrollHeight;
-    }
-  }, []);
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto',
+      })
+    },
+    []
+  )
 
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const container = e.target as HTMLDivElement;
-    wasAtBottomRef.current = isAtBottom(container);
-  }, [isAtBottom]);
+  // CHANGED: We remove the repeated useEffects that forced smooth scrolling on every message update.
 
   const getProviderIcon = (modelId: string, modelName: string) => {
     const nameLower = modelName.toLowerCase()
-    
+
     if (nameLower.includes('gpt') || nameLower.includes('o1')) return OpenAIIcon
     if (nameLower.includes('claude')) return AnthropicIcon
     if (nameLower.includes('gemini')) return GeminiIcon
@@ -203,7 +216,129 @@ export default function Chat() {
     setUploadedFiles(prev => prev.filter(f => f.name !== file.name))
   }
 
-  // Submit user input to all relevant LLMs
+  // CHANGED: Single SSE call helper
+  const makeApiCall = async (
+    prevMessagesLocal: Message[],
+    setMessagesFunction: React.Dispatch<React.SetStateAction<Message[]>>,
+    chatId: string,
+    messagesEndDiv: React.RefObject<HTMLDivElement>
+  ) => {
+    try {
+      isStreamingRef.current = true
+
+      // Get or create conversation_id for this chat window
+      let currentConversationId = conversationIds[chatId]
+      if (!currentConversationId) {
+        currentConversationId = crypto.randomUUID()
+        setConversationIds(prev => ({
+          ...prev,
+          [chatId]: currentConversationId
+        }))
+      }
+
+      // Model/persona
+      const modelId = selectedModels[chatId]
+      const personaId = selectedPersonas[chatId]
+      const selectedModel = chatModels?.find(model => model.id.toString() === modelId)
+      const selectedPersona = personas?.find(p => p.id.toString() === personaId)
+
+      // Perform fetch
+      const headers = await getApiHeaders()
+      if (!headers) throw new Error('No headers available')
+
+      const newMessage = prevMessagesLocal[prevMessagesLocal.length - 1] // last user message
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: prevMessagesLocal,
+          user_id: session?.user?.id,
+          model_id: selectedModel?.id,
+          persona_id: selectedPersona?.id,
+          files: uploadedFiles.map(f => ({ name: f.name, url: f.url })),
+          conversation_id: currentConversationId,
+          knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
+          asset_ids: selectedAssets.map(asset => asset.id),
+          ...(multiConversationId && { multi_conversation_id: multiConversationId })
+        }),
+      })
+
+      if (!response.ok || !response.body) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+
+      let assistantMessage = ''
+      // Insert a placeholder for the streaming assistant message
+      setMessagesFunction(prev => [
+        ...prev,
+        { role: 'assistant', content: '' },
+      ])
+
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) {
+          // Done streaming
+          isStreamingRef.current = false
+
+          // Once done, do one final "smooth" scroll if user never scrolled up
+          if (autoScrollMap[chatId]) {
+            scrollToBottom(messagesEndDiv, true)
+          }
+
+          break
+        }
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonData = line.slice(5).trim()
+            if (jsonData !== '[DONE]') {
+              try {
+                const parsed = JSON.parse(jsonData)
+                if (parsed.choices && parsed.choices[0].delta.content) {
+                  assistantMessage += parsed.choices[0].delta.content
+                  setMessagesFunction(prev => {
+                    const updated = [...prev]
+                    updated[updated.length - 1] = {
+                      role: 'assistant',
+                      content: assistantMessage,
+                    }
+                    return updated
+                  })
+
+                  // CHANGED: Auto-scroll if user hasn't scrolled up
+                  if (autoScrollMap[chatId]) {
+                    scrollToBottom(messagesEndDiv, false) 
+                  }
+                }
+              } catch (parseError) {
+                console.error('Error parsing chunk line:', parseError, line)
+              }
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      isStreamingRef.current = false
+      console.error('Error in API call:', err)
+      const errMsg = err instanceof Error ? err.message : 'Unknown error'
+      setError(prevError =>
+        prevError
+          ? new Error(`${prevError.message}\n${errMsg}`)
+          : new Error(errMsg)
+      )
+    }
+  }
+
+  // Submit user input
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() && uploadedFiles.length === 0) return
@@ -211,137 +346,28 @@ export default function Chat() {
     setIsLoading(true)
     setError(null)
 
+    // The user's new message
     const newMessage: Message = { role: 'user', content: input.trim() }
+
+    // Add user message to each relevant chat state
     setMessages(prev => [...prev, newMessage])
     setMessages2(prev => [...prev, newMessage])
     setMessages3(prev => [...prev, newMessage])
     setMessages4(prev => [...prev, newMessage])
     setInput('')
 
-    // Generate a new multi_conversation_id if in multi-chat mode and none exists
+    // Generate a new multi_conversation_id if needed
     let currentMultiConversationId = multiConversationId
     if ((mode === 'dual' || mode === 'quad') && !currentMultiConversationId) {
       currentMultiConversationId = crypto.randomUUID()
       setMultiConversationId(currentMultiConversationId)
     }
 
-    // Shared streaming logic
-    const makeApiCall = async (
-      prevMessagesLocal: Message[],
-      setMessagesFunction: React.Dispatch<React.SetStateAction<Message[]>>,
-      chatId: string
-    ) => {
-      try {
-        isStreamingRef.current = true;
-        // Get or create conversation_id for this chat window
-        let currentConversationId = conversationIds[chatId]
-        if (!currentConversationId) {
-          currentConversationId = crypto.randomUUID()
-          setConversationIds(prev => ({
-            ...prev,
-            [chatId]: currentConversationId
-          }))
-        }
-
-        // Get the selected model and persona for this chat
-        const modelId = selectedModels[chatId]
-        const personaId = selectedPersonas[chatId]
-        const selectedModel = chatModels?.find(model => model.id.toString() === modelId)
-        const selectedPersona = personas?.find(p => p.id.toString() === personaId)
-
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getApiHeaders(),
-          },
-          body: JSON.stringify({ 
-            messages: [...prevMessagesLocal, newMessage],
-            user_id: session?.user?.id,
-            model_id: selectedModel?.id,
-            persona_id: selectedPersona?.id,
-            files: uploadedFiles.map(f => ({ name: f.name, url: f.url })),
-            conversation_id: currentConversationId,
-            knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
-            asset_ids: selectedAssets.map(asset => asset.id),
-            ...(currentMultiConversationId && { multi_conversation_id: currentMultiConversationId })
-          }),
-        })
-
-        if (!response.ok || !response.body) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
-
-        let assistantMessage = ''
-        setMessagesFunction(prev => [
-          ...prev,
-          { role: 'assistant', content: '' },
-        ])
-
-        while (true) {
-          const { value, done } = await reader.read()
-          if (done) {
-            isStreamingRef.current = false;
-            // After streaming is complete, ensure content is scrollable
-            if (chatContainerRef.current) {
-              chatContainerRef.current.style.overflowY = 'auto';
-            }
-            break
-          }
-          const chunk = decoder.decode(value)
-          const lines = chunk.split('\n')
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const jsonData = line.slice(5).trim()
-              if (jsonData !== '[DONE]') {
-                try {
-                  const parsed = JSON.parse(jsonData)
-                  if (parsed.choices && parsed.choices[0].delta.content) {
-                    assistantMessage += parsed.choices[0].delta.content
-                    setMessagesFunction(prev => {
-                      const updated = [...prev]
-                      updated[updated.length - 1] = {
-                        role: 'assistant',
-                        content: assistantMessage,
-                      }
-                      // Ensure content is scrollable during streaming
-                      if (chatContainerRef.current) {
-                        chatContainerRef.current.style.overflowY = 'auto';
-                      }
-                      return updated
-                    })
-                  }
-                } catch (parseError) {
-                  console.error('Error parsing chunk line:', parseError, line)
-                }
-              }
-            }
-          }
-        }
-      } catch (err: any) {
-        isStreamingRef.current = false;
-        if (chatContainerRef.current) {
-          chatContainerRef.current.style.overflowY = 'auto';
-        }
-        console.error('Error in API call:', err)
-        const errMsg = err instanceof Error ? err.message : 'Unknown error'
-        setError(prevError =>
-          prevError
-            ? new Error(`${prevError.message}\n${errMsg}`)
-            : new Error(errMsg)
-        )
-      }
-    }
-
     const apiCalls = [
-      makeApiCall(messages, setMessages, 'chat1'),
-      mode !== 'single' && makeApiCall(messages2, setMessages2, 'chat2'),
-      mode === 'quad' && makeApiCall(messages3, setMessages3, 'chat3'),
-      mode === 'quad' && makeApiCall(messages4, setMessages4, 'chat4'),
+      makeApiCall([...messages, newMessage], setMessages, 'chat1', messagesEndRef),
+      mode !== 'single' && makeApiCall([...messages2, newMessage], setMessages2, 'chat2', messagesEndRef2),
+      mode === 'quad' && makeApiCall([...messages3, newMessage], setMessages3, 'chat3', messagesEndRef3),
+      mode === 'quad' && makeApiCall([...messages4, newMessage], setMessages4, 'chat4', messagesEndRef4),
     ].filter(Boolean)
 
     try {
@@ -414,7 +440,7 @@ export default function Chat() {
     setSelectedComplexPrompt(null)
   }
 
-  // ChatWindow sub-component
+  // CHANGED: Each ChatWindow has its own onScroll to update autoScrollMap
   interface ChatWindowProps {
     messages: Message[]
     messagesEndRef: React.RefObject<HTMLDivElement>
@@ -438,8 +464,16 @@ export default function Chat() {
     isCopied,
     chatWindowId
   }: ChatWindowProps) => {
-    const isStreaming = isStreamingRef.current;
-    
+    // Listen for scrolls in this ChatWindow
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+      const target = e.currentTarget
+      if (isNearBottom(target)) {
+        setAutoScrollMap(prev => ({ ...prev, [chatWindowId]: true }))
+      } else {
+        setAutoScrollMap(prev => ({ ...prev, [chatWindowId]: false }))
+      }
+    }, [chatWindowId])
+
     return (
       <TooltipProvider>
         <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
@@ -451,7 +485,10 @@ export default function Chat() {
                 <span className="font-medium">{getModelName(chatWindowId)}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Select value={selectedPersonas[chatWindowId]} onValueChange={(value) => handlePersonaChange(chatWindowId, value)}>
+                <Select
+                  value={selectedPersonas[chatWindowId]}
+                  onValueChange={(value) => handlePersonaChange(chatWindowId, value)}
+                >
                   <SelectTrigger className="w-[120px]">
                     <SelectValue placeholder="Default" />
                   </SelectTrigger>
@@ -464,7 +501,10 @@ export default function Chat() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={selectedModels[chatWindowId]} onValueChange={(value) => handleModelChange(chatWindowId, value)}>
+                <Select
+                  value={selectedModels[chatWindowId]}
+                  onValueChange={(value) => handleModelChange(chatWindowId, value)}
+                >
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder={title} />
                   </SelectTrigger>
@@ -514,12 +554,12 @@ export default function Chat() {
           </div>
 
           {/* Chat messages area */}
-          <ScrollArea 
-            className="flex-1 p-4 relative" 
-            onScroll={handleScroll}
-            ref={chatContainerRef}
-          >
-            <div className="space-y-4">
+          {/*
+             NOTE: We attach onScroll here. Depending on your ScrollArea component,
+             you might need onScrollCapture or a custom approach if onScroll doesn't fire.
+          */}
+          <ScrollArea className="flex-1" onScroll={handleScroll}>
+            <div className="p-4">
               {messages.map((message, index) => (
                 <div
                   key={index}
@@ -540,21 +580,13 @@ export default function Chat() {
                   </div>
                 </div>
               ))}
-              <div ref={messagesEndRef} className="h-4" />
+              <div ref={messagesEndRef} />
             </div>
-            {isStreaming && (
-              <div className="sticky bottom-4 w-full flex justify-center">
-                <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Generating response...</span>
-                </div>
-              </div>
-            )}
           </ScrollArea>
         </div>
       </TooltipProvider>
-    );
-  };
+    )
+  }
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
@@ -565,9 +597,8 @@ export default function Chat() {
 
       {/* RIGHT COLUMN (main content) */}
       <div className="flex-1 flex flex-col h-full relative">
-        {/* Body/Chat section (scrollable) */}
+        {/* Body/Chat section */}
         <div className="flex-1 overflow-auto p-4">
-          {/* Single/dual/quad chat windows */}
           {mode === 'single' ? (
             <div className="grid h-full gap-4" style={{ gridTemplateColumns: '1fr' }}>
               <ChatWindow
