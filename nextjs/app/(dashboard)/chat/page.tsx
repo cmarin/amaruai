@@ -130,30 +130,53 @@ export default function Chat() {
   const messagesEndRef2 = useRef<HTMLDivElement>(null)
   const messagesEndRef3 = useRef<HTMLDivElement>(null)
   const messagesEndRef4 = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const isStreamingRef = useRef<boolean>(false)
+
+  const isNearBottom = useCallback((containerRef: HTMLElement) => {
+    const threshold = 100; // pixels from bottom
+    const position = containerRef.scrollTop + containerRef.clientHeight;
+    const height = containerRef.scrollHeight;
+    return height - position <= threshold;
+  }, []);
+
+  const scrollToBottom = useCallback((ref: React.RefObject<HTMLDivElement>, force = false) => {
+    const containerRef = ref.current?.parentElement;
+    if (!containerRef) return;
+
+    const shouldScroll = force || isNearBottom(containerRef);
+    if (shouldScroll) {
+      (ref.current as HTMLDivElement).scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [isNearBottom]);
 
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    if (messagesEndRef.current && messages.length > 0) {
+      const isStreaming = isStreamingRef.current;
+      scrollToBottom(messagesEndRef, !isStreaming);
     }
-  }, [messages])
+  }, [messages, scrollToBottom]);
 
   useEffect(() => {
-    if (messagesEndRef2.current) {
-      messagesEndRef2.current.scrollIntoView({ behavior: 'smooth' })
+    if (messagesEndRef2.current && messages2.length > 0) {
+      const isStreaming = isStreamingRef.current;
+      scrollToBottom(messagesEndRef2, !isStreaming);
     }
-  }, [messages2])
+  }, [messages2, scrollToBottom]);
 
   useEffect(() => {
-    if (messagesEndRef3.current) {
-      messagesEndRef3.current.scrollIntoView({ behavior: 'smooth' })
+    if (messagesEndRef3.current && messages3.length > 0) {
+      const isStreaming = isStreamingRef.current;
+      scrollToBottom(messagesEndRef3, !isStreaming);
     }
-  }, [messages3])
+  }, [messages3, scrollToBottom]);
 
   useEffect(() => {
-    if (messagesEndRef4.current) {
-      messagesEndRef4.current.scrollIntoView({ behavior: 'smooth' })
+    if (messagesEndRef4.current && messages4.length > 0) {
+      const isStreaming = isStreamingRef.current;
+      scrollToBottom(messagesEndRef4, !isStreaming);
     }
-  }, [messages4])
+  }, [messages4, scrollToBottom]);
 
   const getProviderIcon = (modelId: string, modelName: string) => {
     const nameLower = modelName.toLowerCase()
@@ -232,6 +255,7 @@ export default function Chat() {
       chatId: string
     ) => {
       try {
+        isStreamingRef.current = true;
         // Get or create conversation_id for this chat window
         let currentConversationId = conversationIds[chatId]
         if (!currentConversationId) {
@@ -282,7 +306,10 @@ export default function Chat() {
 
         while (true) {
           const { value, done } = await reader.read()
-          if (done) break
+          if (done) {
+            isStreamingRef.current = false;
+            break
+          }
           const chunk = decoder.decode(value)
           const lines = chunk.split('\n')
 
@@ -311,6 +338,7 @@ export default function Chat() {
           }
         }
       } catch (err: any) {
+        isStreamingRef.current = false;
         console.error('Error in API call:', err)
         const errMsg = err instanceof Error ? err.message : 'Unknown error'
         setError(prevError =>
