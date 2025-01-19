@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Copy, Trash2, Send, BookOpen, Grid2X2, Columns, Square, MessageSquare,
-  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Database
+  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Database, ChevronDown
 } from 'lucide-react'
 import {
   Select,
@@ -126,12 +126,15 @@ export default function Chat() {
     fetchData()
   }, [getApiHeaders])
 
+  const [autoScroll, setAutoScroll] = useState<boolean>(true);
+  const [showScrollButton, setShowScrollButton] = useState<boolean>(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isStreamingRef = useRef<boolean>(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesEndRef2 = useRef<HTMLDivElement>(null)
   const messagesEndRef3 = useRef<HTMLDivElement>(null)
   const messagesEndRef4 = useRef<HTMLDivElement>(null)
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const isStreamingRef = useRef<boolean>(false)
 
   const isNearBottom = useCallback((containerRef: HTMLElement) => {
     const threshold = 100; // pixels from bottom
@@ -144,11 +147,29 @@ export default function Chat() {
     const containerRef = ref.current?.parentElement;
     if (!containerRef) return;
 
-    const shouldScroll = force || isNearBottom(containerRef);
+    const shouldScroll = force || (autoScroll && isNearBottom(containerRef));
     if (shouldScroll) {
-      (ref.current as HTMLDivElement).scrollIntoView({ behavior: 'smooth' });
+      ref.current?.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'end',
+        inline: 'nearest'
+      });
+    }
+  }, [isNearBottom, autoScroll]);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement;
+    const isBottom = isNearBottom(target);
+    setShowScrollButton(!isBottom);
+    if (isBottom) {
+      setAutoScroll(true);
     }
   }, [isNearBottom]);
+
+  const handleManualScrollToBottom = useCallback((ref: React.RefObject<HTMLDivElement>) => {
+    setAutoScroll(true);
+    scrollToBottom(ref, true);
+  }, [scrollToBottom]);
 
   useEffect(() => {
     if (messagesEndRef.current && messages.length > 0) {
@@ -256,6 +277,7 @@ export default function Chat() {
     ) => {
       try {
         isStreamingRef.current = true;
+        setAutoScroll(true); // Reset auto-scroll when starting new message
         // Get or create conversation_id for this chat window
         let currentConversationId = conversationIds[chatId]
         if (!currentConversationId) {
@@ -308,6 +330,12 @@ export default function Chat() {
           const { value, done } = await reader.read()
           if (done) {
             isStreamingRef.current = false;
+            // Force scroll to bottom when streaming is complete
+            const ref = chatId === 'chat1' ? messagesEndRef :
+                       chatId === 'chat2' ? messagesEndRef2 :
+                       chatId === 'chat3' ? messagesEndRef3 :
+                       messagesEndRef4;
+            scrollToBottom(ref, true);
             break
           }
           const chunk = decoder.decode(value)
@@ -339,6 +367,7 @@ export default function Chat() {
         }
       } catch (err: any) {
         isStreamingRef.current = false;
+        setAutoScroll(true); // Reset auto-scroll on error
         console.error('Error in API call:', err)
         const errMsg = err instanceof Error ? err.message : 'Unknown error'
         setError(prevError =>
@@ -523,8 +552,8 @@ export default function Chat() {
         </div>
 
         {/* Chat messages area */}
-        <ScrollArea className="flex-1">
-          <div className="p-4">
+        <ScrollArea className="flex-1 p-4" onScroll={handleScroll}>
+          <div className="space-y-4">
             {messages.map((message, index) => (
               <div
                 key={index}
@@ -545,8 +574,17 @@ export default function Chat() {
                 </div>
               </div>
             ))}
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} className="h-px" />
           </div>
+          {showScrollButton && (
+            <Button
+              onClick={() => handleManualScrollToBottom(messagesEndRef)}
+              className="fixed bottom-4 right-4 rounded-full shadow-lg"
+              size="icon"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          )}
         </ScrollArea>
       </div>
     </TooltipProvider>
