@@ -5,18 +5,22 @@ import type { NextRequest } from 'next/server'
 // Add routes that require authentication
 const protectedPaths = ['/chat', '/knowledge-bases', '/settings']
 
+// Add routes that should be excluded from middleware processing
+const excludedPaths = [
+  '/api',
+  '/auth',
+  '/_next/static',
+  '/_next/image',
+  '/favicon.ico',
+  '/public'
+]
+
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - auth/* (auth routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public/* (public files)
+     * Match all request paths except for the ones starting with excluded paths
      */
-    '/((?!api|auth|_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }
 
@@ -24,8 +28,8 @@ export async function middleware(req: NextRequest) {
   try {
     const pathname = req.nextUrl.pathname
     
-    // Skip middleware for auth callback routes
-    if (pathname.includes('/auth/callback')) {
+    // Skip middleware for excluded paths
+    if (excludedPaths.some(path => pathname.startsWith(path))) {
       return NextResponse.next()
     }
 

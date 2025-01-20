@@ -6,12 +6,14 @@ import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { createClient } from '@/app/utils/supabase/client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Provider, AuthChangeEvent, Session } from '@supabase/supabase-js';
 
 export default function LoginPage() {
   const supabase = createClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams?.get('returnTo') || '/chat';
   const [view, setView] = useState<'sign_in' | 'sign_up'>('sign_in');
 
   useEffect(() => {
@@ -26,13 +28,13 @@ export default function LoginPage() {
     } = supabase.auth.onAuthStateChange(
       (event: AuthChangeEvent, session: Session | null) => {
         if (event === 'SIGNED_IN') {
-          router.push('/chat');
+          router.push(returnTo);
         }
       }
     );
 
     return () => subscription.unsubscribe();
-  }, [router, supabase.auth]);
+  }, [router, supabase.auth, returnTo]);
 
   return (
     <div className="flex flex-col min-h-screen justify-center items-center bg-gray-100 p-4">
