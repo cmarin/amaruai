@@ -9,18 +9,26 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
+     * - api (API routes)
      * - auth/* (auth routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public/* (public files)
      */
-    '/((?!auth|_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!api|auth|_next/static|_next/image|favicon.ico|public).*)',
   ],
 }
 
 export async function middleware(req: NextRequest) {
   try {
+    const pathname = req.nextUrl.pathname
+    
+    // Skip middleware for auth callback routes
+    if (pathname.includes('/auth/callback')) {
+      return NextResponse.next()
+    }
+
     // Create a response object that we can modify
     const res = NextResponse.next()
     
@@ -28,9 +36,9 @@ export async function middleware(req: NextRequest) {
     const supabase = createMiddlewareClient({ req, res })
     
     // Refresh session if expired - required for Server Components
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    const pathname = req.nextUrl.pathname
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
     // Check if the current path requires authentication
     const isProtectedRoute = protectedPaths.some(path => pathname.startsWith(path))
