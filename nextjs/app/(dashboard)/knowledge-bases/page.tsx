@@ -2,14 +2,11 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation';
-import { fetchKnowledgeBases, KnowledgeBase, deleteKnowledgeBase } from '@/utils/knowledge-base-service'
+import { fetchKnowledgeBases, KnowledgeBase } from '@/utils/knowledge-base-service'
 import { KnowledgeBaseLibrary } from '@/components/knowledge-base-library'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/sidebar-context'
 import { useSession } from '@/app/utils/session/session';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { FileText, Plus } from 'lucide-react';
 
 export default function KnowledgeBasePage() {
   const router = useRouter();
@@ -53,47 +50,37 @@ export default function KnowledgeBasePage() {
     }
   };
 
-  const toggleChatbot = (modelId: string) => {
-    router.push(`/chat?model=${modelId}`);
-  };
+  if (isLoading) {
+    return (
+      <div className="flex h-screen">
+        <AppSidebar />
+        <div className={`flex-1 flex items-center justify-center transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+          Loading...
+        </div>
+      </div>
+    );
+  }
 
-  const handleCreateKnowledgeBase = () => {
-    router.push('/knowledge-bases/create');
-  };
-
-  if (sessionLoading || isLoading) return <div>Loading knowledge bases...</div>
-  if (error) return <div>Error: {error}</div>
+  if (error) {
+    return (
+      <div className="flex h-screen">
+        <AppSidebar />
+        <div className={`flex-1 flex items-center justify-center transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+          {error}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      <AppSidebar toggleChatbot={toggleChatbot} />
+    <div className="flex h-screen">
+      <AppSidebar />
       <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-        <div className="flex items-center justify-between p-4 border-b bg-white">
-          <h1 className="text-2xl font-bold">Knowledge Base Library</h1>
-          <div className="flex gap-3">
-            <Link href="/assets">
-              <Button 
-                variant="outline" 
-                className="h-9"
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Manage Assets
-              </Button>
-            </Link>
-            <Button 
-              onClick={handleCreateKnowledgeBase} 
-              className="bg-blue-600 hover:bg-blue-700 text-white h-9"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Knowledge Base
-            </Button>
-          </div>
-        </div>
         <KnowledgeBaseLibrary
           knowledgeBases={knowledgeBases}
           onUpdateKnowledgeBases={handleUpdateKnowledgeBases}
         />
       </div>
     </div>
-  )
-} 
+  );
+}
