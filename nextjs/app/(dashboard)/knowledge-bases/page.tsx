@@ -50,10 +50,14 @@ export default function KnowledgeBasePage() {
     }
   };
 
+  const toggleChatbot = (modelId: string) => {
+    router.push(`/chat?model=${modelId}`);
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-screen">
-        <AppSidebar />
+        <AppSidebar toggleChatbot={toggleChatbot} />
         <div className={`flex-1 flex items-center justify-center transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           Loading...
         </div>
@@ -64,7 +68,7 @@ export default function KnowledgeBasePage() {
   if (error) {
     return (
       <div className="flex h-screen">
-        <AppSidebar />
+        <AppSidebar toggleChatbot={toggleChatbot} />
         <div className={`flex-1 flex items-center justify-center transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           {error}
         </div>
@@ -74,7 +78,7 @@ export default function KnowledgeBasePage() {
 
   return (
     <div className="flex h-screen">
-      <AppSidebar />
+      <AppSidebar toggleChatbot={toggleChatbot} />
       <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <KnowledgeBaseLibrary
           knowledgeBases={knowledgeBases}
