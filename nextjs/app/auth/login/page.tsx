@@ -5,11 +5,12 @@ import Image from 'next/image';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { createClient } from '@/app/utils/supabase/client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Provider, AuthChangeEvent, Session } from '@supabase/supabase-js';
 
-export default function LoginPage() {
+// Component that uses search params
+function LoginContent() {
   const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -73,5 +74,20 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Main login page component with Suspense boundary
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col min-h-screen justify-center items-center bg-gray-100 p-4">
+        <div className="w-full max-w-md text-center">
+          Loading...
+        </div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
