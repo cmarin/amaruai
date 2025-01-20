@@ -50,7 +50,6 @@ export default function KnowledgeBasePage() {
       setKnowledgeBases(updatedKnowledgeBases);
     } catch (err) {
       console.error('Error updating knowledge bases:', err);
-      setError('Failed to update knowledge bases');
     }
   };
 
@@ -66,36 +65,34 @@ export default function KnowledgeBasePage() {
   if (error) return <div>Error: {error}</div>
 
   return (
-    <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-white">
-        <AppSidebar toggleChatbot={toggleChatbot} />
-        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-          <div className="flex items-center justify-between p-4 border-b bg-white">
-            <h1 className="text-2xl font-bold">Knowledge Base Library</h1>
-            <div className="flex gap-3">
-              <Link href="/assets">
-                <Button 
-                  variant="outline" 
-                  className="h-9"
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  Manage Assets
-                </Button>
-              </Link>
+    <div className="flex h-screen bg-gray-100">
+      <AppSidebar toggleChatbot={toggleChatbot} />
+      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className="flex items-center justify-between p-4 border-b bg-white">
+          <h1 className="text-2xl font-bold">Knowledge Base Library</h1>
+          <div className="flex gap-3">
+            <Link href="/assets">
               <Button 
-                onClick={handleCreateKnowledgeBase} 
-                className="bg-blue-600 hover:bg-blue-700 text-white h-9"
+                variant="outline" 
+                className="h-9"
               >
-                <Plus className="mr-2 h-4 w-4" />
-                Knowledge Base
+                <FileText className="mr-2 h-4 w-4" />
+                Manage Assets
               </Button>
-            </div>
+            </Link>
+            <Button 
+              onClick={handleCreateKnowledgeBase} 
+              className="bg-blue-600 hover:bg-blue-700 text-white h-9"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Knowledge Base
+            </Button>
           </div>
-          <KnowledgeBaseLibrary
-            knowledgeBases={knowledgeBases}
-            onUpdateKnowledgeBases={handleUpdateKnowledgeBases}
-          />
         </div>
+        <KnowledgeBaseLibrary
+          knowledgeBases={knowledgeBases}
+          onUpdateKnowledgeBases={handleUpdateKnowledgeBases}
+        />
       </div>
     </div>
   )
