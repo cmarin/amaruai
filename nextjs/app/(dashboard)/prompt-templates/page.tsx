@@ -240,6 +240,11 @@ export default function PromptTemplatesPage() {
               onDelete={handleDeletePrompt}
               onNewSimple={handleNewSimplePrompt}
               onNewComplex={handleNewComplexPrompt}
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              selectedCategory={selectedCategory}
+              onCategoryChange={setSelectedCategory}
+              categories={allCategories}
             />
             <div className="p-4 border-t">
               <div className="flex gap-4">

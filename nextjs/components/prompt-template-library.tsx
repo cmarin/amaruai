@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Plus, Edit, Trash2, LayoutGrid, List, Code } from 'lucide-react'
 import { Card, CardContent } from "@/components/ui/card"
@@ -18,6 +19,7 @@ import {
   PaginationItem
 } from "@/components/ui/pagination"
 import { PromptTemplate } from '@/utils/prompt-template-service'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type PromptTemplateLibraryProps = {
   prompts: PromptTemplate[];
@@ -25,6 +27,11 @@ type PromptTemplateLibraryProps = {
   onDelete: (prompt: PromptTemplate) => void;
   onNewSimple: () => void;
   onNewComplex: () => void;
+  searchTerm: string;
+  onSearchChange: (value: string) => void;
+  selectedCategory: string | null;
+  onCategoryChange: (value: string | null) => void;
+  categories: string[];
 };
 
 type ViewMode = 'grid' | 'table';
@@ -34,7 +41,12 @@ export default function PromptTemplateLibrary({
   onEdit, 
   onDelete,
   onNewSimple,
-  onNewComplex
+  onNewComplex,
+  searchTerm,
+  onSearchChange,
+  selectedCategory,
+  onCategoryChange,
+  categories
 }: PromptTemplateLibraryProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [currentPage, setCurrentPage] = useState(1)
@@ -78,7 +90,6 @@ export default function PromptTemplateLibrary({
                 </Button>
               </div>
             </div>
-            <p className="text-sm text-gray-600 mb-4">{prompt.description}</p>
             <div className="flex flex-wrap gap-2">
               {prompt.categories.map((category, index) => (
                 <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800">
@@ -233,6 +244,33 @@ export default function PromptTemplateLibrary({
               New Complex
             </Button>
           </div>
+        </div>
+      </div>
+      <div className="p-4">
+        <div className="flex gap-4 mb-4">
+          <Input
+            type="search"
+            placeholder="Search prompts..."
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="max-w-sm"
+          />
+          <Select
+            value={selectedCategory || 'all'}
+            onValueChange={(value) => onCategoryChange(value === 'all' ? null : value)}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="All categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All categories</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
       <ScrollArea className="flex-grow">
