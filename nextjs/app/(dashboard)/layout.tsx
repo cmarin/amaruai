@@ -4,6 +4,7 @@ import "../globals.css";
 import { DataProvider } from '../../components/data-context';
 import { SidebarProvider } from '@/components/sidebar-context';
 import { SupabaseProvider } from '@/app/contexts/SupabaseContext';
+import { AuthGuard } from '@/components/auth-guard';
 
 export const metadata: Metadata = {
   title: "AmaruaAI",
@@ -20,9 +21,11 @@ export default function DashboardLayout({
       <SupabaseProvider>
         <DataProvider>
           <SidebarProvider>
-            <div className="flex h-screen w-full">
-              {children}
-            </div>
+            <AuthGuard>
+              <div className="flex h-screen w-full">
+                {children}
+              </div>
+            </AuthGuard>
           </SidebarProvider>
         </DataProvider>
       </SupabaseProvider>
