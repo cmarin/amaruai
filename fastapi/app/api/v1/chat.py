@@ -21,7 +21,7 @@ from app.schemas import ChatMessage, Message, FileInfo
 from app.api.v1.router import create_protected_router
 from app import crud
 from app.database import get_db
-from app.utils import format_openai_message, log_chat_request
+from app.utils import format_openai_message, log_chat_request, UUIDEncoder
 from app.config.asset_utils import collect_reference_content
 
 logging.basicConfig(
@@ -123,7 +123,7 @@ async def chat_endpoint(
     logger.info("=" * 50)
     logger.info(f"REQUEST HEADERS:\n{json.dumps(dict(request.headers), indent=2)}")
     logger.info(f"URL PARAMETERS:\n{json.dumps(dict(request.query_params), indent=2)}")
-    logger.info(f"REQUEST BODY:\n{json.dumps(chat_data.dict(), indent=2)}")
+    logger.info(f"REQUEST BODY:\n{json.dumps(chat_data.dict(), indent=2, cls=UUIDEncoder)}")
     logger.info("=" * 50)
 
     # Get system message from persona if specified
