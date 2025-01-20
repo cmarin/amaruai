@@ -242,6 +242,7 @@ class Asset(AssetBase):
 class KnowledgeBaseBase(BaseModel):
     title: str
     description: str
+    token_count: Optional[int] = 0
 
 class KnowledgeBaseCreate(KnowledgeBaseBase):
     asset_ids: List[UUID] = []

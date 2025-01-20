@@ -181,6 +181,7 @@ class KnowledgeBase(Base):
     description = Column(Text, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+    token_count = Column(Integer, nullable=True, default=0)
     
     # Relationship with assets through the association table
     assets = relationship("Asset", secondary=knowledge_base_assets, back_populates="knowledge_bases")

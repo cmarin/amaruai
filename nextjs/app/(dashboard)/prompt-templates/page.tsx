@@ -234,8 +234,15 @@ export default function PromptTemplatesPage() {
         <AppSidebar toggleChatbot={toggleChatbot} />
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className="p-4">
-              <div className="flex gap-4 mb-4">
+            <PromptTemplateLibrary
+              prompts={filteredPrompts}
+              onEdit={handleEditPrompt}
+              onDelete={handleDeletePrompt}
+              onNewSimple={handleNewSimplePrompt}
+              onNewComplex={handleNewComplexPrompt}
+            />
+            <div className="p-4 border-t">
+              <div className="flex gap-4">
                 <Input
                   type="search"
                   placeholder="Search prompts..."
@@ -261,13 +268,6 @@ export default function PromptTemplatesPage() {
                 </Select>
               </div>
             </div>
-            <PromptTemplateLibrary
-              prompts={filteredPrompts}
-              onEdit={handleEditPrompt}
-              onDelete={handleDeletePrompt}
-              onNewSimple={handleNewSimplePrompt}
-              onNewComplex={handleNewComplexPrompt}
-            />
           </div>
           {/* New Simple Prompt Dialog */}
           <Dialog open={isNewSimplePromptDialogOpen} onOpenChange={setIsNewSimplePromptDialogOpen}>

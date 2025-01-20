@@ -103,7 +103,6 @@ export default function PromptTemplateLibrary({
         <TableHeader>
           <TableRow>
             <TableHead>Title</TableHead>
-            <TableHead>Description</TableHead>
             <TableHead>Categories & Tags</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
@@ -121,7 +120,6 @@ export default function PromptTemplateLibrary({
                   )}
                 </div>
               </TableCell>
-              <TableCell>{prompt.description}</TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1">
                   {prompt.categories.map((category, index) => (
@@ -230,7 +228,7 @@ export default function PromptTemplateLibrary({
               <Plus className="mr-2 h-4 w-4" />
               New Simple
             </Button>
-            <Button onClick={onNewComplex} variant="outline" className="border-purple-600 text-purple-600 hover:bg-purple-50">
+            <Button onClick={onNewComplex} className="bg-blue-600 hover:bg-blue-700 text-white">
               <Code className="mr-2 h-4 w-4" />
               New Complex
             </Button>
