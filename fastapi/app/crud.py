@@ -697,3 +697,12 @@ def remove_assets_from_knowledge_base(db: Session, knowledge_base_id: UUID, asse
         db.rollback()
         raise
 
+def get_knowledge_base_assets(db: Session, knowledge_base_id: UUID):
+    """
+    Get all assets associated with a knowledge base.
+    """
+    kb = db.query(models.KnowledgeBase).filter(models.KnowledgeBase.id == knowledge_base_id).first()
+    if kb:
+        return kb.assets
+    return []
+

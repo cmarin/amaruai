@@ -25,10 +25,9 @@ def collect_reference_content(
         for kb_id in knowledge_base_ids:
             kb = crud.get_knowledge_base(db, kb_id)
             if kb:
-                # Get all assets associated with this knowledge base
-                kb_assets = crud.get_knowledge_base_assets(db, kb_id)
-                if kb_assets:
-                    for asset in kb_assets:
+                # Get assets directly from the knowledge base relationship
+                if kb.assets:
+                    for asset in kb.assets:
                         if asset.content:
                             combined_content.append(f"\nKnowledge Base: {kb.title}\nContent:\n{asset.content}\n")
                     # Use the stored token count from the knowledge base

@@ -244,14 +244,14 @@ export default function PromptTemplatesPage() {
                   className="max-w-sm"
                 />
                 <Select
-                  value={selectedCategory || ''}
-                  onValueChange={(value) => setSelectedCategory(value || null)}
+                  value={selectedCategory || 'all'}
+                  onValueChange={(value) => setSelectedCategory(value === 'all' ? null : value)}
                 >
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="All categories" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All categories</SelectItem>
+                    <SelectItem value="all">All categories</SelectItem>
                     {allCategories.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
