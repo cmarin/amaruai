@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Plus, Edit, Trash2, LayoutGrid, List } from 'lucide-react'
+import { Plus, Edit, Trash2, LayoutGrid, List, Code } from 'lucide-react'
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Table,
@@ -12,105 +11,59 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import PersonaManager from './persona-manager'
-import { Persona, deletePersona } from '../utils/persona-service'
 import { Badge } from "@/components/ui/badge"
-import { useSession } from '@/app/utils/session/session';
 import { 
   Pagination, 
   PaginationContent, 
-  PaginationItem, 
-  PaginationLink, 
-  PaginationNext, 
-  PaginationPrevious 
+  PaginationItem
 } from "@/components/ui/pagination"
+import { PromptTemplate } from '@/utils/prompt-template-service'
 
-type PersonaLibraryProps = {
-  personas: Persona[];
-  onUpdatePersonas: () => Promise<void>;
-}
+type PromptTemplateLibraryProps = {
+  prompts: PromptTemplate[];
+  onEdit: (prompt: PromptTemplate) => void;
+  onDelete: (prompt: PromptTemplate) => void;
+  onNewSimple: () => void;
+  onNewComplex: () => void;
+};
 
 type ViewMode = 'grid' | 'table';
 
-export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLibraryProps) {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null)
-  const [isCreating, setIsCreating] = useState(false)
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
-  const [personaToDelete, setPersonaToDelete] = useState<number | null>(null)
+export default function PromptTemplateLibrary({ 
+  prompts, 
+  onEdit, 
+  onDelete,
+  onNewSimple,
+  onNewComplex
+}: PromptTemplateLibraryProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
-  const { getApiHeaders } = useSession();
 
-  const filteredPersonas = personas.filter(persona =>
-    persona.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    persona.goal.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const totalPages = Math.ceil(filteredPersonas.length / itemsPerPage)
-  const paginatedPersonas = viewMode === 'table' 
-    ? filteredPersonas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-    : filteredPersonas
-
-  const handleCreatePersona = () => {
-    setIsCreating(true)
-  }
-
-  const handleEditPersona = (persona: Persona) => {
-    setSelectedPersona(persona)
-  }
-
-  const handleDeletePersona = async (personaId: number) => {
-    try {
-      const headers = getApiHeaders();
-      if (!headers) {
-        console.error('No valid headers available');
-        return;
-      }
-      
-      await deletePersona(personaId, headers);
-      await onUpdatePersonas();
-    } catch (error) {
-      console.error('Error deleting persona:', error);
-    }
-  }
-
-  const handleSavePersona = async () => {
-    try {
-      await onUpdatePersonas()
-      setSelectedPersona(null)
-      setIsCreating(false)
-    } catch (error) {
-      console.error('Error saving persona:', error)
-    }
-  }
-
-  if (selectedPersona || isCreating) {
-    return (
-      <PersonaManager
-        persona={selectedPersona}
-        onSave={handleSavePersona}
-        onClose={() => {
-          setSelectedPersona(null)
-          setIsCreating(false)
-        }}
-      />
-    )
-  }
+  const totalPages = Math.ceil(prompts.length / itemsPerPage)
+  const paginatedPrompts = viewMode === 'table' 
+    ? prompts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    : prompts
 
   const renderGridView = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-      {paginatedPersonas.map((persona) => (
-        <Card key={persona.id} className="flex flex-col">
+      {paginatedPrompts.map((prompt) => (
+        <Card key={prompt.id} className="flex flex-col">
           <CardContent className="flex-grow p-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">{persona.role}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold">{prompt.title}</h3>
+                {prompt.is_complex && (
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                    Complex
+                  </Badge>
+                )}
+              </div>
               <div className="flex gap-2">
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => handleEditPersona(persona)}
+                  onClick={() => onEdit(prompt)}
                   className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
                 >
                   <Edit className="h-4 w-4" />
@@ -118,17 +71,22 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => handleDeletePersona(Number(persona.id))}
+                  onClick={() => onDelete(prompt)}
                   className="text-red-500 hover:text-red-700 hover:bg-red-100"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-            <p className="text-sm text-gray-600 mb-4">{persona.goal}</p>
+            <p className="text-sm text-gray-600 mb-4">{prompt.description}</p>
             <div className="flex flex-wrap gap-2">
-              {persona.tags.map((tag, index) => (
-                <Badge key={index} variant="secondary">
+              {prompt.categories.map((category, index) => (
+                <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800">
+                  {category.name}
+                </Badge>
+              ))}
+              {prompt.tags.map((tag, index) => (
+                <Badge key={`tag-${index}`} variant="outline">
                   {tag.name}
                 </Badge>
               ))}
@@ -144,21 +102,35 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Role</TableHead>
-            <TableHead>Goal</TableHead>
-            <TableHead>Tags</TableHead>
+            <TableHead>Title</TableHead>
+            <TableHead>Description</TableHead>
+            <TableHead>Categories & Tags</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {paginatedPersonas.map((persona) => (
-            <TableRow key={persona.id}>
-              <TableCell className="font-medium">{persona.role}</TableCell>
-              <TableCell>{persona.goal}</TableCell>
+          {paginatedPrompts.map((prompt) => (
+            <TableRow key={prompt.id}>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{prompt.title}</span>
+                  {prompt.is_complex && (
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                      Complex
+                    </Badge>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell>{prompt.description}</TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1">
-                  {persona.tags.map((tag, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
+                  {prompt.categories.map((category, index) => (
+                    <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800">
+                      {category.name}
+                    </Badge>
+                  ))}
+                  {prompt.tags.map((tag, index) => (
+                    <Badge key={`tag-${index}`} variant="outline">
                       {tag.name}
                     </Badge>
                   ))}
@@ -169,7 +141,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleEditPersona(persona)}
+                    onClick={() => onEdit(prompt)}
                     className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
                   >
                     <Edit className="h-4 w-4" />
@@ -177,7 +149,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleDeletePersona(Number(persona.id))}
+                    onClick={() => onDelete(prompt)}
                     className="text-red-500 hover:text-red-700 hover:bg-red-100"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -233,7 +205,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b bg-white">
-        <h1 className="text-2xl font-bold">Persona Library</h1>
+        <h1 className="text-2xl font-bold">Prompt Templates</h1>
         <div className="flex gap-4">
           <div className="flex border rounded-lg">
             <Button
@@ -253,20 +225,17 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
               <List className="h-4 w-4" />
             </Button>
           </div>
-          <Button onClick={handleCreatePersona} className="bg-blue-600 hover:bg-blue-700 text-white">
-            <Plus className="mr-2 h-4 w-4" />
-            New Persona
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={onNewSimple} className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Plus className="mr-2 h-4 w-4" />
+              New Simple
+            </Button>
+            <Button onClick={onNewComplex} variant="outline" className="border-purple-600 text-purple-600 hover:bg-purple-50">
+              <Code className="mr-2 h-4 w-4" />
+              New Complex
+            </Button>
+          </div>
         </div>
-      </div>
-      <div className="p-4">
-        <Input
-          type="search"
-          placeholder="Search personas..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="mb-4"
-        />
       </div>
       <ScrollArea className="flex-grow">
         {viewMode === 'grid' ? renderGridView() : renderTableView()}
