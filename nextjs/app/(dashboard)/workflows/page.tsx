@@ -100,7 +100,7 @@ export default function WorkflowsPage() {
     return (
       <div className="flex h-screen">
         <AppSidebar toggleChatbot={toggleChatbot} />
-        <div className={`flex-1 flex items-center justify-center transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className={`flex-1 flex items-center justify-center transition-all duration-300 ${sidebarOpen ? 'pl-64' : 'pl-16'}`}>
           Loading...
         </div>
       </div>
@@ -111,7 +111,7 @@ export default function WorkflowsPage() {
     return (
       <div className="flex h-screen">
         <AppSidebar toggleChatbot={toggleChatbot} />
-        <div className={`flex-1 flex items-center justify-center transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className={`flex-1 flex items-center justify-center transition-all duration-300 ${sidebarOpen ? 'pl-64' : 'pl-16'}`}>
           {error}
         </div>
       </div>
@@ -121,7 +121,7 @@ export default function WorkflowsPage() {
   return (
     <div className="flex h-screen">
       <AppSidebar toggleChatbot={toggleChatbot} />
-      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'pl-64' : 'pl-16'}`}>
         {showWorkflowManager ? (
           <WorkflowManagerComponent
             workflow={selectedWorkflow}

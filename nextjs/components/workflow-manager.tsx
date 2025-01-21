@@ -206,7 +206,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   };
 
   return (
-    <div className="w-full p-4">
+    <div className="flex-1 overflow-y-auto p-6">
       <Card>
         <CardHeader>
           <CardTitle>Workflow Manager</CardTitle>
