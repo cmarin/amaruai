@@ -361,3 +361,13 @@ async def chat_endpoint(
         )
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+class ChatRequest(BaseModel):
+    messages: List[Message]
+    model_id: int
+    persona_id: UUID
+    conversation_id: Optional[UUID] = None
+    knowledge_base_ids: List[UUID] = []
+    asset_ids: List[UUID] = []
+    files: List[FileInfo] = []
+    user_id: UUID

@@ -113,12 +113,12 @@ class ProcessType(str, Enum):
     PARALLEL = "HIERARCHICAL"
 
 class WorkflowStepBase(BaseModel):
-    prompt_template_id: UUID
-    chat_model_id: UUID
+    prompt_template_id: int
+    chat_model_id: int
     persona_id: UUID
 
 class WorkflowStepCreate(WorkflowStepBase):
-    pass  # Remove position from here completely
+    pass
 
 class WorkflowStepUpdate(WorkflowStepBase):
     position: Optional[int] = None

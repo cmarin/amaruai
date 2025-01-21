@@ -8,6 +8,7 @@ import sys
 import json
 import tempfile
 from pathlib import Path
+from uuid import UUID
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -88,6 +89,7 @@ class TranscriptionWorker:
 
             file_url = msg_data['payload']['file_url']
             asset_id = msg_data['payload']['asset_id']
+            persona_id = msg_data['payload'].get('persona_id', None)
 
             logger.info(f"Downloading file from path: {file_url}")
 
@@ -137,6 +139,7 @@ class TranscriptionWorker:
                                 asset.content = extracted_text
                                 asset.token_count = self.count_tokens(extracted_text)
                                 asset.status = "completed"
+                                asset.persona_id = persona_id
                                 db.commit()
                                 logger.info(f"Successfully updated asset {asset_id} with extracted text")
                             else:

@@ -327,3 +327,61 @@ async def get_asset_copy(
     except Exception as e:
         logger.error(f"Error getting asset transcript: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{asset_id}/process")
+async def process_asset(
+    asset_id: UUID,
+    persona_id: UUID = None,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Process an asset with an optional persona.
+    
+    Args:
+        asset_id (UUID): ID of the asset to process
+        persona_id (UUID, optional): ID of the persona to use for processing
+        db (Session): Database session
+        current_user (str): Current authenticated user
+        
+    Returns:
+        dict: Processing result details
+    """
+    try:
+        # Get the asset
+        asset = crud.get_asset(db, asset_id=asset_id)
+        if not asset:
+            raise HTTPException(status_code=404, detail="Asset not found")
+            
+        # Queue the processing task
+        message_payload = {
+            "task": "process_asset",
+            "payload": {
+                "asset_id": str(asset_id),
+                "persona_id": str(persona_id) if persona_id else None,
+                "file_url": asset.file_url
+            }
+        }
+        
+        # Queue the task
+        data = supabase_client.rpc(
+            'send',
+            {
+                'queue_name': 'asset_processing',
+                'message': json.dumps(message_payload),
+                'sleep_seconds': 0
+            }
+        ).execute()
+        
+        return {
+            "message": "Asset processing queued successfully",
+            "asset_id": str(asset_id),
+            "persona_id": str(persona_id) if persona_id else None,
+            "status": "processing"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing asset: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

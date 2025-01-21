@@ -394,9 +394,9 @@ def create_workflow_step(db: Session, workflow_id: int, step: schemas.WorkflowSt
         # Create new step
         db_step = models.WorkflowStep(
             workflow_id=workflow_id,
-            prompt_template_id=int(step.prompt_template_id),
-            chat_model_id=int(step.chat_model_id),
-            persona_id=int(step.persona_id),
+            prompt_template_id=step.prompt_template_id,
+            chat_model_id=step.chat_model_id,
+            persona_id=step.persona_id,
             position=next_position
         )
         db.add(db_step)
@@ -716,5 +716,19 @@ def get_knowledge_base_assets(db: Session, knowledge_base_id: UUID):
     kb = db.query(models.KnowledgeBase).filter(models.KnowledgeBase.id == knowledge_base_id).first()
     if kb:
         return kb.assets
+    return []
+
+def get_chat_history(db: Session, persona_id: UUID):
+    """
+    Get chat history for a specific persona.
+    
+    Args:
+        db (Session): Database session
+        persona_id (UUID): ID of the persona
+        
+    Returns:
+        List of chat messages for the persona
+    """
+    # Implement the actual chat history retrieval logic here
     return []
 

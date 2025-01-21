@@ -4,6 +4,7 @@ from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption, WordFormatOption
 from docling.pipeline.simple_pipeline import SimplePipeline
 from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
+from uuid import UUID
 
 
 class DoclingService:
@@ -57,3 +58,17 @@ class DoclingService:
         """
         result = self.converter.convert(file_path)
         return result.document.export_to_markdown()
+
+    def process_with_persona(self, text: str, persona_id: UUID) -> str:
+        """
+        Process text with a specific persona.
+        
+        Args:
+            text (str): Text to process
+            persona_id (UUID): ID of the persona to use
+            
+        Returns:
+            str: Processed text
+        """
+        # Implement the actual processing logic here
+        return text
