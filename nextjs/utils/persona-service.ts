@@ -84,7 +84,7 @@ export async function createPersona(persona: PersonaCreate, headers: ApiHeaders)
   }
 }
 
-export async function updatePersona(personaId: number, persona: Partial<Persona>, headers: ApiHeaders): Promise<Persona> {
+export async function updatePersona(personaId: string, persona: Partial<Persona>, headers: ApiHeaders): Promise<Persona> {
   try {
     if (!getApiUrl()) {
       throw new Error('API_BASE_URL is not defined');

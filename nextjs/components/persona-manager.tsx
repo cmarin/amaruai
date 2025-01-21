@@ -110,8 +110,8 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
 
       let savedPersona: Persona;
       if (persona) {
-        // When updating, include the ID from the original persona and ensure it's a number
-        savedPersona = await updatePersona(Number(persona.id), currentPersona, headers);
+        // When updating, include the ID from the original persona and ensure it's a string
+        savedPersona = await updatePersona(persona.id as string, currentPersona, headers);
       } else {
         // When creating, don't include an ID
         savedPersona = await createPersona(currentPersona, headers);
