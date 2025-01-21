@@ -100,6 +100,15 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       name: workflow.name,
       description: workflow.description,
       process_type: workflow.process_type,
+      manager_chat_model_id: workflow.manager_chat_model_id,
+      manager_persona_id: workflow.manager_persona_id,
+      max_iterations: workflow.max_iterations,
+      steps: workflow.steps?.map((step, index) => ({
+        prompt_template_id: step.prompt_template_id,
+        chat_model_id: step.chat_model_id,
+        persona_id: step.persona_id,
+        position: index
+      }))
     };
 
     console.log('Updating workflow with payload:', workflowPayload);
@@ -113,40 +122,12 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
     });
 
     if (!response.ok) {
-      throw new Error('Failed to update workflow');
+      const errorText = await response.text();
+      console.error('Error updating workflow:', errorText);
+      throw new Error(`Failed to update workflow: ${errorText}`);
     }
 
     const updatedWorkflow = await response.json();
-
-    // Fetch current steps
-    const currentSteps = await fetchWorkflowSteps(id, headers);
-
-    // Delete all existing steps
-    await Promise.all(currentSteps.map(step => {
-      if (step.id) {
-        return deleteWorkflowStep(id, step.id, headers);
-      }
-      return Promise.resolve();
-    }));
-
-    // Create new steps sequentially with correct positions
-    const createdSteps = [];
-    if (workflow.steps) {
-      for (let i = 0; i < workflow.steps.length; i++) {
-        const step = workflow.steps[i];
-        const stepWithPosition = {
-          prompt_template_id: step.prompt_template_id,
-          chat_model_id: step.chat_model_id,
-          persona_id: step.persona_id,
-          position: i  // Explicitly set position based on array index
-        };
-        
-        const createdStep = await createWorkflowStep(id, stepWithPosition, headers);
-        createdSteps.push(createdStep);
-      }
-      updatedWorkflow.steps = createdSteps;
-    }
-
     return updatedWorkflow;
   });
 }

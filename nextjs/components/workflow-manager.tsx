@@ -191,14 +191,15 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
 
       console.log('Workflow payload to be sent:', JSON.stringify(workflowPayload, null, 2));
 
+      let savedWorkflow;
       if (workflow.id) {
-        const updatedWorkflow = await updateWorkflow(workflow.id, workflowPayload, headers);
-        setWorkflow(updatedWorkflow);
+        savedWorkflow = await updateWorkflow(workflow.id, workflowPayload, headers);
       } else {
-        const createdWorkflow = await createWorkflow(workflowPayload, headers);
-        setWorkflow(createdWorkflow);
+        savedWorkflow = await createWorkflow(workflowPayload, headers);
       }
-      console.log('Workflow saved successfully');
+      console.log('Workflow saved successfully:', savedWorkflow);
+      
+      // Only call onSave after the workflow and all steps are saved
       onSave();
     } catch (error) {
       console.error('Error saving workflow:', error);
