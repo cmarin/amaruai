@@ -1,10 +1,9 @@
 'use client';
 
 import { Asset } from '@/types/knowledge-base';
-import { formatFileSize } from '@/lib/utils';
 import { FileIcon, defaultStyles } from 'react-file-icon';
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Trash2, Settings, Plus } from 'lucide-react';
+import { Copy, Check, Trash2, Settings, Plus, Eye } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -20,11 +19,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 interface AssetsTableProps {
   assets: Asset[];
   onDeleteAsset?: (assetId: string) => void;
   onManageAsset?: (asset: Asset) => void;
+  onPreview?: (asset: Asset) => void;
   showActions?: boolean;
 }
 
@@ -32,6 +33,7 @@ export function AssetsTable({
   assets, 
   onDeleteAsset, 
   onManageAsset,
+  onPreview,
   showActions = true 
 }: AssetsTableProps) {
   const [copiedAssetId, setCopiedAssetId] = useState<string | null>(null);
@@ -60,6 +62,7 @@ export function AssetsTable({
             <TableHead className="w-[120px]">Type</TableHead>
             <TableHead className="w-[100px]">Size</TableHead>
             <TableHead className="w-[100px]">Status</TableHead>
+            <TableHead className="w-[120px]">Description</TableHead>
             <TableHead className="w-[120px]">Created</TableHead>
             {showActions && (
               <TableHead className="w-[120px] text-right">Actions</TableHead>
@@ -69,7 +72,7 @@ export function AssetsTable({
         <TableBody>
           {assets.length === 0 ? (
             <TableRow className="hover:bg-gray-50">
-              <TableCell colSpan={showActions ? 7 : 6} className="h-24 text-center">
+              <TableCell colSpan={showActions ? 8 : 7} className="h-24 text-center">
                 No assets found.
               </TableCell>
             </TableRow>
@@ -79,67 +82,99 @@ export function AssetsTable({
                 <TableCell className="w-[40px]">
                   <div className="w-8 h-8">
                     <FileIcon 
-                      extension={asset.file_type.split('/')[1]} 
-                      {...defaultStyles[asset.file_type.split('/')[1]]} 
+                      extension={asset.type.split('/')[1]} 
+                      {...defaultStyles[asset.type.split('/')[1]]} 
                     />
                   </div>
                 </TableCell>
-                <TableCell className="font-medium truncate max-w-[200px]">
-                  {asset.title || asset.file_name}
-                </TableCell>
-                <TableCell>{asset.mime_type}</TableCell>
-                <TableCell>{formatFileSize(asset.size)}</TableCell>
                 <TableCell>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                    ${asset.managed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                    {asset.status || (asset.managed ? 'Managed' : 'Unmanaged')}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8">
+                      <FileIcon 
+                        extension={asset.type.split('/')[1]} 
+                        {...defaultStyles[asset.type.split('/')[1]]} 
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="font-medium">{asset.title}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {asset.type} • {asset.size ? `${(asset.size / (1024 * 1024)).toFixed(1)} MB` : 'Unknown size'}
+                      </div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center">
+                    <Badge variant={asset.managed ? "default" : "secondary"}>
+                      {asset.managed ? "Managed" : "External"}
+                    </Badge>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="line-clamp-2">
+                    {asset.description || 'No description available'}
+                  </div>
                 </TableCell>
                 <TableCell>{new Date(asset.created_at).toLocaleDateString()}</TableCell>
                 {showActions && (
-                  <TableCell className="text-right space-x-2">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleCopyTranscript(asset.content || '', asset.id)}
-                            className="h-8 w-8 text-gray-600 hover:text-gray-700"
-                          >
-                            {copiedAssetId === asset.id ? (
-                              <Check className="h-4 w-4" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Copy transcript</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    {onManageAsset && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => onManageAsset(asset)}
-                        className="h-8 w-8"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {onDeleteAsset && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => onDeleteAsset(asset.id)}
-                        className="h-8 w-8 text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                              onClick={() => onPreview?.(asset)}
+                            >
+                              <span className="sr-only">Preview asset</span>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Preview asset</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      {onManageAsset && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={() => onManageAsset(asset)}
+                              >
+                                <span className="sr-only">Manage asset</span>
+                                <Settings className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Manage asset</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      {onDeleteAsset && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={() => onDeleteAsset(asset.id)}
+                              >
+                                <span className="sr-only">Delete asset</span>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Delete asset</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </TableCell>
                 )}
               </TableRow>
