@@ -379,36 +379,18 @@ def get_workflow_step(db: Session, step_id: int):
 def get_workflow_steps(db: Session, workflow_id: int):
     return db.query(models.WorkflowStep).filter(models.WorkflowStep.workflow_id == workflow_id).order_by(models.WorkflowStep.position).all()
 
-def create_workflow_step(db: Session, workflow_id: int, step: schemas.WorkflowStepCreate):
-    try:
-        # Get all existing steps for this workflow
-        existing_steps = db.query(models.WorkflowStep).filter(
-            models.WorkflowStep.workflow_id == workflow_id
-        ).order_by(models.WorkflowStep.position).all()
-        
-        # Calculate next position
-        next_position = len(existing_steps)
-        
-        logging.info(f"Creating new step at position {next_position}")
-
-        # Create new step
-        db_step = models.WorkflowStep(
-            workflow_id=workflow_id,
-            prompt_template_id=step.prompt_template_id,
-            chat_model_id=step.chat_model_id,
-            persona_id=step.persona_id,
-            position=next_position
-        )
-        db.add(db_step)
-        db.commit()
-        db.refresh(db_step)
-        
-        logging.info(f"Created step {db_step.id} at position {db_step.position}")
-        return db_step
-    except Exception as e:
-        db.rollback()
-        logging.error(f"Error creating workflow step: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+def create_workflow_step(db: Session, workflow_id: UUID, step: schemas.WorkflowStepCreate):
+    db_step = models.WorkflowStep(
+        workflow_id=workflow_id,
+        prompt_template_id=step.prompt_template_id,
+        chat_model_id=step.chat_model_id,
+        persona_id=step.persona_id,
+        position=step.position
+    )
+    db.add(db_step)
+    db.commit()
+    db.refresh(db_step)
+    return db_step
 
 def update_workflow_step(db: Session, step_id: int, step: schemas.WorkflowStepUpdate):
     db_step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()

@@ -146,15 +146,14 @@ class WorkflowUpdate(WorkflowBase):
     steps: Optional[List[WorkflowStepUpdate]] = None
 
 class Workflow(WorkflowBase):
-    id: int
+    id: UUID
     steps: List[WorkflowStep] = []
 
     @property
     def effective_max_iterations(self) -> Optional[int]:
-        # Return max_iterations only if process_type is HIERARCHICAL
         if self.process_type == ProcessType.HIERARCHICAL.value:
-            return self.max_iterations or 1  # Default to 1 for hierarchical workflows
-        return None  # Return None for sequential workflows
+            return self.max_iterations or 1
+        return None
 
     class Config:
         from_attributes = True

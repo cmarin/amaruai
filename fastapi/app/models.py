@@ -119,12 +119,12 @@ class ChatModel(Base):
 class Workflow(Base):
     __tablename__ = "workflow"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('uuid_generate_v4()'))
     name = Column(String, index=True)
     description = Column(String, nullable=True)
     process_type = Column(String)
     manager_chat_model_id = Column(Integer, ForeignKey("chat_model.id"), nullable=True)
-    manager_persona_id = Column(Integer, ForeignKey("persona.id"), nullable=True)
+    manager_persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"), nullable=True)
     max_iterations = Column(Integer, nullable=True)
     
     steps = relationship(
