@@ -35,11 +35,55 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   const [managerChatModelId, setManagerChatModelId] = useState<string | undefined>(undefined);
   const [managerPersonaId, setManagerPersonaId] = useState<string | undefined>(undefined);
   const [maxIterations, setMaxIterations] = useState<number>(5);
-  const { getApiHeaders, loading: sessionLoading } = useSession();
+  const { getApiHeaders, loading: sessionLoading, initialized } = useSession();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Load initial data
+  const loadData = useCallback(async () => {
+    try {
+      console.log('Loading workflow manager data...');
+      const headers = getApiHeaders();
+      if (!headers) {
+        console.error('No valid headers available');
+        return;
+      }
+
+      const [templatesData, modelsData, personasData] = await Promise.all([
+        fetchPromptTemplates(headers),
+        fetchChatModels(headers),
+        fetchPersonas(headers)
+      ]);
+
+      console.log('Data loaded:', {
+        promptTemplates: templatesData,
+        chatModels: modelsData,
+        personas: personasData
+      });
+
+      setPromptTemplates(templatesData);
+      setChatModels(modelsData);
+      setPersonas(personasData);
+      setError(null);
+    } catch (err) {
+      console.error('Error loading data:', err);
+      setError('Failed to load necessary data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getApiHeaders]);
+
+  // Effect to load data when session is ready
+  useEffect(() => {
+    if (!sessionLoading && initialized) {
+      loadData();
+    }
+  }, [sessionLoading, initialized, loadData]);
+
+  // Effect to set initial workflow values
   useEffect(() => {
     if (initialWorkflow) {
-      console.log('Initial workflow loaded:', initialWorkflow);
+      console.log('Setting initial workflow:', initialWorkflow);
       setWorkflow(initialWorkflow);
       if (initialWorkflow.process_type === 'HIERARCHICAL') {
         console.log('Setting hierarchical values:', {
@@ -54,64 +98,17 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     }
   }, [initialWorkflow]);
 
-  useEffect(() => {
-    if (!sessionLoading) {
-      const fetchData = async () => {
-        const headers = getApiHeaders();
-        if (!headers) {
-          console.error('No valid headers available');
-          return;
-        }
-        try {
-          const [fetchedPromptTemplates, fetchedChatModels, fetchedPersonas] = await Promise.all([
-            fetchPromptTemplates(headers),
-            fetchChatModels(headers),
-            fetchPersonas(headers)
-          ]);
-          setPromptTemplates(fetchedPromptTemplates);
-          setChatModels(fetchedChatModels);
-          setPersonas(fetchedPersonas);
-        } catch (error) {
-          console.error('Error fetching data:', error);
-        }
-      };
-      fetchData();
-    }
-  }, [sessionLoading, getApiHeaders]);
+  if (sessionLoading || !initialized) {
+    return <div>Initializing session...</div>;
+  }
 
-  useEffect(() => {
-    if (workflow.process_type === 'HIERARCHICAL' && chatModels.length > 0 && personas.length > 0) {
-      console.log('Updating manager IDs after data load');
-      console.log('Available chat models:', chatModels);
-      console.log('Available personas:', personas);
-      console.log('Current managerChatModelId:', managerChatModelId);
-      console.log('Current managerPersonaId:', managerPersonaId);
-      
-      // Only set if not already set
-      if (!managerChatModelId && workflow.manager_chat_model_id) {
-        setManagerChatModelId(workflow.manager_chat_model_id?.toString());
-      }
-      if (!managerPersonaId && workflow.manager_persona_id) {
-        setManagerPersonaId(workflow.manager_persona_id?.toString());
-      }
-    }
-  }, [workflow.process_type, chatModels, personas, managerChatModelId, managerPersonaId, workflow.manager_chat_model_id, workflow.manager_persona_id]);
+  if (isLoading) {
+    return <div>Loading workflow data...</div>;
+  }
 
-  useEffect(() => {
-    if (workflow.manager_chat_model_id) {
-      setManagerChatModelId(workflow.manager_chat_model_id);
-    }
-    if (workflow.manager_persona_id) {
-      setManagerPersonaId(workflow.manager_persona_id);
-    }
-  }, [
-    workflow.manager_chat_model_id,
-    workflow.manager_persona_id,
-    managerChatModelId,
-    managerPersonaId,
-    setManagerChatModelId,
-    setManagerPersonaId
-  ]);
+  if (error) {
+    return <div className="text-red-500">{error}</div>;
+  }
 
   const handleProcessTypeChange = (value: "SEQUENTIAL" | "HIERARCHICAL") => {
     setWorkflow({ ...workflow, process_type: value });

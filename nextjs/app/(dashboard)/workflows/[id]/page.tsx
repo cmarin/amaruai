@@ -14,7 +14,7 @@ export default function EditWorkflowPage({ params }: { params: { id: string } })
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { sidebarOpen } = useSidebar();
-  const { getApiHeaders, loading: sessionLoading } = useSession();
+  const { getApiHeaders, loading: sessionLoading, initialized } = useSession();
 
   const loadWorkflow = useCallback(async () => {
     try {
@@ -24,7 +24,7 @@ export default function EditWorkflowPage({ params }: { params: { id: string } })
         console.error('No valid headers available');
         return;
       }
-      console.log('Headers available, fetching workflow...');
+      console.log('Headers available:', headers);
 
       const fetchedWorkflow = await fetchWorkflow(params.id, headers);
       console.log('Fetched workflow:', fetchedWorkflow);
@@ -38,12 +38,14 @@ export default function EditWorkflowPage({ params }: { params: { id: string } })
     }
   }, [params.id, getApiHeaders]);
 
+  // Effect to load workflow when session is ready
   useEffect(() => {
-    console.log('Edit workflow page mounted, session loading:', sessionLoading);
-    if (!sessionLoading) {
+    console.log('Session state:', { loading: sessionLoading, initialized });
+    if (!sessionLoading && initialized) {
+      console.log('Session ready, loading workflow...');
       loadWorkflow();
     }
-  }, [sessionLoading, loadWorkflow]);
+  }, [sessionLoading, initialized, loadWorkflow]);
 
   const handleSave = async () => {
     router.push('/workflows');
@@ -56,6 +58,17 @@ export default function EditWorkflowPage({ params }: { params: { id: string } })
   const toggleChatbot = (modelId: string) => {
     router.push(`/chat?model=${modelId}`);
   };
+
+  if (sessionLoading || !initialized) {
+    return (
+      <div className="flex min-h-screen w-full">
+        <AppSidebar toggleChatbot={toggleChatbot} />
+        <main className={`flex-1 min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
+          Initializing session...
+        </main>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
