@@ -206,7 +206,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="w-full p-4">
       <Card>
         <CardHeader>
           <CardTitle>Workflow Manager</CardTitle>
