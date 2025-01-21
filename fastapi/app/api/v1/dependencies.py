@@ -16,19 +16,24 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
     Get the current authenticated user from the JWT token.
     
     Args:
-        authorization (str): The Authorization header containing the JWT token
+        authorization (str): The Authorization header containing the JWT token or API key
         
     Returns:
         str: The user's email
         
     Raises:
-        HTTPException: If the token is invalid or missing
+        HTTPException: If the token/key is invalid or missing
     """
     if not authorization:
         raise HTTPException(status_code=401, detail="Authorization header missing")
+    
+    # Check for API key first
+    api_key = os.getenv("SERVICE1_API_KEY")
+    if api_key and authorization.strip() == f"Bearer {api_key}":
+        return "api@service.internal"  # Return a service account identifier
         
     try:
-        # Remove 'Bearer ' prefix if present
+        # If not API key, try JWT token
         if authorization.startswith('Bearer '):
             token = authorization[7:]
         else:

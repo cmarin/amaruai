@@ -13,6 +13,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.config.crewai_service import crew_service, CrewAIError
 import json
 from uuid import UUID
+from app.api.v1.dependencies import get_current_user
 load_dotenv()
 
 # Create routers for workflows
@@ -33,7 +34,12 @@ def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_
 
 
 @router.get("/", response_model=List[schemas.Workflow])
-def read_workflows(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def read_workflows(
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
     workflows = crud.get_workflows(db, skip=skip, limit=limit)
     return workflows
 

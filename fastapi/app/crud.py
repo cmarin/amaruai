@@ -285,7 +285,9 @@ def get_workflow(db: Session, workflow_id: UUID):
         joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.prompt_template),
         joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
         joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona)
-    ).filter(models.Workflow.id == workflow_id).first()
+    ).filter(
+        models.Workflow.id == workflow_id
+    ).first()
 
 def get_workflows(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Workflow).offset(skip).limit(limit).all()

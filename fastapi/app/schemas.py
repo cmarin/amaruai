@@ -158,6 +158,9 @@ class WorkflowStep(WorkflowStepBase):
     id: UUID
     workflow_id: UUID
     position: int
+    prompt_template: Optional[PromptTemplate] = None
+    chat_model: Optional[ChatModel] = None
+    persona: Optional[Persona] = None
 
     class Config:
         from_attributes = True
