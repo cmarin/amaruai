@@ -57,7 +57,7 @@ const aiTools = [
 ]
 
 interface AppSidebarProps {
-  toggleChatbot: (modelId: string) => void;
+  toggleChatbot?: (modelId: string) => void;
 }
 
 const getProviderIcon = (modelId: string, modelName: string) => {
@@ -104,7 +104,7 @@ export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps
 
   const handleToggleChatbot = (modelId: string) => {
     if (window.location.pathname === '/chat') {
-      propToggleChatbot(modelId);
+      propToggleChatbot?.(modelId);
     } else {
       router.push(`/chat?model=${modelId}`);
     }

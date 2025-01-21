@@ -1,19 +1,13 @@
 export interface Asset {
   id: string;
   title: string;
-  file_name: string;
-  file_url: string;
-  file_type: string;
-  mime_type: string;
-  size: number;
-  content: string;
-  token_count: number;
-  status: string | null;
-  uploaded_by: string;
-  storage_id: string;
+  description?: string;
+  url: string;
+  managed: boolean;
+  type: string;
+  size?: number;
   created_at: string;
   updated_at: string;
-  managed?: boolean;
 }
 
 export interface KnowledgeBase {
@@ -29,4 +23,4 @@ export interface KnowledgeBaseCreate {
   title: string;
   description: string;
   asset_ids: string[];
-} 
+}

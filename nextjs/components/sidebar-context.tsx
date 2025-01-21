@@ -1,13 +1,18 @@
-'use client';  // Add this line at the top of the file
+'use client';  
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
-type SidebarContextType = {
+export interface SidebarContextType {
   sidebarOpen: boolean;
+  isSidebarOpen: boolean; 
   toggleSidebar: () => void;
-};
+}
 
-const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
+const SidebarContext = createContext<SidebarContextType>({
+  sidebarOpen: true,
+  isSidebarOpen: true,
+  toggleSidebar: () => {},
+});
 
 export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -21,7 +26,11 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [sidebarOpen]);
 
   return (
-    <SidebarContext.Provider value={{ sidebarOpen, toggleSidebar }}>
+    <SidebarContext.Provider value={{ 
+      sidebarOpen, 
+      isSidebarOpen: sidebarOpen, 
+      toggleSidebar 
+    }}>
       {children}
     </SidebarContext.Provider>
   );

@@ -158,8 +158,9 @@ export default function PromptTemplatesPage() {
         title: editingPrompt.title,
         prompt: editingPrompt.prompt as string,
         is_complex: false,
-        categories: editingPrompt.categories,
-        tags: editingPrompt.tags
+        default_persona_id: null,
+        category_ids: editingPrompt.categories?.map(c => parseInt(c)) || [],
+        tag_ids: editingPrompt.tags?.map(t => t.toString()) || []
       }, headers);
       setIsEditPromptDialogOpen(false);
       const updatedPrompts = await fetchPromptTemplates(headers);

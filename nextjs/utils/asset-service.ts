@@ -5,83 +5,95 @@ import { Asset } from '@/types/knowledge-base';
 
 export async function fetchAssets(headers: ApiHeaders): Promise<Asset[]> {
   return fetchWithRetry(async () => {
-    if (!getApiUrl()) {
-      throw new Error('API_BASE_URL is not defined');
-    }
     const response = await fetch(`${getApiUrl()}/assets`, {
-      headers
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
     });
     if (!response.ok) {
       throw new Error('Failed to fetch assets');
     }
-    return response.json();
+    const data = await response.json();
+    return data.map((asset: any) => ({
+      ...asset,
+      id: asset.id.toString()
+    }));
   });
 }
 
-export async function fetchManagedAssets(headers: ApiHeaders): Promise<Asset[]> {
+export async function fetchAsset(id: string, headers: ApiHeaders): Promise<Asset> {
   return fetchWithRetry(async () => {
-    if (!getApiUrl()) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-    const response = await fetch(`${getApiUrl()}/assets?managed=true`, {
-      headers
+    const response = await fetch(`${getApiUrl()}/assets/${id}`, {
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
     });
     if (!response.ok) {
-      throw new Error('Failed to fetch managed assets');
+      throw new Error('Failed to fetch asset');
     }
-    return response.json();
+    const asset = await response.json();
+    return {
+      ...asset,
+      id: asset.id.toString()
+    };
   });
 }
 
-export async function createAsset(file: File, headers: ApiHeaders): Promise<Asset> {
-  try {
-    if (!getApiUrl()) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-
+export async function createAsset(asset: Omit<Asset, 'id' | 'created_at' | 'updated_at'>, headers: ApiHeaders): Promise<Asset> {
+  return fetchWithRetry(async () => {
     const response = await fetch(`${getApiUrl()}/assets`, {
       method: 'POST',
       headers: {
         ...headers,
-        // Don't set Content-Type here, let the browser set it with the boundary
+        'Content-Type': 'application/json',
       },
-      body: formData,
+      body: JSON.stringify(asset),
     });
-
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response:', response.status, errorText);
-      throw new Error(`Failed to create asset: ${response.status} ${response.statusText}`);
+      throw new Error('Failed to create asset');
     }
+    const data = await response.json();
+    return {
+      ...data,
+      id: data.id.toString()
+    };
+  });
+}
 
-    return await response.json();
-  } catch (error) {
-    console.error('Error creating asset:', error);
-    throw error;
-  }
+export async function updateAsset(id: string, asset: Partial<Omit<Asset, 'id' | 'created_at' | 'updated_at'>>, headers: ApiHeaders): Promise<Asset> {
+  return fetchWithRetry(async () => {
+    const response = await fetch(`${getApiUrl()}/assets/${id}`, {
+      method: 'PUT',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(asset),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update asset');
+    }
+    const data = await response.json();
+    return {
+      ...data,
+      id: data.id.toString()
+    };
+  });
 }
 
 export async function deleteAsset(id: string, headers: ApiHeaders): Promise<void> {
-  try {
-    if (!getApiUrl()) {
-      throw new Error('API_BASE_URL is not defined');
-    }
-
+  return fetchWithRetry(async () => {
     const response = await fetch(`${getApiUrl()}/assets/${id}`, {
       method: 'DELETE',
-      headers
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
     });
-
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response:', response.status, errorText);
-      throw new Error(`Failed to delete asset: ${response.status} ${response.statusText}`);
+      throw new Error('Failed to delete asset');
     }
-  } catch (error) {
-    console.error('Error deleting asset:', error);
-    throw error;
-  }
-} 
+  });
+}

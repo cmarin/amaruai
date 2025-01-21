@@ -20,6 +20,42 @@ export async function fetchKnowledgeBases(headers: ApiHeaders): Promise<Knowledg
   });
 }
 
+export async function fetchKnowledgeBase(id: string, headers: ApiHeaders): Promise<KnowledgeBase> {
+  return fetchWithRetry(async () => {
+    if (!getApiUrl()) {
+      throw new Error('API_BASE_URL is not defined');
+    }
+    const [kbResponse, assetsResponse] = await Promise.all([
+      fetch(`${getApiUrl()}/knowledge_bases/${id}`, {
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+      }),
+      fetch(`${getApiUrl()}/knowledge_bases/${id}/assets`, {
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+      })
+    ]);
+
+    if (!kbResponse.ok || !assetsResponse.ok) {
+      throw new Error('Failed to fetch knowledge base or its assets');
+    }
+
+    const [kb, assets] = await Promise.all([
+      kbResponse.json(),
+      assetsResponse.json()
+    ]);
+
+    return {
+      ...kb,
+      assets: assets || []
+    };
+  });
+}
+
 export async function createKnowledgeBase(knowledgeBase: KnowledgeBaseCreate, headers: ApiHeaders): Promise<KnowledgeBase> {
   try {
     if (!getApiUrl()) {

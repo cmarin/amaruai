@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -13,7 +13,6 @@ import { Asset } from '@/types/knowledge-base';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchAssets } from '@/utils/asset-service';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
-import { UploadService, type UploadedFile } from '@/utils/upload-service';
 import { useToast } from "@/hooks/use-toast";
 import Uppy from '@uppy/core';
 import { Dashboard } from '@uppy/react';
@@ -21,21 +20,20 @@ import '@uppy/core/dist/style.css';
 import '@uppy/dashboard/dist/style.css';
 import { v4 as uuidv4 } from 'uuid';
 import { useParams } from 'next/navigation';
-import { fetchAssetsForKnowledgeBase } from '@/utils/knowledge-base-service';
 
-type KnowledgeBaseManagerProps = {
-  knowledgeBase: KnowledgeBase | null
-  onSave: () => void
-  onClose: () => void
+interface KnowledgeBaseManagerProps {
+  knowledgeBase: KnowledgeBase | null;
+  onSave: () => void;
+  onClose: () => void;
 }
 
-export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: KnowledgeBaseManagerProps) {
+export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: KnowledgeBaseManagerProps): JSX.Element {
   const params = useParams();
   const knowledgeBaseId = params?.id as string || knowledgeBase?.id || null;
   const [currentKnowledgeBase, setCurrentKnowledgeBase] = useState({
-    title: '',
-    description: '',
-    assets: [] as Asset[]
+    title: knowledgeBase?.title || '',
+    description: knowledgeBase?.description || '',
+    assets: knowledgeBase?.assets || [] as Asset[]
   });
   const { getApiHeaders } = useSession();
   const [showAssetSelector, setShowAssetSelector] = useState(false);
@@ -45,6 +43,17 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   const supabase = useSupabase();
   const { toast } = useToast();
   const uppyRef = useRef<Uppy | null>(null);
+
+  const loadAssets = useCallback(async () => {
+    try {
+      const headers = getApiHeaders();
+      if (!headers) return;
+      const assets = await fetchAssets(headers);
+      setAvailableAssets(assets.filter(asset => asset.managed));
+    } catch (error) {
+      console.error('Error loading assets:', error);
+    }
+  }, [getApiHeaders]);
 
   useEffect(() => {
     if (knowledgeBase) {
@@ -61,18 +70,8 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
   }, [knowledgeBase]);
 
   useEffect(() => {
-    const loadAssets = async () => {
-      try {
-        const headers = getApiHeaders();
-        if (!headers) return;
-        const assets = await fetchAssets(headers);
-        setAvailableAssets(assets.filter(asset => asset.managed));
-      } catch (error) {
-        console.error('Error loading assets:', error);
-      }
-    };
     loadAssets();
-  }, [getApiHeaders]);
+  }, [loadAssets]);
 
   useEffect(() => {
     console.log('Selected assets updated:', selectedAssets);
@@ -82,145 +81,10 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
     }));
   }, [selectedAssets]);
 
-  useEffect(() => {
-    console.log('AssetsTable assets updated:', selectedAssets);
-  }, [selectedAssets]);
-
-  useEffect(() => {
-    if (!uppyRef.current && supabase) {
-      const uppy = new Uppy({
-        id: 'knowledge-base-uploader',
-        autoProceed: false,
-        restrictions: {
-          maxFileSize: 50 * 1024 * 1024, // 50MB
-          maxNumberOfFiles: 10,
-          allowedFileTypes: [
-            'image/*',                    // All image types
-            'application/pdf',            // PDF files
-            '.doc', '.docx',             // Word documents
-            '.ppt', '.pptx',             // PowerPoint presentations
-            '.txt',                       // Text files
-            '.md', '.markdown',           // Markdown files
-            'text/plain',                 // Plain text
-            'text/markdown',              // Markdown MIME type
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation', // PPTX
-            'application/vnd.ms-powerpoint', // PPT
-            'audio/wav',                  // WAV audio
-            'audio/mpeg',                 // MP3 audio
-            'audio/flac',                 // FLAC audio
-            'video/mp4',                  // MP4 video
-            'video/quicktime',            // MOV video
-            '.wav', '.mp3', '.flac',     // Audio extensions
-            '.mp4', '.mov'               // Video extensions
-          ]
-        }
-      });
-
-      uppy.on('file-added', async (file) => {
-        try {
-          // Upload file to Supabase storage
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session?.user?.id) {
-            throw new Error('User must be authenticated to upload files');
-          }
-
-          const fileUuid = uuidv4();
-          const filePath = `knowledge-bases/${knowledgeBaseId}/${fileUuid}/${file.name}`;
-
-          // Add knowledge base metadata when editing an existing knowledge base
-          const metadata = {
-            knowledge_base_id: knowledgeBaseId
-          };
-
-          const { error: uploadError } = await supabase.storage
-            .from('amaruai-dev')
-            .upload(filePath, file.data, {
-              metadata
-            });
-
-          if (uploadError) {
-            throw uploadError;
-          }
-
-          // Don't show toast for individual file uploads in knowledge base context
-        } catch (error) {
-          console.error('Error uploading file:', error);
-          // Only show error toasts
-          toast({
-            title: "Error",
-            description: "Failed to upload file",
-            variant: "destructive",
-          });
-        }
-      });
-
-      uppy.on('complete', async (result) => {
-        try {
-          const headers = getApiHeaders();
-          if (!headers) return;
-
-          // Refresh the available assets list
-          const assets = await fetchAssets(headers);
-          setAvailableAssets(assets.filter(asset => asset.managed));
-
-          // Add uploaded files to selected assets
-          const successfulFiles = result.successful || [];
-          if (successfulFiles.length > 0) {
-            const newAssets = assets.filter(asset => 
-              successfulFiles.some(file => asset.title === file.name)
-            );
-            
-            // Add new assets to selected assets
-            const updatedSelectedAssets = [...selectedAssets, ...newAssets];
-            setSelectedAssets(updatedSelectedAssets);
-
-            // Fetch and update the current knowledge base assets if we have a knowledge base ID
-            if (knowledgeBaseId) {
-              const updatedKnowledgeBaseAssets = await fetchAssetsForKnowledgeBase(knowledgeBaseId, headers);
-              setSelectedAssets(updatedKnowledgeBaseAssets);
-            }
-          }
-
-          setShowUploadModal(false);
-          // Show a single success toast at the end
-          toast({
-            title: "Success",
-            description: `${successfulFiles.length} file(s) uploaded successfully`,
-          });
-        } catch (error) {
-          console.error('Error processing uploaded files:', error);
-          toast({
-            title: "Error",
-            description: "Failed to process uploaded files",
-            variant: "destructive",
-          });
-        }
-      });
-
-      uppyRef.current = uppy;
-    }
-
-    // Cleanup function
-    return () => {
-      if (uppyRef.current) {
-        const uppy = uppyRef.current;
-        // Remove all files
-        const files = uppy.getFiles();
-        files.forEach(file => uppy.removeFile(file.id));
-        // Remove event listeners
-        uppy.off('file-added', () => {});
-        uppy.off('complete', () => {});
-        // Clean up the instance
-        uppy.cancelAll();
-        uppyRef.current = null;
-      }
-    };
-  }, [supabase, toast, getApiHeaders, knowledgeBaseId]);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setCurrentKnowledgeBase(prev => ({ ...prev, [name]: value }))
-  }
+    const { name, value } = e.target;
+    setCurrentKnowledgeBase(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleSave = async () => {
     try {
@@ -404,5 +268,5 @@ export function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: Knowled
         </DialogContent>
       </Dialog>
     </div>
-  )
-} 
+  );
+}

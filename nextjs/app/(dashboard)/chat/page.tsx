@@ -38,7 +38,7 @@ import { UploadService, type UploadedFile } from '@/utils/upload-service'
 import { FileUploadPills } from '@/components/file-upload-pills'
 import { KnowledgeBaseSelector } from '@/components/knowledge-base-selector'
 import { KnowledgeBase, fetchKnowledgeBases } from '@/utils/knowledge-base-service'
-import { fetchManagedAssets } from '@/utils/asset-service'
+import { fetchAssets } from '@/utils/asset-service'
 import { Asset } from '@/types/knowledge-base'
 
 // Import required Uppy CSS
@@ -555,6 +555,21 @@ export default function Chat() {
       </TooltipProvider>
     );
   };
+
+  const loadAssets = useCallback(async () => {
+    try {
+      const headers = getApiHeaders();
+      if (!headers) return;
+      const assets = await fetchAssets(headers);
+      setAssets(assets);
+    } catch (error) {
+      console.error('Error loading assets:', error);
+    }
+  }, [getApiHeaders]);
+
+  useEffect(() => {
+    loadAssets();
+  }, [loadAssets]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
