@@ -18,13 +18,13 @@ persona_tag = Table('persona_tag', Base.metadata,
 )
 
 prompt_template_category = Table('prompt_template_category', Base.metadata,
-    Column('prompt_template_id', Integer, ForeignKey('prompt_template.id'), primary_key=True),
-    Column('category_id', Integer, ForeignKey('category.id'), primary_key=True)
+    Column('prompt_template_id', PGUUID(as_uuid=True), ForeignKey('prompt_template.id'), primary_key=True),
+    Column('category_id', PGUUID(as_uuid=True), ForeignKey('category.id'), primary_key=True)
 )
 
 prompt_template_tag = Table('prompt_template_tag', Base.metadata,
-    Column('prompt_template_id', Integer, ForeignKey('prompt_template.id'), primary_key=True),
-    Column('tag_id', Integer, ForeignKey('tag.id'), primary_key=True)
+    Column('prompt_template_id', PGUUID(as_uuid=True), ForeignKey('prompt_template.id'), primary_key=True),
+    Column('tag_id', PGUUID(as_uuid=True), ForeignKey('tag.id'), primary_key=True)
 )
 
 tool_persona = Table('tool_persona', Base.metadata,
@@ -68,7 +68,7 @@ class Persona(Base):
 class Tool(Base):
     __tablename__ = 'tool'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('uuid_generate_v4()'))
     name = Column(String, nullable=False)
 
     personas = relationship("Persona", secondary=tool_persona, back_populates="tools")
@@ -76,7 +76,7 @@ class Tool(Base):
 class PromptTemplate(Base):
     __tablename__ = 'prompt_template'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)  # Keep as Integer for now
     title = Column(String, nullable=False)
     prompt = Column(String, nullable=False)
     is_complex = Column(Boolean, nullable=False)
@@ -90,7 +90,7 @@ class PromptTemplate(Base):
 class Category(Base):
     __tablename__ = 'category'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('uuid_generate_v4()'))
     name = Column(String, nullable=False, unique=True)
 
     personas = relationship("Persona", secondary=persona_category, back_populates="categories")
@@ -99,7 +99,7 @@ class Category(Base):
 class Tag(Base):
     __tablename__ = 'tag'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)  # Keep as Integer for now
     name = Column(String, nullable=False, unique=True)
 
     personas = relationship("Persona", secondary=persona_tag, back_populates="tags")
@@ -137,11 +137,11 @@ class Workflow(Base):
 class WorkflowStep(Base):
     __tablename__ = "workflow_step"
 
-    id = Column(Integer, primary_key=True, index=True)
-    workflow_id = Column(Integer, ForeignKey("workflow.id"))
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('uuid_generate_v4()'))
+    workflow_id = Column(PGUUID(as_uuid=True), ForeignKey("workflow.id"))
     position = Column(Integer)
-    prompt_template_id = Column(Integer, ForeignKey("prompt_template.id"))
-    chat_model_id = Column(Integer, ForeignKey("chat_model.id"))
+    prompt_template_id = Column(PGUUID(as_uuid=True), ForeignKey("prompt_template.id"))
+    chat_model_id = Column(PGUUID(as_uuid=True), ForeignKey("chat_model.id"))
     persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"))
 
     workflow = relationship("Workflow", back_populates="steps")

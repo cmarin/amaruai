@@ -8,14 +8,14 @@ from typing import List
 
 logger = logging.getLogger(__name__)
 
-def get_persona(db: Session, persona_id: int):
+def get_persona(db: Session, persona_id: UUID):
     return db.query(models.Persona).filter(models.Persona.id == persona_id).first()
 
 def get_personas(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Persona).offset(skip).limit(limit).all()
 
 def create_persona(db: Session, persona: schemas.PersonaCreate):
-    db_persona = models.Persona(**persona.dict(exclude={'category_ids', 'tag_ids'}))
+    db_persona = models.Persona(**persona.dict(exclude={'category_ids', 'tag_ids', 'tools'}))
     db.add(db_persona)
     db.commit()
     db.refresh(db_persona)
@@ -29,15 +29,20 @@ def create_persona(db: Session, persona: schemas.PersonaCreate):
         tag = db.query(models.Tag).filter(models.Tag.id == tag_id).first()
         if tag:
             db_persona.tags.append(tag)
+            
+    for tool_id in persona.tools:
+        tool = db.query(models.Tool).filter(models.Tool.id == tool_id).first()
+        if tool:
+            db_persona.tools.append(tool)
     
     db.commit()
     db.refresh(db_persona)
     return db_persona
 
-def update_persona(db: Session, persona_id: int, persona: schemas.PersonaUpdate):
+def update_persona(db: Session, persona_id: UUID, persona: schemas.PersonaUpdate):
     db_persona = db.query(models.Persona).filter(models.Persona.id == persona_id).first()
     if db_persona:
-        update_data = persona.dict(exclude_unset=True)
+        update_data = persona.dict(exclude_unset=True, exclude={'category_ids', 'tag_ids', 'tools'})
         for key, value in update_data.items():
             setattr(db_persona, key, value)
         
@@ -54,19 +59,26 @@ def update_persona(db: Session, persona_id: int, persona: schemas.PersonaUpdate)
                 tag = db.query(models.Tag).filter(models.Tag.id == tag_id).first()
                 if tag:
                     db_persona.tags.append(tag)
+                    
+        if persona.tools is not None:
+            db_persona.tools = []
+            for tool_id in persona.tools:
+                tool = db.query(models.Tool).filter(models.Tool.id == tool_id).first()
+                if tool:
+                    db_persona.tools.append(tool)
         
         db.commit()
         db.refresh(db_persona)
     return db_persona
 
-def delete_persona(db: Session, persona_id: int):
+def delete_persona(db: Session, persona_id: UUID):
     db_persona = db.query(models.Persona).filter(models.Persona.id == persona_id).first()
     if db_persona:
         db.delete(db_persona)
         db.commit()
     return db_persona
 
-def get_tool(db: Session, tool_id: int):
+def get_tool(db: Session, tool_id: UUID):
     return db.query(models.Tool).options(joinedload(models.Tool.personas)).filter(models.Tool.id == tool_id).first()
 
 def get_tools(db: Session, skip: int = 0, limit: int = 100):
@@ -87,7 +99,7 @@ def create_tool(db: Session, tool: schemas.ToolCreate):
     db.refresh(db_tool)
     return db_tool
 
-def update_tool(db: Session, tool_id: int, tool: schemas.ToolCreate):
+def update_tool(db: Session, tool_id: UUID, tool: schemas.ToolCreate):
     db_tool = db.query(models.Tool).filter(models.Tool.id == tool_id).first()
     if db_tool:
         db_tool.name = tool.name
@@ -100,14 +112,14 @@ def update_tool(db: Session, tool_id: int, tool: schemas.ToolCreate):
         db.refresh(db_tool)
     return db_tool
 
-def delete_tool(db: Session, tool_id: int):
+def delete_tool(db: Session, tool_id: UUID):
     db_tool = db.query(models.Tool).filter(models.Tool.id == tool_id).first()
     if db_tool:
         db.delete(db_tool)
         db.commit()
     return db_tool
 
-def get_category(db: Session, category_id: int):
+def get_category(db: Session, category_id: UUID):
     return db.query(models.Category).filter(models.Category.id == category_id).first()
 
 def get_categories(db: Session, skip: int = 0, limit: int = 100):
@@ -136,7 +148,7 @@ def delete_category(db: Session, category_id: int):
         db.commit()
     return db_category
 
-def get_tag(db: Session, tag_id: int):
+def get_tag(db: Session, tag_id: UUID):
     return db.query(models.Tag).filter(models.Tag.id == tag_id).first()
 
 def get_tags(db: Session, skip: int = 0, limit: int = 100):
@@ -165,7 +177,7 @@ def delete_tag(db: Session, tag_id: int):
         db.commit()
     return db_tag
 
-def get_prompt_template(db: Session, prompt_template_id: int):
+def get_prompt_template(db: Session, prompt_template_id: UUID):
     return db.query(models.PromptTemplate).filter(models.PromptTemplate.id == prompt_template_id).first()
 
 def get_prompt_templates(db: Session, skip: int = 0, limit: int = 100):

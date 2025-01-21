@@ -8,14 +8,14 @@ class ToolBase(BaseModel):
     name: str
 
 class ToolCreate(ToolBase):
-    persona_ids: List[int] = []
+    persona_ids: List[UUID] = []
 
 class Tool(ToolBase):
-    id: int
-    persona_ids: List[int] = []
+    id: UUID
+    persona_ids: List[UUID] = []
 
     class Config:
-        from_attributes = True  # Replace orm_mode = True with this
+        from_attributes = True
 
 class CategoryBase(BaseModel):
     name: str
@@ -24,10 +24,10 @@ class CategoryCreate(CategoryBase):
     pass
 
 class Category(CategoryBase):
-    id: int
+    id: UUID
 
     class Config:
-        from_attributes = True  # Replace orm_mode = True with this
+        from_attributes = True
 
 class TagBase(BaseModel):
     name: str
@@ -36,10 +36,10 @@ class TagCreate(TagBase):
     pass
 
 class Tag(TagBase):
-    id: int
+    id: UUID
 
     class Config:
-        from_attributes = True  # Replace orm_mode = True with this
+        from_attributes = True
 
 class PromptTemplateBase(BaseModel):
     title: str
@@ -47,18 +47,18 @@ class PromptTemplateBase(BaseModel):
     is_complex: bool
 
 class PromptTemplateCreate(PromptTemplateBase):
-    default_persona_id: Optional[int] = None
-    category_ids: List[int] = []
-    tag_ids: List[int] = []
+    default_persona_id: Optional[UUID] = None
+    category_ids: List[UUID] = []
+    tag_ids: List[UUID] = []
 
 class PromptTemplate(PromptTemplateBase):
-    id: int
-    default_persona_id: Optional[int]  # Make this optional
+    id: UUID
+    default_persona_id: Optional[UUID] = None
     categories: List[Category] = []
     tags: List[Tag] = []
 
     class Config:
-        from_attributes = True  # Use from_attributes instead of orm_mode
+        from_attributes = True
 
 class ChatModelBase(BaseModel):
     name: str
@@ -87,15 +87,17 @@ class PersonaBase(BaseModel):
     avatar: Optional[str] = None
 
 class PersonaCreate(PersonaBase):
-    category_ids: List[int] = []
-    tag_ids: List[int] = []
+    category_ids: List[int] = []  # Keep as int for now
+    tag_ids: List[int] = []       # Keep as int for now
+    tools: List[int] = []         # Keep as int for now
 
 class PersonaUpdate(PersonaBase):
     category_ids: Optional[List[int]] = None
     tag_ids: Optional[List[int]] = None
+    tools: Optional[List[int]] = None
 
 class Persona(PersonaBase):
-    id: UUID
+    id: UUID  # This changes to UUID
     tools: List[Tool] = []
     categories: List[Category] = []
     tags: List[Tag] = []
@@ -111,9 +113,9 @@ class ProcessType(str, Enum):
     PARALLEL = "HIERARCHICAL"
 
 class WorkflowStepBase(BaseModel):
-    prompt_template_id: str | int  # Allow both string and int
-    chat_model_id: str | int
-    persona_id: str | int
+    prompt_template_id: UUID
+    chat_model_id: UUID
+    persona_id: UUID
 
 class WorkflowStepCreate(WorkflowStepBase):
     pass  # Remove position from here completely
@@ -122,12 +124,9 @@ class WorkflowStepUpdate(WorkflowStepBase):
     position: Optional[int] = None
 
 class WorkflowStep(WorkflowStepBase):
-    id: int
-    workflow_id: int
+    id: UUID
+    workflow_id: UUID
     position: int
-    prompt_template_id: int  # Override to require int
-    chat_model_id: int      # Override to require int
-    persona_id: int         # Override to require int
 
     class Config:
         from_attributes = True
