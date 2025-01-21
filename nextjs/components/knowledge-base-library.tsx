@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { KnowledgeBaseManager } from '@/components/knowledge-base-manager'
+import KnowledgeBaseManager from '@/components/knowledge-base-manager';
 import { KnowledgeBase, deleteKnowledgeBase } from '@/utils/knowledge-base-service'
 import { useSession } from '@/app/utils/session/session';
 import { useRouter } from 'next/navigation';

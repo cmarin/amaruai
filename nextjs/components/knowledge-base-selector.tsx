@@ -1,26 +1,27 @@
-import { useState } from 'react'
-import type { ReactNode } from 'react'
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { X, Database } from "lucide-react"
-import { KnowledgeBase } from '@/utils/knowledge-base-service'
-import { Asset } from '@/types/knowledge-base'
-import { fetchManagedAssets } from '@/utils/asset-service'
-import { useSession } from '@/app/utils/session/session'
+'use client';
 
-type KnowledgeBaseSelectorProps = {
-  knowledgeBases: KnowledgeBase[]
-  isLoadingKnowledgeBases: boolean
-  selectedKnowledgeBases: KnowledgeBase[]
-  selectedAssets: Asset[]
-  onSelectKnowledgeBase: (knowledgeBase: KnowledgeBase) => void
-  onDeselectKnowledgeBase: (knowledgeBase: KnowledgeBase) => void
-  onSelectAsset: (asset: Asset) => void
-  onDeselectAsset: (asset: Asset) => void
+import { useState, useEffect } from 'react';
+import { useSession } from '@/app/utils/session/session';
+import { KnowledgeBase } from '@/utils/knowledge-base-service';
+import { fetchAssets } from '@/utils/asset-service';
+import { Asset } from '@/types/knowledge-base';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { X, Database } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface KnowledgeBaseSelectorProps {
+  knowledgeBases: KnowledgeBase[];
+  isLoadingKnowledgeBases: boolean;
+  selectedKnowledgeBases: KnowledgeBase[];
+  selectedAssets: Asset[];
+  onSelectKnowledgeBase: (knowledgeBase: KnowledgeBase) => void;
+  onDeselectKnowledgeBase: (knowledgeBase: KnowledgeBase) => void;
+  onSelectAsset: (asset: Asset) => void;
+  onDeselectAsset: (asset: Asset) => void;
 }
 
 export function KnowledgeBaseSelector({
@@ -33,40 +34,39 @@ export function KnowledgeBaseSelector({
   onSelectAsset,
   onDeselectAsset,
 }: KnowledgeBaseSelectorProps) {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [isOpen, setIsOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState('knowledge-bases')
-  const [localAssets, setLocalAssets] = useState<Asset[]>([])
-  const [isLoadingAssets, setIsLoadingAssets] = useState(false)
-  const { getApiHeaders } = useSession()
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('knowledge-bases');
+  const [localAssets, setLocalAssets] = useState<Asset[]>([]);
+  const [isLoadingAssets, setIsLoadingAssets] = useState(false);
+  const { getApiHeaders } = useSession();
 
   const handleTabChange = async (value: string) => {
-    setActiveTab(value)
+    setActiveTab(value);
     if (value === 'assets' && localAssets.length === 0 && !isLoadingAssets) {
-      setIsLoadingAssets(true)
+      setIsLoadingAssets(true);
       try {
-        const headers = await getApiHeaders()
+        const headers = await getApiHeaders();
         if (headers) {
-          const fetchedAssets = await fetchManagedAssets(headers)
-          setLocalAssets(fetchedAssets)
+          const fetchedAssets = await fetchAssets(headers);
+          setLocalAssets(fetchedAssets);
         }
       } catch (error) {
-        console.error('Error fetching managed assets:', error)
+        console.error('Error fetching assets:', error);
       } finally {
-        setIsLoadingAssets(false)
+        setIsLoadingAssets(false);
       }
     }
-  }
+  };
 
   const filteredKnowledgeBases = knowledgeBases.filter(kb =>
     kb.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     kb.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  );
 
   const filteredAssets = localAssets.filter(asset =>
-    asset.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    asset.file_name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+    asset.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -140,9 +140,7 @@ export function KnowledgeBaseSelector({
                       key={kb.id}
                       variant="ghost"
                       className="w-full justify-start text-left h-auto py-2"
-                      onClick={() => {
-                        onSelectKnowledgeBase(kb)
-                      }}
+                      onClick={() => onSelectKnowledgeBase(kb)}
                     >
                       <div>
                         <div className="font-medium">{kb.title}</div>
@@ -170,15 +168,10 @@ export function KnowledgeBaseSelector({
                       key={asset.id}
                       variant="ghost"
                       className="w-full justify-start text-left h-auto py-2"
-                      onClick={() => {
-                        onSelectAsset(asset)
-                      }}
+                      onClick={() => onSelectAsset(asset)}
                     >
                       <div>
                         <div className="font-medium">{asset.title}</div>
-                        <div className="text-sm text-muted-foreground line-clamp-2">
-                          {asset.file_name}
-                        </div>
                       </div>
                     </Button>
                   ))
@@ -189,5 +182,5 @@ export function KnowledgeBaseSelector({
         </Tabs>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

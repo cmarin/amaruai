@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { KnowledgeBaseManager } from '@/components/knowledge-base-manager';
+import KnowledgeBaseManager from '@/components/knowledge-base-manager';
 import { AppSidebar } from '@/components/app-sidebar';
 import { useSidebar } from '@/components/sidebar-context';
 
@@ -25,11 +25,14 @@ export default function CreateKnowledgeBasePage() {
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <KnowledgeBaseManager
             knowledgeBase={null}
-            onSave={handleSave}
+            onSave={() => {
+              handleSave();
+              router.push('/knowledge-bases');
+            }}
             onClose={() => router.push('/knowledge-bases')}
           />
         </div>
       </div>
     </div>
   );
-} 
+}

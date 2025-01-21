@@ -674,10 +674,18 @@ export default function Chat() {
             isLoadingKnowledgeBases={isLoadingKnowledgeBases}
             selectedKnowledgeBases={selectedKnowledgeBases}
             selectedAssets={selectedAssets}
-            onSelectKnowledgeBase={(kb) => setSelectedKnowledgeBases(prev => [...prev, kb])}
-            onDeselectKnowledgeBase={(kb) => setSelectedKnowledgeBases(prev => prev.filter(item => item.id !== kb.id))}
-            onSelectAsset={(asset) => setSelectedAssets(prev => [...prev, asset])}
-            onDeselectAsset={(asset) => setSelectedAssets(prev => prev.filter(item => item.id !== asset.id))}
+            onSelectKnowledgeBase={(kb: KnowledgeBase) => {
+              setSelectedKnowledgeBases([...selectedKnowledgeBases, kb]);
+            }}
+            onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
+              setSelectedKnowledgeBases(selectedKnowledgeBases.filter(k => k.id !== kb.id));
+            }}
+            onSelectAsset={(asset: Asset) => {
+              setSelectedAssets([...selectedAssets, asset]);
+            }}
+            onDeselectAsset={(asset: Asset) => {
+              setSelectedAssets(selectedAssets.filter(a => a.id !== asset.id));
+            }}
           />
 
           <Input
