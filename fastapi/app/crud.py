@@ -285,15 +285,23 @@ def get_workflows(db: Session, skip: int = 0, limit: int = 100):
     try:
         # Query workflows with all relationships in a single query
         workflows = db.query(models.Workflow).options(
-            joinedload(models.Workflow.steps.of_type(models.WorkflowStep))
-            .joinedload(models.WorkflowStep.prompt_template),
-            joinedload(models.Workflow.steps.of_type(models.WorkflowStep))
-            .joinedload(models.WorkflowStep.chat_model),
-            joinedload(models.Workflow.steps.of_type(models.WorkflowStep))
-            .joinedload(models.WorkflowStep.persona)
+            joinedload(models.Workflow.steps)
         ).order_by(
             models.Workflow.id
         ).offset(skip).limit(limit).all()
+        
+        # Load relationships separately to avoid type casting issues
+        for workflow in workflows:
+            for step in workflow.steps:
+                db.query(models.PromptTemplate).filter(
+                    models.PromptTemplate.id == step.prompt_template_id
+                ).first()
+                db.query(models.ChatModel).filter(
+                    models.ChatModel.id == step.chat_model_id
+                ).first()
+                db.query(models.Persona).filter(
+                    models.Persona.id == step.persona_id
+                ).first()
         
         return workflows
         
@@ -304,20 +312,31 @@ def get_workflows(db: Session, skip: int = 0, limit: int = 100):
 
 def get_workflow(db: Session, workflow_id: UUID):
     try:
-        # Query workflow with all relationships in a single query
-        workflow = db.query(models.Workflow).options(
-            joinedload(models.Workflow.steps.of_type(models.WorkflowStep))
-            .joinedload(models.WorkflowStep.prompt_template),
-            joinedload(models.Workflow.steps.of_type(models.WorkflowStep))
-            .joinedload(models.WorkflowStep.chat_model),
-            joinedload(models.Workflow.steps.of_type(models.WorkflowStep))
-            .joinedload(models.WorkflowStep.persona)
-        ).filter(
+        # Query workflow with basic info first
+        workflow = db.query(models.Workflow).filter(
             models.Workflow.id == workflow_id
         ).first()
         
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
+        
+        # Load relationships separately to avoid type casting issues
+        db.query(models.Workflow).options(
+            joinedload(models.Workflow.steps)
+        ).filter(
+            models.Workflow.id == workflow_id
+        ).first()
+        
+        for step in workflow.steps:
+            db.query(models.PromptTemplate).filter(
+                models.PromptTemplate.id == step.prompt_template_id
+            ).first()
+            db.query(models.ChatModel).filter(
+                models.ChatModel.id == step.chat_model_id
+            ).first()
+            db.query(models.Persona).filter(
+                models.Persona.id == step.persona_id
+            ).first()
             
         return workflow
         
