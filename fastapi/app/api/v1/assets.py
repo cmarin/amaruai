@@ -10,6 +10,7 @@ from app.api.v1.router import create_protected_router
 from app import crud, schemas
 from app.config.supabase import supabase_client
 from app.embeddings import create_embeddings_for_asset
+from app.api.v1.dependencies import get_current_user
 import psycopg2
 from typing import List
 

@@ -175,33 +175,24 @@ class FileInfo(BaseModel):
     name: str = Field(..., description="Name of the file")
     url: str = Field(..., description="URL of the file")
 
-class ChatMessage(BaseModel):
-    # Either a single message or a list of messages
-    message: Optional[str] = Field(
-        None,
-        description="Single message if you're not passing a list of messages"
-    )
-    messages: Optional[List[Message]] = Field(
-        None,
-        description="List of chat messages"
-    )
-    model_id: Optional[int] = Field(None, description="ID of the chat model to use")
-    persona_id: Optional[int] = Field(None, description="ID of the persona to use")
-    user_id: Optional[str] = Field(None, description="ID of the user")
-    files: List[FileInfo] = Field(default_factory=list, description="List of files to process")
-    knowledge_base_ids: List[UUID] = Field(default_factory=list, description="List of knowledge base IDs to reference")
-    asset_ids: List[UUID] = Field(default_factory=list, description="List of asset IDs to reference")
+class ChatData(BaseModel):
+    messages: Optional[List[Message]] = None
+    message: Optional[str] = None
+    conversation_id: Optional[UUID] = None
+    model: Optional[str] = None
+    user_id: Optional[UUID] = None
 
-    # -------------------- NEW FIELDS FOR MEMORY -------------------- #
-    conversation_id: Optional[str] = Field(
-        None,
-        description="Unique conversation_id (UUID as str) sent by the client"
-    )
-    multi_conversation_id: Optional[str] = Field(
-        None,
-        description="Unique multi_conversation_id (UUID as str) sent by the client"
-    )
-    # --------------------------------------------------------------- #
+class ChatMessage(BaseModel):
+    message: Optional[str] = None
+    messages: Optional[List[Message]] = None
+    data: Optional[ChatData] = None
+    model_id: Optional[int] = None
+    persona_id: Optional[UUID] = None
+    conversation_id: Optional[UUID] = None
+    knowledge_base_ids: List[UUID] = []
+    asset_ids: List[UUID] = []
+    files: List[FileInfo] = []
+    user_id: Optional[UUID] = None
 
     class Config:
         json_schema_extra = {
