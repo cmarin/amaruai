@@ -84,7 +84,7 @@ export async function createPromptTemplate(
       tag_ids: processedTagIds,
     };
 
-    const response = await fetch(`${getApiUrl()}/prompt-templates`, {
+    const response = await fetch(`${getApiUrl()}/prompt-templates/`, {
       method: 'POST',
       headers: {
         ...headers,
@@ -206,7 +206,7 @@ export async function fetchPromptTemplates(headers: ApiHeaders | null): Promise<
     console.log('Authorization Header:', headers.Authorization);
     console.log('========================');
 
-    const response = await fetch(`${getApiUrl()}/prompt-templates`, {
+    const response = await fetch(`${getApiUrl()}/prompt-templates/`, {
       headers: {
         ...headers,
         'Content-Type': 'application/json',
