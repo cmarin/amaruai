@@ -90,8 +90,9 @@ class PromptTemplate(Base):
 class Category(Base):
     __tablename__ = "category"
 
-    id = Column(Integer, primary_key=True)  # This should be Integer, not UUID
+    id = Column(Integer, primary_key=True)
     name = Column(String)
+    personas = relationship("Persona", secondary=persona_category, back_populates="categories")
     prompt_templates = relationship("PromptTemplate", secondary=prompt_template_category, back_populates="categories")
 
 class Tag(Base):
