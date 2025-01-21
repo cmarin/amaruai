@@ -98,9 +98,9 @@ export default function WorkflowsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen">
+      <div className="flex min-h-screen w-full">
         <AppSidebar toggleChatbot={toggleChatbot} />
-        <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
+        <main className={`flex-1 min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
           Loading...
         </main>
       </div>
@@ -109,9 +109,9 @@ export default function WorkflowsPage() {
 
   if (error) {
     return (
-      <div className="flex h-screen">
+      <div className="flex min-h-screen w-full">
         <AppSidebar toggleChatbot={toggleChatbot} />
-        <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
+        <main className={`flex-1 min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
           {error}
         </main>
       </div>
@@ -119,15 +119,17 @@ export default function WorkflowsPage() {
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex min-h-screen w-full">
       <AppSidebar toggleChatbot={toggleChatbot} />
-      <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
+      <main className={`flex-1 min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
         {showWorkflowManager ? (
-          <WorkflowManagerComponent
-            workflow={selectedWorkflow}
-            onCancel={() => setShowWorkflowManager(false)}
-            onSave={loadWorkflows}
-          />
+          <div className="h-full w-full">
+            <WorkflowManagerComponent
+              workflow={selectedWorkflow}
+              onCancel={() => setShowWorkflowManager(false)}
+              onSave={loadWorkflows}
+            />
+          </div>
         ) : (
           <WorkflowLibrary
             workflows={workflows}

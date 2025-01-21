@@ -17,12 +17,12 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <div className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}>
       <SupabaseProvider>
         <DataProvider>
           <SidebarProvider>
             <AuthGuard>
-              <div className="flex h-screen w-full">
+              <div className="flex min-h-screen w-full">
                 {children}
               </div>
             </AuthGuard>
