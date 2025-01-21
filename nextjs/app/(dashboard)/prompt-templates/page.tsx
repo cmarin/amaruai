@@ -151,13 +151,15 @@ export default function PromptTemplatesPage() {
       return;
     }
     try {
+      if (!editingPrompt.id) {
+        throw new Error('Missing prompt template ID');
+      }
       await updatePromptTemplate(editingPrompt.id, {
         title: editingPrompt.title,
         prompt: editingPrompt.prompt as string,
         is_complex: false,
-        default_persona_id: editingPrompt.default_persona_id || null,
-        category_ids: editingPrompt.category ? [parseInt(editingPrompt.category)] : [],
-        tag_ids: editingPrompt.tags.map(t => t.id || t.name),
+        categories: editingPrompt.categories,
+        tags: editingPrompt.tags
       }, headers);
       setIsEditPromptDialogOpen(false);
       const updatedPrompts = await fetchPromptTemplates(headers);
