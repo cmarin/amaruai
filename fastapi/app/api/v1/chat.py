@@ -91,11 +91,19 @@ async def chat_endpoint(
     """
     Handles chat requests with either a single message or a list of messages.
     """
-    # Log request details
-    raw_body = await request.body()
-    log_chat_request(request, raw_body, chat_data.dict())
-
     try:
+        # Log request details
+        raw_body = await request.body()
+        log_chat_request(request, raw_body, chat_data.dict())
+
+        # Setup conversation IDs
+        conversation_id = str(chat_data.conversation_id or uuid.uuid4())
+        # Use conversation_id as multi_conversation_id if not provided
+        multi_conversation_id = str(getattr(chat_data, 'multi_conversation_id', None) or conversation_id)
+
+        # Get a memory buffer for this conversation
+        memory = conversation_manager.get_memory_buffer(conversation_id=conversation_id)
+
         # Handle nested data structure from the frontend
         if hasattr(chat_data, 'data') and chat_data.data:
             if hasattr(chat_data.data, 'messages'):
@@ -166,13 +174,6 @@ async def chat_endpoint(
             "HTTP-Referer": "https://chat.example.com",
             "Content-Type": "application/json",
         }
-
-        # Setup memorty, if the client didn't provide conversation_id, generate one for them
-        conversation_id = chat_data.conversation_id or str(uuid.uuid4())
-        multi_conversation_id = chat_data.multi_conversation_id or str(uuid.uuid4())
-
-        # Get a memory buffer for this conversation
-        memory = conversation_manager.get_memory_buffer(conversation_id=conversation_id)
 
         # Create an async generator to stream the response
         async def event_generator() -> AsyncGenerator[str, None]:

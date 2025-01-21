@@ -189,6 +189,7 @@ class ChatMessage(BaseModel):
     model_id: Optional[int] = None
     persona_id: Optional[UUID] = None
     conversation_id: Optional[UUID] = None
+    multi_conversation_id: Optional[UUID] = None
     knowledge_base_ids: List[UUID] = []
     asset_ids: List[UUID] = []
     files: List[FileInfo] = []
