@@ -153,12 +153,20 @@ class WorkflowStepCreate(BaseModel):
         return v
 
 class WorkflowStepUpdate(BaseModel):
-    prompt_template_id: int
+    prompt_template_id: UUID
     chat_model_id: int
     persona_id: UUID
     position: int
 
-    @validator('prompt_template_id', 'chat_model_id', pre=True)
+    @validator('prompt_template_id', pre=True)
+    def convert_prompt_template_id(cls, v):
+        if isinstance(v, str):
+            return UUID(v)
+        elif isinstance(v, int):
+            raise ValueError("Prompt template IDs must now be UUIDs")
+        return v
+
+    @validator('chat_model_id', pre=True)
     def convert_to_int(cls, v):
         if isinstance(v, str):
             return int(v)

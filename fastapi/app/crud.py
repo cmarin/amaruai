@@ -317,31 +317,45 @@ def update_workflow(db: Session, workflow_id: UUID, workflow: schemas.WorkflowUp
             # Update workflow fields
             update_data = workflow.dict(exclude_unset=True, exclude={'steps'})
             for key, value in update_data.items():
-                if isinstance(value, ProcessType):  # Handle enum conversion
+                if isinstance(value, ProcessType):
                     value = value.value
                 setattr(db_workflow, key, value)
             
             # Handle steps if provided
             if workflow.steps is not None:
-                # Delete existing steps
-                db.query(models.WorkflowStep).filter(
-                    models.WorkflowStep.workflow_id == workflow_id
-                ).delete(synchronize_session=False)
+                try:
+                    # Delete existing steps
+                    db.query(models.WorkflowStep).filter(
+                        models.WorkflowStep.workflow_id == workflow_id
+                    ).delete(synchronize_session=False)
+                    
+                    # Create new steps
+                    for step_data in workflow.steps:
+                        db_step = models.WorkflowStep(
+                            workflow_id=workflow_id,
+                            prompt_template_id=step_data.prompt_template_id,  # Now expects UUID
+                            chat_model_id=step_data.chat_model_id,
+                            persona_id=step_data.persona_id,
+                            position=step_data.position
+                        )
+                        db.add(db_step)
+
+                    db.flush()  # Ensure all steps are created before committing
                 
-                # Create new steps
-                for step_data in workflow.steps:
-                    db_step = models.WorkflowStep(
-                        workflow_id=workflow_id,
-                        prompt_template_id=int(step_data.prompt_template_id),
-                        chat_model_id=int(step_data.chat_model_id),
-                        persona_id=UUID(str(step_data.persona_id)) if isinstance(step_data.persona_id, str) else step_data.persona_id,
-                        position=step_data.position
-                    )
-                    db.add(db_step)
+                except Exception as e:
+                    db.rollback()
+                    logger.error(f"Error updating workflow steps: {str(e)}")
+                    raise HTTPException(status_code=500, detail=str(e))
 
             db.commit()
             db.refresh(db_workflow)
-            return db_workflow
+            
+            # Reload the workflow with all relationships
+            return db.query(models.Workflow).options(
+                joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.prompt_template),
+                joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
+                joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona)
+            ).filter(models.Workflow.id == workflow_id).first()
             
     except Exception as e:
         db.rollback()
