@@ -183,6 +183,9 @@ def get_prompt_template(db: Session, prompt_template_id: UUID):
     return db.query(models.PromptTemplate).filter(models.PromptTemplate.id == prompt_template_id).first()
 
 def get_prompt_templates(db: Session, skip: int = 0, limit: int = 100):
+    """
+    Get all prompt templates with pagination
+    """
     return db.query(models.PromptTemplate).offset(skip).limit(limit).all()
 
 def create_prompt_template(db: Session, prompt_template: schemas.PromptTemplateCreate):
