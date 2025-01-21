@@ -24,7 +24,7 @@ class CategoryCreate(CategoryBase):
     pass
 
 class Category(CategoryBase):
-    id: UUID
+    id: int
 
     class Config:
         from_attributes = True
@@ -36,7 +36,7 @@ class TagCreate(TagBase):
     pass
 
 class Tag(TagBase):
-    id: UUID
+    id: int
 
     class Config:
         from_attributes = True
@@ -48,11 +48,11 @@ class PromptTemplateBase(BaseModel):
 
 class PromptTemplateCreate(PromptTemplateBase):
     default_persona_id: Optional[UUID] = None
-    category_ids: List[UUID] = []
-    tag_ids: List[UUID] = []
+    category_ids: List[int] = []
+    tag_ids: List[int] = []
 
 class PromptTemplate(PromptTemplateBase):
-    id: UUID
+    id: int
     default_persona_id: Optional[UUID] = None
     categories: List[Category] = []
     tags: List[Tag] = []
@@ -87,9 +87,9 @@ class PersonaBase(BaseModel):
     avatar: Optional[str] = None
 
 class PersonaCreate(PersonaBase):
-    category_ids: List[int] = []  # Keep as int for now
-    tag_ids: List[int] = []       # Keep as int for now
-    tools: List[int] = []         # Keep as int for now
+    category_ids: List[int] = []
+    tag_ids: List[int] = []
+    tools: List[int] = []
 
 class PersonaUpdate(PersonaBase):
     category_ids: Optional[List[int]] = None
@@ -97,7 +97,7 @@ class PersonaUpdate(PersonaBase):
     tools: Optional[List[int]] = None
 
 class Persona(PersonaBase):
-    id: UUID  # This changes to UUID
+    id: UUID
     tools: List[Tool] = []
     categories: List[Category] = []
     tags: List[Tag] = []
