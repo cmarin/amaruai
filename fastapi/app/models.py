@@ -18,8 +18,8 @@ persona_tag = Table('persona_tag', Base.metadata,
 )
 
 prompt_template_category = Table('prompt_template_category', Base.metadata,
-    Column('prompt_template_id', PGUUID(as_uuid=True), ForeignKey('prompt_template.id'), primary_key=True),
-    Column('category_id', PGUUID(as_uuid=True), ForeignKey('category.id'), primary_key=True)
+    Column('prompt_template_id', Integer, ForeignKey('prompt_template.id'), primary_key=True),
+    Column('category_id', Integer, ForeignKey('category.id'), primary_key=True)
 )
 
 prompt_template_tag = Table('prompt_template_tag', Base.metadata,
@@ -74,13 +74,13 @@ class Tool(Base):
     personas = relationship("Persona", secondary=tool_persona, back_populates="tools")
 
 class PromptTemplate(Base):
-    __tablename__ = 'prompt_template'
+    __tablename__ = "prompt_template"
 
-    id = Column(Integer, primary_key=True, index=True)  # Keep as Integer for now
-    title = Column(String, nullable=False)
-    prompt = Column(String, nullable=False)
-    is_complex = Column(Boolean, nullable=False)
-    default_persona_id = Column(PGUUID(as_uuid=True), ForeignKey('persona.id'), nullable=True)
+    id = Column(Integer, primary_key=True)  # This should be Integer, not UUID
+    title = Column(String)
+    prompt = Column(String)
+    is_complex = Column(Boolean)
+    default_persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"), nullable=True)
     workflow_steps = relationship("WorkflowStep", back_populates="prompt_template")
 
     default_persona = relationship("Persona", back_populates="prompt_templates")
@@ -88,12 +88,10 @@ class PromptTemplate(Base):
     tags = relationship("Tag", secondary=prompt_template_tag, back_populates="prompt_templates")
 
 class Category(Base):
-    __tablename__ = 'category'
+    __tablename__ = "category"
 
-    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('uuid_generate_v4()'))
-    name = Column(String, nullable=False, unique=True)
-
-    personas = relationship("Persona", secondary=persona_category, back_populates="categories")
+    id = Column(Integer, primary_key=True)  # This should be Integer, not UUID
+    name = Column(String)
     prompt_templates = relationship("PromptTemplate", secondary=prompt_template_category, back_populates="categories")
 
 class Tag(Base):
