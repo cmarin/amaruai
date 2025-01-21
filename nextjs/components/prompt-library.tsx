@@ -35,6 +35,10 @@ import { Tag } from '../utils/tag-service';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { useSession } from '@/app/utils/session/session';
 
+interface PromptTemplateWithId extends PromptTemplate {
+  id: string;
+}
+
 type PromptLibraryProps = {
   onBack: () => void;
   onSelectPrompt: (prompt: PromptTemplate) => void;
@@ -42,10 +46,7 @@ type PromptLibraryProps = {
   onUpdatePrompts: () => Promise<void>;
 }
 
-// Add this type definition at the top of the file
-type PromptTemplateWithId = PromptTemplate & { id: number };
-
-export default function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdatePrompts }: PromptLibraryProps) {
+export function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdatePrompts }: PromptLibraryProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [isNewSimplePromptDialogOpen, setIsNewSimplePromptDialogOpen] = useState(false)
@@ -62,7 +63,7 @@ export default function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdat
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<PromptTemplate | null>(null)
   const [editingComplexPrompt, setEditingComplexPrompt] = useState<PromptTemplate | null>(null)
   const [showDeleteAlert, setShowDeleteAlert] = useState(false)
-  const [templateToDelete, setTemplateToDelete] = useState<PromptTemplateWithId | null>(null)
+  const [templateToDelete, setTemplateToDelete] = useState<PromptTemplate | null>(null)
   const { getApiHeaders } = useSession();
 
   const loadCategories = useCallback(async () => {
@@ -119,10 +120,7 @@ export default function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdat
       });
       setIsComplexEditorOpen(true);
     } else {
-      setEditingPrompt({
-        ...prompt,
-        category: prompt.categories[0]?.id.toString() || ''
-      });
+      setEditingPrompt(prompt);
       setIsEditPromptDialogOpen(true);
     }
   }
@@ -199,7 +197,7 @@ export default function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdat
         return;
       }
 
-      await deletePromptTemplate(promptId, headers);
+      await deletePromptTemplate(promptId.toString(), headers);
       await onUpdatePrompts();
     } catch (error) {
       console.error('Error deleting prompt:', error);
@@ -247,7 +245,7 @@ export default function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdat
     setSelectedComplexPrompt(prompt);
   };
 
-  const handleDeleteClick = (template: PromptTemplateWithId) => {
+  const handleDeleteClick = (template: PromptTemplate) => {
     setTemplateToDelete(template);
     setShowDeleteAlert(true);
   };
