@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Workflow, fetchWorkflows, deleteWorkflow } from '@/utils/workflow-service'
 import { useRouter } from 'next/navigation'
-import { WorkflowManagerComponent } from '@/components/workflow-manager'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/sidebar-context'
 import { useSession } from '@/app/utils/session/session';
@@ -22,8 +21,6 @@ import {
 export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [showWorkflowManager, setShowWorkflowManager] = useState(false)
-  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
@@ -59,13 +56,13 @@ export default function WorkflowsPage() {
   }, [sessionLoading, loadWorkflows]);
 
   const handleNewWorkflow = () => {
-    setSelectedWorkflow(null);
-    setShowWorkflowManager(true);
+    router.push('/workflows/new');
   };
 
   const handleEditWorkflow = (workflow: Workflow) => {
-    setSelectedWorkflow(workflow);
-    setShowWorkflowManager(true);
+    if (workflow.id) {
+      router.push(`/workflows/${workflow.id}`);
+    }
   };
 
   const handleDeleteClick = (workflow: Workflow) => {
@@ -122,24 +119,14 @@ export default function WorkflowsPage() {
     <div className="flex min-h-screen w-full">
       <AppSidebar toggleChatbot={toggleChatbot} />
       <main className={`flex-1 min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
-        {showWorkflowManager ? (
-          <div className="h-full w-full">
-            <WorkflowManagerComponent
-              workflow={selectedWorkflow}
-              onCancel={() => setShowWorkflowManager(false)}
-              onSave={loadWorkflows}
-            />
-          </div>
-        ) : (
-          <WorkflowLibrary
-            workflows={workflows}
-            onEdit={handleEditWorkflow}
-            onDelete={handleDeleteClick}
-            onNew={handleNewWorkflow}
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-          />
-        )}
+        <WorkflowLibrary
+          workflows={workflows}
+          onEdit={handleEditWorkflow}
+          onDelete={handleDeleteClick}
+          onNew={handleNewWorkflow}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
 
         <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
           <AlertDialogContent className="bg-white">
