@@ -5,6 +5,7 @@ from fastapi import HTTPException
 import logging
 from uuid import UUID, uuid4
 from typing import List
+from .models import ProcessType  # Add this import
 
 logger = logging.getLogger(__name__)
 
@@ -313,7 +314,7 @@ def update_workflow(db: Session, workflow_id: UUID, workflow: schemas.WorkflowUp
         # Update workflow fields
         update_data = workflow.dict(exclude_unset=True, exclude={'steps'})
         for key, value in update_data.items():
-            if isinstance(value, ProcessType):  # Handle enum conversion
+            if isinstance(value, ProcessType):  # Now ProcessType is defined
                 value = value.value
             setattr(db_workflow, key, value)
         
