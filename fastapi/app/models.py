@@ -8,12 +8,12 @@ import uuid
 Base = declarative_base()
 
 persona_category = Table('persona_category', Base.metadata,
-    Column('persona_id', Integer, ForeignKey('persona.id'), primary_key=True),
+    Column('persona_id', PGUUID(as_uuid=True), ForeignKey('persona.id'), primary_key=True),
     Column('category_id', Integer, ForeignKey('category.id'), primary_key=True)
 )
 
 persona_tag = Table('persona_tag', Base.metadata,
-    Column('persona_id', Integer, ForeignKey('persona.id'), primary_key=True),
+    Column('persona_id', PGUUID(as_uuid=True), ForeignKey('persona.id'), primary_key=True),
     Column('tag_id', Integer, ForeignKey('tag.id'), primary_key=True)
 )
 
@@ -29,7 +29,7 @@ prompt_template_tag = Table('prompt_template_tag', Base.metadata,
 
 tool_persona = Table('tool_persona', Base.metadata,
     Column('tool_id', Integer, ForeignKey('tool.id'), primary_key=True),
-    Column('persona_id', Integer, ForeignKey('persona.id'), primary_key=True)
+    Column('persona_id', PGUUID(as_uuid=True), ForeignKey('persona.id'), primary_key=True)
 )
 
 # Define the association table before the model classes
@@ -48,7 +48,7 @@ class ProcessType(enum.Enum):
 class Persona(Base):
     __tablename__ = 'persona'
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('uuid_generate_v4()'))
     role = Column(String, nullable=False)
     goal = Column(String, nullable=False)
     backstory = Column(String, nullable=False)
@@ -56,6 +56,8 @@ class Persona(Base):
     verbose = Column(Boolean, nullable=False)
     memory = Column(Boolean, nullable=False)
     avatar = Column(String)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
     workflow_steps = relationship("WorkflowStep", back_populates="persona")
 
     tools = relationship("Tool", secondary=tool_persona, back_populates="personas")
@@ -78,7 +80,7 @@ class PromptTemplate(Base):
     title = Column(String, nullable=False)
     prompt = Column(String, nullable=False)
     is_complex = Column(Boolean, nullable=False)
-    default_persona_id = Column(Integer, ForeignKey('persona.id'), nullable=True)
+    default_persona_id = Column(PGUUID(as_uuid=True), ForeignKey('persona.id'), nullable=True)
     workflow_steps = relationship("WorkflowStep", back_populates="prompt_template")
 
     default_persona = relationship("Persona", back_populates="prompt_templates")
@@ -137,10 +139,10 @@ class WorkflowStep(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     workflow_id = Column(Integer, ForeignKey("workflow.id"))
-    position = Column(Integer)  # Changed from 'order' to 'position'
+    position = Column(Integer)
     prompt_template_id = Column(Integer, ForeignKey("prompt_template.id"))
     chat_model_id = Column(Integer, ForeignKey("chat_model.id"))
-    persona_id = Column(Integer, ForeignKey("persona.id"))
+    persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"))
 
     workflow = relationship("Workflow", back_populates="steps")
     prompt_template = relationship("PromptTemplate", back_populates="workflow_steps")

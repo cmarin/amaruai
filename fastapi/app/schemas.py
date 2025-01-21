@@ -95,14 +95,16 @@ class PersonaUpdate(PersonaBase):
     tag_ids: Optional[List[int]] = None
 
 class Persona(PersonaBase):
-    id: int
+    id: UUID
     tools: List[Tool] = []
     categories: List[Category] = []
     tags: List[Tag] = []
     prompt_templates: List[PromptTemplate] = []
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True  # Use from_attributes instead of orm_mode
+        from_attributes = True
 
 class ProcessType(str, Enum):
     SEQUENTIAL = "SEQUENTIAL"
@@ -135,8 +137,8 @@ class WorkflowBase(BaseModel):
     description: Optional[str] = None
     process_type: str = "SEQUENTIAL"
     manager_chat_model_id: Optional[int] = None
-    manager_persona_id: Optional[int] = None
-    max_iterations: Optional[int] = None  # Make max_iterations optional
+    manager_persona_id: Optional[UUID] = None
+    max_iterations: Optional[int] = None
 
 class WorkflowCreate(WorkflowBase):
     process_type: ProcessType
