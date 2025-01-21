@@ -136,8 +136,23 @@ class WorkflowStepCreate(BaseModel):
             return UUID(v)
         return v
 
-class WorkflowStepUpdate(WorkflowStepBase):
-    position: Optional[int] = None
+class WorkflowStepUpdate(BaseModel):
+    prompt_template_id: int
+    chat_model_id: int
+    persona_id: UUID
+    position: int
+
+    @validator('prompt_template_id', 'chat_model_id', pre=True)
+    def convert_to_int(cls, v):
+        if isinstance(v, str):
+            return int(v)
+        return v
+
+    @validator('persona_id', pre=True)
+    def convert_to_uuid(cls, v):
+        if isinstance(v, str):
+            return UUID(v)
+        return v
 
 class WorkflowStep(WorkflowStepBase):
     id: UUID

@@ -309,48 +309,42 @@ def create_workflow(db: Session, workflow: schemas.WorkflowCreate):
     return db_workflow
 
 def update_workflow(db: Session, workflow_id: UUID, workflow: schemas.WorkflowUpdate):
-    db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id).first()
-    if db_workflow:
-        # Update workflow fields
-        update_data = workflow.dict(exclude_unset=True, exclude={'steps'})
-        for key, value in update_data.items():
-            if isinstance(value, ProcessType):  # Now ProcessType is defined
-                value = value.value
-            setattr(db_workflow, key, value)
-        
-        # Update step positions if steps are provided
-        if workflow.steps:
-            # Get existing steps
-            existing_steps = {step.id: step for step in db_workflow.steps}
+    try:
+        db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id).first()
+        if db_workflow:
+            # Update workflow fields
+            update_data = workflow.dict(exclude_unset=True, exclude={'steps'})
+            for key, value in update_data.items():
+                if isinstance(value, ProcessType):  # Handle enum conversion
+                    value = value.value
+                setattr(db_workflow, key, value)
             
-            # Update or create steps
-            for position, step_data in enumerate(workflow.steps):
-                db_step = db.query(models.WorkflowStep).filter(
-                    models.WorkflowStep.id == step_data.id,
+            # Handle steps if provided
+            if workflow.steps is not None:
+                # Delete existing steps
+                db.query(models.WorkflowStep).filter(
                     models.WorkflowStep.workflow_id == workflow_id
-                ).first()
+                ).delete(synchronize_session=False)
                 
-                if db_step:
-                    # Update step
-                    db_step.position = position
-                    if step_data.prompt_template_id:
-                        db_step.prompt_template_id = step_data.prompt_template_id
-                    if step_data.chat_model_id:
-                        db_step.chat_model_id = step_data.chat_model_id
-                    if step_data.persona_id:
-                        db_step.persona_id = step_data.persona_id
-                    
-                    # Remove from existing steps dict
-                    existing_steps.pop(db_step.id, None)
-            
-            # Delete any steps that weren't in the update
-            for step in existing_steps.values():
-                db.delete(step)
+                # Create new steps
+                for step_data in workflow.steps:
+                    db_step = models.WorkflowStep(
+                        workflow_id=workflow_id,
+                        prompt_template_id=int(step_data.prompt_template_id),
+                        chat_model_id=int(step_data.chat_model_id),
+                        persona_id=UUID(str(step_data.persona_id)) if isinstance(step_data.persona_id, str) else step_data.persona_id,
+                        position=step_data.position
+                    )
+                    db.add(db_step)
 
-        db.commit()
-        db.refresh(db_workflow)
+            db.commit()
+            db.refresh(db_workflow)
+            return db_workflow
             
-    return db_workflow
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating workflow: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 def delete_workflow(db: Session, workflow_id: UUID):
     # First, delete all associated workflow steps
