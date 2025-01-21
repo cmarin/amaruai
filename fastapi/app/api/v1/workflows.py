@@ -12,6 +12,7 @@ import asyncio
 from sse_starlette.sse import EventSourceResponse
 from app.config.crewai_service import crew_service, CrewAIError
 import json
+from uuid import UUID
 load_dotenv()
 
 # Create routers for workflows
@@ -38,7 +39,7 @@ def read_workflows(skip: int = 0, limit: int = 100, db: Session = Depends(get_db
 
 
 @router.get("/{workflow_id}", response_model=schemas.Workflow)
-def read_workflow(workflow_id: int, db: Session = Depends(get_db)):
+def get_workflow(workflow_id: UUID, db: Session = Depends(get_db)):
     db_workflow = crud.get_workflow(db, workflow_id=workflow_id)
     if db_workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -51,7 +52,11 @@ def read_workflow(workflow_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{workflow_id}", response_model=schemas.Workflow)
-def update_workflow(workflow_id: int, workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
+def update_workflow(
+    workflow_id: UUID,
+    workflow: schemas.WorkflowUpdate,
+    db: Session = Depends(get_db)
+):
     if workflow.process_type == models.ProcessType.HIERARCHICAL.value:
         if not workflow.manager_chat_model_id or not workflow.manager_persona_id:
             raise HTTPException(status_code=400, detail="Manager chat model and persona IDs are required for hierarchical workflows.")
@@ -61,12 +66,12 @@ def update_workflow(workflow_id: int, workflow: schemas.WorkflowUpdate, db: Sess
     return db_workflow
 
 
-@router.delete("/{workflow_id}", response_model=schemas.Workflow)
-def delete_workflow(workflow_id: int, db: Session = Depends(get_db)):
+@router.delete("/{workflow_id}")
+def delete_workflow(workflow_id: UUID, db: Session = Depends(get_db)):
     db_workflow = crud.delete_workflow(db, workflow_id=workflow_id)
     if db_workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    return db_workflow
+    return {"ok": True}
 
 
 @router.post("/{workflow_id}/execute", response_model=Dict[str, str])
