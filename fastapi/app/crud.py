@@ -1,11 +1,12 @@
 from sqlalchemy.orm import Session, joinedload, load_only  # Add load_only to the import
 from . import models, schemas
-from sqlalchemy import desc, Enum as SQLAlchemyEnum, asc, func  # Add func to the import
+from sqlalchemy import desc, Enum as SQLAlchemyEnum, asc, func, cast
 from fastapi import HTTPException
 import logging
 from uuid import UUID, uuid4
 from typing import List
 from .models import ProcessType  # Add this import
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
 logger = logging.getLogger(__name__)
 
@@ -282,13 +283,23 @@ def get_default_chat_model(db: Session):
 
 def get_workflows(db: Session, skip: int = 0, limit: int = 100):
     try:
-        workflows = db.query(models.Workflow).options(
-            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.prompt_template),
-            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
-            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona)
-        ).offset(skip).limit(limit).all()
+        # First get the workflows with basic info
+        workflows = db.query(models.Workflow).offset(skip).limit(limit).all()
         
+        # Then load the relationships for each workflow
+        for workflow in workflows:
+            db.query(models.Workflow).options(
+                joinedload(models.Workflow.steps.and_(
+                    models.WorkflowStep.prompt_template_id == models.PromptTemplate.id.cast(PGUUID)
+                )).joinedload(models.WorkflowStep.prompt_template),
+                joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
+                joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona)
+            ).filter(
+                models.Workflow.id == workflow.id
+            ).first()
+            
         return workflows
+        
     except Exception as e:
         db.rollback()
         logger.error(f"Error getting workflows: {str(e)}")
@@ -296,8 +307,11 @@ def get_workflows(db: Session, skip: int = 0, limit: int = 100):
 
 def get_workflow(db: Session, workflow_id: UUID):
     try:
+        # Use explicit join conditions to handle type casting
         workflow = db.query(models.Workflow).options(
-            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.prompt_template),
+            joinedload(models.Workflow.steps.and_(
+                models.WorkflowStep.prompt_template_id == models.PromptTemplate.id.cast(PGUUID)
+            )).joinedload(models.WorkflowStep.prompt_template),
             joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
             joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona)
         ).filter(
@@ -308,6 +322,7 @@ def get_workflow(db: Session, workflow_id: UUID):
             raise HTTPException(status_code=404, detail="Workflow not found")
             
         return workflow
+        
     except HTTPException:
         raise
     except Exception as e:
