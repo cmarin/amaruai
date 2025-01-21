@@ -398,7 +398,7 @@ def create_workflow_step(db: Session, workflow_id: UUID, step: schemas.WorkflowS
         logger.error(f"Error creating workflow step: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-def update_workflow_step(db: Session, step_id: int, step: schemas.WorkflowStepUpdate):
+def update_workflow_step(db: Session, step_id: UUID, step: schemas.WorkflowStepUpdate):
     db_step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
     if db_step:
         update_data = step.dict(exclude_unset=True)
@@ -408,12 +408,12 @@ def update_workflow_step(db: Session, step_id: int, step: schemas.WorkflowStepUp
         db.refresh(db_step)
     return db_step
 
-def delete_workflow_step(db: Session, step_id: int):
-    step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
-    if step:
-        db.delete(step)
+def delete_workflow_step(db: Session, step_id: UUID):
+    db_step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
+    if db_step:
+        db.delete(db_step)
         db.commit()
-    return step
+    return db_step
 
 def reorder_workflow_step(db: Session, step_id: int, new_position: int):
     db_step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
