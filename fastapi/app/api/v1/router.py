@@ -18,6 +18,7 @@ def create_protected_router(prefix: str = "", tags: list = None) -> APIRouter:
     return APIRouter(
         prefix=f"/{prefix}" if prefix else "",
         tags=tags,
+        redirect_slashes=True,
         dependencies=[Depends(get_current_user)]
     )
 
@@ -33,6 +34,7 @@ def create_public_router(prefix: str = "", tags: list = None) -> APIRouter:
         
     return APIRouter(
         prefix=f"/{prefix}" if prefix else "",
+        redirect_slashes=True,
         tags=tags
     )
 
