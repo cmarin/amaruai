@@ -81,6 +81,12 @@ async def cleanup_connection():
 # We instantiate one conversation manager (can be re-instantiated each time if needed
 conversation_manager = ConversationManager()
 
+class UUIDEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, UUID):
+            return str(obj)
+        return super().default(obj)
+
 @router.post("")
 async def chat_endpoint(
     request: Request,
@@ -249,8 +255,8 @@ async def chat_endpoint(
                         role=MessageRole.USER,
                         content=msg["content"],
                         additional_kwargs={
-                            "user_id": chat_data.user_id or "unknown_user",
-                            "multi_conversation_id": multi_conversation_id
+                            "user_id": str(chat_data.user_id) if chat_data.user_id else "unknown_user",
+                            "multi_conversation_id": str(multi_conversation_id)
                         }
                     )
                     memory.put(user_message)
@@ -260,7 +266,7 @@ async def chat_endpoint(
                         role=MessageRole.SYSTEM,
                         content=msg["content"],
                         additional_kwargs={
-                            "multi_conversation_id": multi_conversation_id
+                            "multi_conversation_id": str(multi_conversation_id)
                         }
                     )
                     memory.put(system_msg)
@@ -356,8 +362,8 @@ async def chat_endpoint(
                 role=MessageRole.ASSISTANT,
                 content=final_assistant_content,
                 additional_kwargs={
-                    "user_id": chat_data.user_id or "unknown_user",
-                    "multi_conversation_id": multi_conversation_id
+                    "user_id": str(chat_data.user_id) if chat_data.user_id else "unknown_user",
+                    "multi_conversation_id": str(multi_conversation_id)
                 }
             )
             memory.put(assistant_message)
