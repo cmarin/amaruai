@@ -280,17 +280,40 @@ def get_chat_model_by_model(db: Session, model: str):
 def get_default_chat_model(db: Session):
     return db.query(models.ChatModel).filter(models.ChatModel.default == True).first()
 
-def get_workflow(db: Session, workflow_id: UUID):
-    return db.query(models.Workflow).options(
-        joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.prompt_template),
-        joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
-        joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona)
-    ).filter(
-        models.Workflow.id == workflow_id
-    ).first()
-
 def get_workflows(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Workflow).offset(skip).limit(limit).all()
+    try:
+        workflows = db.query(models.Workflow).options(
+            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.prompt_template),
+            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
+            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona)
+        ).offset(skip).limit(limit).all()
+        
+        return workflows
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error getting workflows: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+def get_workflow(db: Session, workflow_id: UUID):
+    try:
+        workflow = db.query(models.Workflow).options(
+            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.prompt_template),
+            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
+            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona)
+        ).filter(
+            models.Workflow.id == workflow_id
+        ).first()
+        
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+            
+        return workflow
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error getting workflow: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 def create_workflow(db: Session, workflow: schemas.WorkflowCreate):
     # Create a dictionary of the data, converting the enum to string
