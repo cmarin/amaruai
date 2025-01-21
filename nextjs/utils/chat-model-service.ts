@@ -1,16 +1,16 @@
-import { fetchWithRetry, getApiUrl } from './api-utils';
+import { fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
+import { getApiUrl } from './api-utils';
 
-
-export type ChatModel = {
-  id: number;
+export interface ChatModel {
+  id: string;
   name: string;
   model: string;
   provider: string;
-  api_type: string;
+  api_key: string;
   max_tokens: number;
   temperature: number;
-};
+}
 
 export async function fetchChatModels(headers: ApiHeaders): Promise<ChatModel[]> {
   return fetchWithRetry(async () => {
@@ -19,14 +19,34 @@ export async function fetchChatModels(headers: ApiHeaders): Promise<ChatModel[]>
       headers: {
         ...headers,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
       },
-      credentials: 'include',
     });
-
     if (!response.ok) {
       throw new Error('Failed to fetch chat models');
     }
-    return await response.json();
+    const data = await response.json();
+    return data.map((model: any) => ({
+      ...model,
+      id: model.id.toString()
+    }));
+  });
+}
+
+export async function fetchChatModel(id: string, headers: ApiHeaders): Promise<ChatModel> {
+  return fetchWithRetry(async () => {
+    const response = await fetch(`${getApiUrl()}/chat_models/${id}`, {
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch chat model');
+    }
+    const model = await response.json();
+    return {
+      ...model,
+      id: model.id.toString()
+    };
   });
 }

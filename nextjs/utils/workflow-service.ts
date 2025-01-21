@@ -3,12 +3,28 @@ import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl } from './api-utils';
 
 export interface WorkflowStep {
-  id?: string;
-  workflow_id?: string;
+  id: string;
+  workflow_id: string;
   prompt_template_id: string;
   chat_model_id: string;
   persona_id: string;
   position: number;
+  prompt_template?: {
+    id: string;
+    title: string;
+    prompt: string;
+    is_complex: boolean;
+  };
+  chat_model?: {
+    id: string;
+    name: string;
+    model: string;
+  };
+  persona?: {
+    id: string;
+    role: string;
+    goal: string;
+  };
 }
 
 export interface Workflow {

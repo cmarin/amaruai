@@ -181,7 +181,7 @@ export function StreamingResults({
   const getStepConfig = (step: BatchFlowStep) => {
     const model = chatModels.find(m => m.id === Number(step.chat_model_id))?.name || 'Unknown Model';
     const persona = personas.find(p => p.id === Number(step.persona_id))?.role || 'Unknown Persona';
-    const template = promptTemplates.find(t => t.id === Number(step.prompt_template_id))?.title || 'Unknown Template';
+    const template = promptTemplates.find(t => t.id === step.prompt_template_id)?.title || 'Unknown Template';
     
     return { model, persona, template };
   };

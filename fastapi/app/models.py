@@ -18,13 +18,13 @@ persona_tag = Table('persona_tag', Base.metadata,
 )
 
 prompt_template_category = Table('prompt_template_category', Base.metadata,
-    Column('prompt_template_id', Integer, ForeignKey('prompt_template.id'), primary_key=True),
+    Column('prompt_template_id', PGUUID(as_uuid=True), ForeignKey('prompt_template.id'), primary_key=True),
     Column('category_id', Integer, ForeignKey('category.id'), primary_key=True)
 )
 
 prompt_template_tag = Table('prompt_template_tag', Base.metadata,
     Column('prompt_template_id', PGUUID(as_uuid=True), ForeignKey('prompt_template.id'), primary_key=True),
-    Column('tag_id', PGUUID(as_uuid=True), ForeignKey('tag.id'), primary_key=True)
+    Column('tag_id', Integer, ForeignKey('tag.id'), primary_key=True)
 )
 
 tool_persona = Table('tool_persona', Base.metadata,
@@ -76,16 +76,16 @@ class Tool(Base):
 class PromptTemplate(Base):
     __tablename__ = "prompt_template"
 
-    id = Column(Integer, primary_key=True)  # This should be Integer, not UUID
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('uuid_generate_v4()'))
     title = Column(String)
     prompt = Column(String)
     is_complex = Column(Boolean)
     default_persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"), nullable=True)
-    workflow_steps = relationship("WorkflowStep", back_populates="prompt_template")
 
-    default_persona = relationship("Persona", back_populates="prompt_templates")
+    workflow_steps = relationship("WorkflowStep", back_populates="prompt_template")
     categories = relationship("Category", secondary=prompt_template_category, back_populates="prompt_templates")
     tags = relationship("Tag", secondary=prompt_template_tag, back_populates="prompt_templates")
+    default_persona = relationship("Persona", back_populates="prompt_templates")
 
 class Category(Base):
     __tablename__ = "category"

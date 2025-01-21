@@ -53,7 +53,7 @@ class PromptTemplateCreate(PromptTemplateBase):
     tag_ids: List[int] = []
 
 class PromptTemplate(PromptTemplateBase):
-    id: int
+    id: UUID
     default_persona_id: Optional[UUID] = None
     categories: List[Category] = []
     tags: List[Tag] = []
@@ -114,9 +114,15 @@ class ProcessType(str, Enum):
     PARALLEL = "HIERARCHICAL"
 
 class WorkflowStepBase(BaseModel):
-    prompt_template_id: int
+    prompt_template_id: UUID
     chat_model_id: int
     persona_id: UUID
+
+    @validator('prompt_template_id', pre=True)
+    def convert_to_uuid(cls, v):
+        if isinstance(v, str):
+            return UUID(v)
+        return v
 
 class WorkflowStepCreate(BaseModel):
     prompt_template_id: int

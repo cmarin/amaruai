@@ -122,7 +122,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         
         console.log('Fetching prompt template...');
         const promptTemplate = await fetchPromptTemplate(
-          parseInt(firstStep.prompt_template_id),
+          firstStep.prompt_template_id,
           headers
         );
         

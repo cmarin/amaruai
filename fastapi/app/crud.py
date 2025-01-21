@@ -204,7 +204,7 @@ def create_prompt_template(db: Session, prompt_template: schemas.PromptTemplateC
     db.refresh(db_prompt_template)
     return db_prompt_template
 
-def update_prompt_template(db: Session, prompt_template_id: int, prompt_template: schemas.PromptTemplateCreate):
+def update_prompt_template(db: Session, prompt_template_id: UUID, prompt_template: schemas.PromptTemplateCreate):
     db_prompt_template = db.query(models.PromptTemplate).filter(models.PromptTemplate.id == prompt_template_id).first()
     if db_prompt_template:
         update_data = prompt_template.dict(exclude={'category_ids', 'tag_ids'})
@@ -227,7 +227,7 @@ def update_prompt_template(db: Session, prompt_template_id: int, prompt_template
         db.refresh(db_prompt_template)
     return db_prompt_template
 
-def delete_prompt_template(db: Session, prompt_template_id: int):
+def delete_prompt_template(db: Session, prompt_template_id: UUID):
     db_prompt_template = db.query(models.PromptTemplate).filter(models.PromptTemplate.id == prompt_template_id).first()
     if db_prompt_template:
         db.delete(db_prompt_template)

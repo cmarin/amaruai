@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, UUID
 from app import crud, schemas, models
 from app.database import get_db
 from app.api.v1.router import create_protected_router
@@ -44,21 +44,25 @@ def read_prompt_templates(skip: int = 0, limit: int = 100, db: Session = Depends
     return prompt_templates
 
 @router.get("/{prompt_template_id}", response_model=schemas.PromptTemplate)
-def read_prompt_template(prompt_template_id: int, db: Session = Depends(get_db)):
+def read_prompt_template(prompt_template_id: UUID, db: Session = Depends(get_db)):
     db_prompt_template = crud.get_prompt_template(db, prompt_template_id=prompt_template_id)
     if db_prompt_template is None:
         raise HTTPException(status_code=404, detail="Prompt template not found")
     return db_prompt_template
 
 @router.put("/{prompt_template_id}", response_model=schemas.PromptTemplate)
-def update_prompt_template(prompt_template_id: int, prompt_template: schemas.PromptTemplateCreate, db: Session = Depends(get_db)):
+def update_prompt_template(
+    prompt_template_id: UUID, 
+    prompt_template: schemas.PromptTemplateCreate, 
+    db: Session = Depends(get_db)
+):
     db_prompt_template = crud.update_prompt_template(db, prompt_template_id=prompt_template_id, prompt_template=prompt_template)
     if db_prompt_template is None:
         raise HTTPException(status_code=404, detail="Prompt template not found")
     return db_prompt_template
 
 @router.delete("/{prompt_template_id}", response_model=schemas.PromptTemplate)
-def delete_prompt_template(prompt_template_id: int, db: Session = Depends(get_db)):
+def delete_prompt_template(prompt_template_id: UUID, db: Session = Depends(get_db)):
     db_prompt_template = crud.delete_prompt_template(db, prompt_template_id=prompt_template_id)
     if db_prompt_template is None:
         raise HTTPException(status_code=404, detail="Prompt template not found")

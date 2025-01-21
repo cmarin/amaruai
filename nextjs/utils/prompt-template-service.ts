@@ -21,8 +21,8 @@ export interface VariableType {
   };
 }
 
-export type PromptTemplate = {
-  id: number;
+export interface PromptTemplate {
+  id?: string;
   title: string;
   description: string;
   prompt: string | PromptContent;
@@ -33,8 +33,8 @@ export type PromptTemplate = {
   categories: Category[];
   tags: Tag[];
   category?: string;  // For form handling
-  default_persona_id?: number | null;
-};
+  default_persona_id?: string | null;
+}
 
 export async function createPromptTemplate(
   promptTemplate: {
@@ -94,12 +94,12 @@ export async function createPromptTemplate(
 }
 
 export async function updatePromptTemplate(
-  promptTemplateId: number,
+  promptTemplateId: string,
   promptTemplate: {
     title: string;
     prompt: string | PromptContent;
     is_complex: boolean;
-    default_persona_id: number | null;
+    default_persona_id: string | null;
     category_ids: number[];
     tag_ids: (number | string)[];
   },
@@ -153,7 +153,7 @@ export async function updatePromptTemplate(
   }
 }
 
-export async function deletePromptTemplate(promptTemplateId: number, headers: ApiHeaders): Promise<void> {
+export async function deletePromptTemplate(promptTemplateId: string, headers: ApiHeaders): Promise<void> {
   try {
     if (!getApiUrl()) {
       throw new Error('API URL is not defined');
@@ -207,12 +207,12 @@ export async function fetchPromptTemplates(headers: ApiHeaders | null): Promise<
   });
 }
 
-export async function fetchPromptTemplate(id: number, headers: ApiHeaders): Promise<PromptTemplate> {
+export async function fetchPromptTemplate(promptTemplateId: string, headers: ApiHeaders): Promise<PromptTemplate> {
   try {
     if (!getApiUrl()) {
       throw new Error('API URL is not defined');
     }
-    const response = await fetch(`${getApiUrl()}/prompt_templates/${id}`, {
+    const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
       headers,
     });
     if (!response.ok) {
