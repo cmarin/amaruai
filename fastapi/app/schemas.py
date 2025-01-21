@@ -3,6 +3,7 @@ from typing import List, Optional, Dict, Any
 from enum import Enum
 from uuid import UUID
 from datetime import datetime
+from pydantic import validator
 
 class ToolBase(BaseModel):
     name: str
@@ -117,8 +118,23 @@ class WorkflowStepBase(BaseModel):
     chat_model_id: int
     persona_id: UUID
 
-class WorkflowStepCreate(WorkflowStepBase):
-    pass
+class WorkflowStepCreate(BaseModel):
+    prompt_template_id: int
+    chat_model_id: int
+    persona_id: UUID
+    position: Optional[int] = None
+
+    @validator('prompt_template_id', 'chat_model_id', pre=True)
+    def convert_to_int(cls, v):
+        if isinstance(v, str):
+            return int(v)
+        return v
+
+    @validator('persona_id', pre=True)
+    def convert_to_uuid(cls, v):
+        if isinstance(v, str):
+            return UUID(v)
+        return v
 
 class WorkflowStepUpdate(WorkflowStepBase):
     position: Optional[int] = None

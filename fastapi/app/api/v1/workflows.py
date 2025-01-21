@@ -244,12 +244,15 @@ def create_workflow_step(
     step: schemas.WorkflowStepCreate,
     db: Session = Depends(get_db)
 ):
-    step_data = schemas.WorkflowStepCreate(
-        prompt_template_id=step.prompt_template_id,
-        chat_model_id=step.chat_model_id,
-        persona_id=step.persona_id
-    )
-    return crud.create_workflow_step(db=db, workflow_id=workflow_id, step=step_data)
+    try:
+        return crud.create_workflow_step(db=db, workflow_id=workflow_id, step=step)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating workflow step: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{workflow_id}/steps/", response_model=List[schemas.WorkflowStep])
