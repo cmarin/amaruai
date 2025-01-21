@@ -159,7 +159,7 @@ export default function PromptTemplatesPage() {
         prompt: editingPrompt.prompt as string,
         is_complex: false,
         default_persona_id: null,
-        category_ids: editingPrompt.categories?.map(c => parseInt(c)) || [],
+        category_ids: editingPrompt.categories?.map(c => Number(c.id)) || [],
         tag_ids: editingPrompt.tags?.map(t => t.toString()) || []
       }, headers);
       setIsEditPromptDialogOpen(false);
