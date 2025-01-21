@@ -283,21 +283,18 @@ def get_default_chat_model(db: Session):
 
 def get_workflows(db: Session, skip: int = 0, limit: int = 100):
     try:
-        # First get the workflows with basic info
-        workflows = db.query(models.Workflow).offset(skip).limit(limit).all()
+        # Query workflows with all relationships in a single query
+        workflows = db.query(models.Workflow).options(
+            joinedload(models.Workflow.steps.of_type(models.WorkflowStep))
+            .joinedload(models.WorkflowStep.prompt_template),
+            joinedload(models.Workflow.steps.of_type(models.WorkflowStep))
+            .joinedload(models.WorkflowStep.chat_model),
+            joinedload(models.Workflow.steps.of_type(models.WorkflowStep))
+            .joinedload(models.WorkflowStep.persona)
+        ).order_by(
+            models.Workflow.id
+        ).offset(skip).limit(limit).all()
         
-        # Then load the relationships for each workflow
-        for workflow in workflows:
-            db.query(models.Workflow).options(
-                joinedload(models.Workflow.steps.and_(
-                    models.WorkflowStep.prompt_template_id == models.PromptTemplate.id.cast(PGUUID)
-                )).joinedload(models.WorkflowStep.prompt_template),
-                joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
-                joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona)
-            ).filter(
-                models.Workflow.id == workflow.id
-            ).first()
-            
         return workflows
         
     except Exception as e:
@@ -307,13 +304,14 @@ def get_workflows(db: Session, skip: int = 0, limit: int = 100):
 
 def get_workflow(db: Session, workflow_id: UUID):
     try:
-        # Use explicit join conditions to handle type casting
+        # Query workflow with all relationships in a single query
         workflow = db.query(models.Workflow).options(
-            joinedload(models.Workflow.steps.and_(
-                models.WorkflowStep.prompt_template_id == models.PromptTemplate.id.cast(PGUUID)
-            )).joinedload(models.WorkflowStep.prompt_template),
-            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
-            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona)
+            joinedload(models.Workflow.steps.of_type(models.WorkflowStep))
+            .joinedload(models.WorkflowStep.prompt_template),
+            joinedload(models.Workflow.steps.of_type(models.WorkflowStep))
+            .joinedload(models.WorkflowStep.chat_model),
+            joinedload(models.Workflow.steps.of_type(models.WorkflowStep))
+            .joinedload(models.WorkflowStep.persona)
         ).filter(
             models.Workflow.id == workflow_id
         ).first()
