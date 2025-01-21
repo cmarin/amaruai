@@ -37,13 +37,27 @@ export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
 
 export async function fetchWorkflow(id: string, headers: ApiHeaders): Promise<Workflow> {
   return fetchWithRetry(async () => {
+    console.log('Fetching workflow with ID:', id);
+    console.log('API URL:', getApiUrl());
+    
     const response = await fetch(`${getApiUrl()}/workflows/${id}`, {
-      headers
+      headers,
+      cache: 'no-store' // Disable caching to always get fresh data
     });
+
     if (!response.ok) {
-      throw new Error('Failed to fetch workflow');
+      const errorText = await response.text();
+      console.error('Error fetching workflow:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      throw new Error(`Failed to fetch workflow: ${response.status} ${response.statusText} - ${errorText}`);
     }
-    return await response.json();
+
+    const workflow = await response.json();
+    console.log('Successfully fetched workflow:', workflow);
+    return workflow;
   });
 }
 

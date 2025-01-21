@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Workflow, fetchWorkflow } from '@/utils/workflow-service';
 import { WorkflowManagerComponent } from '@/components/workflow-manager';
@@ -14,17 +14,20 @@ export default function EditWorkflowPage({ params }: { params: { id: string } })
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { sidebarOpen } = useSidebar();
-  const { getApiHeaders } = useSession();
+  const { getApiHeaders, loading: sessionLoading } = useSession();
 
-  const loadWorkflow = async () => {
+  const loadWorkflow = useCallback(async () => {
     try {
+      console.log('Loading workflow with ID:', params.id);
       const headers = getApiHeaders();
       if (!headers) {
         console.error('No valid headers available');
         return;
       }
+      console.log('Headers available, fetching workflow...');
 
       const fetchedWorkflow = await fetchWorkflow(params.id, headers);
+      console.log('Fetched workflow:', fetchedWorkflow);
       setWorkflow(fetchedWorkflow);
       setError(null);
     } catch (err) {
@@ -33,11 +36,14 @@ export default function EditWorkflowPage({ params }: { params: { id: string } })
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [params.id, getApiHeaders]);
 
   useEffect(() => {
-    loadWorkflow();
-  }, [params.id]);
+    console.log('Edit workflow page mounted, session loading:', sessionLoading);
+    if (!sessionLoading) {
+      loadWorkflow();
+    }
+  }, [sessionLoading, loadWorkflow]);
 
   const handleSave = async () => {
     router.push('/workflows');
@@ -56,7 +62,7 @@ export default function EditWorkflowPage({ params }: { params: { id: string } })
       <div className="flex min-h-screen w-full">
         <AppSidebar toggleChatbot={toggleChatbot} />
         <main className={`flex-1 min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
-          Loading...
+          Loading workflow...
         </main>
       </div>
     );
