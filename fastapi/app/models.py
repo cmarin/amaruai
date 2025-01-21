@@ -139,7 +139,7 @@ class WorkflowStep(Base):
     id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('uuid_generate_v4()'))
     workflow_id = Column(PGUUID(as_uuid=True), ForeignKey("workflow.id"))
     position = Column(Integer)
-    prompt_template_id = Column(Integer, ForeignKey("prompt_template.id"))
+    prompt_template_id = Column(PGUUID(as_uuid=True), ForeignKey("prompt_template.id"))
     chat_model_id = Column(Integer, ForeignKey("chat_model.id"))
     persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"))
 
