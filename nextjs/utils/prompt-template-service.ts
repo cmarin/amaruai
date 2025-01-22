@@ -224,19 +224,38 @@ export async function fetchPromptTemplates(headers: ApiHeaders | null): Promise<
     const data = await response.json();
     console.log('Received Prompt Templates:', data);
     
-    // Handle both array and object responses
-    const templates = Array.isArray(data) ? data : data.items || data.results || [];
+    // Extract the templates array from the response
+    const rawTemplates = Array.isArray(data) ? data : data.items || data.results || data.prompts || [];
     
-    return templates.map((template: any) => ({
-      ...template,
-      id: template.id.toString(),
-      categories: template.categories || [],
-      tags: template.tags || [],
-      is_complex: template.is_complex || false,
-      prompt: template.prompt || '',
-      title: template.title || '',
-      description: template.description || ''
-    }));
+    // Map the raw templates to the expected format
+    return rawTemplates.map((template: any) => {
+      // Ensure we have the required fields with proper types
+      const processedTemplate: PromptTemplate = {
+        ...template,
+        id: template.id?.toString() || '', // Convert ID to string if it exists
+        title: template.title || '',
+        description: template.description || '',
+        prompt: template.prompt || '',
+        is_complex: Boolean(template.is_complex),
+        categories: Array.isArray(template.categories) ? template.categories : [],
+        tags: Array.isArray(template.tags) ? template.tags : [],
+        variables: Array.isArray(template.variables) ? template.variables : [],
+        default_persona_id: template.default_persona_id?.toString() || null
+      };
+
+      // Handle complex prompts
+      if (processedTemplate.is_complex && typeof processedTemplate.prompt === 'string') {
+        try {
+          const parsedPrompt = JSON.parse(processedTemplate.prompt);
+          processedTemplate.content = parsedPrompt;
+        } catch (error) {
+          console.error('Error parsing complex prompt:', error);
+          processedTemplate.is_complex = false;
+        }
+      }
+
+      return processedTemplate;
+    });
   });
 }
 
