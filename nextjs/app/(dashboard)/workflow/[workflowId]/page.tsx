@@ -47,12 +47,12 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     }
 
     if (message.type === 'step' && message.prompt && message.response) {
-      const promptToShow = message.step === 1 && submittedPrompt 
+      const promptToShow = message.step?.toString() === '1' && submittedPrompt 
         ? submittedPrompt 
         : message.prompt;
 
       const newResult: WorkflowResult = {
-        step: message.step!.toString(),
+        step: message.step?.toString() || '',
         prompt: promptToShow,
         response: message.response,
         chat_model: message.chat_model,
