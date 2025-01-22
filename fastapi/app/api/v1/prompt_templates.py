@@ -7,7 +7,7 @@ from app.database import get_db
 from app.api.v1.router import create_protected_router
 
 # Create a protected router for prompt templates
-router = create_protected_router(prefix="prompt-templates", tags=["prompt_templates"])
+router = create_protected_router(prefix="prompt_templates", tags=["prompt_templates"])
 
 @router.post("", response_model=schemas.PromptTemplate)
 def create_prompt_template(prompt_template: schemas.PromptTemplateCreate, db: Session = Depends(get_db)):
