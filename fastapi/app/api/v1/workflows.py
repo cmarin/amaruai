@@ -14,6 +14,7 @@ from app.config.crewai_service import crew_service, CrewAIError
 import json
 from uuid import UUID
 from app.api.v1.dependencies import get_current_user
+from uuid import uuid4
 load_dotenv()
 
 # Create routers for workflows
@@ -292,52 +293,42 @@ def delete_workflow_step(
     return db_step
 
 
-@router.post("/{workflow_id}/stream", response_model=Dict[str, str])
+@router.post("/{workflow_id}/stream")
 async def initiate_workflow_stream(
-    workflow_id: int,
-    user_input: Dict[str, str],
-    background_tasks: BackgroundTasks,
+    workflow_id: UUID,
+    chat_message: ChatMessage,
     db: Session = Depends(get_db)
 ):
-    """Initiate a workflow execution and return a stream token"""
-    try:
-        # Log the request parameters
-        logger.info(f"Initiating workflow stream - Workflow ID: {workflow_id}")
-        logger.info(f"User input parameters: {json.dumps(user_input, indent=2)}")
-        
-        # Log the workflow details
-        workflow = crud.get_workflow(db, workflow_id=workflow_id)
-        if workflow:
-            steps = sorted(workflow.steps, key=lambda x: x.position)
-            if steps:
-                first_step = steps[0]
-                logger.info(f"First step prompt template (ID: {first_step.prompt_template_id}): {first_step.prompt_template.prompt}")
-                logger.info(f"First step is_complex: {first_step.prompt_template.is_complex}")
-                if first_step.prompt_template.is_complex:
-                    logger.info("Complex prompt detected for first step")
-                    if "message" in user_input:
-                        logger.info(f"Using message from user input: {user_input['message']}")
-                    else:
-                        logger.info("No message found in user input for complex prompt")
-        
-        # Generate a stream token
-        stream_token = await crew_service.prepare_workflow_stream(workflow_id)
-        logger.info(f"Generated stream token: {stream_token}")
-        
-        # Start workflow execution in background
-        background_tasks.add_task(
-            crew_service.execute_workflow,
-            workflow_id=workflow_id,
-            user_input=user_input,
-            db=db,
-            stream_token=stream_token
-        )
-        
-        return {"stream_token": stream_token}
+    # Validate and set defaults for missing fields
+    if not chat_message.messages:
+        chat_message.messages = []
     
-    except Exception as e:
-        logger.error(f"Error initiating workflow stream: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    if not chat_message.knowledge_base_ids:
+        chat_message.knowledge_base_ids = []
+    
+    if not chat_message.asset_ids:
+        chat_message.asset_ids = []
+    
+    if not chat_message.files:
+        chat_message.files = []
+        
+    # Convert string user_id to UUID if needed
+    if isinstance(chat_message.user_id, str) and chat_message.user_id != "user":
+        try:
+            chat_message.user_id = UUID(chat_message.user_id)
+        except ValueError:
+            # Handle default/anonymous user case
+            chat_message.user_id = None
+            
+    # Convert string conversation_id to UUID if needed
+    if isinstance(chat_message.conversation_id, str):
+        try:
+            chat_message.conversation_id = UUID(chat_message.conversation_id)
+        except ValueError:
+            # Generate new conversation ID if invalid
+            chat_message.conversation_id = uuid4()
+    
+    # Rest of your stream handling code...
 
 @public_router.get("/{workflow_id}/stream")
 async def stream_workflow_results(

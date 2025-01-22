@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from enum import Enum
 from uuid import UUID
 from datetime import datetime
@@ -250,16 +250,42 @@ class ChatData(BaseModel):
 
 class ChatMessage(BaseModel):
     message: Optional[str] = None
-    messages: Optional[List[Message]] = None
+    messages: Optional[List[Message]] = []
     data: Optional[ChatData] = None
     model_id: Optional[int] = None
     persona_id: Optional[UUID] = None
-    conversation_id: Optional[UUID] = None
+    conversation_id: Optional[Union[str, UUID]] = None  # Allow both string and UUID
     multi_conversation_id: Optional[UUID] = None
     knowledge_base_ids: List[UUID] = []
     asset_ids: List[UUID] = []
     files: List[FileInfo] = []
-    user_id: Optional[UUID] = None
+    user_id: Optional[Union[str, UUID]] = None  # Allow both string and UUID
+
+    @validator('conversation_id', pre=True)
+    def validate_conversation_id(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, UUID):
+            return v
+        if isinstance(v, str):
+            try:
+                return UUID(v)
+            except ValueError:
+                return v  # Keep as string, will be converted in endpoint
+        return v
+
+    @validator('user_id', pre=True)
+    def validate_user_id(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, UUID):
+            return v
+        if isinstance(v, str):
+            try:
+                return UUID(v)
+            except ValueError:
+                return v  # Keep as string, will be converted in endpoint
+        return v
 
     class Config:
         json_schema_extra = {
