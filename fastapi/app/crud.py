@@ -134,7 +134,7 @@ def create_category(db: Session, category: schemas.CategoryCreate):
     db.refresh(db_category)
     return db_category
 
-def update_category(db: Session, category_id: int, category: schemas.CategoryCreate):
+def update_category(db: Session, category_id: UUID, category: schemas.CategoryCreate):
     db_category = db.query(models.Category).filter(models.Category.id == category_id).first()
     if db_category:
         for key, value in category.dict().items():
@@ -143,7 +143,7 @@ def update_category(db: Session, category_id: int, category: schemas.CategoryCre
         db.refresh(db_category)
     return db_category
 
-def delete_category(db: Session, category_id: int):
+def delete_category(db: Session, category_id: UUID):
     db_category = db.query(models.Category).filter(models.Category.id == category_id).first()
     if db_category:
         db.delete(db_category)
@@ -163,7 +163,7 @@ def create_tag(db: Session, tag: schemas.TagCreate):
     db.refresh(db_tag)
     return db_tag
 
-def update_tag(db: Session, tag_id: int, tag: schemas.TagCreate):
+def update_tag(db: Session, tag_id: UUID, tag: schemas.TagCreate):
     db_tag = db.query(models.Tag).filter(models.Tag.id == tag_id).first()
     if db_tag:
         for key, value in tag.dict().items():
@@ -172,7 +172,7 @@ def update_tag(db: Session, tag_id: int, tag: schemas.TagCreate):
         db.refresh(db_tag)
     return db_tag
 
-def delete_tag(db: Session, tag_id: int):
+def delete_tag(db: Session, tag_id: UUID):
     db_tag = db.query(models.Tag).filter(models.Tag.id == tag_id).first()
     if db_tag:
         db.delete(db_tag)
@@ -269,7 +269,7 @@ def create_chat_model(db: Session, chat_model: schemas.ChatModelCreate):
     db.refresh(db_chat_model)
     return db_chat_model
 
-def update_chat_model(db: Session, chat_model_id: int, chat_model: schemas.ChatModelCreate):
+def update_chat_model(db: Session, chat_model_id: UUID, chat_model: schemas.ChatModelCreate):
     db_chat_model = db.query(models.ChatModel).filter(models.ChatModel.id == chat_model_id).first()
     if db_chat_model:
         for key, value in chat_model.dict().items():
@@ -278,7 +278,7 @@ def update_chat_model(db: Session, chat_model_id: int, chat_model: schemas.ChatM
         db.refresh(db_chat_model)
     return db_chat_model
 
-def delete_chat_model(db: Session, chat_model_id: int):
+def delete_chat_model(db: Session, chat_model_id: UUID):
     db_chat_model = db.query(models.ChatModel).filter(models.ChatModel.id == chat_model_id).first()
     if db_chat_model:
         db.delete(db_chat_model)
@@ -414,11 +414,13 @@ def delete_workflow(db: Session, workflow_id: UUID):
         db.commit()
     return db_workflow
 
-def get_workflow_step(db: Session, step_id: int):
+def get_workflow_step(db: Session, step_id: UUID):
     return db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
 
-def get_workflow_steps(db: Session, workflow_id: int):
-    return db.query(models.WorkflowStep).filter(models.WorkflowStep.workflow_id == workflow_id).order_by(models.WorkflowStep.position).all()
+def get_workflow_steps(db: Session, workflow_id: UUID):
+    return db.query(models.WorkflowStep).filter(
+        models.WorkflowStep.workflow_id == workflow_id
+    ).order_by(models.WorkflowStep.position).all()
 
 def create_workflow_step(db: Session, workflow_id: UUID, step: schemas.WorkflowStepCreate):
     try:
@@ -466,7 +468,7 @@ def delete_workflow_step(db: Session, step_id: UUID):
         db.commit()
     return db_step
 
-def reorder_workflow_step(db: Session, step_id: int, new_position: int):
+def reorder_workflow_step(db: Session, step_id: UUID, new_position: int):
     db_step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
     if db_step:
         old_position = db_step.position
@@ -489,7 +491,7 @@ def reorder_workflow_step(db: Session, step_id: int, new_position: int):
         db.commit()
     return db_step
 
-def move_workflow_step_up(db: Session, step_id: int):
+def move_workflow_step_up(db: Session, step_id: UUID):
     step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
     if step and step.position > 1:
         previous_step = db.query(models.WorkflowStep).filter(
@@ -501,7 +503,7 @@ def move_workflow_step_up(db: Session, step_id: int):
             db.commit()
     return step
 
-def move_workflow_step_down(db: Session, step_id: int):
+def move_workflow_step_down(db: Session, step_id: UUID):
     step = db.query(models.WorkflowStep).filter(models.WorkflowStep.id == step_id).first()
     if step:
         next_step = db.query(models.WorkflowStep).filter(

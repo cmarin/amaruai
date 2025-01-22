@@ -162,7 +162,7 @@ async def chat_endpoint(
                 )
 
         # Get the model name
-        model_name = "openai/gpt-4o"  # default
+        model_name = "openai/gpt-4"  # default
         if chat_data.model_id:
             chat_model = crud.get_chat_model(db, chat_data.model_id)
             if chat_model:

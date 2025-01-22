@@ -16,6 +16,9 @@ import json
 from uuid import UUID
 from app.api.v1.dependencies import get_current_user
 from uuid import uuid4
+from llama_index.storage.chat_store.postgres import PostgresChatStore
+from llama_index.core.memory import ChatMemoryBuffer
+from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
 load_dotenv()
 
 # Create routers for workflows
@@ -31,7 +34,10 @@ logger = logging.getLogger(__name__)
 def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_db)):
     if workflow.process_type == models.ProcessType.HIERARCHICAL.value:
         if not workflow.manager_chat_model_id or not workflow.manager_persona_id:
-            raise HTTPException(status_code=400, detail="Manager chat model and persona IDs are required for hierarchical workflows.")
+            raise HTTPException(
+                status_code=400, 
+                detail="Manager chat model and persona IDs are required for hierarchical workflows."
+            )
     return crud.create_workflow(db=db, workflow=workflow)
 
 
@@ -83,12 +89,20 @@ def delete_workflow(workflow_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.post("/{workflow_id}/execute", response_model=Dict[str, str])
-async def execute_workflow(workflow_id: int, user_input: Dict[str, str], background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def execute_workflow(
+    workflow_id: UUID,  # Changed from int to UUID
+    user_input: Dict[str, str], 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db)
+):
     try:
         workflow = crud.get_workflow(db, workflow_id=workflow_id)
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
-
+        
+        # Store results using string representation of UUID
+        workflow_results[str(workflow_id)] = []
+        
         # Determine max_iterations only for hierarchical workflows
         max_iterations = workflow.max_iterations if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None
 
@@ -202,14 +216,14 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
 
                 # Add a completion flag to the results
                 results.append({"completed": True})
-                workflow_results[workflow_id] = results
+                workflow_results[str(workflow_id)] = results
                 logging.info(f"Workflow execution completed: {results}")
                 return {"result": "Workflow execution completed"}
 
             except Exception as e:
                 logging.error(f"Error during workflow execution: {str(e)}")
 
-                workflow_results[workflow_id] = [{
+                workflow_results[str(workflow_id)] = [{
                     "step": "Error",
                     "prompt": "Error occurred",
                     "response": str(e)
@@ -226,8 +240,8 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
 
 
 @router.get("/{workflow_id}/results", response_model=List[Dict[str, str]])
-async def get_workflow_results(workflow_id: int):
-    results = workflow_results.get(workflow_id, [])
+async def get_workflow_results(workflow_id: UUID):
+    results = workflow_results.get(str(workflow_id), [])
     if not results:
         return []
 
@@ -240,7 +254,6 @@ async def get_workflow_results(workflow_id: int):
         for result in results if "completed" not in result
     ]
 
-    # Check if the workflow is completed
     if any("completed" in result for result in results):
         formatted_results.append({"completed": "true"})
     return formatted_results
@@ -329,11 +342,19 @@ async def initiate_workflow_stream(
             # Generate new conversation ID if invalid
             chat_message.conversation_id = uuid4()
     
+    # Initialize chat store and memory
+    chat_store = PostgresChatStore.from_uri(uri=ASYNC_DATABASE_URL)
+    memory = ChatMemoryBuffer.from_defaults(
+        chat_store=chat_store,
+        chat_store_key=str(chat_message.conversation_id),  # Convert UUID to string for chat store
+        token_limit=4000
+    )
+
     # Rest of your stream handling code...
 
 @public_router.get("/{workflow_id}/stream")
 async def stream_workflow_results(
-    workflow_id: int,
+    workflow_id: UUID,  # Changed from int to UUID
     stream_token: str,
     request: Request,
     db: Session = Depends(get_db)
@@ -344,6 +365,11 @@ async def stream_workflow_results(
         logger.info(f"Stream token: {stream_token}")
         logger.info(f"Request headers: {dict(request.headers)}")
         
+        # Use string representation of UUID for dictionary key
+        results = workflow_results.get(str(workflow_id), [])
+        if not results:
+            raise HTTPException(status_code=404, detail="No results found for this workflow")
+            
         async def event_generator():
             last_result_count = 0
             try:
