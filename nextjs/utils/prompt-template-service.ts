@@ -84,7 +84,7 @@ export async function createPromptTemplate(
       tag_ids: processedTagIds,
     };
 
-    const response = await fetch(`${getApiUrl()}/prompt-templates/`, {
+    const response = await fetch(`${getApiUrl()}/prompt_templates`, {
       method: 'POST',
       headers: {
         ...headers,
@@ -142,7 +142,7 @@ export async function updatePromptTemplate(
     };
 
     console.log('Updating prompt template with payload:', payload);
-    const response = await fetch(`${getApiUrl()}/prompt-templates/${promptTemplateId}`, {
+    const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
       method: 'PUT',
       headers: {
         ...headers,
@@ -172,7 +172,7 @@ export async function deletePromptTemplate(promptTemplateId: string, headers: Ap
     if (!getApiUrl()) {
       throw new Error('API URL is not defined');
     }
-    const response = await fetch(`${getApiUrl()}/prompt-templates/${promptTemplateId}`, {
+    const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
       method: 'DELETE',
       headers: {
         ...headers,
@@ -201,12 +201,12 @@ export async function fetchPromptTemplates(headers: ApiHeaders | null): Promise<
     }
 
     console.log('=== Fetching Prompt Templates ===');
-    console.log('Request URL:', `${getApiUrl()}/prompt-templates`);
+    console.log('Request URL:', `${getApiUrl()}/prompt_templates/`);
     console.log('Request Headers:', headers);
     console.log('Authorization Header:', headers.Authorization);
     console.log('========================');
 
-    const response = await fetch(`${getApiUrl()}/prompt-templates/`, {
+    const response = await fetch(`${getApiUrl()}/prompt_templates/`, {
       headers: {
         ...headers,
         'Content-Type': 'application/json',
@@ -235,7 +235,7 @@ export async function fetchPromptTemplate(promptTemplateId: string, headers: Api
     if (!getApiUrl()) {
       throw new Error('API URL is not defined');
     }
-    const response = await fetch(`${getApiUrl()}/prompt-templates/${promptTemplateId}`, {
+    const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
       headers: {
         ...headers,
         'Content-Type': 'application/json',
