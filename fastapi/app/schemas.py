@@ -53,7 +53,7 @@ class PromptTemplateCreate(BaseModel):
     is_complex: bool = False
     default_persona_id: Optional[UUID] = None
     category_ids: List[Optional[UUID]] = []
-    tag_ids: List[Optional[UUID]] = []
+    tags: List[str] = []
 
     @validator('category_ids', 'tag_ids', pre=True)
     def empty_list_if_none(cls, v):
@@ -69,6 +69,14 @@ class PromptTemplate(PromptTemplateBase):
 
     class Config:
         from_attributes = True
+
+class PromptTemplateUpdate(BaseModel):
+    title: Optional[str] = None
+    prompt: Optional[str] = None
+    is_complex: Optional[bool] = None
+    default_persona_id: Optional[UUID] = None
+    category_ids: Optional[List[UUID]] = None
+    tags: Optional[List[str]] = None
 
 class ChatModelBase(BaseModel):
     name: str

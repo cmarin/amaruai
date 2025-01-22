@@ -191,55 +191,87 @@ def get_prompt_templates(db: Session, skip: int = 0, limit: int = 100):
     logger.debug(f"Found {len(templates)} templates")
     return templates
 
-def create_prompt_template(db: Session, prompt_template: schemas.PromptTemplateCreate):
-    db_prompt_template = models.PromptTemplate(**prompt_template.dict(exclude={'category_ids', 'tag_ids'}))
-    db.add(db_prompt_template)
-    db.commit()
-    db.refresh(db_prompt_template)
-    
-    for category_id in prompt_template.category_ids:
-        category = db.query(models.Category).filter(models.Category.id == category_id).first()
-        if category:
-            db_prompt_template.categories.append(category)
-    
-    for tag_id in prompt_template.tag_ids:
-        tag = db.query(models.Tag).filter(models.Tag.id == tag_id).first()
-        if tag:
-            db_prompt_template.tags.append(tag)
-    
-    db.commit()
-    db.refresh(db_prompt_template)
-    return db_prompt_template
+def get_or_create_tags(db: Session, tag_names: List[str]) -> List[models.Tag]:
+    """Get existing tags or create new ones if they don't exist."""
+    tags = []
+    for name in tag_names:
+        # Try to find existing tag
+        tag = db.query(models.Tag).filter(models.Tag.name == name).first()
+        if not tag:
+            # Create new tag if it doesn't exist
+            tag = models.Tag(name=name)
+            db.add(tag)
+            db.flush()  # Flush to get the ID but don't commit yet
+        tags.append(tag)
+    return tags
 
-def update_prompt_template(db: Session, prompt_template_id: UUID, prompt_template: schemas.PromptTemplateCreate):
-    db_prompt_template = db.query(models.PromptTemplate).filter(models.PromptTemplate.id == prompt_template_id).first()
-    if db_prompt_template:
-        # Update basic fields
-        update_data = prompt_template.dict(exclude={'category_ids', 'tag_ids'})
-        for key, value in update_data.items():
-            setattr(db_prompt_template, key, value)
+def create_prompt_template(db: Session, prompt_template: schemas.PromptTemplateCreate):
+    try:
+        # Create the prompt template
+        db_prompt_template = models.PromptTemplate(
+            title=prompt_template.title,
+            prompt=prompt_template.prompt,
+            is_complex=prompt_template.is_complex,
+            default_persona_id=prompt_template.default_persona_id
+        )
+        db.add(db_prompt_template)
         
-        # Update categories if provided
-        db_prompt_template.categories = []
-        if prompt_template.category_ids:
-            for category_id in prompt_template.category_ids:
-                if category_id is not None:  # Skip None values
-                    category = db.query(models.Category).filter(models.Category.id == category_id).first()
-                    if category:
-                        db_prompt_template.categories.append(category)
+        # Handle categories
+        for category_id in prompt_template.category_ids:
+            if category_id:
+                category = db.query(models.Category).filter(models.Category.id == category_id).first()
+                if category:
+                    db_prompt_template.categories.append(category)
         
-        # Update tags if provided
-        db_prompt_template.tags = []
-        if prompt_template.tag_ids:
-            for tag_id in prompt_template.tag_ids:
-                if tag_id is not None:  # Skip None values
-                    tag = db.query(models.Tag).filter(models.Tag.id == tag_id).first()
-                    if tag:
-                        db_prompt_template.tags.append(tag)
+        # Handle tags by name
+        tags = get_or_create_tags(db, prompt_template.tags)
+        db_prompt_template.tags = tags
         
         db.commit()
         db.refresh(db_prompt_template)
-    return db_prompt_template
+        return db_prompt_template
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+def update_prompt_template(db: Session, prompt_template_id: UUID, prompt_template: schemas.PromptTemplateCreate):
+    try:
+        db_prompt_template = db.query(models.PromptTemplate).filter(
+            models.PromptTemplate.id == prompt_template_id
+        ).first()
+        
+        if db_prompt_template:
+            # Update basic fields
+            update_data = prompt_template.dict(
+                exclude={'category_ids', 'tags'}, 
+                exclude_unset=True
+            )
+            for key, value in update_data.items():
+                setattr(db_prompt_template, key, value)
+            
+            # Update categories if provided
+            if prompt_template.category_ids is not None:
+                db_prompt_template.categories = []
+                for category_id in prompt_template.category_ids:
+                    if category_id:
+                        category = db.query(models.Category).filter(models.Category.id == category_id).first()
+                        if category:
+                            db_prompt_template.categories.append(category)
+            
+            # Update tags if provided
+            if prompt_template.tags is not None:
+                tags = get_or_create_tags(db, prompt_template.tags)
+                db_prompt_template.tags = tags
+            
+            db.commit()
+            db.refresh(db_prompt_template)
+            
+        return db_prompt_template
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 def delete_prompt_template(db: Session, prompt_template_id: UUID):
     db_prompt_template = db.query(models.PromptTemplate).filter(models.PromptTemplate.id == prompt_template_id).first()

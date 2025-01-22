@@ -130,8 +130,8 @@ export default function PromptTemplatesPage() {
         title: newSimplePrompt.title,
         prompt: newSimplePrompt.prompt,
         is_complex: false,
-        category_ids: newSimplePrompt.category ? [parseInt(newSimplePrompt.category)] : [],
-        tag_ids: newSimplePrompt.tags.map(tag => tag.id || tag.name),
+        category_ids: newSimplePrompt.category ? [newSimplePrompt.category] : [],
+        tags: newSimplePrompt.tags.map(tag => tag.name),
       }, headers);
       
       setIsNewSimplePromptDialogOpen(false);
@@ -159,8 +159,8 @@ export default function PromptTemplatesPage() {
         prompt: editingPrompt.prompt as string,
         is_complex: false,
         default_persona_id: null,
-        category_ids: editingPrompt.categories?.map(c => Number(c.id)) || [],
-        tag_ids: editingPrompt.tags?.map(t => t.toString()) || []
+        category_ids: editingPrompt.categories?.map(c => c.id) || [],
+        tags: editingPrompt.tags?.map(t => t.name) || []
       }, headers);
       setIsEditPromptDialogOpen(false);
       const updatedPrompts = await fetchPromptTemplates(headers);
@@ -188,16 +188,16 @@ export default function PromptTemplatesPage() {
           prompt: JSON.stringify(data),
           is_complex: true,
           default_persona_id: selectedComplexPrompt.default_persona_id || null,
-          category_ids: [parseInt(category)],
-          tag_ids: tags.map(t => t.id || t.name),
+          category_ids: [category],
+          tags: tags.map(t => t.name),
         }, headers);
       } else {
         await createPromptTemplate({
           title,
           prompt: JSON.stringify(data),
           is_complex: true,
-          category_ids: [parseInt(category)],
-          tag_ids: tags.map(t => t.id || t.name),
+          category_ids: [category],
+          tags: tags.map(t => t.name),
         }, headers);
       }
       setIsComplexEditorOpen(false);

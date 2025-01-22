@@ -1,6 +1,5 @@
 // promptTemplateService.ts
 
-import { createTag, fetchTags, Tag } from '../utils/tag-service';
 import { PromptContent } from '@/components/complex-prompt-editor';
 import { getApiUrl, fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
@@ -21,6 +20,11 @@ export interface VariableType {
   };
 }
 
+export interface Tag {
+  id: string;
+  name: string;
+}
+
 export interface PromptTemplate {
   id: string;
   title: string;
@@ -28,7 +32,7 @@ export interface PromptTemplate {
   prompt: string | PromptContent;
   is_complex: boolean;
   variables?: string[];
-  category_id?: number;
+  category_id?: string;
   content?: string | PromptContent;
   categories: Category[];
   tags: Tag[];
@@ -40,8 +44,8 @@ export interface CreatePromptTemplateRequest {
   title: string;
   prompt: string | PromptContent;
   is_complex: boolean;
-  category_ids?: number[];
-  tag_ids?: (number | string)[];
+  category_ids?: string[];
+  tags?: string[];  // Just tag names
 }
 
 export interface UpdatePromptTemplateRequest {
@@ -49,8 +53,8 @@ export interface UpdatePromptTemplateRequest {
   prompt: string | PromptContent;
   is_complex: boolean;
   default_persona_id: string | null;
-  category_ids: number[];
-  tag_ids: (number | string)[];
+  category_ids: string[];
+  tags: string[];  // Just tag names
 }
 
 export async function createPromptTemplate(
@@ -62,35 +66,13 @@ export async function createPromptTemplate(
       throw new Error('API URL is not defined');
     }
 
-    // Fetch existing tags with headers
-    const existingTags = await fetchTags(headers);
-
-    // Process tags with headers
-    const processedTagIds = await Promise.all(promptTemplate.tag_ids?.map(async (tagId) => {
-      if (typeof tagId === 'string') {
-        const existingTag = existingTags.find(tag => tag.name.toLowerCase() === tagId.toLowerCase());
-        if (existingTag) {
-          return existingTag.id;
-        } else {
-          const newTag = await createTag(tagId, headers);
-          return newTag.id;
-        }
-      }
-      return tagId;
-    }) || []);
-
-    const payload = {
-      ...promptTemplate,
-      tag_ids: processedTagIds,
-    };
-
     const response = await fetch(`${getApiUrl()}/prompt_templates`, {
       method: 'POST',
       headers: {
         ...headers,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(promptTemplate),
     });
     
     if (!response.ok) {
@@ -98,13 +80,20 @@ export async function createPromptTemplate(
       console.error('Error response:', response.status, errorText);
       throw new Error(`Failed to create prompt template: ${response.status} ${response.statusText}`);
     }
+
     const data = await response.json();
     return {
       ...data,
-      id: data.id.toString()
+      id: data.id?.toString() || '',
+      category_id: data.category_id?.toString(),
+      default_persona_id: data.default_persona_id?.toString(),
+      tags: data.tags?.map((tag: any) => ({
+        ...tag,
+        id: tag.id?.toString() || ''
+      })) || []
     };
   } catch (error) {
-    console.error('Error creating prompt template:', error);
+    console.error('Error in createPromptTemplate:', error);
     throw error;
   }
 }
@@ -115,192 +104,99 @@ export async function updatePromptTemplate(
   headers: ApiHeaders
 ): Promise<PromptTemplate> {
   try {
-    if (!getApiUrl()) {
-      throw new Error('API URL is not defined');
-    }
-
-    // Fetch existing tags with headers
-    const existingTags = await fetchTags(headers);
-
-    // Process tags with headers
-    const processedTagIds = await Promise.all(promptTemplate.tag_ids.map(async (tagId) => {
-      if (typeof tagId === 'string') {
-        const existingTag = existingTags.find(tag => tag.name.toLowerCase() === tagId.toLowerCase());
-        if (existingTag) {
-          return existingTag.id;
-        } else {
-          const newTag = await createTag(tagId, headers);
-          return newTag.id;
-        }
-      }
-      return tagId;
-    }));
-
-    const payload = {
-      ...promptTemplate,
-      tag_ids: processedTagIds,
-    };
-
-    console.log('Updating prompt template with payload:', payload);
     const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
       method: 'PUT',
       headers: {
         ...headers,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(promptTemplate),
     });
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Error response:', response.status, errorText);
       throw new Error(`Failed to update prompt template: ${response.status} ${response.statusText}`);
     }
+
     const data = await response.json();
     return {
       ...data,
-      id: data.id.toString()
+      id: data.id?.toString() || '',
+      category_id: data.category_id?.toString(),
+      default_persona_id: data.default_persona_id?.toString(),
+      tags: data.tags?.map((tag: any) => ({
+        ...tag,
+        id: tag.id?.toString() || ''
+      })) || []
     };
   } catch (error) {
-    console.error('Error updating prompt template:', error);
+    console.error('Error in updatePromptTemplate:', error);
     throw error;
   }
 }
 
 export async function deletePromptTemplate(promptTemplateId: string, headers: ApiHeaders): Promise<void> {
-  try {
-    if (!getApiUrl()) {
-      throw new Error('API URL is not defined');
-    }
-    const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
-      method: 'DELETE',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response:', response.status, errorText);
-      throw new Error(`Failed to delete prompt template: ${response.status} ${response.statusText}`);
-    }
-  } catch (error) {
-    console.error('Error deleting prompt template:', error);
-    throw error;
+  const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Error response:', response.status, errorText);
+    throw new Error(`Failed to delete prompt template: ${response.status} ${response.statusText}`);
   }
 }
 
 export async function fetchPromptTemplates(headers: ApiHeaders | null): Promise<PromptTemplate[]> {
   return fetchWithRetry(async () => {
-    if (!getApiUrl()) {
-      throw new Error('API URL is not defined');
-    }
-
-    if (!headers) {
-      throw new Error('No valid headers available - session might not be initialized');
-    }
-
-    console.log('=== Fetching Prompt Templates ===');
-    console.log('Request URL:', `${getApiUrl()}/prompt_templates/`);
-    console.log('Request Headers:', headers);
-    console.log('Authorization Header:', headers.Authorization);
-    console.log('========================');
-
-    const response = await fetch(`${getApiUrl()}/prompt_templates/`, {
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      }
+    const response = await fetch(`${getApiUrl()}/prompt_templates`, {
+      headers: headers || {},
     });
 
-    console.log('Response Status:', response.status);
-    
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Error Response:', errorText);
+      console.error('Error fetching prompt templates:', response.status, errorText);
       throw new Error('Failed to fetch prompt templates');
     }
 
     const data = await response.json();
-    console.log('Received Prompt Templates:', data);
-    
-    // Extract the templates array from the response
-    const rawTemplates = Array.isArray(data) ? data : data.items || data.results || data.prompts || [];
-    
-    // Map the raw templates to the expected format
-    return rawTemplates.map((template: any) => {
-      // Ensure we have the required fields with proper types
-      const processedTemplate: PromptTemplate = {
-        ...template,
-        id: template.id?.toString() || '', // Convert ID to string if it exists
-        title: template.title || '',
-        description: template.description || '',
-        prompt: template.prompt || '',
-        is_complex: Boolean(template.is_complex),
-        categories: Array.isArray(template.categories) ? template.categories : [],
-        tags: Array.isArray(template.tags) ? template.tags : [],
-        variables: Array.isArray(template.variables) ? template.variables : [],
-        default_persona_id: template.default_persona_id?.toString() || null
-      };
-
-      // Handle complex prompts
-      if (processedTemplate.is_complex && typeof processedTemplate.prompt === 'string') {
-        try {
-          const parsedPrompt = JSON.parse(processedTemplate.prompt);
-          processedTemplate.content = parsedPrompt;
-        } catch (error) {
-          console.error('Error parsing complex prompt:', error);
-          processedTemplate.is_complex = false;
-        }
-      }
-
-      return processedTemplate;
-    });
+    return data.map((template: any) => ({
+      ...template,
+      id: template.id?.toString() || '',
+      category_id: template.category_id?.toString(),
+      default_persona_id: template.default_persona_id?.toString(),
+      tags: template.tags?.map((tag: any) => ({
+        ...tag,
+        id: tag.id?.toString() || ''
+      })) || []
+    }));
   });
 }
 
 export async function fetchPromptTemplate(promptTemplateId: string, headers: ApiHeaders): Promise<PromptTemplate> {
-  try {
-    if (!getApiUrl()) {
-      throw new Error('API URL is not defined');
-    }
+  return fetchWithRetry(async () => {
     const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Error response:', response.status, errorText);
+      console.error('Error fetching prompt template:', response.status, errorText);
       throw new Error('Failed to fetch prompt template');
     }
-    const data: PromptTemplate = await response.json();
-    
-    console.log('Fetched prompt template:', data);
 
-    if (data.is_complex) {
-      if (typeof data.prompt === 'string') {
-        try {
-          const parsedPrompt = JSON.parse(data.prompt);
-          data.content = parsedPrompt;
-          data.prompt = parsedPrompt;
-        } catch (error) {
-          console.error('Error parsing complex prompt:', error);
-          data.is_complex = false;
-        }
-      } else if (typeof data.prompt === 'object') {
-        data.content = data.prompt as PromptContent;
-      }
-    }
-    
-    console.log('Processed prompt template:', data);
+    const data = await response.json();
     return {
       ...data,
-      id: data.id.toString()
+      id: data.id?.toString() || '',
+      category_id: data.category_id?.toString(),
+      default_persona_id: data.default_persona_id?.toString(),
+      tags: data.tags?.map((tag: any) => ({
+        ...tag,
+        id: tag.id?.toString() || ''
+      })) || []
     };
-  } catch (error) {
-    console.error('Error fetching prompt template:', error);
-    throw error;
-  }
+  });
 }
