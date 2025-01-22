@@ -47,10 +47,19 @@ class PromptTemplateBase(BaseModel):
     prompt: str
     is_complex: bool
 
-class PromptTemplateCreate(PromptTemplateBase):
+class PromptTemplateCreate(BaseModel):
+    title: str
+    prompt: str
+    is_complex: bool = False
     default_persona_id: Optional[UUID] = None
-    category_ids: List[int] = []
-    tag_ids: List[int] = []
+    category_ids: List[Optional[int]] = []
+    tag_ids: List[Optional[int]] = []
+
+    @validator('category_ids', 'tag_ids', pre=True)
+    def empty_list_if_none(cls, v):
+        if v is None or (isinstance(v, list) and len(v) == 1 and v[0] is None):
+            return []
+        return v
 
 class PromptTemplate(PromptTemplateBase):
     id: UUID

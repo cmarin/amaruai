@@ -7,7 +7,7 @@ from app.database import get_db
 from app.api.v1.router import create_protected_router
 
 # Create a protected router for prompt templates
-router = create_protected_router(prefix="prompt_templates", tags=["prompt_templates"])
+router = create_protected_router(prefix="prompt-templates", tags=["prompt_templates"])
 
 @router.post("", response_model=schemas.PromptTemplate)
 def create_prompt_template(prompt_template: schemas.PromptTemplateCreate, db: Session = Depends(get_db)):
@@ -57,6 +57,10 @@ def update_prompt_template(
     prompt_template: schemas.PromptTemplateCreate, 
     db: Session = Depends(get_db)
 ):
+    # Filter out None values from category_ids and tag_ids
+    prompt_template.category_ids = [cat_id for cat_id in prompt_template.category_ids if cat_id is not None]
+    prompt_template.tag_ids = [tag_id for tag_id in prompt_template.tag_ids if tag_id is not None]
+    
     db_prompt_template = crud.update_prompt_template(db, prompt_template_id=prompt_template_id, prompt_template=prompt_template)
     if db_prompt_template is None:
         raise HTTPException(status_code=404, detail="Prompt template not found")
