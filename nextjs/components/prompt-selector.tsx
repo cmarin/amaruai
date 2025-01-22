@@ -19,7 +19,9 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children }
   const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
-    const newGroupedPrompts: { [key: string]: PromptTemplate[] } = {}
+    const newGroupedPrompts: { [key: string]: PromptTemplate[] } = {
+      'All Prompts': [] // Default category for prompts without a category
+    }
     
     // Initialize categories
     categories.forEach(category => {
@@ -28,11 +30,16 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children }
 
     // Group prompts by category
     prompts.forEach(prompt => {
-      prompt.categories.forEach(category => {
-        if (newGroupedPrompts[category.name]) {
-          newGroupedPrompts[category.name].push(prompt)
-        }
-      })
+      if (!prompt.categories || prompt.categories.length === 0) {
+        // If prompt has no categories, add to 'All Prompts'
+        newGroupedPrompts['All Prompts'].push(prompt)
+      } else {
+        prompt.categories.forEach(category => {
+          if (newGroupedPrompts[category.name]) {
+            newGroupedPrompts[category.name].push(prompt)
+          }
+        })
+      }
     })
 
     setGroupedPrompts(newGroupedPrompts)
@@ -41,8 +48,9 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children }
   const filteredCategories = Object.entries(groupedPrompts).reduce((acc, [category, categoryPrompts]) => {
     const filteredPrompts = categoryPrompts.filter(prompt =>
       prompt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (prompt.prompt && typeof prompt.prompt === 'string' && prompt.prompt.toLowerCase().includes(searchTerm.toLowerCase())) ||
       prompt.categories.some(cat => cat.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      prompt.tags.some(tag => tag.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      prompt.tags.some(tag => tag.name && tag.name.toLowerCase().includes(searchTerm.toLowerCase()))
     )
     if (filteredPrompts.length > 0) {
       acc[category] = filteredPrompts
@@ -70,24 +78,30 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children }
           />
         </div>
         <ScrollArea className="h-[300px]">
-          {Object.entries(filteredCategories).map(([category, categoryPrompts]) => (
-            <div key={category} className="p-2">
-              <h3 className="font-semibold mb-2">{category}</h3>
-              {categoryPrompts.map(prompt => (
-                <Button
-                  key={prompt.id}
-                  variant="ghost"
-                  className="w-full justify-start text-left"
-                  onClick={() => {
-                    onSelectPrompt(prompt)
-                    setIsOpen(false)
-                  }}
-                >
-                  {prompt.title}
-                </Button>
-              ))}
+          {Object.entries(filteredCategories).length > 0 ? (
+            Object.entries(filteredCategories).map(([category, categoryPrompts]) => (
+              <div key={category} className="p-2">
+                <h3 className="font-semibold mb-2">{category}</h3>
+                {categoryPrompts.map(prompt => (
+                  <Button
+                    key={prompt.id}
+                    variant="ghost"
+                    className="w-full justify-start text-left"
+                    onClick={() => {
+                      onSelectPrompt(prompt)
+                      setIsOpen(false)
+                    }}
+                  >
+                    {prompt.title}
+                  </Button>
+                ))}
+              </div>
+            ))
+          ) : (
+            <div className="p-4 text-center text-gray-500">
+              No prompts found
             </div>
-          ))}
+          )}
         </ScrollArea>
       </PopoverContent>
     </Popover>
