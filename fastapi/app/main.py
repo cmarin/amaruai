@@ -12,7 +12,6 @@ from app.api.v1 import (
     chat,
     personas,
     prompt_templates,
-    prompt_templates_router,
     tags,
     tools,
     workflows,
@@ -25,7 +24,6 @@ from app.admin import admin_router
 from app.api.v1.dependencies import get_current_user
 from dotenv import load_dotenv
 import logging
-from app.api.v1.workflows import router as workflow_router, public_router as workflow_public_router
 import os
 from pydantic import BaseModel
 
@@ -76,33 +74,33 @@ app.add_middleware(
     max_age=3600
 )
 
-# Mount the public routes (authentication)
+# Mount the public routes (authentication only)
 app.include_router(
     authentication.router,
     prefix="/api/v1",
     tags=["auth"]
 )
 
-# Mount all protected routes with authentication
+# Mount all protected routes
 protected_routes = [
-    categories,
-    chat_models,
-    chat,
-    personas,
-    prompt_templates,
-    tags,
-    tools,
-    workflows,
-    knowledge_bases,
-    assets,
-    batch_flow
+    categories.router,
+    chat_models.router,
+    chat.router,
+    personas.router,
+    prompt_templates.router,
+    tags.router,
+    tools.router,
+    knowledge_bases.router,
+    assets.router,
+    batch_flow.router,
+    workflows.router  # Protected workflow routes
 ]
 
-for module in protected_routes:
+for router in protected_routes:
     app.include_router(
-        module.router,
+        router,
         prefix="/api/v1",
-        dependencies=[Depends(get_current_user)]  # Add authentication to all protected routes
+        dependencies=[Depends(get_current_user)]
     )
 
 # Include admin routes
@@ -110,15 +108,8 @@ app.include_router(
     admin_router, 
     prefix="/admin", 
     tags=["admin"],
-    dependencies=[Depends(get_current_user)]  # Protect admin routes
+    dependencies=[Depends(get_current_user)]
 )
-
-# Mount workflow routes
-app.include_router(workflow_router, prefix="/api/v1")
-app.include_router(workflow_public_router, prefix="/api/v1")
-
-# Mount the router
-app.include_router(prompt_templates_router, prefix="/api/v1")
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
