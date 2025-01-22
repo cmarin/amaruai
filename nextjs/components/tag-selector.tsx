@@ -16,20 +16,22 @@ export default function TagSelector({ tags, setTags, placeholder = "Add a tag" }
 
   const addTag = () => {
     if (inputValue && !tags.some(tag => tag.name.toLowerCase() === inputValue.toLowerCase())) {
-      setTags([...tags, { id: 0, name: inputValue }])
+      // Generate a temporary unique string ID for new tags
+      const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setTags([...tags, { id: tempId, name: inputValue }])
       setInputValue('')
     }
   }
 
   const removeTag = (tagToRemove: Tag) => {
-    setTags(tags.filter(tag => tag.name !== tagToRemove.name))
+    setTags(tags.filter(tag => tag.id !== tagToRemove.id))
   }
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
         {tags.map(tag => (
-          <Badge key={tag.id || tag.name} variant="secondary" className="text-sm">
+          <Badge key={tag.id} variant="secondary" className="text-sm">
             {tag.name}
             <Button
               variant="ghost"
