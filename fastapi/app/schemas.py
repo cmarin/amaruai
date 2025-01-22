@@ -55,7 +55,7 @@ class PromptTemplateCreate(BaseModel):
     category_ids: List[Optional[UUID]] = []
     tags: List[str] = []
 
-    @validator('category_ids', 'tag_ids', pre=True)
+    @validator('category_ids', pre=True)
     def empty_list_if_none(cls, v):
         if v is None or (isinstance(v, list) and len(v) == 1 and v[0] is None):
             return []

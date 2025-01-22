@@ -9,35 +9,9 @@ from app.api.v1.router import create_protected_router
 # Create a protected router for prompt templates
 router = create_protected_router(prefix="prompt_templates", tags=["prompt_templates"])
 
-@router.post("", response_model=schemas.PromptTemplate)
+@router.post("/", response_model=schemas.PromptTemplate)
 def create_prompt_template(prompt_template: schemas.PromptTemplateCreate, db: Session = Depends(get_db)):
-    db_prompt_template = models.PromptTemplate(
-        title=prompt_template.title,
-        prompt=prompt_template.prompt,
-        is_complex=prompt_template.is_complex,
-        default_persona_id=prompt_template.default_persona_id if hasattr(prompt_template, 'default_persona_id') else None
-    )
-    db.add(db_prompt_template)
-    db.commit()
-    db.refresh(db_prompt_template)
-
-    # Handle categories and tags if provided
-    if hasattr(prompt_template, 'category_ids'):
-        for category_id in prompt_template.category_ids:
-            category = crud.get_category(db, category_id)
-            if category:
-                db_prompt_template.categories.append(category)
-
-    if hasattr(prompt_template, 'tag_ids'):
-        for tag_id in prompt_template.tag_ids:
-            tag = crud.get_tag(db, tag_id)
-            if tag:
-                db_prompt_template.tags.append(tag)
-
-    if db_prompt_template.categories or db_prompt_template.tags:
-        db.commit()
-
-    return db_prompt_template
+    return crud.create_prompt_template(db=db, prompt_template=prompt_template)
 
 @router.get("/", response_model=List[schemas.PromptTemplate])
 def read_prompt_templates(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
@@ -54,13 +28,9 @@ def read_prompt_template(prompt_template_id: UUID, db: Session = Depends(get_db)
 @router.put("/{prompt_template_id}", response_model=schemas.PromptTemplate)
 def update_prompt_template(
     prompt_template_id: UUID, 
-    prompt_template: schemas.PromptTemplateCreate, 
+    prompt_template: schemas.PromptTemplateUpdate, 
     db: Session = Depends(get_db)
 ):
-    # Filter out None values from category_ids and tag_ids
-    prompt_template.category_ids = [cat_id for cat_id in prompt_template.category_ids if cat_id is not None]
-    prompt_template.tag_ids = [tag_id for tag_id in prompt_template.tag_ids if tag_id is not None]
-    
     db_prompt_template = crud.update_prompt_template(db, prompt_template_id=prompt_template_id, prompt_template=prompt_template)
     if db_prompt_template is None:
         raise HTTPException(status_code=404, detail="Prompt template not found")
