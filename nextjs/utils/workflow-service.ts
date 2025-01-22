@@ -47,7 +47,33 @@ export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
     if (!response.ok) {
       throw new Error('Failed to fetch workflows');
     }
-    return await response.json();
+    const data = await response.json();
+    return data.map((workflow: any) => ({
+      ...workflow,
+      id: workflow.id?.toString() || '',
+      manager_chat_model_id: workflow.manager_chat_model_id?.toString(),
+      manager_persona_id: workflow.manager_persona_id?.toString(),
+      steps: workflow.steps?.map((step: any) => ({
+        ...step,
+        id: step.id?.toString() || '',
+        workflow_id: step.workflow_id?.toString() || '',
+        prompt_template_id: step.prompt_template_id?.toString() || '',
+        chat_model_id: step.chat_model_id?.toString() || '',
+        persona_id: step.persona_id?.toString() || '',
+        prompt_template: step.prompt_template ? {
+          ...step.prompt_template,
+          id: step.prompt_template.id?.toString() || ''
+        } : undefined,
+        chat_model: step.chat_model ? {
+          ...step.chat_model,
+          id: step.chat_model.id?.toString() || ''
+        } : undefined,
+        persona: step.persona ? {
+          ...step.persona,
+          id: step.persona.id?.toString() || ''
+        } : undefined
+      })) || []
+    }));
   });
 }
 
@@ -71,7 +97,33 @@ export async function fetchWorkflow(id: string, headers: ApiHeaders): Promise<Wo
       throw new Error(`Failed to fetch workflow: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    const workflow = await response.json();
+    const data = await response.json();
+    const workflow = {
+      ...data,
+      id: data.id?.toString() || '',
+      manager_chat_model_id: data.manager_chat_model_id?.toString(),
+      manager_persona_id: data.manager_persona_id?.toString(),
+      steps: data.steps?.map((step: any) => ({
+        ...step,
+        id: step.id?.toString() || '',
+        workflow_id: step.workflow_id?.toString() || '',
+        prompt_template_id: step.prompt_template_id?.toString() || '',
+        chat_model_id: step.chat_model_id?.toString() || '',
+        persona_id: step.persona_id?.toString() || '',
+        prompt_template: step.prompt_template ? {
+          ...step.prompt_template,
+          id: step.prompt_template.id?.toString() || ''
+        } : undefined,
+        chat_model: step.chat_model ? {
+          ...step.chat_model,
+          id: step.chat_model.id?.toString() || ''
+        } : undefined,
+        persona: step.persona ? {
+          ...step.persona,
+          id: step.persona.id?.toString() || ''
+        } : undefined
+      })) || []
+    };
     console.log('Successfully fetched workflow:', workflow);
     return workflow;
   });
@@ -99,7 +151,33 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
       throw new Error('Failed to create workflow');
     }
 
-    const createdWorkflow = await response.json();
+    const data = await response.json();
+    const createdWorkflow = {
+      ...data,
+      id: data.id?.toString() || '',
+      manager_chat_model_id: data.manager_chat_model_id?.toString(),
+      manager_persona_id: data.manager_persona_id?.toString(),
+      steps: data.steps?.map((step: any) => ({
+        ...step,
+        id: step.id?.toString() || '',
+        workflow_id: step.workflow_id?.toString() || '',
+        prompt_template_id: step.prompt_template_id?.toString() || '',
+        chat_model_id: step.chat_model_id?.toString() || '',
+        persona_id: step.persona_id?.toString() || '',
+        prompt_template: step.prompt_template ? {
+          ...step.prompt_template,
+          id: step.prompt_template.id?.toString() || ''
+        } : undefined,
+        chat_model: step.chat_model ? {
+          ...step.chat_model,
+          id: step.chat_model.id?.toString() || ''
+        } : undefined,
+        persona: step.persona ? {
+          ...step.persona,
+          id: step.persona.id?.toString() || ''
+        } : undefined
+      })) || []
+    };
     console.log('Created workflow:', createdWorkflow);
 
     // Create workflow steps sequentially to ensure correct positioning
@@ -157,7 +235,33 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       throw new Error(`Failed to update workflow: ${errorText}`);
     }
 
-    const updatedWorkflow = await response.json();
+    const data = await response.json();
+    const updatedWorkflow = {
+      ...data,
+      id: data.id?.toString() || '',
+      manager_chat_model_id: data.manager_chat_model_id?.toString(),
+      manager_persona_id: data.manager_persona_id?.toString(),
+      steps: data.steps?.map((step: any) => ({
+        ...step,
+        id: step.id?.toString() || '',
+        workflow_id: step.workflow_id?.toString() || '',
+        prompt_template_id: step.prompt_template_id?.toString() || '',
+        chat_model_id: step.chat_model_id?.toString() || '',
+        persona_id: step.persona_id?.toString() || '',
+        prompt_template: step.prompt_template ? {
+          ...step.prompt_template,
+          id: step.prompt_template.id?.toString() || ''
+        } : undefined,
+        chat_model: step.chat_model ? {
+          ...step.chat_model,
+          id: step.chat_model.id?.toString() || ''
+        } : undefined,
+        persona: step.persona ? {
+          ...step.persona,
+          id: step.persona.id?.toString() || ''
+        } : undefined
+      })) || []
+    };
     return updatedWorkflow;
   });
 }
@@ -189,7 +293,27 @@ export async function createWorkflowStep(workflowId: string, step: Omit<Workflow
       console.error('Error creating workflow step:', errorText);
       throw new Error('Failed to create workflow step');
     }
-    const createdStep = await response.json();
+    const data = await response.json();
+    const createdStep = {
+      ...data,
+      id: data.id?.toString() || '',
+      workflow_id: data.workflow_id?.toString() || '',
+      prompt_template_id: data.prompt_template_id?.toString() || '',
+      chat_model_id: data.chat_model_id?.toString() || '',
+      persona_id: data.persona_id?.toString() || '',
+      prompt_template: data.prompt_template ? {
+        ...data.prompt_template,
+        id: data.prompt_template.id?.toString() || ''
+      } : undefined,
+      chat_model: data.chat_model ? {
+        ...data.chat_model,
+        id: data.chat_model.id?.toString() || ''
+      } : undefined,
+      persona: data.persona ? {
+        ...data.persona,
+        id: data.persona.id?.toString() || ''
+      } : undefined
+    };
     console.log('Created workflow step:', createdStep);
     return createdStep;
   });
@@ -205,7 +329,27 @@ export async function fetchWorkflowSteps(workflowId: string, headers: ApiHeaders
       console.error('Error fetching workflow steps:', errorText);
       throw new Error('Failed to fetch workflow steps');
     }
-    return await response.json();
+    const data = await response.json();
+    return data.map((step: any) => ({
+      ...step,
+      id: step.id?.toString() || '',
+      workflow_id: step.workflow_id?.toString() || '',
+      prompt_template_id: step.prompt_template_id?.toString() || '',
+      chat_model_id: step.chat_model_id?.toString() || '',
+      persona_id: step.persona_id?.toString() || '',
+      prompt_template: step.prompt_template ? {
+        ...step.prompt_template,
+        id: step.prompt_template.id?.toString() || ''
+      } : undefined,
+      chat_model: step.chat_model ? {
+        ...step.chat_model,
+        id: step.chat_model.id?.toString() || ''
+      } : undefined,
+      persona: step.persona ? {
+        ...step.persona,
+        id: step.persona.id?.toString() || ''
+      } : undefined
+    }));
   });
 }
 
@@ -270,12 +414,12 @@ export interface WorkflowResult {
   prompt: string;
   response: string;
   chat_model?: {
-    id: number;
+    id: string;
     name: string;
     model: string;
   };
   persona?: {
-    id: number;
+    id: string;
     role: string;
     goal: string;
   };
@@ -289,7 +433,18 @@ export async function getWorkflowResults(workflowId: string, headers: ApiHeaders
     if (!response.ok) {
       throw new Error('Failed to fetch workflow results');
     }
-    return await response.json();
+    const data = await response.json();
+    return data.map((result: any) => ({
+      ...result,
+      chat_model: result.chat_model ? {
+        ...result.chat_model,
+        id: result.chat_model.id?.toString() || ''
+      } : undefined,
+      persona: result.persona ? {
+        ...result.persona,
+        id: result.persona.id?.toString() || ''
+      } : undefined
+    }));
   });
 }
 
@@ -313,14 +468,34 @@ export async function updateWorkflowStep(
       console.error('Error updating workflow step:', errorText);
       throw new Error('Failed to update workflow step');
     }
-    const updatedStep = await response.json();
+    const data = await response.json();
+    const updatedStep = {
+      ...data,
+      id: data.id?.toString() || '',
+      workflow_id: data.workflow_id?.toString() || '',
+      prompt_template_id: data.prompt_template_id?.toString() || '',
+      chat_model_id: data.chat_model_id?.toString() || '',
+      persona_id: data.persona_id?.toString() || '',
+      prompt_template: data.prompt_template ? {
+        ...data.prompt_template,
+        id: data.prompt_template.id?.toString() || ''
+      } : undefined,
+      chat_model: data.chat_model ? {
+        ...data.chat_model,
+        id: data.chat_model.id?.toString() || ''
+      } : undefined,
+      persona: data.persona ? {
+        ...data.persona,
+        id: data.persona.id?.toString() || ''
+      } : undefined
+    };
     console.log('Updated workflow step:', updatedStep);
     return updatedStep;
   });
 }
 
 export interface WorkflowStreamMessage {
-  step?: string | number;
+  step?: string;
   prompt?: string;
   response?: string;
   type: 'step' | 'completion' | 'error' | 'status';
@@ -328,12 +503,12 @@ export interface WorkflowStreamMessage {
   content?: string;
   message?: string;
   chat_model?: {
-    id: number;
+    id: string;
     name: string;
     model: string;
   };
   persona?: {
-    id: number;
+    id: string;
     role: string;
     goal: string;
   };

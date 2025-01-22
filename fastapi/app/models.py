@@ -4,32 +4,33 @@ from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import text, func
 import enum
 import uuid
+from uuid import uuid4
 
 Base = declarative_base()
 
 persona_category = Table('persona_category', Base.metadata,
-    Column('persona_id', PGUUID(as_uuid=True), ForeignKey('persona.id'), primary_key=True),
-    Column('category_id', Integer, ForeignKey('category.id'), primary_key=True)
+    Column('persona_id', UUID(as_uuid=True), ForeignKey('persona.id'), primary_key=True),
+    Column('category_id', UUID(as_uuid=True), ForeignKey('category.id'), primary_key=True)
 )
 
 persona_tag = Table('persona_tag', Base.metadata,
-    Column('persona_id', PGUUID(as_uuid=True), ForeignKey('persona.id'), primary_key=True),
-    Column('tag_id', Integer, ForeignKey('tag.id'), primary_key=True)
+    Column('persona_id', UUID(as_uuid=True), ForeignKey('persona.id'), primary_key=True),
+    Column('tag_id', UUID(as_uuid=True), ForeignKey('tag.id'), primary_key=True)
 )
 
 prompt_template_category = Table('prompt_template_category', Base.metadata,
-    Column('prompt_template_id', PGUUID(as_uuid=True), ForeignKey('prompt_template.id'), primary_key=True),
-    Column('category_id', Integer, ForeignKey('category.id'), primary_key=True)
+    Column('prompt_template_id', UUID(as_uuid=True), ForeignKey('prompt_template.id'), primary_key=True),
+    Column('category_id', UUID(as_uuid=True), ForeignKey('category.id'), primary_key=True)
 )
 
 prompt_template_tag = Table('prompt_template_tag', Base.metadata,
-    Column('prompt_template_id', PGUUID(as_uuid=True), ForeignKey('prompt_template.id'), primary_key=True),
-    Column('tag_id', Integer, ForeignKey('tag.id'), primary_key=True)
+    Column('prompt_template_id', UUID(as_uuid=True), ForeignKey('prompt_template.id'), primary_key=True),
+    Column('tag_id', UUID(as_uuid=True), ForeignKey('tag.id'), primary_key=True)
 )
 
 tool_persona = Table('tool_persona', Base.metadata,
-    Column('tool_id', Integer, ForeignKey('tool.id'), primary_key=True),
-    Column('persona_id', PGUUID(as_uuid=True), ForeignKey('persona.id'), primary_key=True)
+    Column('tool_id', UUID(as_uuid=True), ForeignKey('tool.id'), primary_key=True),
+    Column('persona_id', UUID(as_uuid=True), ForeignKey('persona.id'), primary_key=True)
 )
 
 # Define the association table before the model classes
@@ -89,25 +90,21 @@ class PromptTemplate(Base):
 
 class Category(Base):
     __tablename__ = "category"
-
-    id = Column(Integer, primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     name = Column(String)
     personas = relationship("Persona", secondary=persona_category, back_populates="categories")
     prompt_templates = relationship("PromptTemplate", secondary=prompt_template_category, back_populates="categories")
 
 class Tag(Base):
-    __tablename__ = 'tag'
-
-    id = Column(Integer, primary_key=True, index=True)  # Keep as Integer for now
-    name = Column(String, nullable=False, unique=True)
-
+    __tablename__ = "tag"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    name = Column(String)
     personas = relationship("Persona", secondary=persona_tag, back_populates="tags")
     prompt_templates = relationship("PromptTemplate", secondary=prompt_template_tag, back_populates="tags")
 
 class ChatModel(Base):
     __tablename__ = "chat_model"
-
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     name = Column(String, index=True)
     model = Column(String)
     provider = Column(String)
@@ -135,13 +132,12 @@ class Workflow(Base):
 
 class WorkflowStep(Base):
     __tablename__ = "workflow_step"
-
-    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('uuid_generate_v4()'))
-    workflow_id = Column(PGUUID(as_uuid=True), ForeignKey("workflow.id"))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    workflow_id = Column(UUID(as_uuid=True), ForeignKey("workflow.id"))
     position = Column(Integer)
-    prompt_template_id = Column(PGUUID(as_uuid=True), ForeignKey("prompt_template.id"))
-    chat_model_id = Column(Integer, ForeignKey("chat_model.id"))
-    persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"))
+    prompt_template_id = Column(UUID(as_uuid=True), ForeignKey("prompt_template.id"))
+    chat_model_id = Column(UUID(as_uuid=True), ForeignKey("chat_model.id"))
+    persona_id = Column(UUID(as_uuid=True), ForeignKey("persona.id"))
 
     workflow = relationship("Workflow", back_populates="steps")
     prompt_template = relationship("PromptTemplate", back_populates="workflow_steps")

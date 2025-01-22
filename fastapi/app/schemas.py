@@ -25,7 +25,7 @@ class CategoryCreate(CategoryBase):
     pass
 
 class Category(CategoryBase):
-    id: int
+    id: UUID
 
     class Config:
         from_attributes = True
@@ -37,7 +37,7 @@ class TagCreate(TagBase):
     pass
 
 class Tag(TagBase):
-    id: int
+    id: UUID
 
     class Config:
         from_attributes = True
@@ -52,8 +52,8 @@ class PromptTemplateCreate(BaseModel):
     prompt: str
     is_complex: bool = False
     default_persona_id: Optional[UUID] = None
-    category_ids: List[Optional[int]] = []
-    tag_ids: List[Optional[int]] = []
+    category_ids: List[Optional[UUID]] = []
+    tag_ids: List[Optional[UUID]] = []
 
     @validator('category_ids', 'tag_ids', pre=True)
     def empty_list_if_none(cls, v):
@@ -82,7 +82,7 @@ class ChatModelCreate(ChatModelBase):
     pass
 
 class ChatModel(ChatModelBase):
-    id: int
+    id: UUID
 
     class Config:
         from_attributes = True  # Use from_attributes instead of orm_mode
@@ -97,14 +97,14 @@ class PersonaBase(BaseModel):
     avatar: Optional[str] = None
 
 class PersonaCreate(PersonaBase):
-    category_ids: List[int] = []
-    tag_ids: List[int] = []
-    tools: List[int] = []
+    category_ids: List[UUID] = []
+    tag_ids: List[UUID] = []
+    tools: List[UUID] = []
 
 class PersonaUpdate(PersonaBase):
-    category_ids: Optional[List[int]] = None
-    tag_ids: Optional[List[int]] = None
-    tools: Optional[List[int]] = None
+    category_ids: Optional[List[UUID]] = None
+    tag_ids: Optional[List[UUID]] = None
+    tools: Optional[List[UUID]] = None
 
 class Persona(PersonaBase):
     id: UUID
@@ -124,7 +124,7 @@ class ProcessType(str, Enum):
 
 class WorkflowStepBase(BaseModel):
     prompt_template_id: UUID
-    chat_model_id: int
+    chat_model_id: UUID
     persona_id: UUID
 
     @validator('prompt_template_id', pre=True)
@@ -135,7 +135,7 @@ class WorkflowStepBase(BaseModel):
 
 class WorkflowStepCreate(BaseModel):
     prompt_template_id: UUID
-    chat_model_id: int
+    chat_model_id: UUID
     persona_id: UUID
     position: Optional[int] = None
 
@@ -163,7 +163,7 @@ class WorkflowStepCreate(BaseModel):
 
 class WorkflowStepUpdate(BaseModel):
     prompt_template_id: UUID
-    chat_model_id: int
+    chat_model_id: UUID
     persona_id: UUID
     position: int
 
@@ -202,7 +202,7 @@ class WorkflowBase(BaseModel):
     name: str
     description: Optional[str] = None
     process_type: str = "SEQUENTIAL"
-    manager_chat_model_id: Optional[int] = None
+    manager_chat_model_id: Optional[UUID] = None
     manager_persona_id: Optional[UUID] = None
     max_iterations: Optional[int] = None
 
@@ -252,14 +252,14 @@ class ChatMessage(BaseModel):
     message: Optional[str] = None
     messages: Optional[List[Message]] = []
     data: Optional[ChatData] = None
-    model_id: Optional[int] = None
+    model_id: Optional[UUID] = None
     persona_id: Optional[UUID] = None
-    conversation_id: Optional[Union[str, UUID]] = None  # Allow both string and UUID
+    conversation_id: Optional[Union[str, UUID]] = None
     multi_conversation_id: Optional[UUID] = None
     knowledge_base_ids: List[UUID] = []
     asset_ids: List[UUID] = []
     files: List[FileInfo] = []
-    user_id: Optional[Union[str, UUID]] = None  # Allow both string and UUID
+    user_id: Optional[Union[str, UUID]] = None
 
     @validator('conversation_id', pre=True)
     def validate_conversation_id(cls, v):

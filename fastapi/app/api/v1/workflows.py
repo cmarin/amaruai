@@ -4,6 +4,7 @@ from typing import List, Dict
 from app import crud, schemas, models
 from app.database import get_db
 from app.api.v1.router import create_protected_router, create_public_router
+from app.schemas import ChatMessage
 from crewai import Agent, Task, Crew, Process, LLM
 import logging
 import os

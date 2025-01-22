@@ -2,7 +2,7 @@ import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl } from './api-utils';
 
 export type Category = {
-  id: number;
+  id: string;
   name: string;
   description: string;
 };
@@ -21,7 +21,11 @@ export async function fetchCategories(headers: ApiHeaders): Promise<Category[]> 
     throw new Error('Failed to fetch categories');
   }
 
-  return await response.json();
+  const data = await response.json();
+  return data.map((category: any) => ({
+    ...category,
+    id: category.id?.toString() || ''
+  }));
 }
 
 export async function createCategory(category: Omit<Category, 'id'>, headers: ApiHeaders): Promise<Category> {
@@ -38,10 +42,14 @@ export async function createCategory(category: Omit<Category, 'id'>, headers: Ap
     throw new Error('Failed to create category');
   }
 
-  return await response.json();
+  const data = await response.json();
+  return {
+    ...data,
+    id: data.id.toString()
+  };
 }
 
-export async function updateCategory(id: number, category: Partial<Category>, headers: ApiHeaders): Promise<Category> {
+export async function updateCategory(id: string, category: Partial<Category>, headers: ApiHeaders): Promise<Category> {
   const response = await fetch(`${getApiUrl()}/categories/${id}`, {
     method: 'PUT',
     headers: {
@@ -55,10 +63,14 @@ export async function updateCategory(id: number, category: Partial<Category>, he
     throw new Error('Failed to update category');
   }
 
-  return await response.json();
+  const data = await response.json();
+  return {
+    ...data,
+    id: data.id.toString()
+  };
 }
 
-export async function deleteCategory(id: number, headers: ApiHeaders): Promise<void> {
+export async function deleteCategory(id: string, headers: ApiHeaders): Promise<void> {
   const response = await fetch(`${getApiUrl()}/categories/${id}`, {
     method: 'DELETE',
     headers,

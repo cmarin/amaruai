@@ -248,7 +248,7 @@ def delete_prompt_template(db: Session, prompt_template_id: UUID):
         db.commit()
     return db_prompt_template
 
-def get_chat_model(db: Session, chat_model_id: int):
+def get_chat_model(db: Session, chat_model_id: UUID):
     return db.query(models.ChatModel).filter(models.ChatModel.id == chat_model_id).first()
 
 def get_chat_models(db: Session, skip: int = 0, limit: int = 100):
@@ -379,56 +379,29 @@ def create_workflow(db: Session, workflow: schemas.WorkflowCreate):
     return db_workflow
 
 def update_workflow(db: Session, workflow_id: UUID, workflow: schemas.WorkflowUpdate):
-    try:
-        db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id).first()
-        if db_workflow:
-            # Update workflow fields
-            update_data = workflow.dict(exclude_unset=True, exclude={'steps'})
-            for key, value in update_data.items():
-                if isinstance(value, ProcessType):
-                    value = value.value
-                setattr(db_workflow, key, value)
+    db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id).first()
+    if db_workflow:
+        update_data = workflow.dict(exclude_unset=True, exclude={'steps'})
+        for key, value in update_data.items():
+            setattr(db_workflow, key, value)
             
-            # Handle steps if provided
-            if workflow.steps is not None:
-                try:
-                    # Delete existing steps
-                    db.query(models.WorkflowStep).filter(
-                        models.WorkflowStep.workflow_id == workflow_id
-                    ).delete(synchronize_session=False)
-                    
-                    # Create new steps
-                    for step_data in workflow.steps:
-                        db_step = models.WorkflowStep(
-                            workflow_id=workflow_id,
-                            prompt_template_id=step_data.prompt_template_id,  # Now expects UUID
-                            chat_model_id=step_data.chat_model_id,
-                            persona_id=step_data.persona_id,
-                            position=step_data.position
-                        )
-                        db.add(db_step)
-
-                    db.flush()  # Ensure all steps are created before committing
-                
-                except Exception as e:
-                    db.rollback()
-                    logger.error(f"Error updating workflow steps: {str(e)}")
-                    raise HTTPException(status_code=500, detail=str(e))
-
-            db.commit()
-            db.refresh(db_workflow)
-            
-            # Reload the workflow with all relationships
-            return db.query(models.Workflow).options(
-                joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.prompt_template),
-                joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
-                joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona)
-            ).filter(models.Workflow.id == workflow_id).first()
-            
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error updating workflow: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if workflow.steps is not None:
+            # Clear existing steps
+            db_workflow.steps = []
+            # Add updated steps
+            for step_data in workflow.steps:
+                step = models.WorkflowStep(
+                    workflow_id=workflow_id,
+                    prompt_template_id=step_data.prompt_template_id,
+                    chat_model_id=step_data.chat_model_id,
+                    persona_id=step_data.persona_id,
+                    position=step_data.position
+                )
+                db_workflow.steps.append(step)
+        
+        db.commit()
+        db.refresh(db_workflow)
+    return db_workflow
 
 def delete_workflow(db: Session, workflow_id: UUID):
     # First, delete all associated workflow steps

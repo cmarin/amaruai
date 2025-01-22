@@ -2,7 +2,7 @@ import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl } from './api-utils';
 
 export type Tag = {
-  id: number;
+  id: string;
   name: string;
 };
 
@@ -26,7 +26,12 @@ export async function fetchTags(headers?: ApiHeaders | null): Promise<Tag[]> {
     }
 
     const data = await response.json();
-    return data.sort((a: Tag, b: Tag) => a.name.localeCompare(b.name));
+    return data
+      .map((tag: any) => ({
+        ...tag,
+        id: tag.id?.toString() || ''
+      }))
+      .sort((a: Tag, b: Tag) => a.name.localeCompare(b.name));
   } catch (error) {
     console.error('Error fetching tags:', error);
     throw error;
@@ -49,22 +54,24 @@ export async function createTag(name: string, headers?: ApiHeaders | null): Prom
     if (existingTag) {
       return existingTag;
     }
-    
-    // If the tag doesn't exist, create a new one
+
     const response = await fetch(`${getApiUrl()}/tags`, {
       method: 'POST',
       headers: requestHeaders as HeadersInit,
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name })
     });
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Error creating tag:', response.status, errorText);
       throw new Error('Failed to create tag');
     }
-    
-    const newTag = await response.json();
-    return newTag;
+
+    const data = await response.json();
+    return {
+      ...data,
+      id: data.id.toString()
+    };
   } catch (error) {
     console.error('Error creating tag:', error);
     throw error;
