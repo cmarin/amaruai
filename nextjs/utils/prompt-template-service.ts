@@ -45,7 +45,7 @@ export interface CreatePromptTemplateRequest {
   prompt: string | PromptContent;
   is_complex: boolean;
   category_ids?: string[];
-  tags?: string[];  // Just tag names
+  tags?: string[];  // Array of tag names
 }
 
 export interface UpdatePromptTemplateRequest {
@@ -54,7 +54,7 @@ export interface UpdatePromptTemplateRequest {
   is_complex: boolean;
   default_persona_id: string | null;
   category_ids: string[];
-  tags: string[];  // Just tag names
+  tags: string[];  // Array of tag names
 }
 
 export async function createPromptTemplate(
@@ -66,13 +66,19 @@ export async function createPromptTemplate(
       throw new Error('API URL is not defined');
     }
 
+    // Convert to API format
+    const payload = {
+      ...promptTemplate,
+      tags: promptTemplate.tags || []  // Ensure tags is present
+    };
+
     const response = await fetch(`${getApiUrl()}/prompt_templates`, {
       method: 'POST',
       headers: {
         ...headers,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(promptTemplate),
+      body: JSON.stringify(payload),
     });
     
     if (!response.ok) {
@@ -104,13 +110,19 @@ export async function updatePromptTemplate(
   headers: ApiHeaders
 ): Promise<PromptTemplate> {
   try {
+    // Convert to API format
+    const payload = {
+      ...promptTemplate,
+      tags: promptTemplate.tags || []  // Ensure tags is present
+    };
+
     const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
       method: 'PUT',
       headers: {
         ...headers,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(promptTemplate),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
