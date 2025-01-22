@@ -9,3 +9,9 @@ from .chat_models import router as chat_models_router
 from .workflows import router as workflows_router
 from .knowledge_bases import router as knowledge_bases_router
 from .dependencies import get_current_user 
+
+# Make sure this router is included in your routers list
+routers = [
+    prompt_templates_router,
+    # ... other routers ...
+] 

@@ -12,6 +12,7 @@ from app.api.v1 import (
     chat,
     personas,
     prompt_templates,
+    prompt_templates_router,
     tags,
     tools,
     workflows,
@@ -115,6 +116,9 @@ app.include_router(
 # Mount workflow routes
 app.include_router(workflow_router, prefix="/api/v1")
 app.include_router(workflow_public_router, prefix="/api/v1")
+
+# Mount the router
+app.include_router(prompt_templates_router, prefix="/api/v1")
 
 # Create database tables
 Base.metadata.create_all(bind=engine)

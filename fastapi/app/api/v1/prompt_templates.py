@@ -39,7 +39,7 @@ def create_prompt_template(prompt_template: schemas.PromptTemplateCreate, db: Se
 
     return db_prompt_template
 
-@router.get("", response_model=List[schemas.PromptTemplate])
+@router.get("/", response_model=List[schemas.PromptTemplate])
 def read_prompt_templates(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     prompt_templates = crud.get_prompt_templates(db, skip=skip, limit=limit)
     return prompt_templates

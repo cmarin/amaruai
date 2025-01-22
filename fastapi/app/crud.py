@@ -186,7 +186,10 @@ def get_prompt_templates(db: Session, skip: int = 0, limit: int = 100):
     """
     Get all prompt templates with pagination
     """
-    return db.query(models.PromptTemplate).offset(skip).limit(limit).all()
+    logger.debug("Fetching prompt templates")
+    templates = db.query(models.PromptTemplate).offset(skip).limit(limit).all()
+    logger.debug(f"Found {len(templates)} templates")
+    return templates
 
 def create_prompt_template(db: Session, prompt_template: schemas.PromptTemplateCreate):
     db_prompt_template = models.PromptTemplate(**prompt_template.dict(exclude={'category_ids', 'tag_ids'}))
