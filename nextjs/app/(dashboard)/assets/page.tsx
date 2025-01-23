@@ -245,119 +245,121 @@ export default function AssetsPage() {
   }
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-white">
-      <AppSidebar toggleChatbot={() => {}} />
-      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-        <div className="flex items-center justify-between p-4 border-b">
-          <h1 className="text-2xl font-bold">Assets</h1>
-          <div className="flex gap-3">
-            <Button 
-              variant="outline" 
-              onClick={() => router.push('/knowledge-bases')}
-              className="h-9"
-            >
-              <BookOpen className="mr-2 h-4 w-4" />
-              Manage Knowledge Bases
-            </Button>
-            <Button 
-              onClick={() => setShowUploadModal(true)} 
-              className="bg-blue-600 hover:bg-blue-700 text-white h-9"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Upload Assets
-            </Button>
+    <div className="h-full w-full">
+      <div className="flex h-full w-full overflow-hidden bg-white">
+        <AppSidebar toggleChatbot={() => {}} />
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+          <div className="flex items-center justify-between p-4 border-b">
+            <h1 className="text-2xl font-bold">Assets</h1>
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => router.push('/knowledge-bases')}
+                className="h-9"
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                Manage Knowledge Bases
+              </Button>
+              <Button 
+                onClick={() => setShowUploadModal(true)} 
+                className="bg-blue-600 hover:bg-blue-700 text-white h-9"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Upload Assets
+              </Button>
+            </div>
           </div>
-        </div>
 
-        <div className="flex-1 overflow-auto p-4">
-          <div className="container mx-auto py-6">
-            <div className="bg-white shadow rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40px]"></TableHead>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => handleSort('title')}
-                    >
-                      Name {sortKey === 'title' && (sortOrder === 'asc' ? '↑' : '↓')}
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => handleSort('type')}
-                    >
-                      Type {sortKey === 'type' && (sortOrder === 'asc' ? '↑' : '↓')}
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => handleSort('size')}
-                    >
-                      Size {sortKey === 'size' && (sortOrder === 'asc' ? '↑' : '↓')}
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => handleSort('managed')}
-                    >
-                      Status {sortKey === 'managed' && (sortOrder === 'asc' ? '↑' : '↓')}
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => handleSort('created_at')}
-                    >
-                      Created {sortKey === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
-                    </TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {currentAssets.map((asset) => (
-                    <AssetRow 
-                      key={asset.id} 
-                      asset={asset} 
-                      onDelete={handleDeleteAsset}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
+          <div className="flex-1 overflow-auto p-4">
+            <div className="container mx-auto py-6">
+              <div className="bg-white shadow rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[40px]"></TableHead>
+                      <TableHead 
+                        className="cursor-pointer"
+                        onClick={() => handleSort('title')}
+                      >
+                        Name {sortKey === 'title' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer"
+                        onClick={() => handleSort('type')}
+                      >
+                        Type {sortKey === 'type' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer"
+                        onClick={() => handleSort('size')}
+                      >
+                        Size {sortKey === 'size' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer"
+                        onClick={() => handleSort('managed')}
+                      >
+                        Status {sortKey === 'managed' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer"
+                        onClick={() => handleSort('created_at')}
+                      >
+                        Created {sortKey === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {currentAssets.map((asset) => (
+                      <AssetRow 
+                        key={asset.id} 
+                        asset={asset} 
+                        onDelete={handleDeleteAsset}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
 
-              {totalPages > 1 && (
-                <div className="py-4 px-6 border-t">
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                          disabled={currentPage === 1}
-                        >
-                          Previous
-                        </Button>
-                      </PaginationItem>
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                        <PaginationItem key={page}>
-                          <PaginationLink
-                            onClick={() => setCurrentPage(page)}
-                            isActive={currentPage === page}
+                {totalPages > 1 && (
+                  <div className="py-4 px-6 border-t">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
                           >
-                            {page}
-                          </PaginationLink>
+                            Previous
+                          </Button>
                         </PaginationItem>
-                      ))}
-                      <PaginationItem>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                          disabled={currentPage === totalPages}
-                        >
-                          Next
-                        </Button>
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                </div>
-              )}
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              onClick={() => setCurrentPage(page)}
+                              isActive={currentPage === page}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                          >
+                            Next
+                          </Button>
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
