@@ -1,6 +1,5 @@
 import Uppy from '@uppy/core';
 import { Dashboard } from '@uppy/react';
-import XHR from '@uppy/xhr-upload';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -42,7 +41,15 @@ export class UploadService {
       restrictions: {
         maxFileSize: config.restrictions?.maxFileSize || 50 * 1024 * 1024,
         maxNumberOfFiles: config.maxFiles || 10,
-        allowedFileTypes: config.restrictions?.allowedFileTypes || null
+        allowedFileTypes: config.restrictions?.allowedFileTypes || [
+          'image/*',
+          'application/pdf',
+          '.doc', '.docx',
+          '.txt',
+          '.md',
+          'audio/*',
+          'video/*'
+        ]
       }
     });
 
