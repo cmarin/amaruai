@@ -10,6 +10,8 @@ import { Persona, createPersona, updatePersona } from '../utils/persona-service'
 import TagSelector from './tag-selector'
 import { Tag } from '../utils/tag-service'
 import { useSession } from '@/app/utils/session/session'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Category, fetchCategories } from '../utils/category-service'
 
 type PersonaManagerProps = {
   persona: Persona | null
@@ -17,8 +19,28 @@ type PersonaManagerProps = {
   onClose: () => void
 }
 
+interface Tool {
+  id: number;
+  name: string;
+}
+
+interface PersonaState {
+  role: string;
+  goal: string;
+  backstory: string;
+  description: string;
+  allow_delegation: boolean;
+  verbose: boolean;
+  memory: boolean;
+  avatar: string | null;
+  tools: Tool[];
+  category_ids: string[];
+  tags: string[];
+  prompt_templates: any[];
+}
+
 export default function PersonaManager({ persona, onSave, onClose }: PersonaManagerProps) {
-  const [currentPersona, setCurrentPersona] = useState<Omit<Persona, 'id'>>({
+  const [currentPersona, setCurrentPersona] = useState<PersonaState>({
     role: '',
     goal: '',
     backstory: '',
@@ -28,23 +50,41 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
     memory: false,
     avatar: null,
     tools: [],
-    categories: [],
+    category_ids: [],
     tags: [],
     prompt_templates: [],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
   })
   const [newTool, setNewTool] = useState('')
-  const [newCategory, setNewCategory] = useState('')
+  const [categories, setCategories] = useState<Category[]>([])
   const { getApiHeaders } = useSession();
 
   useEffect(() => {
     if (persona) {
-      // When editing, include all fields from the existing persona
-      const { id, ...personaWithoutId } = persona;
-      setCurrentPersona(personaWithoutId);
+      const { id, categories, tags, created_at, updated_at, ...rest } = persona;
+      setCurrentPersona({
+        ...rest,
+        category_ids: categories.map(c => c.id.toString()),
+        tags: tags.map(t => t.name),
+      });
     }
   }, [persona])
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const headers = getApiHeaders();
+        if (!headers) {
+          console.error('No valid headers available');
+          return;
+        }
+        const fetchedCategories = await fetchCategories(headers);
+        setCategories(fetchedCategories);
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      }
+    };
+    loadCategories();
+  }, [getApiHeaders]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -72,20 +112,17 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
     }))
   }
 
-  const handleCategoryChange = () => {
-    if (newCategory && !currentPersona.categories.some(c => c.name === newCategory)) {
-      setCurrentPersona(prev => ({
-        ...prev,
-        categories: [...prev.categories, { name: newCategory, id: Date.now() }]
-      }))
-      setNewCategory('')
-    }
-  }
-
-  const handleRemoveCategory = (categoryToRemove: string) => {
+  const handleCategoryChange = (categoryId: string) => {
     setCurrentPersona(prev => ({
       ...prev,
-      categories: prev.categories.filter(category => category.name !== categoryToRemove)
+      category_ids: [categoryId]
+    }))
+  }
+
+  const handleTagsChange = (tags: Tag[]) => {
+    setCurrentPersona(prev => ({
+      ...prev,
+      tags: tags.map(t => t.name)
     }))
   }
 
@@ -94,7 +131,8 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
     if (file) {
       const reader = new FileReader()
       reader.onloadend = () => {
-        setCurrentPersona(prev => ({ ...prev, avatar: reader.result as string }))
+        const result = reader.result as string
+        setCurrentPersona(prev => ({ ...prev, avatar: result }))
       }
       reader.readAsDataURL(file)
     }
@@ -110,16 +148,13 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
 
       let savedPersona: Persona;
       if (persona) {
-        // When updating, include the ID from the original persona and ensure it's a string
-        savedPersona = await updatePersona(persona.id as string, currentPersona, headers);
+        savedPersona = await updatePersona(persona.id.toString(), currentPersona, headers);
       } else {
-        // When creating, don't include an ID
         savedPersona = await createPersona(currentPersona, headers);
       }
       onSave(savedPersona);
     } catch (error) {
       console.error('Error saving persona:', error);
-      // Handle error (e.g., show error message to user)
     }
   }
 
@@ -185,68 +220,66 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
             </div>
 
             <div>
-              <Label htmlFor="categories">Categories</Label>
-              <div className="flex space-x-2">
-                <Input
-                  id="categories"
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  placeholder="Add a category"
-                />
-                <Button onClick={handleCategoryChange} className="bg-blue-600 hover:bg-blue-700 text-white">Add</Button>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {currentPersona.categories.map((category, index) => (
-                  <Badge key={index} variant="outline" className="flex items-center">
-                    {category.name}
-                    <Button variant="ghost" size="sm" onClick={() => handleRemoveCategory(category.name)} className="ml-1 h-auto p-0">
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                ))}
-              </div>
+              <Label htmlFor="category">Category</Label>
+              <Select
+                value={currentPersona.category_ids[0] || ''}
+                onValueChange={handleCategoryChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id.toString()}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
-              <Label htmlFor="tags">Tags</Label>
+              <Label>Tags</Label>
               <TagSelector
-                tags={currentPersona.tags}
-                setTags={(tags) => setCurrentPersona(prev => ({ ...prev, tags }))}
-                placeholder="Add a tag"
+                tags={currentPersona.tags.map(name => ({ id: `temp_${name}`, name }))}
+                setTags={(tags: Tag[]) => handleTagsChange(tags)}
+                placeholder="Add tags"
               />
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch 
-                id="allow_delegation" 
-                checked={currentPersona.allow_delegation}
-                onCheckedChange={() => handleSwitchChange('allow_delegation')} 
-              />
-              <Label htmlFor="allow_delegation">Allow Delegation</Label>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="allow_delegation"
+                  checked={currentPersona.allow_delegation}
+                  onCheckedChange={() => handleSwitchChange('allow_delegation')}
+                />
+                <Label htmlFor="allow_delegation">Allow Delegation</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="verbose"
+                  checked={currentPersona.verbose}
+                  onCheckedChange={() => handleSwitchChange('verbose')}
+                />
+                <Label htmlFor="verbose">Verbose</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="memory"
+                  checked={currentPersona.memory}
+                  onCheckedChange={() => handleSwitchChange('memory')}
+                />
+                <Label htmlFor="memory">Memory</Label>
+              </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch 
-                id="verbose" 
-                checked={currentPersona.verbose}
-                onCheckedChange={() => handleSwitchChange('verbose')} 
-              />
-              <Label htmlFor="verbose">Verbose</Label>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button onClick={handleSave}>Save</Button>
             </div>
-
-            <div className="flex items-center space-x-2">
-              <Switch 
-                id="memory" 
-                checked={currentPersona.memory}
-                onCheckedChange={() => handleSwitchChange('memory')} 
-              />
-              <Label htmlFor="memory">Memory</Label>
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-2 mt-6">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white">Save Changes</Button>
           </div>
         </div>
       </div>

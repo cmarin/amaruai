@@ -21,7 +21,22 @@ export type Persona = {
   updated_at: string;
 };
 
-export type PersonaCreate = Omit<Persona, 'id'>;
+export type PersonaCreate = {
+  role: string;
+  goal: string;
+  backstory: string;
+  description: string;
+  allow_delegation: boolean;
+  verbose: boolean;
+  memory: boolean;
+  avatar: string | null;
+  tools: Array<{ id: number; name: string }>;
+  category_ids: string[];
+  tags: string[];
+  prompt_templates: any[];
+};
+
+export type PersonaUpdate = Omit<PersonaCreate, 'prompt_templates'>;
 
 export async function fetchPersonas(headers: ApiHeaders): Promise<Persona[]> {
   return fetchWithRetry(async () => {
@@ -44,21 +59,10 @@ export async function createPersona(persona: PersonaCreate, headers: ApiHeaders)
       throw new Error('API_BASE_URL is not defined');
     }
 
-    // Process tags with headers
-    const existingTags = await fetchTags(headers);
-    const processedTagIds = await Promise.all(persona.tags.map(async (tag: Tag) => {
-      const existingTag = existingTags.find(t => t.name.toLowerCase() === tag.name.toLowerCase());
-      if (existingTag) {
-        return existingTag.id;
-      } else {
-        const newTag = await createTag(tag.name, headers);
-        return newTag.id;
-      }
-    }));
-
     const payload = {
       ...persona,
-      tag_ids: processedTagIds,
+      tags: persona.tags || [],
+      category_ids: persona.category_ids || [],
     };
 
     console.log('Creating persona with payload:', payload);
@@ -67,6 +71,7 @@ export async function createPersona(persona: PersonaCreate, headers: ApiHeaders)
       method: 'POST',
       headers: {
         ...headers,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     });
@@ -77,49 +82,44 @@ export async function createPersona(persona: PersonaCreate, headers: ApiHeaders)
       throw new Error(`Failed to create persona: ${response.status} ${response.statusText}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    return {
+      ...data,
+      id: data.id?.toString() || '',
+      categories: data.categories?.map((cat: any) => ({
+        ...cat,
+        id: cat.id?.toString() || ''
+      })) || [],
+      tags: data.tags?.map((tag: any) => ({
+        ...tag,
+        id: tag.id?.toString() || ''
+      })) || []
+    };
   } catch (error) {
     console.error('Error creating persona:', error);
     throw error;
   }
 }
 
-export async function updatePersona(personaId: string, persona: Partial<Persona>, headers: ApiHeaders): Promise<Persona> {
+export async function updatePersona(personaId: string, persona: PersonaUpdate, headers: ApiHeaders): Promise<Persona> {
   try {
     if (!getApiUrl()) {
       throw new Error('API_BASE_URL is not defined');
     }
 
-    // Pass headers to fetchTags
-    const existingTags = await fetchTags(headers);
-    console.log('Existing tags:', existingTags);
-
-    // Process tags with headers
-    const processedTagIds = await Promise.all(persona.tags?.map(async (tag: Tag) => {
-      const existingTag = existingTags.find(t => t.name.toLowerCase() === tag.name.toLowerCase());
-      if (existingTag) {
-        console.log(`Using existing tag: ${existingTag.name} (ID: ${existingTag.id})`);
-        return existingTag.id;
-      } else {
-        // Pass headers to createTag
-        const newTag = await createTag(tag.name, headers);
-        console.log(`Created new tag: ${newTag.name} (ID: ${newTag.id})`);
-        return newTag.id;
-      }
-    }) || []);
-
     const payload = {
       ...persona,
-      tag_ids: processedTagIds,
+      tags: persona.tags || [],
+      category_ids: persona.category_ids || [],
     };
 
     console.log('Updating persona with payload:', payload);
-    console.log('PUT URL:', `${getApiUrl()}/personas/${personaId}`);
 
     const response = await fetch(`${getApiUrl()}/personas/${personaId}`, {
       method: 'PUT',
       headers: {
         ...headers,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     });
@@ -130,9 +130,19 @@ export async function updatePersona(personaId: string, persona: Partial<Persona>
       throw new Error(`Failed to update persona: ${response.status} ${response.statusText}`);
     }
 
-    const updatedPersona = await response.json();
-    console.log('Updated persona:', updatedPersona);
-    return updatedPersona;
+    const data = await response.json();
+    return {
+      ...data,
+      id: data.id?.toString() || '',
+      categories: data.categories?.map((cat: any) => ({
+        ...cat,
+        id: cat.id?.toString() || ''
+      })) || [],
+      tags: data.tags?.map((tag: any) => ({
+        ...tag,
+        id: tag.id?.toString() || ''
+      })) || []
+    };
   } catch (error) {
     console.error('Error updating persona:', error);
     throw error;

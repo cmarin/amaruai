@@ -17,61 +17,92 @@ def get_personas(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Persona).offset(skip).limit(limit).all()
 
 def create_persona(db: Session, persona: schemas.PersonaCreate):
-    db_persona = models.Persona(**persona.dict(exclude={'category_ids', 'tag_ids', 'tools'}))
-    db.add(db_persona)
-    db.commit()
-    db.refresh(db_persona)
-    
-    for category_id in persona.category_ids:
-        category = db.query(models.Category).filter(models.Category.id == category_id).first()
-        if category:
-            db_persona.categories.append(category)
-    
-    for tag_id in persona.tag_ids:
-        tag = db.query(models.Tag).filter(models.Tag.id == tag_id).first()
-        if tag:
-            db_persona.tags.append(tag)
-            
-    for tool_id in persona.tools:
-        tool = db.query(models.Tool).filter(models.Tool.id == tool_id).first()
-        if tool:
-            db_persona.tools.append(tool)
-    
-    db.commit()
-    db.refresh(db_persona)
-    return db_persona
-
-def update_persona(db: Session, persona_id: UUID, persona: schemas.PersonaUpdate):
-    db_persona = db.query(models.Persona).filter(models.Persona.id == persona_id).first()
-    if db_persona:
-        update_data = persona.dict(exclude_unset=True, exclude={'category_ids', 'tag_ids', 'tools'})
-        for key, value in update_data.items():
-            setattr(db_persona, key, value)
+    try:
+        # Create the persona
+        db_persona = models.Persona(
+            role=persona.role,
+            goal=persona.goal,
+            backstory=persona.backstory,
+            allow_delegation=persona.allow_delegation,
+            verbose=persona.verbose,
+            memory=persona.memory,
+            avatar=persona.avatar
+        )
+        db.add(db_persona)
         
-        if persona.category_ids is not None:
-            db_persona.categories = []
-            for category_id in persona.category_ids:
+        # Handle categories
+        for category_id in persona.category_ids:
+            if category_id:
                 category = db.query(models.Category).filter(models.Category.id == category_id).first()
                 if category:
                     db_persona.categories.append(category)
         
-        if persona.tag_ids is not None:
-            db_persona.tags = []
-            for tag_id in persona.tag_ids:
-                tag = db.query(models.Tag).filter(models.Tag.id == tag_id).first()
-                if tag:
-                    db_persona.tags.append(tag)
-                    
-        if persona.tools is not None:
-            db_persona.tools = []
-            for tool_id in persona.tools:
-                tool = db.query(models.Tool).filter(models.Tool.id == tool_id).first()
-                if tool:
-                    db_persona.tools.append(tool)
+        # Handle tags by name
+        tags = get_or_create_tags(db, persona.tags)
+        db_persona.tags = tags
+        
+        # Handle tools
+        for tool_id in persona.tools:
+            tool = db.query(models.Tool).filter(models.Tool.id == tool_id).first()
+            if tool:
+                db_persona.tools.append(tool)
         
         db.commit()
         db.refresh(db_persona)
-    return db_persona
+        return db_persona
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+def update_persona(db: Session, persona_id: UUID, persona: schemas.PersonaUpdate):
+    try:
+        db_persona = db.query(models.Persona).filter(models.Persona.id == persona_id).first()
+        if db_persona:
+            # Update basic fields
+            update_data = persona.dict(
+                exclude={'category_ids', 'tags', 'tools'}, 
+                exclude_unset=True,
+                exclude_none=True
+            )
+            for key, value in update_data.items():
+                setattr(db_persona, key, value)
+            
+            # Update categories if provided
+            if persona.category_ids is not None:
+                db_persona.categories = []
+                valid_category_ids = [
+                    cat_id for cat_id in persona.category_ids 
+                    if cat_id is not None
+                ]
+                for category_id in valid_category_ids:
+                    category = db.query(models.Category).filter(
+                        models.Category.id == category_id
+                    ).first()
+                    if category:
+                        db_persona.categories.append(category)
+            
+            # Update tags if provided
+            if persona.tags is not None:
+                tags = get_or_create_tags(db, persona.tags)
+                db_persona.tags = tags
+            
+            # Update tools if provided
+            if persona.tools is not None:
+                db_persona.tools = []
+                for tool_id in persona.tools:
+                    tool = db.query(models.Tool).filter(models.Tool.id == tool_id).first()
+                    if tool:
+                        db_persona.tools.append(tool)
+            
+            db.commit()
+            db.refresh(db_persona)
+            
+        return db_persona
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 def delete_persona(db: Session, persona_id: UUID):
     db_persona = db.query(models.Persona).filter(models.Persona.id == persona_id).first()
