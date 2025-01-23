@@ -235,7 +235,7 @@ def create_prompt_template(db: Session, prompt_template: schemas.PromptTemplateC
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-def update_prompt_template(db: Session, prompt_template_id: UUID, prompt_template: schemas.PromptTemplateCreate):
+def update_prompt_template(db: Session, prompt_template_id: UUID, prompt_template: schemas.PromptTemplateUpdate):
     try:
         db_prompt_template = db.query(models.PromptTemplate).filter(
             models.PromptTemplate.id == prompt_template_id
@@ -245,7 +245,8 @@ def update_prompt_template(db: Session, prompt_template_id: UUID, prompt_templat
             # Update basic fields
             update_data = prompt_template.dict(
                 exclude={'category_ids', 'tags'}, 
-                exclude_unset=True
+                exclude_unset=True,
+                exclude_none=True  # Don't update fields set to None
             )
             for key, value in update_data.items():
                 setattr(db_prompt_template, key, value)
@@ -253,11 +254,17 @@ def update_prompt_template(db: Session, prompt_template_id: UUID, prompt_templat
             # Update categories if provided
             if prompt_template.category_ids is not None:
                 db_prompt_template.categories = []
-                for category_id in prompt_template.category_ids:
-                    if category_id:
-                        category = db.query(models.Category).filter(models.Category.id == category_id).first()
-                        if category:
-                            db_prompt_template.categories.append(category)
+                # Filter out None and empty values
+                valid_category_ids = [
+                    cat_id for cat_id in prompt_template.category_ids 
+                    if cat_id is not None
+                ]
+                for category_id in valid_category_ids:
+                    category = db.query(models.Category).filter(
+                        models.Category.id == category_id
+                    ).first()
+                    if category:
+                        db_prompt_template.categories.append(category)
             
             # Update tags if provided
             if prompt_template.tags is not None:

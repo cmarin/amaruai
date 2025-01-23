@@ -75,8 +75,20 @@ class PromptTemplateUpdate(BaseModel):
     prompt: Optional[str] = None
     is_complex: Optional[bool] = None
     default_persona_id: Optional[UUID] = None
-    category_ids: Optional[List[UUID]] = None
+    category_ids: Optional[List[Optional[UUID]]] = None
     tags: Optional[List[str]] = None
+
+    @validator('category_ids', pre=True)
+    def validate_category_ids(cls, v):
+        if v is None:
+            return []
+        # Filter out empty strings and None values
+        return [
+            UUID(cat_id) if isinstance(cat_id, str) and cat_id 
+            else cat_id 
+            for cat_id in v 
+            if cat_id not in (None, "")
+        ]
 
 class ChatModelBase(BaseModel):
     name: str
