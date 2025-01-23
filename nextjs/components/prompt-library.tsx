@@ -142,8 +142,8 @@ export function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdatePrompts
         title: newSimplePrompt.title.trim(),
         prompt: newSimplePrompt.prompt.trim(),
         is_complex: false,
-        category_ids: newSimplePrompt.category ? [parseInt(newSimplePrompt.category)] : [],
-        tag_ids: newSimplePrompt.tags.map(tag => tag.id || tag.name),
+        category_ids: newSimplePrompt.category ? [newSimplePrompt.category] : [],
+        tags: newSimplePrompt.tags.map(tag => tag.name),
       };
 
       const createdPrompt = await createPromptTemplate(promptToAdd, headers);
@@ -175,8 +175,8 @@ export function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdatePrompts
         prompt: editingPrompt.prompt as string,
         is_complex: false,
         default_persona_id: editingPrompt.default_persona_id || null,
-        category_ids: editingPrompt.category ? [parseInt(editingPrompt.category)] : [],
-        tag_ids: editingPrompt.tags.map(t => t.id || t.name),
+        category_ids: editingPrompt.category ? [editingPrompt.category] : [],
+        tags: editingPrompt.tags.map(t => t.name),
       };
 
       const updatedPrompt = await updatePromptTemplate(editingPrompt.id, updatedPromptData, headers);
@@ -220,16 +220,16 @@ export function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdatePrompts
           prompt: JSON.stringify(complexPromptData),
           is_complex: true,
           default_persona_id: promptToUpdate.default_persona_id || null,
-          category_ids: [parseInt(category)],
-          tag_ids: tags.map(t => t.id || t.name),
+          category_ids: [category],
+          tags: tags.map(t => t.name),
         }, headers);
       } else {
         savedPrompt = await createPromptTemplate({
           title: title,
           prompt: JSON.stringify(complexPromptData),
           is_complex: true,
-          category_ids: [parseInt(category)],
-          tag_ids: tags.map(t => t.id || t.name),
+          category_ids: [category],
+          tags: tags.map(t => t.name),
         }, headers);
       }
       setIsComplexEditorOpen(false);
