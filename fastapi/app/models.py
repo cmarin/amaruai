@@ -132,17 +132,19 @@ class Workflow(Base):
 
 class WorkflowStep(Base):
     __tablename__ = "workflow_step"
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     workflow_id = Column(UUID(as_uuid=True), ForeignKey("workflow.id"))
-    position = Column(Integer)
     prompt_template_id = Column(UUID(as_uuid=True), ForeignKey("prompt_template.id"))
     chat_model_id = Column(UUID(as_uuid=True), ForeignKey("chat_model.id"))
     persona_id = Column(UUID(as_uuid=True), ForeignKey("persona.id"))
+    position = Column(Integer)
 
+    # Relationships
     workflow = relationship("Workflow", back_populates="steps")
-    prompt_template = relationship("PromptTemplate", back_populates="workflow_steps")
-    chat_model = relationship("ChatModel", back_populates="workflow_steps")
-    persona = relationship("Persona", back_populates="workflow_steps")
+    prompt_template = relationship("PromptTemplate")
+    chat_model = relationship("ChatModel")
+    persona = relationship("Persona")
 
 class Asset(Base):
     __tablename__ = "assets"

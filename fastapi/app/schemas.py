@@ -170,10 +170,14 @@ class WorkflowStepBase(BaseModel):
     chat_model_id: UUID
     persona_id: UUID
 
-    @validator('prompt_template_id', pre=True)
+    @validator('prompt_template_id', 'chat_model_id', 'persona_id', pre=True)
     def convert_to_uuid(cls, v):
         if isinstance(v, str):
             return UUID(v)
+        elif isinstance(v, UUID):
+            return v
+        elif v is None:
+            raise ValueError("ID cannot be None")
         return v
 
 class WorkflowStepCreate(BaseModel):
@@ -182,26 +186,14 @@ class WorkflowStepCreate(BaseModel):
     persona_id: UUID
     position: Optional[int] = None
 
-    @validator('prompt_template_id', pre=True)
-    def convert_prompt_template_id(cls, v):
-        if isinstance(v, str):
-            return UUID(v)
-        elif isinstance(v, int):
-            # Convert existing integer IDs to UUIDs during transition
-            # You might want to look up the actual UUID from the database instead
-            raise ValueError("Prompt template IDs must now be UUIDs")
-        return v
-
-    @validator('chat_model_id', pre=True)
-    def convert_to_int(cls, v):
-        if isinstance(v, str):
-            return int(v)
-        return v
-
-    @validator('persona_id', pre=True)
+    @validator('prompt_template_id', 'chat_model_id', 'persona_id', pre=True)
     def convert_to_uuid(cls, v):
         if isinstance(v, str):
             return UUID(v)
+        elif isinstance(v, UUID):
+            return v
+        elif v is None:
+            raise ValueError("ID cannot be None")
         return v
 
 class WorkflowStepUpdate(BaseModel):
@@ -210,24 +202,14 @@ class WorkflowStepUpdate(BaseModel):
     persona_id: UUID
     position: int
 
-    @validator('prompt_template_id', pre=True)
-    def convert_prompt_template_id(cls, v):
-        if isinstance(v, str):
-            return UUID(v)
-        elif isinstance(v, int):
-            raise ValueError("Prompt template IDs must now be UUIDs")
-        return v
-
-    @validator('chat_model_id', pre=True)
-    def convert_to_int(cls, v):
-        if isinstance(v, str):
-            return int(v)
-        return v
-
-    @validator('persona_id', pre=True)
+    @validator('prompt_template_id', 'chat_model_id', 'persona_id', pre=True)
     def convert_to_uuid(cls, v):
         if isinstance(v, str):
             return UUID(v)
+        elif isinstance(v, UUID):
+            return v
+        elif v is None:
+            raise ValueError("ID cannot be None")
         return v
 
 class WorkflowStep(WorkflowStepBase):
@@ -248,6 +230,16 @@ class WorkflowBase(BaseModel):
     manager_chat_model_id: Optional[UUID] = None
     manager_persona_id: Optional[UUID] = None
     max_iterations: Optional[int] = None
+
+    @validator('manager_chat_model_id', 'manager_persona_id', pre=True)
+    def convert_to_uuid(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            return UUID(v)
+        elif isinstance(v, UUID):
+            return v
+        return v
 
 class WorkflowCreate(WorkflowBase):
     process_type: ProcessType
