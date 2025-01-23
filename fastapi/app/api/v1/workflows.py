@@ -19,7 +19,15 @@ from uuid import uuid4
 from llama_index.storage.chat_store.postgres import PostgresChatStore
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
+from fastapi.responses import StreamingResponse
+
+# Load environment variables
 load_dotenv()
+
+# Get database URL
+ASYNC_DATABASE_URL = os.environ.get("ASYNC_DATABASE_URL")
+if not ASYNC_DATABASE_URL:
+    raise ValueError("ASYNC_DATABASE_URL environment variable is not set")
 
 # Create routers for workflows
 router = create_protected_router(prefix="workflows", tags=["workflows"])
@@ -313,44 +321,140 @@ async def initiate_workflow_stream(
     chat_message: ChatMessage,
     db: Session = Depends(get_db)
 ):
-    # Validate and set defaults for missing fields
-    if not chat_message.messages:
-        chat_message.messages = []
-    
-    if not chat_message.knowledge_base_ids:
-        chat_message.knowledge_base_ids = []
-    
-    if not chat_message.asset_ids:
-        chat_message.asset_ids = []
-    
-    if not chat_message.files:
-        chat_message.files = []
+    try:
+        # Validate and set defaults for missing fields
+        if not chat_message.messages:
+            chat_message.messages = []
         
-    # Convert string user_id to UUID if needed
-    if isinstance(chat_message.user_id, str) and chat_message.user_id != "user":
-        try:
-            chat_message.user_id = UUID(chat_message.user_id)
-        except ValueError:
-            # Handle default/anonymous user case
-            chat_message.user_id = None
+        if not chat_message.knowledge_base_ids:
+            chat_message.knowledge_base_ids = []
+        
+        if not chat_message.asset_ids:
+            chat_message.asset_ids = []
+        
+        if not chat_message.files:
+            chat_message.files = []
             
-    # Convert string conversation_id to UUID if needed
-    if isinstance(chat_message.conversation_id, str):
-        try:
-            chat_message.conversation_id = UUID(chat_message.conversation_id)
-        except ValueError:
-            # Generate new conversation ID if invalid
-            chat_message.conversation_id = uuid4()
-    
-    # Initialize chat store and memory
-    chat_store = PostgresChatStore.from_uri(uri=ASYNC_DATABASE_URL)
-    memory = ChatMemoryBuffer.from_defaults(
-        chat_store=chat_store,
-        chat_store_key=str(chat_message.conversation_id),  # Convert UUID to string for chat store
-        token_limit=4000
-    )
+        # Convert string user_id to UUID if needed
+        if isinstance(chat_message.user_id, str) and chat_message.user_id != "user":
+            try:
+                chat_message.user_id = UUID(chat_message.user_id)
+            except ValueError:
+                # Handle default/anonymous user case
+                chat_message.user_id = None
+                
+        # Convert string conversation_id to UUID if needed
+        if isinstance(chat_message.conversation_id, str):
+            try:
+                chat_message.conversation_id = UUID(chat_message.conversation_id)
+            except ValueError:
+                # Generate new conversation ID if invalid
+                chat_message.conversation_id = uuid4()
 
-    # Rest of your stream handling code...
+        # Initialize chat store
+        chat_store = PostgresChatStore.from_uri(uri=ASYNC_DATABASE_URL)
+        
+        # Initialize memory with chat store
+        memory = ChatMemoryBuffer.from_defaults(
+            chat_store=chat_store,
+            chat_store_key=str(chat_message.conversation_id),
+            token_limit=4000
+        )
+
+        # Get the workflow
+        workflow = crud.get_workflow(db, workflow_id=workflow_id)
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        async def event_generator():
+            try:
+                # Initialize workflow execution
+                agents = []
+                tasks = []
+                
+                # Create agents for each step
+                for step in sorted(workflow.steps, key=lambda x: x.position):
+                    persona = crud.get_persona(db, step.persona_id)
+                    chat_model = crud.get_chat_model(db, step.chat_model_id)
+                    prompt_template = crud.get_prompt_template(db, step.prompt_template_id)
+                    
+                    if not all([persona, chat_model, prompt_template]):
+                        raise HTTPException(status_code=400, detail="Missing workflow step configuration")
+                    
+                    # Create agent for this step
+                    agent = Agent(
+                        role=persona.role,
+                        goal=persona.goal,
+                        backstory=persona.backstory,
+                        allow_delegation=persona.allow_delegation,
+                        verbose=persona.verbose,
+                        llm=LLM(
+                            model=f"openrouter/{chat_model.model}",
+                            api_key=os.environ["OPENROUTER_API_KEY"],
+                            base_url=os.environ["OPENROUTER_API_BASE"]
+                        )
+                    )
+                    agents.append(agent)
+                    
+                    # Create task for this step
+                    task = Task(
+                        description=chat_message.message,
+                        agent=agent
+                    )
+                    tasks.append(task)
+                
+                # Create and run the crew
+                crew = Crew(
+                    agents=agents,
+                    tasks=tasks,
+                    process=Process.sequential
+                )
+                
+                # Execute tasks and stream results
+                for i, task in enumerate(tasks):
+                    result = await task.execute()
+                    yield {
+                        "event": "message",
+                        "data": json.dumps({
+                            "step": i + 1,
+                            "content": result,
+                            "role": "assistant"
+                        })
+                    }
+                    
+                    # Store in memory
+                    memory.put(
+                        LlamaChatMessage(
+                            role=MessageRole.ASSISTANT,
+                            content=result,
+                            additional_kwargs={
+                                "step": i + 1,
+                                "workflow_id": str(workflow_id)
+                            }
+                        )
+                    )
+                
+                # Signal completion
+                yield {
+                    "event": "done",
+                    "data": json.dumps({"status": "completed"})
+                }
+                
+            except Exception as e:
+                logger.error(f"Error in event generator: {str(e)}", exc_info=True)
+                yield {
+                    "event": "error",
+                    "data": json.dumps({"error": str(e)})
+                }
+
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in workflow stream: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @public_router.get("/{workflow_id}/stream")
 async def stream_workflow_results(
