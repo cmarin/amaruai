@@ -27,6 +27,7 @@ interface AssetsTableProps {
   onManageAsset?: (asset: Asset) => void;
   onPreview?: (asset: Asset) => void;
   showActions?: boolean;
+  className?: string;
 }
 
 const getFileExtension = (type: string) => {
@@ -40,7 +41,8 @@ export function AssetsTable({
   onDeleteAsset, 
   onManageAsset,
   onPreview,
-  showActions = true 
+  showActions = true,
+  className
 }: AssetsTableProps) {
   const [copiedAssetId, setCopiedAssetId] = useState<string | null>(null);
 
@@ -69,26 +71,25 @@ export function AssetsTable({
   };
 
   return (
-    <div className="w-full overflow-auto bg-white">
-      <Table>
+    <div className="w-full">
+      <Table className={className}>
         <TableHeader>
           <TableRow className="bg-gray-50 hover:bg-gray-50">
             <TableHead className="w-[40px]"></TableHead>
-            <TableHead className="min-w-[200px]">Title</TableHead>
-            <TableHead className="w-[120px]">Type</TableHead>
-            <TableHead className="w-[100px]">Size</TableHead>
-            <TableHead className="w-[100px]">Status</TableHead>
-            <TableHead className="w-[120px]">Description</TableHead>
-            <TableHead className="w-[120px]">Created</TableHead>
+            <TableHead className="w-[35%]">Title</TableHead>
+            <TableHead className="w-[15%]">Type</TableHead>
+            <TableHead className="w-[10%]">Size</TableHead>
+            <TableHead className="w-[15%]">Status</TableHead>
+            <TableHead className="w-[15%]">Created</TableHead>
             {showActions && (
-              <TableHead className="w-[120px] text-right">Actions</TableHead>
+              <TableHead className="w-[10%]">Actions</TableHead>
             )}
           </TableRow>
         </TableHeader>
         <TableBody>
           {assets.length === 0 ? (
             <TableRow className="hover:bg-gray-50">
-              <TableCell colSpan={showActions ? 8 : 7} className="h-24 text-center">
+              <TableCell colSpan={showActions ? 7 : 6} className="h-24 text-center">
                 No assets found.
               </TableCell>
             </TableRow>
@@ -103,27 +104,29 @@ export function AssetsTable({
                     />
                   </div>
                 </TableCell>
-                <TableCell className="font-medium truncate max-w-[200px]">
-                  {asset.title || ''}
+                <TableCell className="truncate">
+                  <a 
+                    href={asset.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 truncate block"
+                  >
+                    {asset.title || asset.file_name}
+                  </a>
                 </TableCell>
-                <TableCell>{asset.mime_type || asset.type || 'Unknown'}</TableCell>
+                <TableCell className="truncate">
+                  {asset.mime_type || asset.type || 'Unknown'}
+                </TableCell>
                 <TableCell>{formatFileSize(asset.size || 0)}</TableCell>
                 <TableCell>
-                  <div className="flex items-center">
-                    <Badge variant={asset.managed ? "default" : "secondary"}>
-                      {asset.managed ? "Managed" : "External"}
-                    </Badge>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="line-clamp-2">
-                    {asset.description || 'No description available'}
-                  </div>
+                  <Badge variant={asset.managed ? "default" : "secondary"}>
+                    {asset.managed ? "Managed" : "External"}
+                  </Badge>
                 </TableCell>
                 <TableCell>{new Date(asset.created_at).toLocaleDateString()}</TableCell>
                 {showActions && (
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
+                  <TableCell>
+                    <div className="flex gap-1">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>

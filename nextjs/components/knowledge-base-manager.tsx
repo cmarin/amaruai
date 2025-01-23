@@ -248,12 +248,15 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
                     </Button>
                   </div>
                 </div>
-                <div className="overflow-hidden rounded-md border">
-                  <AssetsTable 
-                    assets={selectedAssets}
-                    onDeleteAsset={handleRemoveAsset}
-                    showActions={true}
-                  />
+                <div className="overflow-hidden border rounded-md">
+                  <div className="w-full overflow-x-auto">
+                    <AssetsTable 
+                      assets={selectedAssets}
+                      onDeleteAsset={handleRemoveAsset}
+                      showActions={true}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -275,25 +278,32 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       </div>
 
       <Dialog open={showAssetSelector} onOpenChange={setShowAssetSelector}>
-        <DialogContent className="max-w-4xl bg-white">
-          <DialogHeader className="bg-white">
-            <DialogTitle className="text-gray-900">Select Assets</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 bg-white">
-            <div className="overflow-hidden rounded-md border">
-              <AssetsTable 
-                assets={availableAssets.filter(asset => 
-                  !selectedAssets.some(selected => selected.id === asset.id)
-                )}
-                showActions={true}
-                onManageAsset={handleAddAsset}
-              />
+        <DialogContent className="sm:max-w-[90vw] w-full h-[90vh] p-0">
+          <div className="flex flex-col h-full">
+            <DialogHeader className="px-6 py-4 border-b">
+              <DialogTitle>Select Assets</DialogTitle>
+            </DialogHeader>
+            
+            <div className="flex-1 overflow-hidden p-6">
+              <div className="h-full overflow-hidden border rounded-md">
+                <div className="w-full h-full overflow-auto">
+                  <AssetsTable 
+                    assets={availableAssets.filter(asset => 
+                      !selectedAssets.some(selected => selected.id === asset.id)
+                    )}
+                    showActions={true}
+                    onManageAsset={handleAddAsset}
+                    className="w-full"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="flex justify-end gap-2 mt-4 bg-white">
-            <Button variant="outline" onClick={() => setShowAssetSelector(false)}>
-              Cancel
-            </Button>
+
+            <div className="flex justify-end gap-2 px-6 py-4 border-t">
+              <Button variant="outline" onClick={() => setShowAssetSelector(false)}>
+                Cancel
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
