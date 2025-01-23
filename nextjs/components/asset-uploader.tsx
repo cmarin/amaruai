@@ -24,6 +24,26 @@ export function AssetUploader({ onUploadComplete, onUploadError }: AssetUploader
       {
         maxFiles: 10,
         storageFolder: 'assets',
+        storageBucket: 'amaruai-dev',
+        allowedFileTypes: [
+          'image/*',
+          'application/pdf',
+          '.doc', '.docx',
+          '.ppt', '.pptx',
+          '.txt',
+          '.md', '.markdown',
+          'text/plain',
+          'text/markdown',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          'application/vnd.ms-powerpoint',
+          'audio/wav',
+          'audio/mpeg',
+          'audio/flac',
+          'video/mp4',
+          'video/quicktime',
+          '.wav', '.mp3', '.flac',
+          '.mp4', '.mov'
+        ]
       },
       (file) => {
         setUploadedFiles(prev => [...prev, file]);
@@ -44,8 +64,9 @@ export function AssetUploader({ onUploadComplete, onUploadError }: AssetUploader
 
     return () => {
       if (uppyInstance) {
-        // Clean up the entire Uppy instance
-        uppyInstance.destroy();
+        uppyInstance.cancelAll();
+        const allFileIds = uppyInstance.getFiles().map(file => file.id);
+        uppyInstance.removeFiles(allFileIds);
       }
     };
   }, [supabase, onUploadComplete, toast, uploadedFiles]);

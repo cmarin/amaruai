@@ -52,6 +52,16 @@ export function AssetsTable({
     }
   };
 
+  const formatFileSize = (size: number) => {
+    if (size < 1024) {
+      return `${size} bytes`;
+    } else if (size < 1024 * 1024) {
+      return `${(size / 1024).toFixed(1)} KB`;
+    } else {
+      return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+    }
+  };
+
   return (
     <div className="w-full overflow-auto bg-white">
       <Table>
@@ -82,27 +92,16 @@ export function AssetsTable({
                 <TableCell className="w-[40px]">
                   <div className="w-8 h-8">
                     <FileIcon 
-                      extension={asset.type.split('/')[1]} 
-                      {...defaultStyles[asset.type.split('/')[1]]} 
+                      extension={asset.type?.toLowerCase()?.split('/')[1] || asset.file_type?.toLowerCase()?.split('/')[1] || 'txt'} 
+                      {...defaultStyles[asset.type?.toLowerCase()?.split('/')[1] || asset.file_type?.toLowerCase()?.split('/')[1] || 'txt']} 
                     />
                   </div>
                 </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8">
-                      <FileIcon 
-                        extension={asset.type.split('/')[1]} 
-                        {...defaultStyles[asset.type.split('/')[1]]} 
-                      />
-                    </div>
-                    <div className="flex flex-col">
-                      <div className="font-medium">{asset.title}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {asset.type} • {asset.size ? `${(asset.size / (1024 * 1024)).toFixed(1)} MB` : 'Unknown size'}
-                      </div>
-                    </div>
-                  </div>
+                <TableCell className="font-medium truncate max-w-[200px]">
+                  {asset.title || asset.file_name}
                 </TableCell>
+                <TableCell>{asset.mime_type || asset.type}</TableCell>
+                <TableCell>{formatFileSize(asset.size || 0)}</TableCell>
                 <TableCell>
                   <div className="flex items-center">
                     <Badge variant={asset.managed ? "default" : "secondary"}>
