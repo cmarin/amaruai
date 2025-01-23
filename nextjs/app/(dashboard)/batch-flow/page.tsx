@@ -52,8 +52,12 @@ export default function BatchFlow() {
 
   const handleFileUpload = useCallback((file: UploadedFile) => {
     const fileWithStatus: BatchFlowFile = {
-      ...file,
+      id: file.id,
+      name: file.name,
+      type: file.type,
+      size: file.size,
       file_name: file.name,
+      uploadURL: file.uploadURL,
       status: {
         id: '',
         status: 'pending',
@@ -143,14 +147,17 @@ export default function BatchFlow() {
     }
   }, [session, uploadedFiles, workflowSteps, customInstructions]);
 
-  const uppy = useMemo(() => {
+  const uppyRef = useMemo(() => {
     if (!session || !supabase) return null;
 
     return UploadService.createUppy(
-      'batch-flow-uploader',
+      'batch-uploader',
       {
         maxFiles: 10,
-        allowedFileTypes: ['video/*', 'image/*', '.pdf', '.doc', '.docx', '.txt']
+        storageFolder: 'batch-flow',
+        restrictions: {
+          allowedFileTypes: ['video/*', 'image/*', '.pdf', '.doc', '.docx', '.txt']
+        }
       },
       handleFileUpload,
       undefined,
@@ -173,9 +180,9 @@ export default function BatchFlow() {
     const pollInterval = setInterval(async () => {
       const updatedFiles = await Promise.all(
         uploadedFiles.map(async (file) => {
-          if (!file.url) return file;
+          if (!file.uploadURL) return file;
           try {
-            const status = await getAssetStatus(file.url, session.access_token);
+            const status = await getAssetStatus(file.uploadURL, session.access_token);
             return {
               ...file,
               status
@@ -219,7 +226,7 @@ export default function BatchFlow() {
     );
   }
 
-  if (!session || !uppy) {
+  if (!session || !uppyRef) {
     return null;
   }
 
@@ -270,7 +277,7 @@ export default function BatchFlow() {
             {currentStep === 'upload' && (
               <div>
                 <Dashboard
-                  uppy={uppy}
+                  uppy={uppyRef}
                   proudlyDisplayPoweredByUppy={false}
                   showProgressDetails
                   height={400}

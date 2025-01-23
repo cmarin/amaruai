@@ -1,3 +1,5 @@
+import { UploadedFile } from '@/utils/upload-service';
+
 export interface Asset {
   id: string;
   title: string;
@@ -27,4 +29,14 @@ export interface KnowledgeBaseCreate {
   title: string;
   description: string;
   asset_ids: string[];
+}
+
+export interface BatchFlowFile extends UploadedFile {
+  file_name: string;
+  status: {
+    id: string;
+    status: string;
+    token_count: number;
+    file_name: string;
+  };
 }

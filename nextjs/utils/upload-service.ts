@@ -12,47 +12,37 @@ export interface UploadedFile {
   uploadURL: string;
 }
 
-interface UppyOptions {
-  maxFiles: number;
-  storageFolder: string;
+interface UploadConfig {
+  maxFiles?: number;
+  storageFolder?: string;
   storageBucket?: string;
+  restrictions?: {
+    maxFileSize?: number;
+    maxNumberOfFiles?: number;
+    allowedFileTypes?: string[];
+  };
 }
 
 export class UploadService {
   static createUppy(
     id: string,
-    options: UppyOptions,
-    onFileUpload: (file: UploadedFile) => void,
-    onComplete: (result: any) => void,
-    supabase: SupabaseClient,
+    config: UploadConfig,
+    onFileUpload?: (file: UploadedFile) => void,
+    onComplete?: (result: any) => void,
+    supabase?: SupabaseClient,
     knowledgeBaseId?: string
   ) {
+    if (!supabase) {
+      throw new Error('Supabase client is required');
+    }
+
     const uppy = new Uppy({
       id,
-      autoProceed: false,
-      allowMultipleUploadBatches: true,
+      autoProceed: true,
       restrictions: {
-        maxFileSize: 50 * 1024 * 1024, // 50MB
-        maxNumberOfFiles: options.maxFiles,
-        allowedFileTypes: [
-          'image/*',
-          'application/pdf',
-          '.doc', '.docx',
-          '.ppt', '.pptx',
-          '.txt',
-          '.md', '.markdown',
-          'text/plain',
-          'text/markdown',
-          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-          'application/vnd.ms-powerpoint',
-          'audio/wav',
-          'audio/mpeg',
-          'audio/flac',
-          'video/mp4',
-          'video/quicktime',
-          '.wav', '.mp3', '.flac',
-          '.mp4', '.mov'
-        ]
+        maxFileSize: config.restrictions?.maxFileSize || 50 * 1024 * 1024,
+        maxNumberOfFiles: config.maxFiles || 10,
+        allowedFileTypes: config.restrictions?.allowedFileTypes || null
       }
     });
 
@@ -66,10 +56,10 @@ export class UploadService {
         const fileUuid = uuidv4();
         const filePath = knowledgeBaseId 
           ? `knowledge-bases/${knowledgeBaseId}/${fileUuid}/${file.name}`
-          : `${options.storageFolder}/${fileUuid}/${file.name}`;
+          : `${config.storageFolder}/${fileUuid}/${file.name}`;
 
         const metadata = knowledgeBaseId ? { knowledge_base_id: knowledgeBaseId } : {};
-        const bucket = options.storageBucket || 'amaruai-dev';
+        const bucket = config.storageBucket || 'amaruai-dev';
 
         if (!file.data) {
           throw new Error('File data is missing');
@@ -97,7 +87,9 @@ export class UploadService {
           uploadURL: publicUrl
         };
 
-        onFileUpload(uploadedFile);
+        if (onFileUpload) {
+          onFileUpload(uploadedFile);
+        }
       } catch (error) {
         console.error('Error uploading file:', error);
         throw error;
@@ -105,7 +97,9 @@ export class UploadService {
     });
 
     uppy.on('complete', (result) => {
-      onComplete(result);
+      if (onComplete) {
+        onComplete(result);
+      }
     });
 
     return uppy;

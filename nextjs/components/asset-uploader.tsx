@@ -27,7 +27,19 @@ export function AssetUploader({ onUploadComplete, onUploadError, knowledgeBaseId
       {
         maxFiles: 10,
         storageFolder: knowledgeBaseId ? `knowledge-bases/${knowledgeBaseId}` : 'assets',
-        storageBucket: 'amaruai-dev'
+        storageBucket: 'amaruai-dev',
+        restrictions: {
+          maxFileSize: 10 * 1024 * 1024, // 10MB
+          allowedFileTypes: [
+            'image/*',
+            'application/pdf',
+            '.doc', '.docx',
+            '.txt',
+            '.md',
+            'audio/*',
+            'video/*'
+          ]
+        }
       },
       (file) => {
         setUploadedFiles(prev => [...prev, file]);
@@ -49,7 +61,6 @@ export function AssetUploader({ onUploadComplete, onUploadError, knowledgeBaseId
 
     return () => {
       if (uppyInstance) {
-        // Clean up the entire Uppy instance
         uppyInstance.destroy();
       }
     };
