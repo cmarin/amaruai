@@ -130,27 +130,15 @@ export async function deleteKnowledgeBase(id: string, headers: ApiHeaders): Prom
   }
 }
 
-export async function fetchAssetsForKnowledgeBase(knowledgeBaseId: string, headers: HeadersInit): Promise<Asset[]> {
-  try {
-    const baseUrl = getApiUrl();
-    if (!baseUrl) {
-      throw new Error('API_BASE_URL is not defined');
-    }
+export async function fetchAssetsForKnowledgeBase(id: string, headers: HeadersInit): Promise<Asset[]> {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/knowledge_bases/${id}/assets`, {
+    headers,
+    cache: 'no-store'
+  });
 
-    // Fetch the knowledge base with full asset details
-    const response = await fetch(`${baseUrl}/knowledge_bases/${knowledgeBaseId}/assets?include_content=true`, { 
-      headers,
-      cache: 'no-store' // Disable caching to always get fresh content
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch knowledge base assets');
-    }
-
-    const assets = await response.json();
-    return assets;
-  } catch (error) {
-    console.error('Error fetching assets for knowledge base:', error);
-    throw error;
+  if (!response.ok) {
+    throw new Error('Failed to fetch knowledge base assets');
   }
+
+  return response.json();
 }

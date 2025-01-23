@@ -32,7 +32,6 @@ export interface KnowledgeBaseCreate {
 }
 
 export interface BatchFlowFile extends UploadedFile {
-  file_name: string;
   status: {
     id: string;
     status: string;

@@ -56,8 +56,8 @@ export default function BatchFlow() {
       name: file.name,
       type: file.type,
       size: file.size,
-      file_name: file.name,
       uploadURL: file.uploadURL,
+      file_name: file.name,
       status: {
         id: '',
         status: 'pending',
@@ -188,7 +188,7 @@ export default function BatchFlow() {
               status
             };
           } catch (error) {
-            console.error(`Failed to get status for file ${file.status.file_name}:`, error);
+            console.error('Error getting asset status:', error);
             return file;
           }
         })

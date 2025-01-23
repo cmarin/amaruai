@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AssetUploader } from '@/components/asset-uploader';
 import { useParams } from 'next/navigation';
 import { fetchAssetsForKnowledgeBase } from '@/utils/knowledge-base-service';
+import { UploadService } from '@/utils/upload-service';
 
 interface KnowledgeBaseManagerProps {
   knowledgeBase: KnowledgeBase | null;
@@ -39,6 +40,7 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>(knowledgeBase?.assets || []);
   const supabase = useSupabase();
   const { toast } = useToast();
+  const uppyRef = useRef<any>(null);
 
   const loadAssets = useCallback(async () => {
     try {
@@ -76,6 +78,60 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       assets: selectedAssets
     }));
   }, [selectedAssets]);
+
+  useEffect(() => {
+    if (!uppyRef.current && supabase) {
+      const uppy = UploadService.createUppy(
+        'knowledge-base-uploader',
+        {
+          maxFiles: 10,
+          storageFolder: 'knowledge-bases',
+          storageBucket: 'amaruai-dev'
+        },
+        async (file) => {
+          // Individual file upload complete
+          console.log('File uploaded:', file);
+          // Don't show individual file toasts in knowledge base context
+        },
+        async (result) => {
+          // All files upload complete
+          try {
+            const headers = getApiHeaders();
+            if (!headers) return;
+
+            // Fetch updated assets for this knowledge base
+            if (knowledgeBaseId) {
+              const updatedAssets = await fetchAssetsForKnowledgeBase(knowledgeBaseId, headers);
+              setSelectedAssets(updatedAssets);
+            }
+
+            setShowUploadModal(false);
+            toast({
+              title: "Success",
+              description: `${result.successful?.length || 0} file(s) uploaded successfully`,
+            });
+          } catch (error) {
+            console.error('Error processing uploaded files:', error);
+            toast({
+              title: "Error",
+              description: "Failed to process uploaded files",
+              variant: "destructive",
+            });
+          }
+        },
+        supabase,
+        knowledgeBaseId  // Pass the knowledge base ID to the uploader
+      );
+
+      uppyRef.current = uppy;
+    }
+
+    return () => {
+      if (uppyRef.current) {
+        uppyRef.current.close();
+      }
+    };
+  }, [supabase, toast, getApiHeaders, knowledgeBaseId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
