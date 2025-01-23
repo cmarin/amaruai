@@ -166,18 +166,18 @@ class ProcessType(str, Enum):
     PARALLEL = "HIERARCHICAL"
 
 class WorkflowStepBase(BaseModel):
-    prompt_template_id: UUID
-    chat_model_id: UUID
-    persona_id: UUID
+    prompt_template_id: Optional[UUID] = None
+    chat_model_id: Optional[UUID] = None
+    persona_id: Optional[UUID] = None
 
     @validator('prompt_template_id', 'chat_model_id', 'persona_id', pre=True)
     def convert_to_uuid(cls, v):
+        if v is None:
+            return None
         if isinstance(v, str):
             return UUID(v)
         elif isinstance(v, UUID):
             return v
-        elif v is None:
-            raise ValueError("ID cannot be None")
         return v
 
 class WorkflowStepCreate(BaseModel):
@@ -188,12 +188,12 @@ class WorkflowStepCreate(BaseModel):
 
     @validator('prompt_template_id', 'chat_model_id', 'persona_id', pre=True)
     def convert_to_uuid(cls, v):
+        if v is None:
+            raise ValueError("ID cannot be None for new workflow steps")
         if isinstance(v, str):
             return UUID(v)
         elif isinstance(v, UUID):
             return v
-        elif v is None:
-            raise ValueError("ID cannot be None")
         return v
 
 class WorkflowStepUpdate(BaseModel):
@@ -204,12 +204,12 @@ class WorkflowStepUpdate(BaseModel):
 
     @validator('prompt_template_id', 'chat_model_id', 'persona_id', pre=True)
     def convert_to_uuid(cls, v):
+        if v is None:
+            raise ValueError("ID cannot be None for workflow step updates")
         if isinstance(v, str):
             return UUID(v)
         elif isinstance(v, UUID):
             return v
-        elif v is None:
-            raise ValueError("ID cannot be None")
         return v
 
 class WorkflowStep(WorkflowStepBase):

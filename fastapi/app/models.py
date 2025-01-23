@@ -135,9 +135,9 @@ class WorkflowStep(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     workflow_id = Column(UUID(as_uuid=True), ForeignKey("workflow.id"))
-    prompt_template_id = Column(UUID(as_uuid=True), ForeignKey("prompt_template.id"))
-    chat_model_id = Column(UUID(as_uuid=True), ForeignKey("chat_model.id"))
-    persona_id = Column(UUID(as_uuid=True), ForeignKey("persona.id"))
+    prompt_template_id = Column(UUID(as_uuid=True), ForeignKey("prompt_template.id"), nullable=True)
+    chat_model_id = Column(UUID(as_uuid=True), ForeignKey("chat_model.id"), nullable=True)
+    persona_id = Column(UUID(as_uuid=True), ForeignKey("persona.id"), nullable=True)
     position = Column(Integer)
 
     # Relationships
