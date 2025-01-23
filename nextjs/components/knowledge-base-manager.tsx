@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -14,10 +14,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { fetchAssets } from '@/utils/asset-service';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { useToast } from "@/hooks/use-toast";
-import { AssetUploader } from '@/components/asset-uploader';
 import { useParams } from 'next/navigation';
 import { fetchAssetsForKnowledgeBase } from '@/utils/knowledge-base-service';
 import { UploadService } from '@/utils/upload-service';
+import { Uppy } from '@uppy/core';
+import { Dashboard } from '@uppy/react';
+import '@uppy/core/dist/style.css';
+import '@uppy/dashboard/dist/style.css';
 
 interface KnowledgeBaseManagerProps {
   knowledgeBase: KnowledgeBase | null;
@@ -40,7 +43,7 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>(knowledgeBase?.assets || []);
   const supabase = useSupabase();
   const { toast } = useToast();
-  const uppyRef = useRef<any>(null);
+  const [uppy, setUppy] = useState<Uppy | null>(null);
 
   const loadAssets = useCallback(async () => {
     try {
@@ -80,55 +83,54 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
   }, [selectedAssets]);
 
   useEffect(() => {
-    if (!uppyRef.current && supabase) {
-      const uppy = UploadService.createUppy(
-        'knowledge-base-uploader',
-        {
-          maxFiles: 10,
-          storageFolder: 'knowledge-bases',
-          storageBucket: 'amaruai-dev'
-        },
-        async (file) => {
-          // Individual file upload complete
-          console.log('File uploaded:', file);
-          // Don't show individual file toasts in knowledge base context
-        },
-        async (result) => {
-          // All files upload complete
-          try {
-            const headers = getApiHeaders();
-            if (!headers) return;
+    if (!supabase) return;
 
-            // Fetch updated assets for this knowledge base
-            if (knowledgeBaseId) {
-              const updatedAssets = await fetchAssetsForKnowledgeBase(knowledgeBaseId, headers);
-              setSelectedAssets(updatedAssets);
-            }
+    const uppyInstance = UploadService.createUppy(
+      'knowledge-base-uploader',
+      {
+        maxFiles: 10,
+        storageFolder: 'knowledge-bases',
+        storageBucket: 'amaruai-dev'
+      },
+      async (file) => {
+        console.log('File uploaded:', file);
+      },
+      async (result) => {
+        try {
+          const headers = getApiHeaders();
+          if (!headers) return;
 
-            setShowUploadModal(false);
-            toast({
-              title: "Success",
-              description: `${result.successful?.length || 0} file(s) uploaded successfully`,
-            });
-          } catch (error) {
-            console.error('Error processing uploaded files:', error);
-            toast({
-              title: "Error",
-              description: "Failed to process uploaded files",
-              variant: "destructive",
-            });
+          if (knowledgeBaseId) {
+            const updatedAssets = await fetchAssetsForKnowledgeBase(knowledgeBaseId, headers);
+            setSelectedAssets(updatedAssets);
           }
-        },
-        supabase,
-        knowledgeBaseId  // Pass the knowledge base ID to the uploader
-      );
 
-      uppyRef.current = uppy;
-    }
+          setShowUploadModal(false);
+          toast({
+            title: "Success",
+            description: `${result.successful?.length || 0} file(s) uploaded successfully`,
+          });
+        } catch (error) {
+          console.error('Error processing uploaded files:', error);
+          toast({
+            title: "Error",
+            description: "Failed to process uploaded files",
+            variant: "destructive",
+          });
+        }
+      },
+      supabase,
+      knowledgeBaseId
+    );
+
+    setUppy(uppyInstance);
 
     return () => {
-      if (uppyRef.current) {
-        uppyRef.current.close();
+      if (uppyInstance) {
+        const allFileIds = uppyInstance.getFiles().map(file => file.id);
+        uppyInstance.cancelAll();
+        uppyInstance.removeFiles(allFileIds);
+        uppyInstance.destroy();
       }
     };
   }, [supabase, toast, getApiHeaders, knowledgeBaseId]);
@@ -153,15 +155,23 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       };
 
       if (knowledgeBaseId) {
-        console.log('Updating existing knowledge base:', knowledgeBaseId);
         await updateKnowledgeBase(knowledgeBaseId, payload, headers);
       } else {
-        console.log('Creating new knowledge base');
         await createKnowledgeBase(payload, headers);
       }
+      
       onSave();
+      toast({
+        title: "Success",
+        description: `Knowledge base ${knowledgeBaseId ? 'updated' : 'created'} successfully`,
+      });
     } catch (error) {
       console.error('Error saving knowledge base:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save knowledge base",
+        variant: "destructive",
+      });
     }
   };
 
@@ -175,11 +185,8 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
   };
 
   return (
-    <div className="fixed top-0 right-0 bottom-0 z-50 flex flex-col h-screen" style={{ 
-      left: 'var(--sidebar-width)',
-      transition: 'left 0.3s ease-in-out'
-    }}>
-      <div className="flex-1 overflow-y-auto bg-background">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      <div className="flex-1 overflow-y-auto">
         <div className="container max-w-4xl mx-auto py-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">
@@ -247,17 +254,6 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
                 </div>
               </div>
             </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-end space-x-2 sticky bottom-0 py-4 bg-background border-t">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button 
-                onClick={handleSave} 
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Save Changes
-              </Button>
-            </div>
           </div>
         </div>
       </div>
@@ -287,42 +283,33 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       </Dialog>
 
       {/* Upload Modal */}
-      {showUploadModal && (
-        <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
-          <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Upload Assets</DialogTitle>
-            </DialogHeader>
-            <AssetUploader 
-              knowledgeBaseId={knowledgeBaseId}
-              onUploadComplete={async (files) => {
-                try {
-                  const headers = getApiHeaders();
-                  if (!headers || !knowledgeBaseId) return;
-
-                  // Refresh the assets list
-                  const updatedKnowledgeBaseAssets = await fetchAssetsForKnowledgeBase(knowledgeBaseId, headers);
-                  setSelectedAssets(updatedKnowledgeBaseAssets);
+      {showUploadModal && uppy && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg max-w-2xl w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Upload Assets</h2>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => {
+                  if (uppy) {
+                    const allFileIds = uppy.getFiles().map(file => file.id);
+                    uppy.cancelAll();
+                    uppy.removeFiles(allFileIds);
+                  }
                   setShowUploadModal(false);
-                } catch (error) {
-                  console.error('Error updating assets:', error);
-                  toast({
-                    title: "Error",
-                    description: "Failed to update assets",
-                    variant: "destructive",
-                  });
-                }
-              }}
-              onUploadError={(error) => {
-                toast({
-                  title: "Error",
-                  description: "Failed to upload files",
-                  variant: "destructive",
-                });
-              }}
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <Dashboard 
+              uppy={uppy} 
+              plugins={[]} 
+              proudlyDisplayPoweredByUppy={false}
             />
-          </DialogContent>
-        </Dialog>
+          </div>
+        </div>
       )}
     </div>
   );

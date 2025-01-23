@@ -24,10 +24,10 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { ImageIcon, FileTextIcon, FileIcon as LucideFileIcon, Upload, Copy, Settings, Trash2, MoreHorizontal, BookOpen, Plus } from 'lucide-react';
+import { ImageIcon, FileTextIcon, FileIcon as LucideFileIcon, Upload, Copy, Settings, Trash2, MoreHorizontal, BookOpen, Plus, X } from 'lucide-react';
 import { Asset } from '@/types/knowledge-base';
 import { fetchAssets, deleteAsset } from '@/utils/asset-service';
-import { UploadService } from '@/utils/upload-service';
+import { UploadService, UploadedFile } from '@/utils/upload-service';
 import Uppy from '@uppy/core';
 import { Dashboard } from '@uppy/react';
 import '@uppy/core/dist/style.css';
@@ -65,51 +65,67 @@ function getAssetStatus(asset: Asset) {
   };
 }
 
-function AssetRow({ asset, onDelete }: { asset: Asset; onDelete: (id: string) => void }) {
+interface AssetRowProps {
+  asset: Asset;
+  onDelete: (id: string) => void;
+}
+
+function AssetRow({ asset, onDelete }: AssetRowProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(asset.content || '');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy:', error);
+    }
+  };
+
   return (
     <TableRow key={asset.id}>
-      <TableCell className="w-[40px]">
-        <div className="w-8">
-          {getAssetIcon(asset.type || asset.mime_type || '')}
-        </div>
+      <TableCell>
+        {getAssetIcon(asset.type)}
       </TableCell>
       <TableCell>
-        <span className="font-medium">{asset.title || ''}</span>
+        <a 
+          href={asset.url} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:text-blue-800"
+        >
+          {asset.title || asset.file_name}
+        </a>
       </TableCell>
-      <TableCell>{asset.mime_type || asset.type || 'Unknown'}</TableCell>
+      <TableCell>{asset.type}</TableCell>
       <TableCell>{formatFileSize(asset.size || 0)}</TableCell>
       <TableCell>
-        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-          asset.managed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-        }`}>
+        <span className={cn(
+          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+          asset.managed ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+        )}>
           {asset.managed ? 'Managed' : 'Unmanaged'}
-        </div>
+        </span>
       </TableCell>
       <TableCell>
         {new Date(asset.created_at).toLocaleDateString()}
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
+            <Button variant="ghost" size="icon">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleCopy}>
               <Copy className="mr-2 h-4 w-4" />
-              <span>Copy ID</span>
+              {copied ? 'Copied!' : 'Copy Content'}
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Edit</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600" onClick={() => onDelete(asset.id)}>
+            <DropdownMenuItem onClick={() => onDelete(asset.id)}>
               <Trash2 className="mr-2 h-4 w-4" />
-              <span>Delete</span>
+              Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -130,7 +146,8 @@ export default function AssetsPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const supabase = useSupabase();
   const { toast } = useToast();
-  const uppyRef = useRef<Uppy | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uppy, setUppy] = useState<Uppy | null>(null);
   const itemsPerPage = 10;
   const router = useRouter();
 
@@ -187,34 +204,51 @@ export default function AssetsPage() {
   }, [loadAssets]);
 
   useEffect(() => {
-    if (!uppyRef.current && supabase) {
-      uppyRef.current = UploadService.createUppy(
-        'asset-uploader',
-        {
-          maxFiles: 10,
-          storageFolder: 'assets',
-        },
-        async (file) => {
-          await loadAssets();
-        },
-        async () => {
+    if (!supabase) return;
+
+    const uppyInstance = UploadService.createUppy(
+      'asset-uploader',
+      {
+        maxFiles: 10,
+        storageFolder: 'assets',
+      },
+      (file) => {
+        setUploadedFiles(prev => [...prev, file]);
+      },
+      async (result) => {
+        try {
+          const headers = getApiHeaders();
+          if (!headers) return;
+
           await loadAssets();
           setShowUploadModal(false);
           toast({
             title: "Success",
             description: "Assets uploaded successfully",
           });
-        },
-        supabase
-      );
-    }
+        } catch (error) {
+          console.error('Error handling upload:', error);
+          toast({
+            title: "Error",
+            description: "Failed to process uploaded assets",
+            variant: "destructive",
+          });
+        }
+      },
+      supabase
+    );
+
+    setUppy(uppyInstance);
 
     return () => {
-      if (uppyRef.current) {
-        uppyRef.current.cancelAll();
+      if (uppyInstance) {
+        const allFileIds = uppyInstance.getFiles().map(file => file.id);
+        uppyInstance.cancelAll();
+        uppyInstance.removeFiles(allFileIds);
+        uppyInstance.destroy();
       }
     };
-  }, [supabase, loadAssets, toast]);
+  }, [supabase, getApiHeaders, loadAssets, toast]);
 
   const handleDeleteAsset = async (assetId: string) => {
     try {
@@ -365,31 +399,34 @@ export default function AssetsPage() {
         </div>
       </div>
 
-      <Dialog open={showUploadModal} onOpenChange={(open) => {
-        setShowUploadModal(open);
-        if (!open && uppyRef.current) {
-          const uppy = uppyRef.current;
-          uppy.cancelAll();
-        }
-      }}>
-        <DialogContent className="max-w-4xl bg-white">
-          <DialogHeader className="bg-white">
-            <DialogTitle className="text-gray-900">Upload Assets</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 bg-white min-h-[400px]">
-            {uppyRef.current && (
-              <Dashboard
-                uppy={uppyRef.current}
-                showProgressDetails
-                hideUploadButton={false}
-                height={350}
-                width="100%"
-                proudlyDisplayPoweredByUppy={false}
-              />
-            )}
+      {showUploadModal && uppy && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg max-w-2xl w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Upload Assets</h2>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => {
+                  if (uppy) {
+                    const allFileIds = uppy.getFiles().map(file => file.id);
+                    uppy.cancelAll();
+                    uppy.removeFiles(allFileIds);
+                  }
+                  setShowUploadModal(false);
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <Dashboard 
+              uppy={uppy} 
+              plugins={[]} 
+              proudlyDisplayPoweredByUppy={false}
+            />
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
 }
