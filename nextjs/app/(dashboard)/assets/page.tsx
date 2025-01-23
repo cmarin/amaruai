@@ -24,7 +24,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { ImageIcon, FileTextIcon, FileIcon as LucideFileIcon, Upload, Copy, Settings, Trash2 } from 'lucide-react';
+import { ImageIcon, FileTextIcon, FileIcon as LucideFileIcon, Upload, Copy, Settings, Trash2, MoreHorizontal } from 'lucide-react';
 import { Asset } from '@/types/knowledge-base';
 import { fetchAssets, deleteAsset } from '@/utils/asset-service';
 import { UploadService } from '@/utils/upload-service';
@@ -33,29 +33,20 @@ import { Dashboard } from '@uppy/react';
 import '@uppy/core/dist/style.css';
 import '@uppy/dashboard/dist/style.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { formatFileSize, getFileExtension } from '@/lib/utils';
 
-function formatBytes(size: number | undefined) {
-  if (!size) return 'Unknown';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let value = size;
-  let unitIndex = 0;
-  
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex++;
-  }
-  
-  return `${value.toFixed(1)} ${units[unitIndex]}`;
-}
-
-function getAssetTypeIcon(asset: Asset) {
-  switch (asset.type.toLowerCase()) {
-    case 'image':
+function getAssetIcon(type: string) {
+  const extension = getFileExtension(type);
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
       return <ImageIcon className="h-4 w-4" />;
     case 'pdf':
       return <FileTextIcon className="h-4 w-4" />;
-    case 'document':
-      return <LucideFileIcon className="h-4 w-4" />;
     default:
       return <LucideFileIcon className="h-4 w-4" />;
   }
@@ -79,53 +70,49 @@ function AssetRow({ asset, onDelete }: { asset: Asset; onDelete: (id: string) =>
     <TableRow key={asset.id}>
       <TableCell className="w-[40px]">
         <div className="w-8">
-          {getAssetTypeIcon(asset)}
+          {getAssetIcon(asset.type || asset.mime_type || '')}
         </div>
       </TableCell>
       <TableCell>
-        <span className="font-medium">{asset.title}</span>
+        <span className="font-medium">{asset.title || ''}</span>
       </TableCell>
-      <TableCell>{asset.type}</TableCell>
-      <TableCell>{formatBytes(asset.size)}</TableCell>
+      <TableCell>{asset.mime_type || asset.type || 'Unknown'}</TableCell>
+      <TableCell>{formatFileSize(asset.size || 0)}</TableCell>
       <TableCell>
         <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
           asset.managed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
         }`}>
-          {getAssetStatus(asset).label}
+          {asset.managed ? 'Managed' : 'Unmanaged'}
         </div>
       </TableCell>
       <TableCell>
         {new Date(asset.created_at).toLocaleDateString()}
       </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className="text-gray-600 hover:text-gray-700"
-          >
-            <Copy className="h-4 w-4 mr-1" />
-            View
-          </Button>
-          {!asset.managed && (
-            <Button 
-              variant="outline" 
-              size="sm"
-            >
-              <Settings className="h-4 w-4 mr-1" />
-              Manage
+      <TableCell className="text-right">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
             </Button>
-          )}
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => onDelete(asset.id)}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-          >
-            <Trash2 className="h-4 w-4 mr-1" />
-            Delete
-          </Button>
-        </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem>
+              <Copy className="mr-2 h-4 w-4" />
+              <span>Copy ID</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Edit</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-red-600" onClick={() => onDelete(asset.id)}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              <span>Delete</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </TableCell>
     </TableRow>
   );

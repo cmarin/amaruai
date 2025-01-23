@@ -29,6 +29,12 @@ interface AssetsTableProps {
   showActions?: boolean;
 }
 
+const getFileExtension = (type: string) => {
+  if (!type) return 'txt';
+  const parts = type.split('/');
+  return parts[parts.length - 1].toLowerCase();
+};
+
 export function AssetsTable({ 
   assets, 
   onDeleteAsset, 
@@ -92,15 +98,15 @@ export function AssetsTable({
                 <TableCell className="w-[40px]">
                   <div className="w-8 h-8">
                     <FileIcon 
-                      extension={asset.type?.toLowerCase()?.split('/')[1] || asset.file_type?.toLowerCase()?.split('/')[1] || 'txt'} 
-                      {...defaultStyles[asset.type?.toLowerCase()?.split('/')[1] || asset.file_type?.toLowerCase()?.split('/')[1] || 'txt']} 
+                      extension={getFileExtension(asset.type || asset.mime_type || '')} 
+                      {...defaultStyles[getFileExtension(asset.type || asset.mime_type || '')]} 
                     />
                   </div>
                 </TableCell>
                 <TableCell className="font-medium truncate max-w-[200px]">
-                  {asset.title || asset.file_name}
+                  {asset.title || ''}
                 </TableCell>
-                <TableCell>{asset.mime_type || asset.type}</TableCell>
+                <TableCell>{asset.mime_type || asset.type || 'Unknown'}</TableCell>
                 <TableCell>{formatFileSize(asset.size || 0)}</TableCell>
                 <TableCell>
                   <div className="flex items-center">
