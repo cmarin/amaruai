@@ -87,18 +87,28 @@ export default function Chat() {
 
   useEffect(() => {
     if (!uppyRef.current) {
-      uppyRef.current = UploadService.createUppy(
-        'uppy-chatsse',
-        {},
+      const uppyInstance = UploadService.createUppy(
+        'chat-uploader',
+        {
+          maxFiles: 1,
+          storageFolder: 'chats',
+          storageBucket: 'amaruai-dev'
+        },
         (file) => {
-          console.log('File uploaded:', file)
-          setUploadedFiles(prev => [...prev, file])
+          setUploadedFiles(prev => [...prev, {
+            id: file.id,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            uploadURL: file.uploadURL
+          }]);
         },
         () => {
           setShowUploadModal(false)
         },
         supabase
       )
+      uppyRef.current = uppyInstance
     }
 
     return () => {
@@ -188,8 +198,18 @@ export default function Chat() {
     return model ? getProviderIcon(model.id.toString(), model.name) : Timer
   }
 
-  const handleFileUpload = () => {
-    setShowUploadModal(true)
+  const handleFileUpload = async (result: any) => {
+    if (result.successful && result.successful.length > 0) {
+      const file = result.successful[0];
+      const uploadedFile: UploadedFile = {
+        id: file.id,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        uploadURL: file.uploadURL
+      };
+      setUploadedFiles(prev => [...prev, uploadedFile]);
+    }
   }
 
   const handleCloseUploadModal = () => {
@@ -260,7 +280,7 @@ export default function Chat() {
             user_id: session?.user?.id,
             model_id: selectedModel?.id,
             persona_id: selectedPersona?.id,
-            files: uploadedFiles.map(f => ({ name: f.name, url: f.url })),
+            files: uploadedFiles.map(f => ({ name: f.name, url: f.uploadURL })),
             conversation_id: currentConversationId,
             knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
             asset_ids: selectedAssets.map(asset => asset.id),

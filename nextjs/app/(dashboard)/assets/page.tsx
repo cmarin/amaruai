@@ -24,7 +24,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { ImageIcon, FileTextIcon, FileIcon as LucideFileIcon, Upload, Copy, Settings, Trash2, MoreHorizontal } from 'lucide-react';
+import { ImageIcon, FileTextIcon, FileIcon as LucideFileIcon, Upload, Copy, Settings, Trash2, MoreHorizontal, BookOpen, Plus } from 'lucide-react';
 import { Asset } from '@/types/knowledge-base';
 import { fetchAssets, deleteAsset } from '@/utils/asset-service';
 import { UploadService } from '@/utils/upload-service';
@@ -132,6 +132,7 @@ export default function AssetsPage() {
   const { toast } = useToast();
   const uppyRef = useRef<Uppy | null>(null);
   const itemsPerPage = 10;
+  const router = useRouter();
 
   const handleSort = (key: keyof Asset) => {
     if (sortKey === key) {
@@ -244,19 +245,31 @@ export default function AssetsPage() {
   }
 
   return (
-    <div className="flex h-screen">
-      <AppSidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex h-full w-full overflow-hidden bg-white">
+      <AppSidebar toggleChatbot={() => {}} />
+      <div className={`flex-1 flex flex-col overflow-hidden ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className="flex items-center justify-between p-4 border-b">
+          <h1 className="text-2xl font-bold">Assets</h1>
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => router.push('/knowledge-bases')}
+              className="h-9"
+            >
+              <BookOpen className="mr-2 h-4 w-4" />
+              Manage Knowledge Bases
+            </Button>
+            <Button 
+              onClick={() => setShowUploadModal(true)} 
+              className="bg-blue-600 hover:bg-blue-700 text-white h-9"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Upload Assets
+            </Button>
+          </div>
+        </div>
         <div className="flex-1 overflow-y-auto">
           <div className="container mx-auto py-6">
-            <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-semibold">Assets</h1>
-              <Button onClick={() => setShowUploadModal(true)}>
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Asset
-              </Button>
-            </div>
-
             <div className="bg-white shadow rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>

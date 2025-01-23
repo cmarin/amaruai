@@ -1,49 +1,33 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Dashboard } from '@uppy/react';
 import Uppy from '@uppy/core';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { UploadService, UploadedFile } from '@/utils/upload-service';
 import { useToast } from "@/hooks/use-toast"
+import '@uppy/core/dist/style.css';
+import '@uppy/dashboard/dist/style.css';
 
 interface AssetUploaderProps {
   onUploadComplete?: (files: UploadedFile[]) => void;
   onUploadError?: (error: Error) => void;
+  knowledgeBaseId?: string;
 }
 
-export function AssetUploader({ onUploadComplete, onUploadError }: AssetUploaderProps) {
-  const [uppy, setUppy] = useState<ReturnType<typeof UploadService.createUppy> | null>(null);
+export function AssetUploader({ onUploadComplete, onUploadError, knowledgeBaseId }: AssetUploaderProps) {
   const supabase = useSupabase();
   const { toast } = useToast();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const uppyRef = useRef<any>(null);
 
   useEffect(() => {
     const uppyInstance = UploadService.createUppy(
       'asset-uploader',
       {
         maxFiles: 10,
-        storageFolder: 'assets',
-        storageBucket: 'amaruai-dev',
-        allowedFileTypes: [
-          'image/*',
-          'application/pdf',
-          '.doc', '.docx',
-          '.ppt', '.pptx',
-          '.txt',
-          '.md', '.markdown',
-          'text/plain',
-          'text/markdown',
-          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-          'application/vnd.ms-powerpoint',
-          'audio/wav',
-          'audio/mpeg',
-          'audio/flac',
-          'video/mp4',
-          'video/quicktime',
-          '.wav', '.mp3', '.flac',
-          '.mp4', '.mov'
-        ]
+        storageFolder: knowledgeBaseId ? `knowledge-bases/${knowledgeBaseId}` : 'assets',
+        storageBucket: 'amaruai-dev'
       },
       (file) => {
         setUploadedFiles(prev => [...prev, file]);
@@ -57,28 +41,30 @@ export function AssetUploader({ onUploadComplete, onUploadError }: AssetUploader
           onUploadComplete(uploadedFiles);
         }
       },
-      supabase
+      supabase,
+      knowledgeBaseId
     );
 
-    setUppy(uppyInstance);
+    uppyRef.current = uppyInstance;
 
     return () => {
-      if (uppyInstance) {
-        uppyInstance.cancelAll();
-        const allFileIds = uppyInstance.getFiles().map(file => file.id);
-        uppyInstance.removeFiles(allFileIds);
+      if (uppyRef.current) {
+        // Clean up Uppy instance
+        uppyRef.current.cancelAll();
+        uppyRef.current.removeFiles();
+        uppyRef.current.close();
       }
     };
-  }, [supabase, onUploadComplete, toast, uploadedFiles]);
+  }, [supabase, onUploadComplete, toast, uploadedFiles, knowledgeBaseId]);
 
-  if (!uppy) {
+  if (!uppyRef.current) {
     return <div>Loading uploader...</div>;
   }
 
   return (
     <div className="w-full">
       <Dashboard
-        uppy={uppy}
+        uppy={uppyRef.current}
         proudlyDisplayPoweredByUppy={false}
         showSelectedFiles={true}
         showRemoveButtonAfterComplete={true}

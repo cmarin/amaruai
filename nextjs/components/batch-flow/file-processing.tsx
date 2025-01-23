@@ -85,7 +85,7 @@ export function FileProcessing({
         <div className="text-lg font-semibold">Processing Files:</div>
         {uploadedFiles.map((file: BatchFlowFile, index) => (
           <div 
-            key={file.url || index}
+            key={file.uploadURL || index}
             className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
           >
             <FileVideo className="w-5 h-5 text-blue-500" />
