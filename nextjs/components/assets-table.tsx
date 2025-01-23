@@ -71,18 +71,18 @@ export function AssetsTable({
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full overflow-auto bg-white">
       <Table className={className}>
         <TableHeader>
           <TableRow className="bg-gray-50 hover:bg-gray-50">
             <TableHead className="w-[40px]"></TableHead>
-            <TableHead className="w-[35%]">Title</TableHead>
-            <TableHead className="w-[15%]">Type</TableHead>
-            <TableHead className="w-[10%]">Size</TableHead>
-            <TableHead className="w-[15%]">Status</TableHead>
-            <TableHead className="w-[15%]">Created</TableHead>
+            <TableHead className="min-w-[200px]">Title</TableHead>
+            <TableHead className="w-[120px]">Type</TableHead>
+            <TableHead className="w-[100px]">Size</TableHead>
+            <TableHead className="w-[100px]">Status</TableHead>
+            <TableHead className="w-[120px]">Created</TableHead>
             {showActions && (
-              <TableHead className="w-[10%]">Actions</TableHead>
+              <TableHead className="w-[120px] text-right">Actions</TableHead>
             )}
           </TableRow>
         </TableHeader>
@@ -126,7 +126,7 @@ export function AssetsTable({
                 <TableCell>{new Date(asset.created_at).toLocaleDateString()}</TableCell>
                 {showActions && (
                   <TableCell>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 justify-end">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
