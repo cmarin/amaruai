@@ -14,12 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { fetchAssets } from '@/utils/asset-service';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { useToast } from "@/hooks/use-toast";
-import Uppy from '@uppy/core';
-import { Dashboard } from '@uppy/react';
-import '@uppy/core/dist/style.css';
-import '@uppy/dashboard/dist/style.css';
-import { v4 as uuidv4 } from 'uuid';
+import { AssetUploader } from '@/components/asset-uploader';
 import { useParams } from 'next/navigation';
+import { fetchAssetsForKnowledgeBase } from '@/utils/knowledge-base-service';
 
 interface KnowledgeBaseManagerProps {
   knowledgeBase: KnowledgeBase | null;
@@ -29,7 +26,7 @@ interface KnowledgeBaseManagerProps {
 
 export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: KnowledgeBaseManagerProps): JSX.Element {
   const params = useParams();
-  const knowledgeBaseId = params?.id as string || knowledgeBase?.id || null;
+  const knowledgeBaseId = params?.id as string || knowledgeBase?.id || undefined;
   const [currentKnowledgeBase, setCurrentKnowledgeBase] = useState({
     title: knowledgeBase?.title || '',
     description: knowledgeBase?.description || '',
@@ -42,7 +39,6 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>(knowledgeBase?.assets || []);
   const supabase = useSupabase();
   const { toast } = useToast();
-  const uppyRef = useRef<Uppy | null>(null);
 
   const loadAssets = useCallback(async () => {
     try {
@@ -235,38 +231,43 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       </Dialog>
 
       {/* Upload Modal */}
-      <Dialog open={showUploadModal} onOpenChange={(open) => {
-        setShowUploadModal(open);
-        if (!open && uppyRef.current) {
-          const uppy = uppyRef.current;
-          // Remove all files
-          const files = uppy.getFiles();
-          files.forEach(file => uppy.removeFile(file.id));
-          // Remove event listeners
-          uppy.off('file-added', () => {});
-          uppy.off('complete', () => {});
-          // Clean up the instance
-          uppy.cancelAll();
-        }
-      }}>
-        <DialogContent className="max-w-4xl bg-white">
-          <DialogHeader className="bg-white">
-            <DialogTitle className="text-gray-900">Upload Assets</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 bg-white min-h-[400px]">
-            {uppyRef.current && (
-              <Dashboard
-                uppy={uppyRef.current}
-                showProgressDetails
-                hideUploadButton={false}
-                height={350}
-                width="100%"
-                proudlyDisplayPoweredByUppy={false}
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {showUploadModal && (
+        <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Upload Assets</DialogTitle>
+            </DialogHeader>
+            <AssetUploader 
+              knowledgeBaseId={knowledgeBaseId}
+              onUploadComplete={async (files) => {
+                try {
+                  const headers = getApiHeaders();
+                  if (!headers || !knowledgeBaseId) return;
+
+                  // Refresh the assets list
+                  const updatedKnowledgeBaseAssets = await fetchAssetsForKnowledgeBase(knowledgeBaseId, headers);
+                  setSelectedAssets(updatedKnowledgeBaseAssets);
+                  setShowUploadModal(false);
+                } catch (error) {
+                  console.error('Error updating assets:', error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to update assets",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              onUploadError={(error) => {
+                toast({
+                  title: "Error",
+                  description: "Failed to upload files",
+                  variant: "destructive",
+                });
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Dashboard } from '@uppy/react';
 import Uppy from '@uppy/core';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
@@ -16,10 +16,10 @@ interface AssetUploaderProps {
 }
 
 export function AssetUploader({ onUploadComplete, onUploadError, knowledgeBaseId }: AssetUploaderProps) {
+  const [uppy, setUppy] = useState<ReturnType<typeof UploadService.createUppy> | null>(null);
   const supabase = useSupabase();
   const { toast } = useToast();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const uppyRef = useRef<any>(null);
 
   useEffect(() => {
     const uppyInstance = UploadService.createUppy(
@@ -45,26 +45,24 @@ export function AssetUploader({ onUploadComplete, onUploadError, knowledgeBaseId
       knowledgeBaseId
     );
 
-    uppyRef.current = uppyInstance;
+    setUppy(uppyInstance);
 
     return () => {
-      if (uppyRef.current) {
-        // Clean up Uppy instance
-        uppyRef.current.cancelAll();
-        uppyRef.current.removeFiles();
-        uppyRef.current.close();
+      if (uppyInstance) {
+        // Clean up the entire Uppy instance
+        uppyInstance.destroy();
       }
     };
   }, [supabase, onUploadComplete, toast, uploadedFiles, knowledgeBaseId]);
 
-  if (!uppyRef.current) {
+  if (!uppy) {
     return <div>Loading uploader...</div>;
   }
 
   return (
     <div className="w-full">
       <Dashboard
-        uppy={uppyRef.current}
+        uppy={uppy}
         proudlyDisplayPoweredByUppy={false}
         showSelectedFiles={true}
         showRemoveButtonAfterComplete={true}
@@ -74,4 +72,4 @@ export function AssetUploader({ onUploadComplete, onUploadError, knowledgeBaseId
       />
     </div>
   );
-} 
+}

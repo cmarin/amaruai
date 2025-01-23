@@ -247,7 +247,7 @@ export default function AssetsPage() {
   return (
     <div className="flex h-full w-full overflow-hidden bg-white">
       <AppSidebar toggleChatbot={() => {}} />
-      <div className={`flex-1 flex flex-col overflow-hidden ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <div className="flex items-center justify-between p-4 border-b">
           <h1 className="text-2xl font-bold">Assets</h1>
           <div className="flex gap-3">
@@ -268,7 +268,8 @@ export default function AssetsPage() {
             </Button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
+
+        <div className="flex-1 overflow-auto p-4">
           <div className="container mx-auto py-6">
             <div className="bg-white shadow rounded-lg overflow-hidden">
               <Table>
