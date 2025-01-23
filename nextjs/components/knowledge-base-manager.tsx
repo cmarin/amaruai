@@ -190,7 +190,7 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       transition: 'left 0.3s ease-in-out'
     }}>
       <div className="flex-1 overflow-y-auto bg-background">
-        <div className="container max-w-4xl mx-auto py-6">
+        <div className="max-w-4xl w-full mx-auto py-6 px-4">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">
               {knowledgeBaseId ? 'Edit Knowledge Base' : 'Create Knowledge Base'}
@@ -261,9 +261,8 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
         </div>
       </div>
 
-      {/* Add back the action buttons with sticky positioning */}
-      <div className="sticky bottom-0 w-full py-4 px-6 bg-background border-t">
-        <div className="container max-w-4xl mx-auto flex justify-end space-x-2">
+      <div className="sticky bottom-0 w-full py-4 px-4 bg-background border-t">
+        <div className="max-w-4xl w-full mx-auto flex justify-end space-x-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button 
             onClick={handleSave} 

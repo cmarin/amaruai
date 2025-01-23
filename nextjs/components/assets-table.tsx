@@ -71,125 +71,127 @@ export function AssetsTable({
   };
 
   return (
-    <div className="w-full overflow-auto bg-white">
-      <Table className={className}>
-        <TableHeader>
-          <TableRow className="bg-gray-50 hover:bg-gray-50">
-            <TableHead className="w-[40px]"></TableHead>
-            <TableHead className="min-w-[200px]">Title</TableHead>
-            <TableHead className="w-[120px]">Type</TableHead>
-            <TableHead className="w-[100px]">Size</TableHead>
-            <TableHead className="w-[100px]">Status</TableHead>
-            <TableHead className="w-[120px]">Created</TableHead>
-            {showActions && (
-              <TableHead className="w-[120px] text-right">Actions</TableHead>
-            )}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {assets.length === 0 ? (
-            <TableRow className="hover:bg-gray-50">
-              <TableCell colSpan={showActions ? 7 : 6} className="h-24 text-center">
-                No assets found.
-              </TableCell>
+    <div className="w-full">
+      <div className="overflow-x-auto">
+        <Table className={className}>
+          <TableHeader>
+            <TableRow className="bg-gray-50 hover:bg-gray-50">
+              <TableHead className="w-[40px]"></TableHead>
+              <TableHead className="w-[300px]">Title</TableHead>
+              <TableHead className="w-[150px]">Type</TableHead>
+              <TableHead className="w-[100px]">Size</TableHead>
+              <TableHead className="w-[100px]">Status</TableHead>
+              <TableHead className="w-[120px]">Created</TableHead>
+              {showActions && (
+                <TableHead className="w-[120px] text-right">Actions</TableHead>
+              )}
             </TableRow>
-          ) : (
-            assets.map((asset) => (
-              <TableRow key={asset.id} className="hover:bg-gray-50">
-                <TableCell className="w-[40px]">
-                  <div className="w-8 h-8">
-                    <FileIcon 
-                      extension={getFileExtension(asset.type || asset.mime_type || '')} 
-                      {...defaultStyles[getFileExtension(asset.type || asset.mime_type || '')]} 
-                    />
-                  </div>
+          </TableHeader>
+          <TableBody>
+            {assets.length === 0 ? (
+              <TableRow className="hover:bg-gray-50">
+                <TableCell colSpan={showActions ? 7 : 6} className="h-24 text-center">
+                  No assets found.
                 </TableCell>
-                <TableCell className="truncate">
-                  <a 
-                    href={asset.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 truncate block"
-                  >
-                    {asset.title || asset.file_name}
-                  </a>
-                </TableCell>
-                <TableCell className="truncate">
-                  {asset.mime_type || asset.type || 'Unknown'}
-                </TableCell>
-                <TableCell>{formatFileSize(asset.size || 0)}</TableCell>
-                <TableCell>
-                  <Badge variant={asset.managed ? "default" : "secondary"}>
-                    {asset.managed ? "Managed" : "External"}
-                  </Badge>
-                </TableCell>
-                <TableCell>{new Date(asset.created_at).toLocaleDateString()}</TableCell>
-                {showActions && (
-                  <TableCell>
-                    <div className="flex gap-1 justify-end">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className="h-8 w-8 p-0"
-                              onClick={() => onPreview?.(asset)}
-                            >
-                              <span className="sr-only">Preview asset</span>
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Preview asset</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      {onManageAsset && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                className="h-8 w-8 p-0"
-                                onClick={() => onManageAsset(asset)}
-                              >
-                                <span className="sr-only">Manage asset</span>
-                                <Settings className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Manage asset</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                      {onDeleteAsset && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                className="h-8 w-8 p-0"
-                                onClick={() => onDeleteAsset(asset.id)}
-                              >
-                                <span className="sr-only">Delete asset</span>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Delete asset</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
+              </TableRow>
+            ) : (
+              assets.map((asset) => (
+                <TableRow key={asset.id} className="hover:bg-gray-50">
+                  <TableCell className="w-[40px]">
+                    <div className="w-8 h-8">
+                      <FileIcon 
+                        extension={getFileExtension(asset.type || asset.mime_type || '')} 
+                        {...defaultStyles[getFileExtension(asset.type || asset.mime_type || '')]} 
+                      />
                     </div>
                   </TableCell>
-                )}
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+                  <TableCell className="truncate">
+                    <a 
+                      href={asset.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 truncate block"
+                    >
+                      {asset.title || asset.file_name}
+                    </a>
+                  </TableCell>
+                  <TableCell className="truncate">
+                    {asset.mime_type || asset.type || 'Unknown'}
+                  </TableCell>
+                  <TableCell>{formatFileSize(asset.size || 0)}</TableCell>
+                  <TableCell>
+                    <Badge variant={asset.managed ? "default" : "secondary"}>
+                      {asset.managed ? "Managed" : "External"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{new Date(asset.created_at).toLocaleDateString()}</TableCell>
+                  {showActions && (
+                    <TableCell>
+                      <div className="flex gap-1 justify-end">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={() => onPreview?.(asset)}
+                              >
+                                <span className="sr-only">Preview asset</span>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Preview asset</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        {onManageAsset && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => onManageAsset(asset)}
+                                >
+                                  <span className="sr-only">Manage asset</span>
+                                  <Settings className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Manage asset</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        {onDeleteAsset && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => onDeleteAsset(asset.id)}
+                                >
+                                  <span className="sr-only">Delete asset</span>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Delete asset</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 } 
