@@ -366,6 +366,12 @@ async def initiate_workflow_stream(
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
 
+        # Log workflow details
+        logger.info(f"Found workflow: {workflow.name}")
+        logger.info(f"Number of steps: {len(workflow.steps)}")
+        for step in workflow.steps:
+            logger.info(f"Step {step.position}: Persona={step.persona_id}, Model={step.chat_model_id}, Template={step.prompt_template_id}")
+
         async def event_generator():
             try:
                 # Initialize workflow execution
@@ -374,12 +380,29 @@ async def initiate_workflow_stream(
                 
                 # Create agents for each step
                 for step in sorted(workflow.steps, key=lambda x: x.position):
-                    persona = crud.get_persona(db, step.persona_id)
-                    chat_model = crud.get_chat_model(db, step.chat_model_id)
-                    prompt_template = crud.get_prompt_template(db, step.prompt_template_id)
+                    # Add detailed logging
+                    logger.info(f"Processing step {step.position}")
+                    logger.info(f"Step IDs - Persona: {step.persona_id}, Chat Model: {step.chat_model_id}, Template: {step.prompt_template_id}")
                     
-                    if not all([persona, chat_model, prompt_template]):
-                        raise HTTPException(status_code=400, detail="Missing workflow step configuration")
+                    persona = crud.get_persona(db, step.persona_id)
+                    if not persona:
+                        logger.error(f"Persona not found for ID: {step.persona_id}")
+                        yield f"event: error\ndata: {json.dumps({'error': f'Persona not found for step {step.position}'})}\n\n"
+                        return
+                        
+                    chat_model = crud.get_chat_model(db, step.chat_model_id)
+                    if not chat_model:
+                        logger.error(f"Chat model not found for ID: {step.chat_model_id}")
+                        yield f"event: error\ndata: {json.dumps({'error': f'Chat model not found for step {step.position}'})}\n\n"
+                        return
+                        
+                    prompt_template = crud.get_prompt_template(db, step.prompt_template_id)
+                    if not prompt_template:
+                        logger.error(f"Prompt template not found for ID: {step.prompt_template_id}")
+                        yield f"event: error\ndata: {json.dumps({'error': f'Prompt template not found for step {step.position}'})}\n\n"
+                        return
+                    
+                    logger.info(f"Found components - Persona: {persona.role}, Chat Model: {chat_model.name}, Template: {prompt_template.title}")
                     
                     # Create agent for this step
                     agent = Agent(
@@ -412,42 +435,46 @@ async def initiate_workflow_stream(
                 
                 # Execute tasks and stream results
                 for i, task in enumerate(tasks):
-                    result = await task.execute()
-                    yield {
-                        "event": "message",
-                        "data": json.dumps({
+                    try:
+                        result = await task.execute()
+                        message_data = {
                             "step": i + 1,
                             "content": result,
                             "role": "assistant"
-                        })
-                    }
-                    
-                    # Store in memory
-                    memory.put(
-                        LlamaChatMessage(
-                            role=MessageRole.ASSISTANT,
-                            content=result,
-                            additional_kwargs={
-                                "step": i + 1,
-                                "workflow_id": str(workflow_id)
-                            }
+                        }
+                        yield f"event: message\ndata: {json.dumps(message_data)}\n\n"
+                        
+                        # Store in memory
+                        memory.put(
+                            LlamaChatMessage(
+                                role=MessageRole.ASSISTANT,
+                                content=result,
+                                additional_kwargs={
+                                    "step": i + 1,
+                                    "workflow_id": str(workflow_id)
+                                }
+                            )
                         )
-                    )
+                    except Exception as task_error:
+                        logger.error(f"Error executing task {i+1}: {str(task_error)}")
+                        yield f"event: error\ndata: {json.dumps({'error': f'Error in step {i+1}: {str(task_error)}'})}\n\n"
                 
                 # Signal completion
-                yield {
-                    "event": "done",
-                    "data": json.dumps({"status": "completed"})
-                }
+                yield f"event: done\ndata: {json.dumps({'status': 'completed'})}\n\n"
                 
             except Exception as e:
                 logger.error(f"Error in event generator: {str(e)}", exc_info=True)
-                yield {
-                    "event": "error",
-                    "data": json.dumps({"error": str(e)})
-                }
+                yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
 
-        return StreamingResponse(event_generator(), media_type="text/event-stream")
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Content-Type": "text/event-stream"
+            }
+        )
 
     except HTTPException:
         raise
