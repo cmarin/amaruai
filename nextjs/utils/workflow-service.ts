@@ -525,7 +525,7 @@ export function streamWorkflow(
   message?: string
 ): () => void {
   const initUrl = `${getApiUrl()}/workflows/${workflowId}/stream`;
-  let eventSource: EventSource | null = null;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   let isCompleting = false;
   
   console.log('Starting workflow stream...');
@@ -572,7 +572,7 @@ export function streamWorkflow(
         throw new Error('Response body is null');
       }
 
-      const reader = streamResponse.body.getReader();
+      reader = streamResponse.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
 
@@ -654,9 +654,9 @@ export function streamWorkflow(
   });
 
   return () => {
-    if (eventSource) {
-      console.log('Cleaning up EventSource');
-      eventSource.close();
+    if (reader) {
+      console.log('Canceling stream reader');
+      reader.cancel();
     }
   };
 }
