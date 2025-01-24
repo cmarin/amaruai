@@ -182,7 +182,6 @@ async def execute_workflow(
                         description = prompt_template.prompt.format(**user_input)
                     task = Task(
                         description=description,
-                        agent=agent,
                         expected_output="Quality writing"
                     )
 
@@ -421,7 +420,8 @@ async def initiate_workflow_stream(
                     
                     # Create task for this step
                     task = Task(
-                        description=chat_message.message,
+                        description=chat_message.message if chat_message.message else "Process the input",
+                        expected_output="A response from the AI agent",
                         agent=agent
                     )
                     tasks.append(task)
