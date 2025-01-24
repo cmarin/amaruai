@@ -534,11 +534,12 @@ export function streamWorkflow(
   const payload = {
     user_id: userId,
     conversation_id: conversationId,
-    ...(message && { message }) // Include message if provided
+    ...(message && { message: message })
   };
 
   console.log('Sending payload:', payload);
   
+  // First initiate the stream
   fetch(initUrl, {
     method: 'POST',
     headers: {
@@ -548,8 +549,7 @@ export function streamWorkflow(
     body: JSON.stringify(payload),
   }).then(async response => {
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to initiate workflow stream: ${errorText}`);
+      throw new Error('Failed to initiate workflow stream');
     }
     
     const { stream_token } = await response.json();
@@ -557,7 +557,11 @@ export function streamWorkflow(
     console.log('Stream URL:', streamUrl);
     
     try {
-      eventSource = new EventSource(streamUrl);
+      // Create EventSource with proper configuration
+      eventSource = new EventSource(streamUrl, {
+        withCredentials: true // Enable credentials if needed
+      });
+      
       console.log('EventSource created');
 
       eventSource.onopen = () => {
@@ -571,27 +575,25 @@ export function streamWorkflow(
           const data = JSON.parse(event.data);
           console.log('Parsed message data:', data);
           
-          if (data.step) {
-            const message: WorkflowStreamMessage = {
-              type: 'step',
-              step: data.step,
-              prompt: data.content, // The prompt is in the content field
-              response: data.content,
-              chat_model: data.chat_model,
-              persona: data.persona
-            };
-            
-            console.log('Dispatching step message to handler');
-            window.requestAnimationFrame(() => {
-              onMessage(message);
-            });
-          }
+          // Create a workflow message from the data
+          const message: WorkflowStreamMessage = {
+            type: 'step',
+            step: data.step,
+            prompt: data.content,
+            response: data.content,
+            ...(data.role && { role: data.role })
+          };
+          
+          console.log('Dispatching workflow message:', message);
+          window.requestAnimationFrame(() => {
+            onMessage(message);
+          });
         } catch (error) {
           console.error('Error parsing message event:', error);
         }
       });
 
-      // Handle done events
+      // Handle done event
       eventSource.addEventListener('done', (event: MessageEvent) => {
         console.log('Done event received:', event.data);
         try {
@@ -609,22 +611,23 @@ export function streamWorkflow(
         }
       });
 
-      // Handle error events
-      eventSource.addEventListener('error', (event: Event) => {
-        console.log('Error event received:', event);
+      // Handle error event
+      eventSource.onerror = (event: Event) => {
+        console.error('EventSource error:', event);
         const source = event.target as EventSource;
+        
         if (source.readyState === EventSource.CLOSED && !isCompleting) {
           console.log('Connection closed unexpectedly');
-          if (eventSource) {
-            eventSource.close();
-            onError(new Error('Stream connection closed unexpectedly'));
-          }
+          eventSource?.close();
+          onError(new Error('Stream connection closed unexpectedly'));
+        } else if (source.readyState === EventSource.CONNECTING) {
+          console.log('Connection lost, attempting to reconnect...');
         }
-      });
+      };
 
     } catch (error) {
       console.error('Error creating EventSource:', error);
-      onError(new Error('Failed to create stream connection'));
+      onError(error instanceof Error ? error : new Error('Failed to create stream connection'));
     }
 
   }).catch(error => {
