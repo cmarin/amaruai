@@ -567,30 +567,39 @@ export function streamWorkflow(
       eventSource.onmessage = (event: MessageEvent) => {
         console.log('Raw message received:', event.data);
         try {
-          const data = JSON.parse(event.data);
+          // Handle both SSE format and direct JSON format
+          let data: any;
+          const rawData = event.data.trim();
+          
+          if (rawData.startsWith('data: ')) {
+            // SSE format - extract the JSON from the data field
+            const jsonStr = rawData.substring(6); // Remove 'data: ' prefix
+            data = JSON.parse(jsonStr);
+          } else {
+            // Direct JSON format
+            data = JSON.parse(rawData);
+          }
+          
           console.log('Parsed message:', data);
           
           if (data.type === 'step') {
-            // Handle complex prompt template response
+            // Format the prompt if it's a JSON string
             if (data.prompt && typeof data.prompt === 'string') {
               try {
                 const promptObj = JSON.parse(data.prompt);
                 if (promptObj.variables && promptObj.prompt && message) {
-                  // Replace variables in the prompt template
-                  let formattedPrompt = promptObj.prompt;
-                  promptObj.variables.forEach((variable: any) => {
-                    if (variable.fieldName) {
-                      formattedPrompt = formattedPrompt.replace(
-                        `{${variable.fieldName}}`,
-                        message
-                      );
-                    }
-                  });
-                  data.prompt = formattedPrompt;
+                  // Replace the variable with the actual message in the prompt
+                  const firstVar = promptObj.variables[0];
+                  if (firstVar && firstVar.fieldName) {
+                    data.prompt = promptObj.prompt.replace(
+                      `{${firstVar.fieldName}}`,
+                      message
+                    );
+                  }
                 }
               } catch (e) {
                 // Not a JSON string, use as-is
-                console.log('Not a complex prompt template, using as-is');
+                console.log('Not a JSON prompt, using as-is');
               }
             }
             
@@ -598,19 +607,27 @@ export function streamWorkflow(
             window.requestAnimationFrame(() => {
               onMessage(data as WorkflowStreamMessage);
             });
-          } else if (data.type === 'error') {
-            onError(new Error(data.error || 'Unknown error occurred'));
           }
         } catch (error) {
           console.error('Error parsing message:', error);
-          onError(new Error('Error parsing stream message'));
         }
       };
 
       eventSource.addEventListener('complete', (event: MessageEvent) => {
         console.log('Complete event received:', event.data);
         try {
-          const data = JSON.parse(event.data);
+          let data: any;
+          const rawData = event.data.trim();
+          
+          if (rawData.startsWith('data: ')) {
+            // SSE format - extract the JSON from the data field
+            const jsonStr = rawData.substring(6); // Remove 'data: ' prefix
+            data = JSON.parse(jsonStr);
+          } else {
+            // Direct JSON format
+            data = JSON.parse(rawData);
+          }
+          
           if (data.type === 'status' && data.message === 'Workflow execution completed') {
             console.log('Workflow completed, closing connection');
             isCompleting = true;
