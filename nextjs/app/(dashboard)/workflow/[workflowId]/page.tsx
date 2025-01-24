@@ -47,12 +47,12 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     }
 
     if (message.type === 'step' && message.prompt && message.response) {
-      const promptToShow = message.step?.toString() === '1' && submittedPrompt 
+      const promptToShow = message.step === 1 && submittedPrompt 
         ? submittedPrompt 
         : message.prompt;
 
       const newResult: WorkflowResult = {
-        step: message.step?.toString() || '',
+        step: message.step!.toString(),
         prompt: promptToShow,
         response: message.response,
         chat_model: message.chat_model,
@@ -60,8 +60,11 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       };
 
       setResults(prev => {
-        if (prev.some(r => r.step === newResult.step)) {
-          return prev;
+        const existingIndex = prev.findIndex(r => r.step === newResult.step);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = newResult;
+          return updated;
         }
         return [...prev, newResult];
       });
@@ -121,10 +124,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         if (!headers) return;
         
         console.log('Fetching prompt template...');
-        const promptTemplate = await fetchPromptTemplate(
-          firstStep.prompt_template_id,
-          headers
-        );
+        const promptTemplate = await fetchPromptTemplate(firstStep.prompt_template_id, headers);
         
         if (promptTemplate.is_complex) {
           console.log('First step has complex prompt template:', promptTemplate);
@@ -138,6 +138,8 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         console.error('Error fetching prompt template:', error);
         setError('Failed to fetch prompt template');
       }
+    } else if (!hasSubmittedComplexPrompt) {
+      executeWorkflowStream();
     }
   }, [getApiHeaders, executeWorkflowStream, hasSubmittedComplexPrompt]);
 
@@ -208,10 +210,10 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
 
   const handleRunAgain = () => {
     setHasSubmittedComplexPrompt(false);
-    if (complexPromptTemplate && !hasSubmittedComplexPrompt) {
-      setShowComplexPromptModal(true);
-    } else {
-      executeWorkflowStream();
+    setInitialMessage(undefined);
+    setSubmittedPrompt(undefined);
+    if (workflow) {
+      checkFirstStep(workflow);
     }
   };
 
@@ -219,7 +221,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-white">
         <AppSidebar toggleChatbot={toggleChatbot} />
-        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <div className="flex items-center justify-between p-4 border-b">
             <h1 className="text-2xl font-bold">{workflow?.name || 'Loading...'}</h1>
             <div className="flex space-x-2">
@@ -308,4 +310,4 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       </div>
     </div>
   );
-} 
+}

@@ -495,7 +495,7 @@ export async function updateWorkflowStep(
 }
 
 export interface WorkflowStreamMessage {
-  step?: string;
+  step?: string | number;
   prompt?: string;
   response?: string;
   type: 'step' | 'completion' | 'error' | 'status';
@@ -534,7 +534,7 @@ export function streamWorkflow(
   const payload = {
     user_id: userId,
     conversation_id: conversationId,
-    ...(message && { message: message }) // This is now the formatted prompt from handleComplexPromptSubmit
+    ...(message && { message }) // Include message if provided
   };
 
   console.log('Sending payload:', payload);
@@ -548,7 +548,8 @@ export function streamWorkflow(
     body: JSON.stringify(payload),
   }).then(async response => {
     if (!response.ok) {
-      throw new Error('Failed to initiate workflow stream');
+      const errorText = await response.text();
+      throw new Error(`Failed to initiate workflow stream: ${errorText}`);
     }
     
     const { stream_token } = await response.json();
@@ -570,23 +571,26 @@ export function streamWorkflow(
           console.log('Parsed message:', data);
           
           if (data.type === 'step') {
-            // Format the prompt if it's a JSON string
+            // Handle complex prompt template response
             if (data.prompt && typeof data.prompt === 'string') {
               try {
                 const promptObj = JSON.parse(data.prompt);
                 if (promptObj.variables && promptObj.prompt && message) {
-                  // Replace the variable with the actual message in the prompt
-                  const firstVar = promptObj.variables[0];
-                  if (firstVar && firstVar.fieldName) {
-                    data.prompt = promptObj.prompt.replace(
-                      `{${firstVar.fieldName}}`,
-                      message
-                    );
-                  }
+                  // Replace variables in the prompt template
+                  let formattedPrompt = promptObj.prompt;
+                  promptObj.variables.forEach((variable: any) => {
+                    if (variable.fieldName) {
+                      formattedPrompt = formattedPrompt.replace(
+                        `{${variable.fieldName}}`,
+                        message
+                      );
+                    }
+                  });
+                  data.prompt = formattedPrompt;
                 }
               } catch (e) {
                 // Not a JSON string, use as-is
-                console.log('Not a JSON prompt, using as-is');
+                console.log('Not a complex prompt template, using as-is');
               }
             }
             
@@ -594,9 +598,12 @@ export function streamWorkflow(
             window.requestAnimationFrame(() => {
               onMessage(data as WorkflowStreamMessage);
             });
+          } else if (data.type === 'error') {
+            onError(new Error(data.error || 'Unknown error occurred'));
           }
         } catch (error) {
           console.error('Error parsing message:', error);
+          onError(new Error('Error parsing stream message'));
         }
       };
 
