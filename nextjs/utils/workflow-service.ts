@@ -1,6 +1,6 @@
 import { fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
-import { getApiUrl } from './api-utils';
+import { getApiUrl, getFetchOptions } from './api-utils';
 
 export interface WorkflowStep {
   id: string;
@@ -540,12 +540,14 @@ export function streamWorkflow(
   
   // First initiate the stream
   fetch(initUrl, {
-    method: 'POST',
-    headers: {
-      ...headers,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
+    ...getFetchOptions({
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
   }).then(async response => {
     if (!response.ok) {
       throw new Error('Failed to initiate workflow stream');
@@ -558,10 +560,11 @@ export function streamWorkflow(
     
     try {
       // Create EventSource with proper configuration
-      eventSource = new EventSource(streamUrl.toString(), {
+      const eventSourceInit: EventSourceInit = {
         withCredentials: true
-      });
+      };
       
+      eventSource = new EventSource(streamUrl.toString(), eventSourceInit);
       console.log('EventSource created');
 
       eventSource.onopen = () => {
@@ -589,6 +592,7 @@ export function streamWorkflow(
           });
         } catch (error) {
           console.error('Error parsing message event:', error);
+          console.error('Raw event data:', event.data);
         }
       });
 
@@ -605,6 +609,7 @@ export function streamWorkflow(
           }
         } catch (error) {
           console.error('Error parsing done event:', error);
+          console.error('Raw event data:', event.data);
         }
       });
 
