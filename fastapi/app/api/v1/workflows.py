@@ -555,41 +555,23 @@ async def stream_workflow_results(
                             current_results = stream_data['result']
                             while last_result_count < len(current_results):
                                 result = current_results[last_result_count]
-                                # Ensure result is a dictionary before accessing keys
-                                if isinstance(result, dict):
-                                    yield {
-                                        "event": "message",
-                                        "data": json.dumps({
-                                            "type": "step",
-                                            "step": result.get("step", last_result_count + 1),
-                                            "prompt": result.get("prompt", ""),
-                                            "response": result.get("response", ""),
-                                            "persona": result.get("persona", {}),
-                                            "chat_model": result.get("chat_model", {})
-                                        })
-                                    }
-                                else:
-                                    # Handle string or other non-dict results
-                                    yield {
-                                        "event": "message",
-                                        "data": json.dumps({
-                                            "type": "step",
-                                            "step": last_result_count + 1,
-                                            "response": str(result),
-                                            "prompt": "",
-                                            "persona": {},
-                                            "chat_model": {}
-                                        })
-                                    }
+                                # Format the message event
+                                yield {
+                                    "event": "message",
+                                    "data": json.dumps({
+                                        "step": result.get("step", last_result_count + 1),
+                                        "content": result.get("response", ""),
+                                        "role": "assistant"
+                                    })
+                                }
                                 last_result_count += 1
 
                         # Send completion event when done
                         if stream_data['status'] == 'completed':
                             yield {
-                                "event": "complete",
+                                "event": "done",
                                 "data": json.dumps({
-                                    "type": "status",
-                                    "message": "Workflow execution completed"
+                                    "status": "completed"
                                 })
                             }
                             return

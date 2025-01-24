@@ -193,10 +193,8 @@ class CrewAIService:
                             if stream_token:
                                 result = {
                                     "step": step_metadata["step"],
-                                    "prompt": step_metadata["prompt"],
-                                    "response": output.raw if hasattr(output, 'raw') else str(output),
-                                    "persona": step_metadata["persona"],
-                                    "chat_model": step_metadata["chat_model"]
+                                    "content": output.raw if hasattr(output, 'raw') else str(output),
+                                    "role": "assistant"
                                 }
                                 self._task_results[stream_token].append(result)
                                 self._stream_tokens[stream_token]['result'] = self._task_results[stream_token]
@@ -233,10 +231,8 @@ class CrewAIService:
                         if task_output is not None:
                             result = {
                                 "step": i + 1,
-                                "prompt": task.description,
-                                "response": task_output.raw if hasattr(task_output, 'raw') else str(task_output),
-                                "persona": metadata["persona"],
-                                "chat_model": metadata["chat_model"]
+                                "content": task_output.raw if hasattr(task_output, 'raw') else str(task_output),
+                                "role": "assistant"
                             }
                             if stream_token:
                                 self._task_results[stream_token].append(result)
