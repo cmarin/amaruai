@@ -23,6 +23,12 @@ export function getFetchOptions(options: RequestInit = {}): RequestInit {
   
   return {
     ...options,
+    headers: {
+      ...options.headers,
+      'Accept': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
     // Disable SSL verification for localhost
     ...(isLocalhost && {
       mode: 'cors',

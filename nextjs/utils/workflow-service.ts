@@ -525,7 +525,7 @@ export function streamWorkflow(
   message?: string
 ): () => void {
   const initUrl = `${getApiUrl()}/workflows/${workflowId}/stream`;
-  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  let eventSource: EventSource | null = null;
   let isCompleting = false;
   
   console.log('Starting workflow stream...');
@@ -552,100 +552,79 @@ export function streamWorkflow(
     }
     
     const { stream_token } = await response.json();
-    const streamUrl = `${getApiUrl()}/workflows/${workflowId}/stream?stream_token=${stream_token}`;
-    console.log('Stream URL:', streamUrl);
+    const streamUrl = new URL(`${getApiUrl()}/workflows/${workflowId}/stream`);
+    streamUrl.searchParams.append('stream_token', stream_token);
+    console.log('Stream URL:', streamUrl.toString());
     
     try {
-      // Try to use fetch with manual SSE parsing as a fallback
-      const streamResponse = await fetch(streamUrl, {
-        headers: {
-          ...headers,
-          'Accept': 'text/event-stream',
-        },
+      // Create EventSource with proper configuration
+      eventSource = new EventSource(streamUrl.toString(), {
+        withCredentials: true
       });
+      
+      console.log('EventSource created');
 
-      if (!streamResponse.ok) {
-        throw new Error('Failed to connect to stream');
-      }
-
-      if (!streamResponse.body) {
-        throw new Error('Response body is null');
-      }
-
-      reader = streamResponse.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      const processText = (text: string) => {
-        const lines = text.split('\n');
-        let event = '';
-        let data = '';
-
-        for (const line of lines) {
-          if (line.startsWith('event:')) {
-            event = line.slice(6).trim();
-          } else if (line.startsWith('data:')) {
-            data = line.slice(5).trim();
-            
-            if (data && event) {
-              try {
-                const parsedData = JSON.parse(data);
-                
-                if (event === 'message') {
-                  const message: WorkflowStreamMessage = {
-                    type: 'step',
-                    step: parsedData.step,
-                    prompt: parsedData.content,
-                    response: parsedData.content,
-                    ...(parsedData.role && { role: parsedData.role })
-                  };
-                  onMessage(message);
-                } else if (event === 'done') {
-                  if (parsedData.status === 'completed') {
-                    isCompleting = true;
-                    onComplete();
-                    return true; // Signal completion
-                  }
-                }
-              } catch (error) {
-                console.error('Error parsing SSE data:', error);
-              }
-              
-              // Reset for next event
-              event = '';
-              data = '';
-            }
-          }
-        }
-        return false; // Not completed
+      eventSource.onopen = () => {
+        console.log('EventSource connection opened');
       };
 
-      while (true) {
-        const { value, done } = await reader.read();
-        
-        if (done) {
-          console.log('Stream complete');
-          break;
+      // Listen for message events
+      eventSource.addEventListener('message', (event: MessageEvent) => {
+        console.log('Message event received:', event.data);
+        try {
+          const data = JSON.parse(event.data);
+          console.log('Parsed message data:', data);
+          
+          const message: WorkflowStreamMessage = {
+            type: 'step',
+            step: data.step,
+            prompt: data.content,
+            response: data.content,
+            ...(data.role && { role: data.role })
+          };
+          
+          console.log('Dispatching workflow message:', message);
+          window.requestAnimationFrame(() => {
+            onMessage(message);
+          });
+        } catch (error) {
+          console.error('Error parsing message event:', error);
         }
+      });
 
-        buffer += decoder.decode(value, { stream: true });
-        
-        // Process any complete messages in buffer
-        const messages = buffer.split('\n\n');
-        buffer = messages.pop() || ''; // Keep the last incomplete chunk in buffer
-        
-        for (const message of messages) {
-          if (processText(message)) {
-            // If processing signals completion, close the stream
-            reader.cancel();
-            return;
+      // Listen for done events
+      eventSource.addEventListener('done', (event: MessageEvent) => {
+        console.log('Done event received:', event.data);
+        try {
+          const data = JSON.parse(event.data);
+          if (data.status === 'completed') {
+            console.log('Workflow completed, closing connection');
+            isCompleting = true;
+            eventSource?.close();
+            onComplete();
           }
+        } catch (error) {
+          console.error('Error parsing done event:', error);
         }
-      }
+      });
+
+      // Handle connection errors
+      eventSource.onerror = (event: Event) => {
+        console.error('EventSource error:', event);
+        const source = event.target as EventSource;
+        
+        if (source.readyState === EventSource.CLOSED && !isCompleting) {
+          console.log('Connection closed unexpectedly');
+          eventSource?.close();
+          onError(new Error('Stream connection closed unexpectedly'));
+        } else if (source.readyState === EventSource.CONNECTING) {
+          console.log('Connection lost, attempting to reconnect...');
+        }
+      };
 
     } catch (error) {
-      console.error('Error in stream processing:', error);
-      onError(error instanceof Error ? error : new Error('Stream processing failed'));
+      console.error('Error creating EventSource:', error);
+      onError(error instanceof Error ? error : new Error('Failed to create stream connection'));
     }
 
   }).catch(error => {
@@ -654,9 +633,9 @@ export function streamWorkflow(
   });
 
   return () => {
-    if (reader) {
-      console.log('Canceling stream reader');
-      reader.cancel();
+    if (eventSource) {
+      console.log('Cleaning up EventSource');
+      eventSource.close();
     }
   };
 }
