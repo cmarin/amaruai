@@ -27,12 +27,12 @@ export interface WorkflowResult {
   prompt: string;
   response: string;
   chat_model?: {
-    id: string;
+    id: number;
     name: string;
     model: string;
   };
   persona?: {
-    id: string;
+    id: number;
     role: string;
     goal: string;
   };
@@ -47,12 +47,12 @@ export interface WorkflowStreamMessage {
   content?: string;
   message?: string;
   chat_model?: {
-    id: string;
+    id: number;
     name: string;
     model: string;
   };
   persona?: {
-    id: string;
+    id: number;
     role: string;
     goal: string;
   };
@@ -498,8 +498,6 @@ export async function updateWorkflowStep(
   });
 }
 
-
-
 export function streamWorkflow(
   workflowId: string,
   userId: string,
@@ -516,106 +514,108 @@ export function streamWorkflow(
   
   console.log('Starting workflow stream...');
   
+  // Create the payload with the formatted message
   const payload = {
     user_id: userId,
     conversation_id: conversationId,
-    ...(message && { message: message })
+    ...(message && { message: message }) // This is now the formatted prompt from handleComplexPromptSubmit
   };
 
   console.log('Sending payload:', payload);
   
-  // First initiate the stream
   fetch(initUrl, {
-    ...getFetchOptions({
-      method: 'POST',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    })
+    method: 'POST',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
   }).then(async response => {
     if (!response.ok) {
       throw new Error('Failed to initiate workflow stream');
     }
     
     const { stream_token } = await response.json();
-    const streamUrl = new URL(`${getApiUrl()}/workflows/${workflowId}/stream`);
-    streamUrl.searchParams.append('stream_token', stream_token);
-    console.log('Stream URL:', streamUrl.toString());
+    const streamUrl = `${getApiUrl()}/workflows/${workflowId}/stream?stream_token=${stream_token}`;
+    console.log('Stream URL:', streamUrl);
     
     try {
-      // Create EventSource with proper configuration
-      const eventSourceInit: EventSourceInit = {
-        withCredentials: true
-      };
-      
-      eventSource = new EventSource(streamUrl.toString(), eventSourceInit);
+      eventSource = new EventSource(streamUrl);
       console.log('EventSource created');
 
       eventSource.onopen = () => {
         console.log('EventSource connection opened');
       };
 
-      // Listen for message events
-      eventSource.addEventListener('message', (event: MessageEvent) => {
-        console.log('Message event received:', event.data);
+      eventSource.onmessage = (event: MessageEvent) => {
+        console.log('Raw message received:', event.data);
         try {
           const data = JSON.parse(event.data);
-          console.log('Parsed message data:', data);
+          console.log('Parsed message:', data);
           
-          const message: WorkflowStreamMessage = {
-            type: 'step',
-            step: data.step,
-            prompt: data.content,
-            response: data.content,
-            ...(data.role && { role: data.role })
-          };
-          
-          console.log('Dispatching workflow message:', message);
-          window.requestAnimationFrame(() => {
-            onMessage(message);
-          });
-        } catch (error) {
-          console.error('Error parsing message event:', error);
-          console.error('Raw event data:', event.data);
-        }
-      });
-
-      // Listen for done events
-      eventSource.addEventListener('done', (event: MessageEvent) => {
-        console.log('Done event received:', event.data);
-        try {
-          const data = JSON.parse(event.data);
-          if (data.status === 'completed') {
-            console.log('Workflow completed, closing connection');
-            isCompleting = true;
-            eventSource?.close();
-            onComplete();
+          if (data.type === 'step') {
+            // Format the prompt if it's a JSON string
+            if (data.prompt && typeof data.prompt === 'string') {
+              try {
+                const promptObj = JSON.parse(data.prompt);
+                if (promptObj.variables && promptObj.prompt && message) {
+                  // Replace the variable with the actual message in the prompt
+                  const firstVar = promptObj.variables[0];
+                  if (firstVar && firstVar.fieldName) {
+                    data.prompt = promptObj.prompt.replace(
+                      `{${firstVar.fieldName}}`,
+                      message
+                    );
+                  }
+                }
+              } catch (e) {
+                // Not a JSON string, use as-is
+                console.log('Not a JSON prompt, using as-is');
+              }
+            }
+            
+            console.log('Dispatching step message to handler');
+            window.requestAnimationFrame(() => {
+              onMessage(data as WorkflowStreamMessage);
+            });
           }
         } catch (error) {
-          console.error('Error parsing done event:', error);
-          console.error('Raw event data:', event.data);
+          console.error('Error parsing message:', error);
+        }
+      };
+
+      eventSource.addEventListener('complete', (event: MessageEvent) => {
+        console.log('Complete event received:', event.data);
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'status' && data.message === 'Workflow execution completed') {
+            console.log('Workflow completed, closing connection');
+            isCompleting = true;
+            if (eventSource) {
+              eventSource.close();
+              onComplete();
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing complete event:', error);
         }
       });
 
-      // Handle connection errors
       eventSource.onerror = (event: Event) => {
-        console.error('EventSource error:', event);
+        console.log('Error event received:', event);
         const source = event.target as EventSource;
-        
         if (source.readyState === EventSource.CLOSED && !isCompleting) {
           console.log('Connection closed unexpectedly');
-          eventSource?.close();
-          onError(new Error('Stream connection closed unexpectedly'));
-        } else if (source.readyState === EventSource.CONNECTING) {
-          console.log('Connection lost, attempting to reconnect...');
+          if (eventSource) {
+            eventSource.close();
+            onError(new Error('Stream connection closed unexpectedly'));
+          }
         }
       };
 
     } catch (error) {
       console.error('Error creating EventSource:', error);
-      onError(error instanceof Error ? error : new Error('Failed to create stream connection'));
+      onError(new Error('Failed to create stream connection'));
     }
 
   }).catch(error => {

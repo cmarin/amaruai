@@ -60,11 +60,8 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       };
 
       setResults(prev => {
-        const existingIndex = prev.findIndex(r => r.step === newResult.step);
-        if (existingIndex >= 0) {
-          const updated = [...prev];
-          updated[existingIndex] = newResult;
-          return updated;
+        if (prev.some(r => r.step === newResult.step)) {
+          return prev;
         }
         return [...prev, newResult];
       });
@@ -122,7 +119,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       try {
         const headers = getApiHeaders();
         if (!headers) return;
-        
+
         console.log('Fetching prompt template...');
         const promptTemplate = await fetchPromptTemplate(firstStep.prompt_template_id, headers);
         
@@ -138,8 +135,6 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         console.error('Error fetching prompt template:', error);
         setError('Failed to fetch prompt template');
       }
-    } else if (!hasSubmittedComplexPrompt) {
-      executeWorkflowStream();
     }
   }, [getApiHeaders, executeWorkflowStream, hasSubmittedComplexPrompt]);
 
@@ -210,10 +205,10 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
 
   const handleRunAgain = () => {
     setHasSubmittedComplexPrompt(false);
-    setInitialMessage(undefined);
-    setSubmittedPrompt(undefined);
-    if (workflow) {
-      checkFirstStep(workflow);
+    if (complexPromptTemplate && !hasSubmittedComplexPrompt) {
+      setShowComplexPromptModal(true);
+    } else {
+      executeWorkflowStream();
     }
   };
 
@@ -221,7 +216,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-white">
         <AppSidebar toggleChatbot={toggleChatbot} />
-        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
           <div className="flex items-center justify-between p-4 border-b">
             <h1 className="text-2xl font-bold">{workflow?.name || 'Loading...'}</h1>
             <div className="flex space-x-2">
@@ -310,4 +305,4 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       </div>
     </div>
   );
-}
+} 
