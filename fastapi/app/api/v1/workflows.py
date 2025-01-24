@@ -373,6 +373,10 @@ async def initiate_workflow_stream(
 
         async def event_generator():
             try:
+                # Add at the start of the event_generator function
+                logger.info(f"Starting workflow stream for workflow_id: {workflow_id}")
+                logger.info(f"Chat message: {chat_message.dict()}")
+
                 # Initialize workflow execution
                 agents = []
                 tasks = []
@@ -403,6 +407,9 @@ async def initiate_workflow_stream(
                     
                     logger.info(f"Found components - Persona: {persona.role}, Chat Model: {chat_model.name}, Template: {prompt_template.title}")
                     
+                    # Add before creating each agent
+                    logger.info(f"Creating agent for step {step.position} with persona: {persona.role}")
+                    
                     # Create agent for this step
                     agent = Agent(
                         role=persona.role,
@@ -418,13 +425,20 @@ async def initiate_workflow_stream(
                     )
                     agents.append(agent)
                     
+                    # Add before creating each task
+                    logger.info(f"Creating task for step {step.position} with message: {chat_message.message}")
+                    
                     # Create task for this step
                     task = Task(
                         description=chat_message.message if chat_message.message else "Process the input",
                         expected_output="A response from the AI agent",
-                        agent=agent
+                        agent=agent,
+                        context=f"You are working on step {step.position + 1} of the workflow."
                     )
                     tasks.append(task)
+                
+                # Add before crew creation
+                logger.info(f"Creating crew with {len(agents)} agents and {len(tasks)} tasks")
                 
                 # Create and run the crew
                 crew = Crew(
@@ -437,39 +451,44 @@ async def initiate_workflow_stream(
                 )
 
                 # Execute tasks and stream results
-                crew_result = crew.kickoff()
-                for i, task in enumerate(tasks):
-                    try:
-                        task_output = task.output
-                        if task_output is None:
-                            raise ValueError(f"Task {i+1} output is None")
-                        
-                        task_raw_output = task_output.raw if hasattr(task_output, 'raw') else str(task_output)
-                        message_data = {
-                            "step": i + 1,
-                            "content": task_raw_output,
-                            "role": "assistant"
-                        }
-                        yield f"event: message\ndata: {json.dumps(message_data)}\n\n"
-                        
-                        # Store in memory
-                        memory.put(
-                            LlamaChatMessage(
-                                role=MessageRole.ASSISTANT,
-                                content=task_raw_output,
-                                additional_kwargs={
-                                    "step": i + 1,
-                                    "workflow_id": str(workflow_id)
-                                }
+                try:
+                    crew_result = crew.kickoff()
+                    for i, task in enumerate(tasks):
+                        try:
+                            task_output = task.output
+                            if task_output is None:
+                                raise ValueError(f"Task {i+1} output is None")
+                            
+                            task_raw_output = task_output.raw if hasattr(task_output, 'raw') else str(task_output)
+                            message_data = {
+                                "step": i + 1,
+                                "content": task_raw_output,
+                                "role": "assistant"
+                            }
+                            yield f"event: message\ndata: {json.dumps(message_data)}\n\n"
+                            
+                            # Store in memory
+                            memory.put(
+                                LlamaChatMessage(
+                                    role=MessageRole.ASSISTANT,
+                                    content=task_raw_output,
+                                    additional_kwargs={
+                                        "step": i + 1,
+                                        "workflow_id": str(workflow_id)
+                                    }
+                                )
                             )
-                        )
-                    except Exception as task_error:
-                        logger.error(f"Error executing task {i+1}: {str(task_error)}")
-                        yield f"event: error\ndata: {json.dumps({'error': f'Error in step {i+1}: {str(task_error)}'})}\n\n"
+                        except Exception as task_error:
+                            logger.error(f"Error executing task {i+1}: {str(task_error)}")
+                            yield f"event: error\ndata: {json.dumps({'error': f'Error in step {i+1}: {str(task_error)}'})}\n\n"
                 
-                # Signal completion
-                yield f"event: done\ndata: {json.dumps({'status': 'completed'})}\n\n"
+                    # Signal completion
+                    yield f"event: done\ndata: {json.dumps({'status': 'completed'})}\n\n"
                 
+                except Exception as e:
+                    logger.error(f"Error in crew execution: {str(e)}")
+                    yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+
             except Exception as e:
                 logger.error(f"Error in event generator: {str(e)}", exc_info=True)
                 yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
