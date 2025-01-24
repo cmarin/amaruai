@@ -430,16 +430,24 @@ async def initiate_workflow_stream(
                 crew = Crew(
                     agents=agents,
                     tasks=tasks,
-                    process=Process.sequential
+                    process=Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL.value else Process.hierarchical,
+                    manager_agent=None if workflow.process_type == models.ProcessType.SEQUENTIAL.value else None,
+                    manager_llm=None if workflow.process_type == models.ProcessType.SEQUENTIAL.value else None,
+                    verbose=True
                 )
-                
+
                 # Execute tasks and stream results
+                crew_result = crew.kickoff()
                 for i, task in enumerate(tasks):
                     try:
-                        result = await task.execute()
+                        task_output = task.output
+                        if task_output is None:
+                            raise ValueError(f"Task {i+1} output is None")
+                        
+                        task_raw_output = task_output.raw if hasattr(task_output, 'raw') else str(task_output)
                         message_data = {
                             "step": i + 1,
-                            "content": result,
+                            "content": task_raw_output,
                             "role": "assistant"
                         }
                         yield f"event: message\ndata: {json.dumps(message_data)}\n\n"
@@ -448,7 +456,7 @@ async def initiate_workflow_stream(
                         memory.put(
                             LlamaChatMessage(
                                 role=MessageRole.ASSISTANT,
-                                content=result,
+                                content=task_raw_output,
                                 additional_kwargs={
                                     "step": i + 1,
                                     "workflow_id": str(workflow_id)

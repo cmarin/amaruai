@@ -226,6 +226,24 @@ class CrewAIService:
 
                 result = await asyncio.to_thread(process.kickoff)
                 
+                # Process task outputs after kickoff
+                for i, task in enumerate(tasks):
+                    try:
+                        task_output = task.output
+                        if task_output is not None:
+                            result = {
+                                "step": i + 1,
+                                "prompt": task.description,
+                                "response": task_output.raw if hasattr(task_output, 'raw') else str(task_output),
+                                "persona": metadata["persona"],
+                                "chat_model": metadata["chat_model"]
+                            }
+                            if stream_token:
+                                self._task_results[stream_token].append(result)
+                                self._stream_tokens[stream_token]['result'] = self._task_results[stream_token]
+                    except Exception as e:
+                        logger.error(f"Error processing task {i+1} output: {str(e)}")
+                
                 # Mark as completed after all tasks are done
                 if stream_token and stream_token in self._stream_tokens:
                     self._stream_tokens[stream_token]['status'] = 'completed'
