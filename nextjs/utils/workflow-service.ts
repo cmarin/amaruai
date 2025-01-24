@@ -3,18 +3,29 @@ import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl, getFetchOptions } from './api-utils';
 
 export interface WorkflowStep {
-  id: string;
-  workflow_id: string;
+  id?: string;
+  workflow_id?: string;
   prompt_template_id: string;
   chat_model_id: string;
   persona_id: string;
   position: number;
-  prompt_template?: {
-    id: string;
-    title: string;
-    prompt: string;
-    is_complex: boolean;
-  };
+}
+
+export interface Workflow {
+  id?: string;
+  name: string;
+  description: string;
+  process_type: 'SEQUENTIAL' | 'HIERARCHICAL';
+  steps: WorkflowStep[];
+  manager_chat_model_id?: string;
+  manager_persona_id?: string;
+  max_iterations?: number;
+}
+
+export interface WorkflowResult {
+  step: string;
+  prompt: string;
+  response: string;
   chat_model?: {
     id: string;
     name: string;
@@ -27,15 +38,24 @@ export interface WorkflowStep {
   };
 }
 
-export interface Workflow {
-  id?: string;
-  name: string;
-  description: string;
-  process_type: 'SEQUENTIAL' | 'HIERARCHICAL';
-  steps: WorkflowStep[];
-  manager_chat_model_id?: string;
-  manager_persona_id?: string;
-  max_iterations?: number;
+export interface WorkflowStreamMessage {
+  step?: string | number;
+  prompt?: string;
+  response?: string;
+  type: 'step' | 'completion' | 'error' | 'status';
+  error?: string;
+  content?: string;
+  message?: string;
+  chat_model?: {
+    id: string;
+    name: string;
+    model: string;
+  };
+  persona?: {
+    id: string;
+    role: string;
+    goal: string;
+  };
 }
 
 export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
@@ -409,22 +429,6 @@ export async function executeWorkflow(
   });
 }
 
-export interface WorkflowResult {
-  step: string;
-  prompt: string;
-  response: string;
-  chat_model?: {
-    id: string;
-    name: string;
-    model: string;
-  };
-  persona?: {
-    id: string;
-    role: string;
-    goal: string;
-  };
-}
-
 export async function getWorkflowResults(workflowId: string, headers: ApiHeaders): Promise<WorkflowResult[]> {
   return fetchWithRetry(async () => {
     const response = await fetch(`${getApiUrl()}/workflows/${workflowId}/results`, {
@@ -494,25 +498,7 @@ export async function updateWorkflowStep(
   });
 }
 
-export interface WorkflowStreamMessage {
-  step?: string | number;
-  prompt?: string;
-  response?: string;
-  type: 'step' | 'completion' | 'error' | 'status';
-  error?: string;
-  content?: string;
-  message?: string;
-  chat_model?: {
-    id: string;
-    name: string;
-    model: string;
-  };
-  persona?: {
-    id: string;
-    role: string;
-    goal: string;
-  };
-}
+
 
 export function streamWorkflow(
   workflowId: string,
