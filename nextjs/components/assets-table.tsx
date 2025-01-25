@@ -26,7 +26,10 @@ interface AssetsTableProps {
   onDeleteAsset?: (assetId: string) => void;
   onManageAsset?: (asset: Asset) => void;
   onPreview?: (asset: Asset) => void;
+  onSelectAsset?: (asset: Asset) => void;
   showActions?: boolean;
+  showStatus?: boolean;
+  actionType?: 'manage' | 'select';
   className?: string;
 }
 
@@ -41,7 +44,10 @@ export function AssetsTable({
   onDeleteAsset, 
   onManageAsset,
   onPreview,
+  onSelectAsset,
   showActions = true,
+  showStatus = true,
+  actionType = 'manage',
   className
 }: AssetsTableProps) {
   const [copiedAssetId, setCopiedAssetId] = useState<string | null>(null);
@@ -80,7 +86,9 @@ export function AssetsTable({
               <TableHead className="w-[300px]">Title</TableHead>
               <TableHead className="w-[150px]">Type</TableHead>
               <TableHead className="w-[100px]">Size</TableHead>
-              <TableHead className="w-[100px]">Status</TableHead>
+              {showStatus && (
+                <TableHead className="w-[100px]">Status</TableHead>
+              )}
               <TableHead className="w-[120px]">Created</TableHead>
               {showActions && (
                 <TableHead className="w-[120px] text-right">Actions</TableHead>
@@ -90,7 +98,7 @@ export function AssetsTable({
           <TableBody>
             {assets.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={showActions ? 7 : 6} className="h-24 text-center">
+                <TableCell colSpan={showActions ? (showStatus ? 7 : 6) : (showStatus ? 6 : 5)} className="h-24 text-center">
                   No assets found.
                 </TableCell>
               </TableRow>
@@ -119,66 +127,90 @@ export function AssetsTable({
                     {asset.mime_type || asset.type || 'Unknown'}
                   </TableCell>
                   <TableCell>{formatFileSize(asset.size || 0)}</TableCell>
-                  <TableCell>
-                    <Badge variant={asset.managed ? "default" : "secondary"}>
-                      {asset.managed ? "Managed" : "External"}
-                    </Badge>
-                  </TableCell>
+                  {showStatus && (
+                    <TableCell>
+                      <Badge variant={asset.managed ? "default" : "secondary"}>
+                        {asset.managed ? "Managed" : "External"}
+                      </Badge>
+                    </TableCell>
+                  )}
                   <TableCell>{new Date(asset.created_at).toLocaleDateString()}</TableCell>
                   {showActions && (
                     <TableCell>
                       <div className="flex gap-1 justify-end">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                className="h-8 w-8 p-0"
-                                onClick={() => onPreview?.(asset)}
-                              >
-                                <span className="sr-only">Preview asset</span>
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Preview asset</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        {onManageAsset && (
+                        {actionType === 'manage' ? (
+                          <>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => onPreview?.(asset)}
+                                  >
+                                    <span className="sr-only">Preview asset</span>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Preview asset</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            {onManageAsset && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => onManageAsset(asset)}
+                                    >
+                                      <span className="sr-only">Manage asset</span>
+                                      <Settings className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Manage asset</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                            {onDeleteAsset && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => onDeleteAsset(asset.id)}
+                                    >
+                                      <span className="sr-only">Delete asset</span>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Delete asset</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </>
+                        ) : (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
                                   variant="ghost"
-                                  className="h-8 w-8 p-0"
-                                  onClick={() => onManageAsset(asset)}
+                                  className="flex items-center gap-2 px-3"
+                                  onClick={() => onSelectAsset?.(asset)}
                                 >
-                                  <span className="sr-only">Manage asset</span>
-                                  <Settings className="h-4 w-4" />
+                                  <Plus className="h-4 w-4" />
+                                  Add
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>Manage asset</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                        {onDeleteAsset && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  className="h-8 w-8 p-0"
-                                  onClick={() => onDeleteAsset(asset.id)}
-                                >
-                                  <span className="sr-only">Delete asset</span>
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Delete asset</p>
+                                <p>Add to Knowledge Base</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -194,4 +226,4 @@ export function AssetsTable({
       </div>
     </div>
   );
-} 
+}

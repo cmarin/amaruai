@@ -279,7 +279,9 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
                 !selectedAssets.some(selected => selected.id === asset.id)
               )}
               showActions={true}
-              onManageAsset={handleAddAsset}
+              showStatus={false}
+              actionType="select"
+              onSelectAsset={handleAddAsset}
             />
           </div>
           <div className="flex justify-end gap-2 mt-4">
