@@ -5,6 +5,7 @@ import uuid
 import logging
 import os
 import sys
+from uuid import UUID
 from io import StringIO
 from app import crud, models
 from app.database import get_db
@@ -36,7 +37,7 @@ class CrewAIService:
         self._task_results: Dict[str, List] = {}
         self._stdout_buffers: Dict[str, StringIO] = {}
 
-    def _generate_stream_token(self, workflow_id: int) -> str:
+    def _generate_stream_token(self, workflow_id: UUID) -> str:
         token = str(uuid.uuid4())
         self._stream_tokens[token] = {
             'workflow_id': workflow_id,
@@ -102,7 +103,7 @@ class CrewAIService:
             logger.error(f"Failed to create agent: {str(e)}")
             raise CrewAIError(f"Agent creation failed: {str(e)}")
 
-    async def execute_workflow(self, workflow_id: int, user_input: dict, db: Session, stream_token: Optional[str] = None):
+    async def execute_workflow(self, workflow_id: UUID, user_input: dict, db: Session, stream_token: Optional[str] = None):
         try:
             workflow = crud.get_workflow(db, workflow_id=workflow_id)
             if not workflow:
@@ -193,8 +194,10 @@ class CrewAIService:
                             if stream_token:
                                 result = {
                                     "step": step_metadata["step"],
-                                    "content": output.raw if hasattr(output, 'raw') else str(output),
-                                    "role": "assistant"
+                                    "prompt": step_metadata["prompt"],
+                                    "response": output.raw if hasattr(output, 'raw') else str(output),
+                                    "persona": step_metadata["persona"],
+                                    "chat_model": step_metadata["chat_model"]
                                 }
                                 self._task_results[stream_token].append(result)
                                 self._stream_tokens[stream_token]['result'] = self._task_results[stream_token]
@@ -223,22 +226,6 @@ class CrewAIService:
                 )
 
                 result = await asyncio.to_thread(process.kickoff)
-                
-                # Process task outputs after kickoff
-                for i, task in enumerate(tasks):
-                    try:
-                        task_output = task.output
-                        if task_output is not None:
-                            result = {
-                                "step": i + 1,
-                                "content": task_output.raw if hasattr(task_output, 'raw') else str(task_output),
-                                "role": "assistant"
-                            }
-                            if stream_token:
-                                self._task_results[stream_token].append(result)
-                                self._stream_tokens[stream_token]['result'] = self._task_results[stream_token]
-                    except Exception as e:
-                        logger.error(f"Error processing task {i+1} output: {str(e)}")
                 
                 # Mark as completed after all tasks are done
                 if stream_token and stream_token in self._stream_tokens:
