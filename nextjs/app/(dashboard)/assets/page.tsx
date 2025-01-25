@@ -453,11 +453,22 @@ export default function AssetsPage() {
               <DialogHeader>
                 <DialogTitle>Upload Assets</DialogTitle>
               </DialogHeader>
-              <div className="py-4">
+              <div className="uppy-Dashboard-inner">
                 <Dashboard 
                   uppy={uppy} 
                   plugins={[]} 
                   proudlyDisplayPoweredByUppy={false}
+                  showProgressDetails={true}
+                  hideUploadButton={false}
+                  hideRetryButton={false}
+                  hidePauseResumeButton={false}
+                  hideCancelButton={false}
+                  showSelectedFiles={true}
+                  showRemoveButtonAfterComplete={true}
+                  metaFields={[]}
+                  disableStatusBar={false}
+                  disableInformer={false}
+                  disableThumbnailGenerator={false}
                 />
               </div>
             </DialogContent>
