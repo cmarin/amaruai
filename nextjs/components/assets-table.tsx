@@ -113,9 +113,6 @@ export function AssetsTable({
               <TableHead className="w-[40px]"></TableHead>
               <TableHead className="w-[300px]">Title</TableHead>
               <TableHead className="w-[100px]">Size</TableHead>
-              {showStatus && (
-                <TableHead className="w-[100px]">Status</TableHead>
-              )}
               <TableHead className="w-[120px]">Created</TableHead>
               {showActions && (
                 <TableHead className="w-[120px] text-right">Actions</TableHead>
@@ -125,7 +122,7 @@ export function AssetsTable({
           <TableBody>
             {filteredAssets.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={showActions ? (showStatus ? 6 : 5) : (showStatus ? 5 : 4)} className="h-24 text-center">
+                <TableCell colSpan={showActions ? 5 : 4} className="h-24 text-center">
                   No assets found.
                 </TableCell>
               </TableRow>
@@ -151,14 +148,9 @@ export function AssetsTable({
                     </a>
                   </TableCell>
                   <TableCell>{formatFileSize(asset.size || 0)}</TableCell>
-                  {showStatus && (
-                    <TableCell>
-                      <Badge variant={asset.managed ? "default" : "secondary"}>
-                        {asset.managed ? "Managed" : "External"}
-                      </Badge>
-                    </TableCell>
-                  )}
-                  <TableCell>{new Date(asset.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    {new Date(asset.created_at).toLocaleDateString()}
+                  </TableCell>
                   {showActions && (
                     <TableCell>
                       <div className="flex gap-1 justify-end">
