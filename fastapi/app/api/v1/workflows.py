@@ -355,7 +355,7 @@ async def initiate_workflow_stream(
         logger.error(f"Error initiating workflow stream: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@public_router.route("/{workflow_id}/stream", methods=["GET"])
+@public_router.get("/{workflow_id}/stream")
 async def stream_workflow_results(
     workflow_id: UUID,
     stream_token: str,
