@@ -66,7 +66,16 @@ export default function Chat() {
   const [mode, setMode] = useState<'single' | 'dual' | 'quad'>('single')
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<any | null>(null)
-  const [selectedModels, setSelectedModels] = useState<{ [key: string]: string }>({})
+  // Initialize selectedModels with default model IDs
+  const [selectedModels, setSelectedModels] = useState<{ [key: string]: string }>(() => {
+    const defaultModel = chatModels?.[0]
+    return {
+      chat1: defaultModel?.id?.toString() || '',
+      chat2: defaultModel?.id?.toString() || '',
+      chat3: defaultModel?.id?.toString() || '',
+      chat4: defaultModel?.id?.toString() || ''
+    }
+  })
   const [selectedPersonas, setSelectedPersonas] = useState<{ [key: string]: string }>({
     chat1: 'default',
     chat2: 'default',
@@ -136,6 +145,18 @@ export default function Chat() {
     }
     fetchData()
   }, [getApiHeaders])
+
+  useEffect(() => {
+    if (chatModels?.length > 0) {
+      const defaultModel = chatModels[0]
+      setSelectedModels(prev => ({
+        chat1: prev.chat1 || defaultModel.id.toString(),
+        chat2: prev.chat2 || defaultModel.id.toString(),
+        chat3: prev.chat3 || defaultModel.id.toString(),
+        chat4: prev.chat4 || defaultModel.id.toString()
+      }))
+    }
+  }, [chatModels])
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesEndRef2 = useRef<HTMLDivElement>(null);
@@ -284,7 +305,7 @@ export default function Chat() {
         }
 
         // Get the selected model and persona for this chat
-        const modelId = isRetry ? undefined : selectedModels[chatId] // Don't use model ID on retry
+        const modelId = isRetry ? undefined : (selectedModels[chatId] || chatModels?.[0]?.id?.toString())
         const personaId = selectedPersonas[chatId]
         const selectedModel = modelId ? chatModels?.find(model => model.id.toString() === modelId) : undefined
         const selectedPersona = personas?.find(p => p.id.toString() === personaId)
@@ -434,7 +455,24 @@ export default function Chat() {
     ].filter(Boolean)
 
     try {
-      await Promise.all(apiCalls)
+      // Use Promise.allSettled instead of Promise.all to handle individual failures
+      const results = await Promise.allSettled(apiCalls)
+      
+      // Log any failures for debugging
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const chatId = ['chat1', 'chat2', 'chat3', 'chat4'][index]
+          console.error(`Chat ${chatId} failed:`, result.reason)
+          
+          // Set error message for failed chats
+          const errMsg = result.reason instanceof Error ? result.reason.message : 'Unknown error'
+          setError(prevError =>
+            prevError
+              ? new Error(`${prevError.message}\nChat ${chatId}: ${errMsg}`)
+              : new Error(`Chat ${chatId}: ${errMsg}`)
+          )
+        }
+      })
     } catch (err: unknown) {
       console.error('Error in handleSubmit:', err)
       const errMsg = err instanceof Error ? err.message : 'Unknown error'
@@ -813,30 +851,30 @@ export default function Chat() {
           </Button>
 
           {/* Mode selection buttons */}
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2">
             <Button
-              variant={mode === 'single' ? 'default' : 'outline'}
-              onClick={() => handleModeChange('single')}
-              className="w-24"
+              variant={mode === 'single' ? 'secondary' : 'ghost'}
+              size="icon"
+              onClick={() => setMode('single')}
+              title="Single chat"
             >
-              <Square className="w-4 h-4 mr-2" />
-              Single
+              <Square className="h-4 w-4" />
             </Button>
             <Button
-              variant={mode === 'dual' ? 'default' : 'outline'}
-              onClick={() => handleModeChange('dual')}
-              className="w-24"
+              variant={mode === 'dual' ? 'secondary' : 'ghost'}
+              size="icon"
+              onClick={() => setMode('dual')}
+              title="Split view"
             >
-              <Columns className="w-4 h-4 mr-2" />
-              Dual
+              <Columns className="h-4 w-4" />
             </Button>
             <Button
-              variant={mode === 'quad' ? 'default' : 'outline'}
-              onClick={() => handleModeChange('quad')}
-              className="w-24"
+              variant={mode === 'quad' ? 'secondary' : 'ghost'}
+              size="icon"
+              onClick={() => setMode('quad')}
+              title="Grid view"
             >
-              <Grid2X2 className="w-4 h-4 mr-2" />
-              Quad
+              <Grid2X2 className="h-4 w-4" />
             </Button>
           </div>
         </div>
