@@ -98,9 +98,8 @@ async def chat_endpoint(
     Handles chat requests with either a single message or a list of messages.
     """
     try:
-        # Log request details
-        raw_body = await request.body()
-        log_chat_request(request, raw_body, chat_data.dict())
+        # Log request details using chat_data instead of raw body
+        log_chat_request(request, None, chat_data.dict())
 
         # Setup conversation IDs
         conversation_id = str(chat_data.conversation_id or uuid.uuid4())
@@ -145,11 +144,6 @@ async def chat_endpoint(
         active_connections += 1
         background_tasks.add_task(cleanup_connection)
         logger.info(f"New chat connection. Active connections: {active_connections}")
-        logger.info("=" * 50)
-        logger.info(f"REQUEST HEADERS:\n{json.dumps(dict(request.headers), indent=2)}")
-        logger.info(f"URL PARAMETERS:\n{json.dumps(dict(request.query_params), indent=2)}")
-        logger.info(f"REQUEST BODY:\n{json.dumps(chat_data.dict(), indent=2, cls=UUIDEncoder)}")
-        logger.info("=" * 50)
 
         # Get system message from persona if specified
         system_message = ""
@@ -385,13 +379,3 @@ async def chat_endpoint(
         raise HTTPException(status_code=500, detail=str(e))
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-class ChatRequest(BaseModel):
-    messages: List[Message]
-    model_id: int
-    persona_id: UUID
-    conversation_id: Optional[UUID] = None
-    knowledge_base_ids: List[UUID] = []
-    asset_ids: List[UUID] = []
-    files: List[FileInfo] = []
-    user_id: UUID

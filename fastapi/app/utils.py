@@ -36,19 +36,20 @@ class UUIDEncoder(json.JSONEncoder):
             return str(obj)
         return super().default(obj)
 
-def log_chat_request(request: Request, raw_body: bytes, chat_data_dict: dict):
+def log_chat_request(request: Request, raw_body: bytes | None, chat_data_dict: dict):
     """Log details about an incoming chat request."""
     logger.info("=" * 50)
     logger.info("Incoming Chat Request")
     logger.info("=" * 50)
     
-    # Log the raw JSON before Pydantic validation
-    logger.info("Raw JSON before Pydantic validation:")
-    try:
-        raw_json = json.loads(raw_body)
-        logger.info(json.dumps(raw_json, indent=2))
-    except Exception as e:
-        logger.error(f"Could not parse raw JSON: {str(e)}")
+    # Log the raw JSON before Pydantic validation if available
+    if raw_body:
+        logger.info("Raw JSON before Pydantic validation:")
+        try:
+            raw_json = json.loads(raw_body)
+            logger.info(json.dumps(raw_json, indent=2))
+        except Exception as e:
+            logger.error(f"Could not parse raw JSON: {str(e)}")
     
     # Log the Pydantic validated data
     logger.info("Pydantic validated data:")
