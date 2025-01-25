@@ -75,7 +75,7 @@ export function AssetsTable({
       <div className="overflow-x-auto">
         <Table className={className}>
           <TableHeader>
-            <TableRow className="bg-gray-50 hover:bg-gray-50">
+            <TableRow>
               <TableHead className="w-[40px]"></TableHead>
               <TableHead className="w-[300px]">Title</TableHead>
               <TableHead className="w-[150px]">Type</TableHead>
@@ -89,14 +89,14 @@ export function AssetsTable({
           </TableHeader>
           <TableBody>
             {assets.length === 0 ? (
-              <TableRow className="hover:bg-gray-50">
+              <TableRow>
                 <TableCell colSpan={showActions ? 7 : 6} className="h-24 text-center">
                   No assets found.
                 </TableCell>
               </TableRow>
             ) : (
               assets.map((asset) => (
-                <TableRow key={asset.id} className="hover:bg-gray-50">
+                <TableRow key={asset.id}>
                   <TableCell className="w-[40px]">
                     <div className="w-8 h-8">
                       <FileIcon 
