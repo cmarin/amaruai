@@ -5,6 +5,7 @@ from fastapi.security import HTTPBearer
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from app.api.v1.router import public_router, protected_router
+from app.api.v1.workflows import router as workflow_router, public_router as workflow_public_router
 from app.api.v1 import (
     authentication,
     categories,
@@ -110,6 +111,10 @@ app.include_router(
     tags=["admin"],
     dependencies=[Depends(get_current_user)]
 )
+
+# Mount workflow routes
+app.include_router(workflow_router, prefix="/api/v1")
+app.include_router(workflow_public_router, prefix="/api/v1")
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
