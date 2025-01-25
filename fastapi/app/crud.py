@@ -132,7 +132,7 @@ def create_tool(db: Session, tool: schemas.ToolCreate):
     db.refresh(db_tool)
     return db_tool
 
-def update_tool(db: Session, tool_id: UUID, tool: schemas.ToolCreate):
+def update_tool(tool_id: UUID, db: Session, tool: schemas.ToolCreate):
     db_tool = db.query(models.Tool).filter(models.Tool.id == tool_id).first()
     if db_tool:
         db_tool.name = tool.name

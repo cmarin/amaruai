@@ -1,8 +1,9 @@
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 from typing import List
 from app import crud, schemas
 from app.database import get_db
+from uuid import UUID
 from app.api.v1.router import create_protected_router
 
 # Create a protected router for tools
@@ -18,21 +19,21 @@ def read_tools(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return tools
 
 @router.get("/{tool_id}", response_model=schemas.Tool)
-def read_tool(tool_id: int, db: Session = Depends(get_db)):
+def read_tool(tool_id: UUID = Path(...), db: Session = Depends(get_db)):
     db_tool = crud.get_tool(db, tool_id=tool_id)
     if db_tool is None:
         raise HTTPException(status_code=404, detail="Tool not found")
     return db_tool
 
 @router.put("/{tool_id}", response_model=schemas.Tool)
-def update_tool(tool_id: int, tool: schemas.ToolCreate, db: Session = Depends(get_db)):
+def update_tool(tool_id: UUID, tool: schemas.ToolCreate, db: Session = Depends(get_db)):
     db_tool = crud.update_tool(db, tool_id=tool_id, tool=tool)
     if db_tool is None:
         raise HTTPException(status_code=404, detail="Tool not found")
     return db_tool
 
 @router.delete("/{tool_id}", response_model=schemas.Tool)
-def delete_tool(tool_id: int, db: Session = Depends(get_db)):
+def delete_tool(tool_id: UUID = Path(...), db: Session = Depends(get_db)):
     db_tool = crud.delete_tool(db, tool_id=tool_id)
     if db_tool is None:
         raise HTTPException(status_code=404, detail="Tool not found")
