@@ -97,20 +97,12 @@ def delete_workflow(workflow_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.post("/{workflow_id}/execute", response_model=Dict[str, str])
-async def execute_workflow(
-    workflow_id: UUID,  # Changed from int to UUID
-    user_input: Dict[str, str], 
-    background_tasks: BackgroundTasks, 
-    db: Session = Depends(get_db)
-):
+async def execute_workflow(workflow_id: int, user_input: Dict[str, str], background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     try:
         workflow = crud.get_workflow(db, workflow_id=workflow_id)
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
-        
-        # Store results using string representation of UUID
-        workflow_results[str(workflow_id)] = []
-        
+
         # Determine max_iterations only for hierarchical workflows
         max_iterations = workflow.max_iterations if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None
 
@@ -182,6 +174,7 @@ async def execute_workflow(
                         description = prompt_template.prompt.format(**user_input)
                     task = Task(
                         description=description,
+                        agent=agent,
                         expected_output="Quality writing"
                     )
 
@@ -223,14 +216,14 @@ async def execute_workflow(
 
                 # Add a completion flag to the results
                 results.append({"completed": True})
-                workflow_results[str(workflow_id)] = results
+                workflow_results[workflow_id] = results
                 logging.info(f"Workflow execution completed: {results}")
                 return {"result": "Workflow execution completed"}
 
             except Exception as e:
                 logging.error(f"Error during workflow execution: {str(e)}")
 
-                workflow_results[str(workflow_id)] = [{
+                workflow_results[workflow_id] = [{
                     "step": "Error",
                     "prompt": "Error occurred",
                     "response": str(e)
@@ -261,6 +254,7 @@ async def get_workflow_results(workflow_id: UUID):
         for result in results if "completed" not in result
     ]
 
+    # Check if the workflow is completed
     if any("completed" in result for result in results):
         formatted_results.append({"completed": "true"})
     return formatted_results
@@ -314,205 +308,56 @@ def delete_workflow_step(
     return db_step
 
 
-@router.post("/{workflow_id}/stream")
+@router.post("/{workflow_id}/stream", response_model=Dict[str, str])
 async def initiate_workflow_stream(
     workflow_id: UUID,
-    chat_message: ChatMessage,
+    user_input: Dict[str, str],
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
+    """Initiate a workflow execution and return a stream token"""
     try:
-        # Validate and set defaults for missing fields
-        if not chat_message.messages:
-            chat_message.messages = []
+        # Log the request parameters
+        logger.info(f"Initiating workflow stream - Workflow ID: {workflow_id}")
+        logger.info(f"User input parameters: {json.dumps(user_input, indent=2)}")
         
-        if not chat_message.knowledge_base_ids:
-            chat_message.knowledge_base_ids = []
-        
-        if not chat_message.asset_ids:
-            chat_message.asset_ids = []
-        
-        if not chat_message.files:
-            chat_message.files = []
-            
-        # Convert string user_id to UUID if needed
-        if isinstance(chat_message.user_id, str) and chat_message.user_id != "user":
-            try:
-                chat_message.user_id = UUID(chat_message.user_id)
-            except ValueError:
-                # Handle default/anonymous user case
-                chat_message.user_id = None
-                
-        # Convert string conversation_id to UUID if needed
-        if isinstance(chat_message.conversation_id, str):
-            try:
-                chat_message.conversation_id = UUID(chat_message.conversation_id)
-            except ValueError:
-                # Generate new conversation ID if invalid
-                chat_message.conversation_id = uuid4()
-
-        # Initialize chat store
-        chat_store = PostgresChatStore.from_uri(uri=ASYNC_DATABASE_URL)
-        
-        # Initialize memory with chat store
-        memory = ChatMemoryBuffer.from_defaults(
-            chat_store=chat_store,
-            chat_store_key=str(chat_message.conversation_id),
-            token_limit=4000
-        )
-
-        # Get the workflow
+        # Log the workflow details
         workflow = crud.get_workflow(db, workflow_id=workflow_id)
-        if not workflow:
-            raise HTTPException(status_code=404, detail="Workflow not found")
-
-        # Log workflow details
-        logger.info(f"Found workflow: {workflow.name}")
-        logger.info(f"Number of steps: {len(workflow.steps)}")
-        for step in workflow.steps:
-            logger.info(f"Step {step.position}: Persona={step.persona_id}, Model={step.chat_model_id}, Template={step.prompt_template_id}")
-
-        async def event_generator():
-            try:
-                # Add at the start of the event_generator function
-                logger.info(f"Starting workflow stream for workflow_id: {workflow_id}")
-                logger.info(f"Chat message: {chat_message.dict()}")
-
-                # Initialize workflow execution
-                agents = []
-                tasks = []
-                
-                # Create agents for each step
-                for step in sorted(workflow.steps, key=lambda x: x.position):
-                    # Add detailed logging
-                    logger.info(f"Processing step {step.position}")
-                    logger.info(f"Step IDs - Persona: {step.persona_id}, Chat Model: {step.chat_model_id}, Template: {step.prompt_template_id}")
-                    
-                    persona = crud.get_persona(db, step.persona_id)
-                    if not persona:
-                        logger.error(f"Persona not found for ID: {step.persona_id}")
-                        yield f"event: error\ndata: {json.dumps({'error': f'Persona not found for step {step.position}'})}\n\n"
-                        return
-                        
-                    chat_model = crud.get_chat_model(db, step.chat_model_id)
-                    if not chat_model:
-                        logger.error(f"Chat model not found for ID: {step.chat_model_id}")
-                        yield f"event: error\ndata: {json.dumps({'error': f'Chat model not found for step {step.position}'})}\n\n"
-                        return
-                        
-                    prompt_template = crud.get_prompt_template(db, step.prompt_template_id)
-                    if not prompt_template:
-                        logger.error(f"Prompt template not found for ID: {step.prompt_template_id}")
-                        yield f"event: error\ndata: {json.dumps({'error': f'Prompt template not found for step {step.position}'})}\n\n"
-                        return
-                    
-                    logger.info(f"Found components - Persona: {persona.role}, Chat Model: {chat_model.name}, Template: {prompt_template.title}")
-                    
-                    # Add before creating each agent
-                    logger.info(f"Creating agent for step {step.position} with persona: {persona.role}")
-                    
-                    # Create agent for this step
-                    agent = Agent(
-                        role=persona.role,
-                        goal=persona.goal,
-                        backstory=persona.backstory,
-                        allow_delegation=persona.allow_delegation,
-                        verbose=persona.verbose,
-                        llm=LLM(
-                            model=f"openrouter/{chat_model.model}",
-                            api_key=os.environ["OPENROUTER_API_KEY"],
-                            base_url=os.environ["OPENROUTER_API_BASE"]
-                        )
-                    )
-                    agents.append(agent)
-                    
-                    # Add before creating each task
-                    logger.info(f"Creating task for step {step.position} with message: {chat_message.message}")
-                    
-                    # Create task for this step
-                    task = Task(
-                        description=chat_message.message if chat_message.message else "Process the input",
-                        expected_output="A response from the AI agent",
-                        agent=agent,
-                        context=f"You are working on step {step.position + 1} of the workflow."
-                    )
-                    tasks.append(task)
-                
-                # Add before crew creation
-                logger.info(f"Creating crew with {len(agents)} agents and {len(tasks)} tasks")
-                
-                # Create and run the crew
-                crew = Crew(
-                    agents=agents,
-                    tasks=tasks,
-                    process=Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL.value else Process.hierarchical,
-                    manager_agent=None if workflow.process_type == models.ProcessType.SEQUENTIAL.value else None,
-                    manager_llm=None if workflow.process_type == models.ProcessType.SEQUENTIAL.value else None,
-                    verbose=True
-                )
-
-                # Execute tasks and stream results
-                try:
-                    crew_result = crew.kickoff()
-                    for i, task in enumerate(tasks):
-                        try:
-                            task_output = task.output
-                            if task_output is None:
-                                raise ValueError(f"Task {i+1} output is None")
-                            
-                            task_raw_output = task_output.raw if hasattr(task_output, 'raw') else str(task_output)
-                            message_data = {
-                                "step": i + 1,
-                                "content": task_raw_output,
-                                "role": "assistant"
-                            }
-                            yield f"event: message\ndata: {json.dumps(message_data)}\n\n"
-                            
-                            # Store in memory
-                            memory.put(
-                                LlamaChatMessage(
-                                    role=MessageRole.ASSISTANT,
-                                    content=task_raw_output,
-                                    additional_kwargs={
-                                        "step": i + 1,
-                                        "workflow_id": str(workflow_id)
-                                    }
-                                )
-                            )
-                        except Exception as task_error:
-                            logger.error(f"Error executing task {i+1}: {str(task_error)}")
-                            yield f"event: error\ndata: {json.dumps({'error': f'Error in step {i+1}: {str(task_error)}'})}\n\n"
-                
-                    # Signal completion
-                    yield f"event: done\ndata: {json.dumps({'status': 'completed'})}\n\n"
-                
-                except Exception as e:
-                    logger.error(f"Error in crew execution: {str(e)}")
-                    yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
-
-            except Exception as e:
-                logger.error(f"Error in event generator: {str(e)}", exc_info=True)
-                yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
-
-        return StreamingResponse(
-            event_generator(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "Content-Type": "text/event-stream"
-            }
+        if workflow:
+            steps = sorted(workflow.steps, key=lambda x: x.position)
+            if steps:
+                first_step = steps[0]
+                logger.info(f"First step prompt template (ID: {first_step.prompt_template_id}): {first_step.prompt_template.prompt}")
+                logger.info(f"First step is_complex: {first_step.prompt_template.is_complex}")
+                if first_step.prompt_template.is_complex:
+                    logger.info("Complex prompt detected for first step")
+                    if "message" in user_input:
+                        logger.info(f"Using message from user input: {user_input['message']}")
+                    else:
+                        logger.info("No message found in user input for complex prompt")
+        
+        # Generate a stream token
+        stream_token = await crew_service.prepare_workflow_stream(workflow_id)
+        logger.info(f"Generated stream token: {stream_token}")
+        
+        # Start workflow execution in background
+        background_tasks.add_task(
+            crew_service.execute_workflow,
+            workflow_id=workflow_id,
+            user_input=user_input,
+            db=db,
+            stream_token=stream_token
         )
-
-    except HTTPException:
-        raise
+        
+        return {"stream_token": stream_token}
+    
     except Exception as e:
-        logger.error(f"Error in workflow stream: {str(e)}", exc_info=True)
+        logger.error(f"Error initiating workflow stream: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @public_router.get("/{workflow_id}/stream")
 async def stream_workflow_results(
-    workflow_id: UUID,  # Changed from int to UUID
+    workflow_id: UUID,
     stream_token: str,
     request: Request,
     db: Session = Depends(get_db)
@@ -523,11 +368,6 @@ async def stream_workflow_results(
         logger.info(f"Stream token: {stream_token}")
         logger.info(f"Request headers: {dict(request.headers)}")
         
-        # Use string representation of UUID for dictionary key
-        results = workflow_results.get(str(workflow_id), [])
-        if not results:
-            raise HTTPException(status_code=404, detail="No results found for this workflow")
-            
         async def event_generator():
             last_result_count = 0
             try:
@@ -574,23 +414,41 @@ async def stream_workflow_results(
                             current_results = stream_data['result']
                             while last_result_count < len(current_results):
                                 result = current_results[last_result_count]
-                                # Format the message event
-                                yield {
-                                    "event": "message",
-                                    "data": json.dumps({
-                                        "step": result.get("step", last_result_count + 1),
-                                        "content": result.get("response", ""),
-                                        "role": "assistant"
-                                    })
-                                }
+                                # Ensure result is a dictionary before accessing keys
+                                if isinstance(result, dict):
+                                    yield {
+                                        "event": "message",
+                                        "data": json.dumps({
+                                            "type": "step",
+                                            "step": result.get("step", last_result_count + 1),
+                                            "prompt": result.get("prompt", ""),
+                                            "response": result.get("response", ""),
+                                            "persona": result.get("persona", {}),
+                                            "chat_model": result.get("chat_model", {})
+                                        })
+                                    }
+                                else:
+                                    # Handle string or other non-dict results
+                                    yield {
+                                        "event": "message",
+                                        "data": json.dumps({
+                                            "type": "step",
+                                            "step": last_result_count + 1,
+                                            "response": str(result),
+                                            "prompt": "",
+                                            "persona": {},
+                                            "chat_model": {}
+                                        })
+                                    }
                                 last_result_count += 1
 
                         # Send completion event when done
                         if stream_data['status'] == 'completed':
                             yield {
-                                "event": "done",
+                                "event": "complete",
                                 "data": json.dumps({
-                                    "status": "completed"
+                                    "type": "status",
+                                    "message": "Workflow execution completed"
                                 })
                             }
                             return
