@@ -120,7 +120,7 @@ class Workflow(Base):
     name = Column(String, index=True)
     description = Column(String, nullable=True)
     process_type = Column(String)
-    manager_chat_model_id = Column(Integer, ForeignKey("chat_model.id"), nullable=True)
+    manager_chat_model_id = Column(UUID(as_uuid=True), ForeignKey("chat_model.id"), nullable=True)
     manager_persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"), nullable=True)
     max_iterations = Column(Integer, nullable=True)
     

@@ -288,7 +288,7 @@ class ChatMessage(BaseModel):
     message: Optional[str] = None
     messages: Optional[List[Message]] = None
     data: Optional[Dict[str, Any]] = None
-    model_id: Optional[int] = None
+    model_id: Optional[UUID] = None
     persona_id: Optional[UUID] = None
     conversation_id: Optional[UUID] = None
     knowledge_base_ids: Optional[List[UUID]] = []
