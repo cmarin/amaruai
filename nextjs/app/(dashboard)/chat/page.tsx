@@ -82,6 +82,7 @@ export default function Chat() {
   const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([])
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>([])
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(true)
+  const [retryAttempts, setRetryAttempts] = useState<{ [key: string]: number }>({})
 
   const uppyRef = useRef<Uppy | null>(null)
 
@@ -180,6 +181,8 @@ export default function Chat() {
 
   const handleModelChange = (chatWindowId: string, modelId: string) => {
     setSelectedModels(prev => ({ ...prev, [chatWindowId]: modelId }))
+    // Reset retry attempts when manually changing model
+    setRetryAttempts(prev => ({ ...prev, [chatWindowId]: 0 }))
   }
 
   const handlePersonaChange = (chatWindowId: string, personaId: string) => {
@@ -230,6 +233,8 @@ export default function Chat() {
 
     setIsLoading(true)
     setError(null)
+    // Reset retry attempts for new chat
+    resetRetryAttempts()
 
     const newMessage: Message = { role: 'user', content: input.trim() }
     setMessages(prev => [...prev, newMessage])
@@ -249,8 +254,23 @@ export default function Chat() {
     const makeApiCall = async (
       prevMessagesLocal: Message[],
       setMessagesFunction: React.Dispatch<React.SetStateAction<Message[]>>,
-      chatId: string
+      chatId: string,
+      isRetry: boolean = false // Add isRetry parameter
     ) => {
+      // Don't allow more than one retry per chat window
+      if (isRetry) {
+        const currentRetries = retryAttempts[chatId] || 0
+        if (currentRetries > 0) {
+          console.log(`Already retried chat ${chatId}, skipping further retries`)
+          return
+        }
+        // Mark this chat window as having been retried
+        setRetryAttempts(prev => ({
+          ...prev,
+          [chatId]: (prev[chatId] || 0) + 1
+        }))
+      }
+
       try {
         isStreamingRef.current = true;
         // Get or create conversation_id for this chat window
@@ -264,9 +284,9 @@ export default function Chat() {
         }
 
         // Get the selected model and persona for this chat
-        const modelId = selectedModels[chatId]
+        const modelId = isRetry ? undefined : selectedModels[chatId] // Don't use model ID on retry
         const personaId = selectedPersonas[chatId]
-        const selectedModel = chatModels?.find(model => model.id.toString() === modelId)
+        const selectedModel = modelId ? chatModels?.find(model => model.id.toString() === modelId) : undefined
         const selectedPersona = personas?.find(p => p.id.toString() === personaId)
 
         let streamStartTime: number | null = null
@@ -309,9 +329,6 @@ export default function Chat() {
         streamStartTime = Date.now()
 
         while (true) {
-          // Check for timeout conditions:
-          // 1. No chunks received within 10 seconds
-          // 2. Only empty chunks received within 10 seconds
           const timeElapsed = Date.now() - streamStartTime
           if (timeElapsed > 10000 && (!receivedFirstChunk || (chunkCount === 1 && !hasReceivedContent))) {
             throw new Error('Stream timeout - no meaningful content received within 10 seconds')
@@ -319,7 +336,6 @@ export default function Chat() {
 
           const { value, done } = await reader.read()
           if (done) {
-            // Only consider it a failure if we got no content at all
             if (chunkCount > 0 && !hasReceivedContent) {
               throw new Error('Stream completed with only empty chunks')
             }
@@ -330,7 +346,6 @@ export default function Chat() {
             break
           }
 
-          // Mark that we've received data
           if (!receivedFirstChunk) {
             receivedFirstChunk = true
           }
@@ -342,19 +357,13 @@ export default function Chat() {
             if (line.startsWith('data: ')) {
               chunkCount++
               const jsonData = line.slice(5).trim()
-              
-              // Skip [DONE] marker
               if (jsonData === '[DONE]') continue
 
               try {
-                // Try to parse the JSON, but first check if it's a complete JSON string
-                // by looking for matching curly braces and no trailing characters
                 const jsonString = jsonData
                 const openBraces = (jsonString.match(/{/g) || []).length
                 const closeBraces = (jsonString.match(/}/g) || []).length
                 
-                // If we have unmatched braces or the string doesn't end with }, 
-                // this might be an incomplete JSON chunk - skip it
                 if (openBraces !== closeBraces || (openBraces > 0 && !jsonString.trim().endsWith('}'))) {
                   console.warn('Skipping incomplete JSON chunk:', jsonString)
                   continue
@@ -377,7 +386,6 @@ export default function Chat() {
                   })
                 }
               } catch (parseError) {
-                // Log the error but don't throw - we'll continue processing other chunks
                 console.warn('Error parsing chunk, skipping:', parseError)
                 console.warn('Problematic chunk:', jsonData)
                 continue
@@ -393,18 +401,11 @@ export default function Chat() {
         console.error('Error in API call:', err)
 
         // If this is a timeout error or empty chunk error, retry without model_id
-        if (err.message.includes('timeout') || err.message.includes('empty chunk')) {
+        if ((err.message.includes('timeout') || err.message.includes('empty chunk')) && !isRetry) {
           console.log('Retrying stream without specific model for', chatId)
           try {
-            // Clear the model selection for this chat window
-            setSelectedModels(prev => {
-              const newState = { ...prev }
-              delete newState[chatId]
-              return newState
-            })
-            
             // Retry the API call without the model_id
-            return makeApiCall(prevMessagesLocal, setMessagesFunction, chatId)
+            return makeApiCall(prevMessagesLocal, setMessagesFunction, chatId, true)
           } catch (retryErr) {
             console.error('Retry also failed:', retryErr)
             const errMsg = retryErr instanceof Error ? retryErr.message : 'Unknown error'
@@ -500,6 +501,20 @@ export default function Chat() {
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
     setInput(prevInput => (prevInput ? prevInput + ' ' : '') + generatedPrompt)
     setSelectedComplexPrompt(null)
+  }
+
+  // Reset retry attempts when starting a new chat
+  const resetRetryAttempts = () => {
+    setRetryAttempts({})
+  }
+
+  // Add mode change handler
+  const handleModeChange = (newMode: 'single' | 'dual' | 'quad') => {
+    setMode(newMode)
+    // Reset retry attempts when changing modes
+    resetRetryAttempts()
+    // Reset multi-conversation tracking
+    setMultiConversationId(null)
   }
 
   // ChatWindow sub-component
@@ -797,30 +812,31 @@ export default function Chat() {
             )}
           </Button>
 
-          <div className="flex items-center gap-2">
+          {/* Mode selection buttons */}
+          <div className="flex items-center gap-2 mb-4">
             <Button
-              variant={mode === 'single' ? 'secondary' : 'ghost'}
-              size="icon"
-              onClick={() => setMode('single')}
-              title="Single chat"
+              variant={mode === 'single' ? 'default' : 'outline'}
+              onClick={() => handleModeChange('single')}
+              className="w-24"
             >
-              <Square className="h-4 w-4" />
+              <Square className="w-4 h-4 mr-2" />
+              Single
             </Button>
             <Button
-              variant={mode === 'dual' ? 'secondary' : 'ghost'}
-              size="icon"
-              onClick={() => setMode('dual')}
-              title="Split view"
+              variant={mode === 'dual' ? 'default' : 'outline'}
+              onClick={() => handleModeChange('dual')}
+              className="w-24"
             >
-              <Columns className="h-4 w-4" />
+              <Columns className="w-4 h-4 mr-2" />
+              Dual
             </Button>
             <Button
-              variant={mode === 'quad' ? 'secondary' : 'ghost'}
-              size="icon"
-              onClick={() => setMode('quad')}
-              title="Grid view"
+              variant={mode === 'quad' ? 'default' : 'outline'}
+              onClick={() => handleModeChange('quad')}
+              className="w-24"
             >
-              <Grid2X2 className="h-4 w-4" />
+              <Grid2X2 className="w-4 h-4 mr-2" />
+              Quad
             </Button>
           </div>
         </div>
