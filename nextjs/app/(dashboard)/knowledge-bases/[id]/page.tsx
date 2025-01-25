@@ -37,18 +37,20 @@ export default function KnowledgeBasePage({ params }: { params: { id: string } }
   }
 
   return (
-    <>
-      <AppSidebar />
-      <main className="flex-1">
-        <KnowledgeBaseManager
-          knowledgeBase={knowledgeBase}
-          onSave={() => {
-            router.refresh();
-            router.push('/knowledge-bases');
-          }}
-          onClose={() => router.push('/knowledge-bases')}
-        />
-      </main>
-    </>
+    <div className="h-full w-full">
+      <div className="flex h-full w-full overflow-hidden bg-white">
+        <AppSidebar />
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+          <KnowledgeBaseManager
+            knowledgeBase={knowledgeBase}
+            onSave={() => {
+              router.refresh();
+              router.push('/knowledge-bases');
+            }}
+            onClose={() => router.push('/knowledge-bases')}
+          />
+        </div>
+      </div>
+    </div>
   );
 }

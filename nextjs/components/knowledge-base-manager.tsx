@@ -185,8 +185,8 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
   };
 
   return (
-    <div className="flex flex-col min-h-screen w-full">
-      <div className="flex-grow p-6">
+    <div className="flex flex-col h-full w-full bg-white">
+      <div className="flex-grow p-6 overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">
             {knowledgeBaseId ? 'Edit Knowledge Base' : 'Create Knowledge Base'}
