@@ -309,17 +309,7 @@ export default function AssetsPage() {
       <AppSidebar toggleChatbot={() => {}} />
       <div className={`flex-1 p-6 overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center space-x-4 flex-1">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search assets..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold">Assets</h1>
           <div className="flex gap-2">
             <Button 
               variant="outline" 
@@ -336,6 +326,18 @@ export default function AssetsPage() {
               <Plus className="mr-2 h-4 w-4" />
               Upload Assets
             </Button>
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search assets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8"
+            />
           </div>
         </div>
 
