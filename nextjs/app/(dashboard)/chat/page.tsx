@@ -271,6 +271,8 @@ export default function Chat() {
 
         let streamStartTime: number | null = null
         let receivedFirstChunk = false
+        let hasReceivedContent = false
+        let chunkCount = 0
 
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -307,15 +309,21 @@ export default function Chat() {
         streamStartTime = Date.now()
 
         while (true) {
-          // Check if we've exceeded timeout without receiving any chunks
-          if (!receivedFirstChunk && streamStartTime && Date.now() - streamStartTime > 10000) {
-            throw new Error('Stream timeout - no data received within 10 seconds')
+          // Check for timeout conditions:
+          // 1. No chunks received within 10 seconds
+          // 2. Only empty chunks received within 10 seconds
+          const timeElapsed = Date.now() - streamStartTime
+          if (timeElapsed > 10000 && (!receivedFirstChunk || (chunkCount === 1 && !hasReceivedContent))) {
+            throw new Error('Stream timeout - no meaningful content received within 10 seconds')
           }
 
           const { value, done } = await reader.read()
           if (done) {
+            // If we're done and only received one empty chunk, consider it a failure
+            if (chunkCount === 1 && !hasReceivedContent) {
+              throw new Error('Stream completed with only empty chunk')
+            }
             isStreamingRef.current = false;
-            // After streaming is complete, ensure content is scrollable
             if (chatContainerRef.current) {
               chatContainerRef.current.style.overflowY = 'auto';
             }
@@ -332,11 +340,13 @@ export default function Chat() {
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
+              chunkCount++
               const jsonData = line.slice(5).trim()
               if (jsonData !== '[DONE]') {
                 try {
                   const parsed = JSON.parse(jsonData)
                   if (parsed.choices && parsed.choices[0].delta.content) {
+                    hasReceivedContent = true
                     assistantMessage += parsed.choices[0].delta.content
                     setMessagesFunction(prev => {
                       const updated = [...prev]
@@ -344,7 +354,6 @@ export default function Chat() {
                         role: 'assistant',
                         content: assistantMessage,
                       }
-                      // Ensure content is scrollable during streaming
                       if (chatContainerRef.current) {
                         chatContainerRef.current.style.overflowY = 'auto';
                       }
@@ -365,8 +374,8 @@ export default function Chat() {
         }
         console.error('Error in API call:', err)
 
-        // If this is a timeout error, retry without model_id
-        if (err.message.includes('timeout')) {
+        // If this is a timeout error or empty chunk error, retry without model_id
+        if (err.message.includes('timeout') || err.message.includes('empty chunk')) {
           console.log('Retrying stream without specific model for', chatId)
           try {
             // Clear the model selection for this chat window
