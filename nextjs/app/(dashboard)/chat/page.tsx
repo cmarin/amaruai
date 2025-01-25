@@ -269,6 +269,9 @@ export default function Chat() {
         const selectedModel = chatModels?.find(model => model.id.toString() === modelId)
         const selectedPersona = personas?.find(p => p.id.toString() === personaId)
 
+        let streamStartTime: number | null = null
+        let receivedFirstChunk = false
+
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: {
@@ -301,7 +304,14 @@ export default function Chat() {
           { role: 'assistant', content: '' },
         ])
 
+        streamStartTime = Date.now()
+
         while (true) {
+          // Check if we've exceeded timeout without receiving any chunks
+          if (!receivedFirstChunk && streamStartTime && Date.now() - streamStartTime > 10000) {
+            throw new Error('Stream timeout - no data received within 10 seconds')
+          }
+
           const { value, done } = await reader.read()
           if (done) {
             isStreamingRef.current = false;
@@ -311,6 +321,12 @@ export default function Chat() {
             }
             break
           }
+
+          // Mark that we've received data
+          if (!receivedFirstChunk) {
+            receivedFirstChunk = true
+          }
+
           const chunk = decoder.decode(value)
           const lines = chunk.split('\n')
 
@@ -348,12 +364,37 @@ export default function Chat() {
           chatContainerRef.current.style.overflowY = 'auto';
         }
         console.error('Error in API call:', err)
-        const errMsg = err instanceof Error ? err.message : 'Unknown error'
-        setError(prevError =>
-          prevError
-            ? new Error(`${prevError.message}\n${errMsg}`)
-            : new Error(errMsg)
-        )
+
+        // If this is a timeout error, retry without model_id
+        if (err.message.includes('timeout')) {
+          console.log('Retrying stream without specific model for', chatId)
+          try {
+            // Clear the model selection for this chat window
+            setSelectedModels(prev => {
+              const newState = { ...prev }
+              delete newState[chatId]
+              return newState
+            })
+            
+            // Retry the API call without the model_id
+            return makeApiCall(prevMessagesLocal, setMessagesFunction, chatId)
+          } catch (retryErr) {
+            console.error('Retry also failed:', retryErr)
+            const errMsg = retryErr instanceof Error ? retryErr.message : 'Unknown error'
+            setError(prevError =>
+              prevError
+                ? new Error(`${prevError.message}\nRetry failed: ${errMsg}`)
+                : new Error(`Retry failed: ${errMsg}`)
+            )
+          }
+        } else {
+          const errMsg = err instanceof Error ? err.message : 'Unknown error'
+          setError(prevError =>
+            prevError
+              ? new Error(`${prevError.message}\n${errMsg}`)
+              : new Error(errMsg)
+          )
+        }
       }
     }
 
