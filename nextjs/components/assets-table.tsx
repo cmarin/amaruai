@@ -3,7 +3,7 @@
 import { Asset } from '@/types/knowledge-base';
 import { FileIcon, defaultStyles } from 'react-file-icon';
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Trash2, Settings, Plus, Eye } from 'lucide-react';
+import { Copy, Check, Plus, Eye, Settings, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -20,6 +20,15 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious 
+} from "@/components/ui/pagination";
+import { cn } from "@/lib/utils";
 
 interface AssetsTableProps {
   assets: Asset[];
@@ -31,6 +40,11 @@ interface AssetsTableProps {
   showStatus?: boolean;
   actionType?: 'manage' | 'select';
   className?: string;
+  searchQuery?: string;
+  currentPage?: number;
+  itemsPerPage?: number;
+  onPageChange?: (page: number) => void;
+  totalItems?: number;
 }
 
 const getFileExtension = (type: string) => {
@@ -48,11 +62,16 @@ export function AssetsTable({
   showActions = true,
   showStatus = true,
   actionType = 'manage',
-  className
+  className,
+  searchQuery = '',
+  currentPage = 1,
+  itemsPerPage = 10,
+  onPageChange,
+  totalItems
 }: AssetsTableProps) {
   const [copiedAssetId, setCopiedAssetId] = useState<string | null>(null);
 
-  const handleCopyTranscript = async (content: string, assetId: string) => {
+  const handleCopyTranscript = async (content: string | undefined | null, assetId: string) => {
     try {
       if (!content) {
         console.error('No content available to copy');
@@ -76,8 +95,17 @@ export function AssetsTable({
     }
   };
 
+  const filteredAssets = assets.filter(asset => 
+    asset.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    asset.file_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    asset.type?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const totalPages = totalItems ? Math.ceil(totalItems / itemsPerPage) : 
+    Math.ceil(filteredAssets.length / itemsPerPage);
+
   return (
-    <div className="w-full">
+    <div className="w-full space-y-4">
       <div className="overflow-x-auto">
         <Table className={className}>
           <TableHeader>
@@ -96,14 +124,14 @@ export function AssetsTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {assets.length === 0 ? (
+            {filteredAssets.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={showActions ? (showStatus ? 7 : 6) : (showStatus ? 6 : 5)} className="h-24 text-center">
                   No assets found.
                 </TableCell>
               </TableRow>
             ) : (
-              assets.map((asset) => (
+              filteredAssets.map((asset) => (
                 <TableRow key={asset.id}>
                   <TableCell className="w-[40px]">
                     <div className="w-8 h-8">
@@ -157,6 +185,23 @@ export function AssetsTable({
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => handleCopyTranscript(asset.content, asset.id)}
+                                  >
+                                    <span className="sr-only">Copy transcript</span>
+                                    <Copy className={cn("h-4 w-4", copiedAssetId === asset.id && "text-green-500")} />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{copiedAssetId === asset.id ? 'Copied!' : 'Copy transcript'}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                             {onManageAsset && (
                               <TooltipProvider>
                                 <Tooltip>
@@ -197,23 +242,42 @@ export function AssetsTable({
                             )}
                           </>
                         ) : (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  className="flex items-center gap-2 px-3"
-                                  onClick={() => onSelectAsset?.(asset)}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                  Add
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Add to Knowledge Base</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                          <>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => handleCopyTranscript(asset.content, asset.id)}
+                                  >
+                                    <span className="sr-only">Copy transcript</span>
+                                    <Copy className={cn("h-4 w-4", copiedAssetId === asset.id && "text-green-500")} />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{copiedAssetId === asset.id ? 'Copied!' : 'Copy transcript'}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    className="flex items-center gap-2 px-3"
+                                    onClick={() => onSelectAsset?.(asset)}
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                    Add
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Add to Knowledge Base</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </>
                         )}
                       </div>
                     </TableCell>
@@ -224,6 +288,64 @@ export function AssetsTable({
           </TableBody>
         </Table>
       </div>
+      {totalPages > 1 && onPageChange && (
+        <div className="flex justify-center mt-4">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+              </PaginationItem>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else {
+                  if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - (4 - i);
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                }
+                return (
+                  <PaginationItem key={pageNum}>
+                    <Button
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => onPageChange(pageNum)}
+                      className="min-w-[2.5rem]"
+                    >
+                      {pageNum}
+                    </Button>
+                  </PaginationItem>
+                );
+              })}
+              <PaginationItem>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 }

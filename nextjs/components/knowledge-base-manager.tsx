@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { X, Upload } from 'lucide-react'
+import { X, Upload, Search } from 'lucide-react'
 import { KnowledgeBase, createKnowledgeBase, updateKnowledgeBase, KnowledgeBaseCreate } from '@/utils/knowledge-base-service'
 import { useSession } from '@/app/utils/session/session'
 import { AssetsTable } from './assets-table';
@@ -44,6 +44,10 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
   const supabase = useSupabase();
   const { toast } = useToast();
   const [uppy, setUppy] = useState<Uppy | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const loadAssets = useCallback(async () => {
     try {
@@ -273,7 +277,16 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
           <DialogHeader>
             <DialogTitle>Select Assets</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search assets..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1"
+              />
+            </div>
             <AssetsTable 
               assets={availableAssets.filter(asset => 
                 !selectedAssets.some(selected => selected.id === asset.id)
@@ -282,6 +295,13 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
               showStatus={false}
               actionType="select"
               onSelectAsset={handleAddAsset}
+              searchQuery={searchQuery}
+              currentPage={currentPage}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              totalItems={availableAssets.filter(asset => 
+                !selectedAssets.some(selected => selected.id === asset.id)
+              ).length}
             />
           </div>
           <div className="flex justify-end gap-2 mt-4">
