@@ -24,7 +24,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { ImageIcon, FileTextIcon, FileIcon as LucideFileIcon, Upload, Copy, Settings, Trash2, MoreHorizontal, BookOpen, Plus, X } from 'lucide-react';
+import { ImageIcon, FileTextIcon, FileIcon as LucideFileIcon, Upload, Copy, Settings, Trash2, MoreHorizontal, BookOpen, Plus, X, Search } from 'lucide-react';
 import { Asset } from '@/types/knowledge-base';
 import { fetchAssets, deleteAsset } from '@/utils/asset-service';
 import { UploadService, UploadedFile } from '@/utils/upload-service';
@@ -36,6 +36,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatFileSize, getFileExtension } from '@/lib/utils';
+import { Input } from "@/components/ui/input";
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 function getAssetIcon(type: string) {
   const extension = getFileExtension(type);
@@ -98,7 +101,6 @@ function AssetRow({ asset, onDelete }: AssetRowProps) {
           {asset.title || asset.file_name}
         </a>
       </TableCell>
-      <TableCell>{asset.type}</TableCell>
       <TableCell>{formatFileSize(asset.size || 0)}</TableCell>
       <TableCell>
         <span className={cn(
@@ -112,23 +114,40 @@ function AssetRow({ asset, onDelete }: AssetRowProps) {
         {new Date(asset.created_at).toLocaleDateString()}
       </TableCell>
       <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={handleCopy}>
-              <Copy className="mr-2 h-4 w-4" />
-              {copied ? 'Copied!' : 'Copy Content'}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onDelete(asset.id)}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex gap-1 justify-end">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCopy}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Copy transcript</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onDelete(asset.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete asset</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </TableCell>
     </TableRow>
   );
@@ -144,6 +163,7 @@ export default function AssetsPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const supabase = useSupabase();
   const { toast } = useToast();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -160,7 +180,13 @@ export default function AssetsPage() {
     }
   };
 
-  const sortedAssets = [...assets].sort((a, b) => {
+  const filteredAssets = assets.filter(asset => 
+    asset.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    asset.file_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    asset.type?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const sortedAssets = [...filteredAssets].sort((a, b) => {
     const aValue = a[sortKey];
     const bValue = b[sortKey];
     const order = sortOrder === 'asc' ? 1 : -1;
@@ -279,154 +305,163 @@ export default function AssetsPage() {
   }
 
   return (
-    <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-white">
-        <AppSidebar toggleChatbot={() => {}} />
-        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-          <div className="flex items-center justify-between p-4 border-b">
-            <h1 className="text-2xl font-bold">Assets</h1>
-            <div className="flex gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => router.push('/knowledge-bases')}
-                className="h-9"
-              >
-                <BookOpen className="mr-2 h-4 w-4" />
-                Manage Knowledge Bases
-              </Button>
-              <Button 
-                onClick={() => setShowUploadModal(true)} 
-                className="bg-blue-600 hover:bg-blue-700 text-white h-9"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Upload Assets
-              </Button>
+    <div className="flex h-screen">
+      <AppSidebar toggleChatbot={() => {}} />
+      <div className={`flex-1 p-6 overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center space-x-4 flex-1">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search assets..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8"
+              />
             </div>
           </div>
-
-          <div className="flex-1 overflow-auto p-4">
-            <div className="container mx-auto py-6">
-              <div className="bg-white shadow rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[40px]"></TableHead>
-                      <TableHead 
-                        className="cursor-pointer"
-                        onClick={() => handleSort('title')}
-                      >
-                        Name {sortKey === 'title' && (sortOrder === 'asc' ? '↑' : '↓')}
-                      </TableHead>
-                      <TableHead 
-                        className="cursor-pointer"
-                        onClick={() => handleSort('type')}
-                      >
-                        Type {sortKey === 'type' && (sortOrder === 'asc' ? '↑' : '↓')}
-                      </TableHead>
-                      <TableHead 
-                        className="cursor-pointer"
-                        onClick={() => handleSort('size')}
-                      >
-                        Size {sortKey === 'size' && (sortOrder === 'asc' ? '↑' : '↓')}
-                      </TableHead>
-                      <TableHead 
-                        className="cursor-pointer"
-                        onClick={() => handleSort('managed')}
-                      >
-                        Status {sortKey === 'managed' && (sortOrder === 'asc' ? '↑' : '↓')}
-                      </TableHead>
-                      <TableHead 
-                        className="cursor-pointer"
-                        onClick={() => handleSort('created_at')}
-                      >
-                        Created {sortKey === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
-                      </TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {currentAssets.map((asset) => (
-                      <AssetRow 
-                        key={asset.id} 
-                        asset={asset} 
-                        onDelete={handleDeleteAsset}
-                      />
-                    ))}
-                  </TableBody>
-                </Table>
-
-                {totalPages > 1 && (
-                  <div className="py-4 px-6 border-t">
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                          >
-                            Previous
-                          </Button>
-                        </PaginationItem>
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                          <PaginationItem key={page}>
-                            <PaginationLink
-                              onClick={() => setCurrentPage(page)}
-                              isActive={currentPage === page}
-                            >
-                              {page}
-                            </PaginationLink>
-                          </PaginationItem>
-                        ))}
-                        <PaginationItem>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                          >
-                            Next
-                          </Button>
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => router.push('/knowledge-bases')}
+              className="h-9"
+            >
+              <BookOpen className="mr-2 h-4 w-4" />
+              Manage Knowledge Bases
+            </Button>
+            <Button 
+              onClick={() => setShowUploadModal(true)} 
+              className="bg-blue-600 hover:bg-blue-700 text-white h-9"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Upload Assets
+            </Button>
           </div>
         </div>
-      </div>
 
-      {showUploadModal && uppy && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg max-w-2xl w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Upload Assets</h2>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => {
-                  if (uppy) {
-                    const allFileIds = uppy.getFiles().map(file => file.id);
-                    uppy.cancelAll();
-                    uppy.removeFiles(allFileIds);
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[40px]"></TableHead>
+                  <TableHead 
+                    className="w-[300px] cursor-pointer"
+                    onClick={() => handleSort('title')}
+                  >
+                    Title {sortKey === 'title' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                  <TableHead 
+                    className="w-[100px] cursor-pointer"
+                    onClick={() => handleSort('size')}
+                  >
+                    Size {sortKey === 'size' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                  <TableHead 
+                    className="w-[100px] cursor-pointer"
+                    onClick={() => handleSort('managed')}
+                  >
+                    Status {sortKey === 'managed' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                  <TableHead 
+                    className="w-[120px] cursor-pointer"
+                    onClick={() => handleSort('created_at')}
+                  >
+                    Created {sortKey === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                  <TableHead className="w-[100px] text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentAssets.map((asset) => (
+                  <AssetRow 
+                    key={asset.id} 
+                    asset={asset} 
+                    onDelete={handleDeleteAsset}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        {totalPages > 1 && (
+          <div className="flex justify-center mt-4">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                </PaginationItem>
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else {
+                    if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - (4 - i);
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
                   }
-                  setShowUploadModal(false);
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <Dashboard 
-              uppy={uppy} 
-              plugins={[]} 
-              proudlyDisplayPoweredByUppy={false}
-            />
+                  return (
+                    <PaginationItem key={pageNum}>
+                      <Button
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className="min-w-[2.5rem]"
+                      >
+                        {pageNum}
+                      </Button>
+                    </PaginationItem>
+                  );
+                })}
+                <PaginationItem>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Upload Modal */}
+        {showUploadModal && uppy && (
+          <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+            <DialogContent className="sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Upload Assets</DialogTitle>
+              </DialogHeader>
+              <div className="py-4">
+                <Dashboard 
+                  uppy={uppy} 
+                  plugins={[]} 
+                  proudlyDisplayPoweredByUppy={false}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
     </div>
   );
 }

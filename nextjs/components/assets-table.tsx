@@ -112,7 +112,6 @@ export function AssetsTable({
             <TableRow>
               <TableHead className="w-[40px]"></TableHead>
               <TableHead className="w-[300px]">Title</TableHead>
-              <TableHead className="w-[150px]">Type</TableHead>
               <TableHead className="w-[100px]">Size</TableHead>
               {showStatus && (
                 <TableHead className="w-[100px]">Status</TableHead>
@@ -126,7 +125,7 @@ export function AssetsTable({
           <TableBody>
             {filteredAssets.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={showActions ? (showStatus ? 7 : 6) : (showStatus ? 6 : 5)} className="h-24 text-center">
+                <TableCell colSpan={showActions ? (showStatus ? 6 : 5) : (showStatus ? 5 : 4)} className="h-24 text-center">
                   No assets found.
                 </TableCell>
               </TableRow>
@@ -151,9 +150,6 @@ export function AssetsTable({
                       {asset.title || asset.file_name}
                     </a>
                   </TableCell>
-                  <TableCell className="truncate">
-                    {asset.mime_type || asset.type || 'Unknown'}
-                  </TableCell>
                   <TableCell>{formatFileSize(asset.size || 0)}</TableCell>
                   {showStatus && (
                     <TableCell>
@@ -168,23 +164,6 @@ export function AssetsTable({
                       <div className="flex gap-1 justify-end">
                         {actionType === 'manage' ? (
                           <>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => onPreview?.(asset)}
-                                  >
-                                    <span className="sr-only">Preview asset</span>
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Preview asset</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
