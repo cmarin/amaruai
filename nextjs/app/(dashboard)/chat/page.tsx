@@ -319,9 +319,9 @@ export default function Chat() {
 
           const { value, done } = await reader.read()
           if (done) {
-            // If we're done and only received one empty chunk, consider it a failure
-            if (chunkCount === 1 && !hasReceivedContent) {
-              throw new Error('Stream completed with only empty chunk')
+            // Only consider it a failure if we got no content at all
+            if (chunkCount > 0 && !hasReceivedContent) {
+              throw new Error('Stream completed with only empty chunks')
             }
             isStreamingRef.current = false;
             if (chatContainerRef.current) {
@@ -342,27 +342,45 @@ export default function Chat() {
             if (line.startsWith('data: ')) {
               chunkCount++
               const jsonData = line.slice(5).trim()
-              if (jsonData !== '[DONE]') {
-                try {
-                  const parsed = JSON.parse(jsonData)
-                  if (parsed.choices && parsed.choices[0].delta.content) {
-                    hasReceivedContent = true
-                    assistantMessage += parsed.choices[0].delta.content
-                    setMessagesFunction(prev => {
-                      const updated = [...prev]
-                      updated[updated.length - 1] = {
-                        role: 'assistant',
-                        content: assistantMessage,
-                      }
-                      if (chatContainerRef.current) {
-                        chatContainerRef.current.style.overflowY = 'auto';
-                      }
-                      return updated
-                    })
-                  }
-                } catch (parseError) {
-                  console.error('Error parsing chunk line:', parseError, line)
+              
+              // Skip [DONE] marker
+              if (jsonData === '[DONE]') continue
+
+              try {
+                // Try to parse the JSON, but first check if it's a complete JSON string
+                // by looking for matching curly braces and no trailing characters
+                let jsonString = jsonData
+                const openBraces = (jsonString.match(/{/g) || []).length
+                const closeBraces = (jsonString.match(/}/g) || []).length
+                
+                // If we have unmatched braces or the string doesn't end with }, 
+                // this might be an incomplete JSON chunk - skip it
+                if (openBraces !== closeBraces || (openBraces > 0 && !jsonString.trim().endsWith('}'))) {
+                  console.warn('Skipping incomplete JSON chunk:', jsonString)
+                  continue
                 }
+
+                const parsed = JSON.parse(jsonString)
+                if (parsed.choices?.[0]?.delta?.content) {
+                  hasReceivedContent = true
+                  assistantMessage += parsed.choices[0].delta.content
+                  setMessagesFunction(prev => {
+                    const updated = [...prev]
+                    updated[updated.length - 1] = {
+                      role: 'assistant',
+                      content: assistantMessage,
+                    }
+                    if (chatContainerRef.current) {
+                      chatContainerRef.current.style.overflowY = 'auto';
+                    }
+                    return updated
+                  })
+                }
+              } catch (parseError) {
+                // Log the error but don't throw - we'll continue processing other chunks
+                console.warn('Error parsing chunk, skipping:', parseError)
+                console.warn('Problematic chunk:', jsonData)
+                continue
               }
             }
           }
