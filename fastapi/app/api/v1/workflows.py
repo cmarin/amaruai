@@ -355,7 +355,7 @@ async def initiate_workflow_stream(
         logger.error(f"Error initiating workflow stream: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@public_router.get("/{workflow_id}/stream")
+@public_router.route("/{workflow_id}/stream", methods=["GET"])
 async def stream_workflow_results(
     workflow_id: UUID,
     stream_token: str,
@@ -379,34 +379,16 @@ async def stream_workflow_results(
 
                         stream_data = crew_service.get_stream_data(stream_token)
                         if not stream_data:
-                            yield {
-                                "event": "error",
-                                "data": json.dumps({
-                                    "type": "error",
-                                    "message": "Invalid or expired stream token"
-                                })
-                            }
+                            yield f"event: error\ndata: {json.dumps({'error': 'Invalid or expired stream token'})}\n\n"
                             return
 
                         # Handle errors and validation
-                        if stream_data['workflow_id'] != workflow_id:
-                            yield {
-                                "event": "error",
-                                "data": json.dumps({
-                                    "type": "error",
-                                    "message": "Invalid workflow ID for this token"
-                                })
-                            }
+                        if str(stream_data['workflow_id']) != str(workflow_id):  # Convert both to string for comparison
+                            yield f"event: error\ndata: {json.dumps({'error': 'Invalid workflow ID for this token'})}\n\n"
                             return
 
                         if stream_data['status'] == 'error':
-                            yield {
-                                "event": "error",
-                                "data": json.dumps({
-                                    "type": "error",
-                                    "message": stream_data.get('error', 'Unknown error occurred')
-                                })
-                            }
+                            yield f"event: error\ndata: {json.dumps({'error': stream_data.get('error', 'Unknown error occurred')})}\n\n"
                             return
 
                         # Stream new results as they come in
@@ -460,27 +442,12 @@ async def stream_workflow_results(
                         return
                     except Exception as e:
                         logger.error(f"Error in event stream for workflow {workflow_id}: {str(e)}")
-                        yield {
-                            "event": "error",
-                            "data": json.dumps({
-                                "type": "error",
-                                "message": f"Stream error: {str(e)}"
-                            })
-                        }
+                        yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
                         return
 
             except Exception as e:
                 logger.error(f"Generator error for workflow {workflow_id}: {str(e)}")
-                yield {
-                    "event": "error",
-                    "data": json.dumps({
-                        "type": "error",
-                        "message": f"Stream error: {str(e)}"
-                    })
-                }
-            finally:
-                logger.info(f"Cleaning up stream for workflow ID: {workflow_id}")
-                # Add any cleanup code here if needed
+                yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
 
         return EventSourceResponse(
             event_generator(),
