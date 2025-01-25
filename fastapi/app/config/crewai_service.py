@@ -24,6 +24,12 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("hpack").setLevel(logging.WARNING)
 logging.getLogger("openai").setLevel(logging.WARNING)
 
+class UUIDEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, UUID):
+            return str(obj)
+        return super().default(obj)
+
 class CrewAIError(Exception):
     """Custom exception for CrewAI operations"""
     pass
@@ -103,6 +109,33 @@ class CrewAIService:
             logger.error(f"Failed to create agent: {str(e)}")
             raise CrewAIError(f"Agent creation failed: {str(e)}")
 
+    def create_callback(self, step_metadata, stream_token):
+        def callback(output):
+            if stream_token:
+                result = {
+                    "step": step_metadata["step"],
+                    "prompt": step_metadata["prompt"],
+                    "response": output.raw if hasattr(output, 'raw') else str(output),
+                    "persona": {
+                        "id": str(step_metadata["persona"]["id"]),
+                        "role": step_metadata["persona"]["role"],
+                        "goal": step_metadata["persona"]["goal"]
+                    },
+                    "chat_model": {
+                        "id": str(step_metadata["chat_model"]["id"]),
+                        "name": step_metadata["chat_model"]["name"],
+                        "model": step_metadata["chat_model"]["model"]
+                    }
+                }
+                self._task_results[stream_token].append(result)
+                self._stream_tokens[stream_token]['result'] = self._task_results[stream_token]
+
+                # Use UUIDEncoder for JSON serialization
+                print(json.dumps(result, cls=UUIDEncoder), flush=True)
+                if stream_token in self._stdout_buffers:
+                    self._stdout_buffers[stream_token].flush()
+        return callback
+
     async def execute_workflow(self, workflow_id: UUID, user_input: dict, db: Session, stream_token: Optional[str] = None):
         try:
             workflow = crud.get_workflow(db, workflow_id=workflow_id)
@@ -177,42 +210,23 @@ class CrewAIService:
                     metadata = {
                         "step": i + 1,
                         "persona": {
-                            "id": persona.id,
+                            "id": str(persona.id),
                             "role": persona.role,
                             "goal": persona.goal
                         },
                         "chat_model": {
-                            "id": chat_model.id,
+                            "id": str(chat_model.id),
                             "name": chat_model.name,
                             "model": chat_model.model
                         },
                         "prompt": formatted_prompt
                     }
 
-                    def create_callback(step_metadata):
-                        def callback(output):
-                            if stream_token:
-                                result = {
-                                    "step": step_metadata["step"],
-                                    "prompt": step_metadata["prompt"],
-                                    "response": output.raw if hasattr(output, 'raw') else str(output),
-                                    "persona": step_metadata["persona"],
-                                    "chat_model": step_metadata["chat_model"]
-                                }
-                                self._task_results[stream_token].append(result)
-                                self._stream_tokens[stream_token]['result'] = self._task_results[stream_token]
-
-                                # Write to buffer and flush immediately
-                                print(json.dumps(result), flush=True)
-                                if stream_token in self._stdout_buffers:
-                                    self._stdout_buffers[stream_token].flush()
-                        return callback
-
                     task = Task(
                         description=metadata["prompt"],
                         agent=agent,
                         expected_output="Quality writing",
-                        callback=create_callback(metadata)
+                        callback=self.create_callback(metadata, stream_token)
                     )
                     tasks.append(task)
 
