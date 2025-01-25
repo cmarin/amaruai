@@ -64,15 +64,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       // Transform the chat models to include the additional fields
-      const transformedModels = models.map(model => ({
-        ...model,
-        id: typeof model.id === 'string' ? parseInt(model.id, 10) : model.id,
-        model_id: model.model || '',
-        // Set default based on model properties - assuming the first GPT-4 model is default
-        default: model.model?.toLowerCase().includes('gpt-4') || false,
-        created_at: model.created_at || new Date().toISOString(),
-        updated_at: model.updated_at || new Date().toISOString()
-      })) as ChatModel[];
+      const transformedModels = models.map(model => {
+        const now = new Date().toISOString();
+        return {
+          ...model,
+          id: typeof model.id === 'string' ? parseInt(model.id, 10) : model.id,
+          model_id: model.model || '',
+          // Set default based on model properties - assuming the first GPT-4 model is default
+          default: model.model?.toLowerCase().includes('gpt-4') || false,
+          created_at: now,
+          updated_at: now
+        };
+      }) as ChatModel[];
 
       // Ensure exactly one model is default - prefer GPT-4, fallback to first model
       const hasDefault = transformedModels.some(m => m.default);

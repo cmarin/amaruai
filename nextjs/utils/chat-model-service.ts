@@ -10,6 +10,8 @@ export interface ChatModel {
   api_key: string;
   max_tokens: number;
   temperature: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export async function fetchChatModels(headers: ApiHeaders): Promise<ChatModel[]> {
