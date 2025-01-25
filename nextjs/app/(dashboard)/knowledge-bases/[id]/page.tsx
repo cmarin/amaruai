@@ -37,9 +37,9 @@ export default function KnowledgeBasePage({ params }: { params: { id: string } }
   }
 
   return (
-    <div className="flex h-screen">
+    <>
       <AppSidebar />
-      <div className="flex-1">
+      <main className="flex-1 pl-[var(--sidebar-width)]">
         <KnowledgeBaseManager
           knowledgeBase={knowledgeBase}
           onSave={() => {
@@ -48,7 +48,7 @@ export default function KnowledgeBasePage({ params }: { params: { id: string } }
           }}
           onClose={() => router.push('/knowledge-bases')}
         />
-      </div>
-    </div>
+      </main>
+    </>
   );
 }

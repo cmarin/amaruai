@@ -185,83 +185,78 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
   };
 
   return (
-    <div className="fixed top-0 right-0 bottom-0 z-50 flex flex-col h-screen" style={{ 
-      left: 'var(--sidebar-width)',
-      transition: 'left 0.3s ease-in-out'
-    }}>
-      <div className="flex-1 overflow-y-auto bg-background">
-        <div className="max-w-4xl w-full mx-auto py-6 px-4">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">
-              {knowledgeBaseId ? 'Edit Knowledge Base' : 'Create Knowledge Base'}
-            </h2>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-6 w-6" />
-            </Button>
-          </div>
+    <div className="h-screen w-full bg-background">
+      <div className="max-w-4xl w-full mx-auto py-6 px-4">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">
+            {knowledgeBaseId ? 'Edit Knowledge Base' : 'Create Knowledge Base'}
+          </h2>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-6 w-6" />
+          </Button>
+        </div>
 
-          <div className="space-y-6">
-            {/* Title and Description Panel */}
-            <div className="rounded-lg border bg-card text-card-foreground shadow">
-              <div className="p-6 space-y-4">
-                <div>
-                  <Label htmlFor="title" className="text-base">Title</Label>
-                  <Input
-                    id="title"
-                    name="title"
-                    value={currentKnowledgeBase.title}
-                    onChange={handleInputChange}
-                    placeholder="Enter knowledge base title"
-                    className="mt-1.5"
-                  />
-                </div>
+        <div className="space-y-6">
+          {/* Title and Description Panel */}
+          <div className="rounded-lg border bg-card text-card-foreground shadow">
+            <div className="p-6 space-y-4">
+              <div>
+                <Label htmlFor="title" className="text-base">Title</Label>
+                <Input
+                  id="title"
+                  name="title"
+                  value={currentKnowledgeBase.title}
+                  onChange={handleInputChange}
+                  placeholder="Enter knowledge base title"
+                  className="mt-1.5"
+                />
+              </div>
 
-                <div>
-                  <Label htmlFor="description" className="text-base">Description</Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    value={currentKnowledgeBase.description}
-                    onChange={handleInputChange}
-                    placeholder="Enter knowledge base description"
-                    className="mt-1.5 min-h-[100px]"
-                  />
-                </div>
+              <div>
+                <Label htmlFor="description" className="text-base">Description</Label>
+                <Textarea
+                  id="description"
+                  name="description"
+                  value={currentKnowledgeBase.description}
+                  onChange={handleInputChange}
+                  placeholder="Enter knowledge base description"
+                  className="mt-1.5 min-h-[100px]"
+                />
               </div>
             </div>
+          </div>
 
-            {/* Assets Panel */}
-            <div className="rounded-lg border bg-card text-card-foreground shadow">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Assets</h3>
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={() => setShowUploadModal(true)}
-                      className="flex items-center gap-2"
-                    >
-                      <Upload className="h-4 w-4" />
-                      Upload Assets
-                    </Button>
-                    <Button onClick={() => setShowAssetSelector(true)}>
-                      Select Assets
-                    </Button>
-                  </div>
+          {/* Assets Panel */}
+          <div className="rounded-lg border bg-card text-card-foreground shadow">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Assets</h3>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => setShowUploadModal(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Upload Assets
+                  </Button>
+                  <Button onClick={() => setShowAssetSelector(true)}>
+                    Select Assets
+                  </Button>
                 </div>
-                <div className="overflow-hidden rounded-md border">
-                  <AssetsTable 
-                    assets={selectedAssets}
-                    onDeleteAsset={handleRemoveAsset}
-                    showActions={true}
-                  />
-                </div>
+              </div>
+              <div className="overflow-hidden rounded-md border">
+                <AssetsTable 
+                  assets={selectedAssets}
+                  onDeleteAsset={handleRemoveAsset}
+                  showActions={true}
+                />
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="sticky bottom-0 w-full py-4 px-4 bg-background border-t">
+      <div className="fixed bottom-0 left-0 right-0 py-4 px-4 bg-background border-t">
         <div className="max-w-4xl w-full mx-auto flex justify-end space-x-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button 
@@ -278,14 +273,15 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
           <DialogHeader>
             <DialogTitle>Select Assets</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <div className="overflow-hidden rounded-md border bg-background">
+          <div className="py-4 bg-background">
+            <div className="overflow-hidden rounded-md border">
               <AssetsTable 
                 assets={availableAssets.filter(asset => 
                   !selectedAssets.some(selected => selected.id === asset.id)
                 )}
                 showActions={true}
                 onManageAsset={handleAddAsset}
+                className="bg-background"
               />
             </div>
           </div>
@@ -304,7 +300,7 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
             <DialogHeader>
               <DialogTitle>Upload Assets</DialogTitle>
             </DialogHeader>
-            <div className="py-4">
+            <div className="py-4 bg-background">
               <Dashboard 
                 uppy={uppy} 
                 plugins={[]} 
