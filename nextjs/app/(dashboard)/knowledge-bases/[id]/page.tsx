@@ -39,7 +39,7 @@ export default function KnowledgeBasePage({ params }: { params: { id: string } }
   return (
     <>
       <AppSidebar />
-      <main className="flex-1 pl-[var(--sidebar-width)]">
+      <main className="flex-1">
         <KnowledgeBaseManager
           knowledgeBase={knowledgeBase}
           onSave={() => {

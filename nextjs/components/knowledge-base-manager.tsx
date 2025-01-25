@@ -185,8 +185,8 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
   };
 
   return (
-    <div className="h-screen w-full bg-background">
-      <div className="max-w-4xl w-full mx-auto py-6 px-4">
+    <div className="flex flex-col min-h-screen w-full">
+      <div className="flex-grow p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">
             {knowledgeBaseId ? 'Edit Knowledge Base' : 'Create Knowledge Base'}
@@ -198,7 +198,7 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
 
         <div className="space-y-6">
           {/* Title and Description Panel */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow">
+          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
             <div className="p-6 space-y-4">
               <div>
                 <Label htmlFor="title" className="text-base">Title</Label>
@@ -227,7 +227,7 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
           </div>
 
           {/* Assets Panel */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow">
+          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Assets</h3>
@@ -256,8 +256,8 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 py-4 px-4 bg-background border-t">
-        <div className="max-w-4xl w-full mx-auto flex justify-end space-x-2">
+      <div className="border-t bg-white py-4 px-6">
+        <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button 
             onClick={handleSave} 
@@ -269,21 +269,18 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       </div>
 
       <Dialog open={showAssetSelector} onOpenChange={setShowAssetSelector}>
-        <DialogContent className="sm:max-w-4xl bg-background">
+        <DialogContent className="w-[800px] max-w-[90vw]">
           <DialogHeader>
             <DialogTitle>Select Assets</DialogTitle>
           </DialogHeader>
-          <div className="py-4 bg-background">
-            <div className="overflow-hidden rounded-md border">
-              <AssetsTable 
-                assets={availableAssets.filter(asset => 
-                  !selectedAssets.some(selected => selected.id === asset.id)
-                )}
-                showActions={true}
-                onManageAsset={handleAddAsset}
-                className="bg-background"
-              />
-            </div>
+          <div className="py-4">
+            <AssetsTable 
+              assets={availableAssets.filter(asset => 
+                !selectedAssets.some(selected => selected.id === asset.id)
+              )}
+              showActions={true}
+              onManageAsset={handleAddAsset}
+            />
           </div>
           <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setShowAssetSelector(false)}>
@@ -296,11 +293,11 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       {/* Upload Modal */}
       {showUploadModal && uppy && (
         <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
-          <DialogContent className="sm:max-w-2xl bg-background">
+          <DialogContent className="w-[600px] max-w-[90vw]">
             <DialogHeader>
               <DialogTitle>Upload Assets</DialogTitle>
             </DialogHeader>
-            <div className="py-4 bg-background">
+            <div className="py-4">
               <Dashboard 
                 uppy={uppy} 
                 plugins={[]} 
