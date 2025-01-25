@@ -274,11 +274,11 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       </div>
 
       <Dialog open={showAssetSelector} onOpenChange={setShowAssetSelector}>
-        <DialogContent className="max-w-4xl bg-white">
-          <DialogHeader className="bg-white">
-            <DialogTitle className="text-gray-900">Select Assets</DialogTitle>
+        <DialogContent className="sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Select Assets</DialogTitle>
           </DialogHeader>
-          <div className="py-4 bg-white">
+          <div className="py-4">
             <div className="overflow-hidden rounded-md border">
               <AssetsTable 
                 assets={availableAssets.filter(asset => 
@@ -289,7 +289,7 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
               />
             </div>
           </div>
-          <div className="flex justify-end gap-2 mt-4 bg-white">
+          <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setShowAssetSelector(false)}>
               Cancel
             </Button>
@@ -299,13 +299,14 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
 
       {/* Upload Modal */}
       {showUploadModal && uppy && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg max-w-2xl w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Upload Assets</h2>
+        <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Upload Assets</DialogTitle>
               <Button 
                 variant="ghost" 
                 size="icon" 
+                className="absolute right-4 top-4"
                 onClick={() => {
                   if (uppy) {
                     const allFileIds = uppy.getFiles().map(file => file.id);
@@ -317,14 +318,16 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
               >
                 <X className="h-4 w-4" />
               </Button>
+            </DialogHeader>
+            <div className="py-4">
+              <Dashboard 
+                uppy={uppy} 
+                plugins={[]} 
+                proudlyDisplayPoweredByUppy={false}
+              />
             </div>
-            <Dashboard 
-              uppy={uppy} 
-              plugins={[]} 
-              proudlyDisplayPoweredByUppy={false}
-            />
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
