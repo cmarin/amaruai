@@ -349,7 +349,7 @@ export default function Chat() {
               try {
                 // Try to parse the JSON, but first check if it's a complete JSON string
                 // by looking for matching curly braces and no trailing characters
-                let jsonString = jsonData
+                const jsonString = jsonData
                 const openBraces = (jsonString.match(/{/g) || []).length
                 const closeBraces = (jsonString.match(/}/g) || []).length
                 
