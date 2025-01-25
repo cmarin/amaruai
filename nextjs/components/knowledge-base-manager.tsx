@@ -274,12 +274,12 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       </div>
 
       <Dialog open={showAssetSelector} onOpenChange={setShowAssetSelector}>
-        <DialogContent className="sm:max-w-4xl">
+        <DialogContent className="sm:max-w-4xl bg-background">
           <DialogHeader>
             <DialogTitle>Select Assets</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <div className="overflow-hidden rounded-md border">
+            <div className="overflow-hidden rounded-md border bg-background">
               <AssetsTable 
                 assets={availableAssets.filter(asset => 
                   !selectedAssets.some(selected => selected.id === asset.id)
@@ -300,24 +300,9 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       {/* Upload Modal */}
       {showUploadModal && uppy && (
         <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-2xl bg-background">
             <DialogHeader>
               <DialogTitle>Upload Assets</DialogTitle>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="absolute right-4 top-4"
-                onClick={() => {
-                  if (uppy) {
-                    const allFileIds = uppy.getFiles().map(file => file.id);
-                    uppy.cancelAll();
-                    uppy.removeFiles(allFileIds);
-                  }
-                  setShowUploadModal(false);
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
             </DialogHeader>
             <div className="py-4">
               <Dashboard 
