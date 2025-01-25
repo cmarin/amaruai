@@ -62,16 +62,22 @@ class ConversationManager:
     """
     def __init__(self, token_limit: int = 3000):
         self.llm = OpenAI(api_key=OPENAI_API_KEY)
-        self.chat_store = PostgresChatStore.from_uri(uri=ASYNC_DATABASE_URL)
         self.token_limit = token_limit
+        self.db_uri = ASYNC_DATABASE_URL
 
     def get_memory_buffer(self, conversation_id: str) -> ChatSummaryMemoryBuffer:
-        return ChatSummaryMemoryBuffer.from_defaults(
-            token_limit=self.token_limit,
-            chat_store=self.chat_store,
-            chat_store_key=conversation_id,  # the unique key for this conversation
-            llm=self.llm
-        )
+        try:
+            # Create a new chat store for each request to avoid prepared statement issues
+            chat_store = PostgresChatStore.from_uri(uri=self.db_uri)
+            return ChatSummaryMemoryBuffer.from_defaults(
+                token_limit=self.token_limit,
+                chat_store=chat_store,
+                chat_store_key=conversation_id,  # the unique key for this conversation
+                llm=self.llm
+            )
+        except Exception as e:
+            logger.error(f"Error creating memory buffer: {str(e)}", exc_info=True)
+            raise
 
 async def cleanup_connection():
     global active_connections
@@ -107,7 +113,11 @@ async def chat_endpoint(
         multi_conversation_id = str(getattr(chat_data, 'multi_conversation_id', None) or conversation_id)
 
         # Get a memory buffer for this conversation
-        memory = conversation_manager.get_memory_buffer(conversation_id=conversation_id)
+        try:
+            memory = conversation_manager.get_memory_buffer(conversation_id=conversation_id)
+        except Exception as e:
+            logger.error(f"Failed to initialize memory buffer: {str(e)}")
+            memory = None
 
         # Handle nested data structure from the frontend
         if hasattr(chat_data, 'data') and chat_data.data:
@@ -125,18 +135,6 @@ async def chat_endpoint(
         else:
             raise HTTPException(status_code=422, detail="No message(s) provided.")
 
-        # Update the ChatMessage schema
-        class ChatMessage(BaseModel):
-            message: Optional[str] = None
-            messages: Optional[List[Message]] = None
-            data: Optional[Dict[str, Any]] = None
-            model_id: Optional[int] = None
-            persona_id: Optional[UUID] = None
-            conversation_id: Optional[UUID] = None
-            knowledge_base_ids: Optional[List[UUID]] = []
-            asset_ids: Optional[List[UUID]] = []
-            files: Optional[List[FileInfo]] = []
-            user_id: Optional[UUID] = None
 
         global active_connections
         start_time = time.time()
@@ -243,27 +241,32 @@ async def chat_endpoint(
                             break
 
             # Put user messages into memory
-            for msg in local_messages:
-                if msg["role"] == "user":
-                    user_message = LlamaChatMessage(
-                        role=MessageRole.USER,
-                        content=msg["content"],
-                        additional_kwargs={
-                            "user_id": str(chat_data.user_id) if chat_data.user_id else "unknown_user",
-                            "multi_conversation_id": str(multi_conversation_id)
-                        }
-                    )
-                    memory.put(user_message)
-                elif msg["role"] == "system":
-                    # Put system messages in memory
-                    system_msg = LlamaChatMessage(
-                        role=MessageRole.SYSTEM,
-                        content=msg["content"],
-                        additional_kwargs={
-                            "multi_conversation_id": str(multi_conversation_id)
-                        }
-                    )
-                    memory.put(system_msg)
+            if memory:
+                try:
+                    for msg in local_messages:
+                        if msg["role"] == "user":
+                            user_message = LlamaChatMessage(
+                                role=MessageRole.USER,
+                                content=msg["content"],
+                                additional_kwargs={
+                                    "user_id": str(chat_data.user_id) if chat_data.user_id else "unknown_user",
+                                    "multi_conversation_id": str(multi_conversation_id)
+                                }
+                            )
+                            memory.put(user_message)
+                        elif msg["role"] == "system":
+                            # Put system messages in memory
+                            system_msg = LlamaChatMessage(
+                                role=MessageRole.SYSTEM,
+                                content=msg["content"],
+                                additional_kwargs={
+                                    "multi_conversation_id": str(multi_conversation_id)
+                                }
+                            )
+                            memory.put(system_msg)
+                except Exception as e:
+                    logger.error(f"Failed to store messages in memory: {str(e)}")
+                    # Continue without memory storage
 
             assistant_response_accumulator = []
 
@@ -351,16 +354,20 @@ async def chat_endpoint(
                 logger.info(f"Stream completed - Total chunks: {chunks_received}, Total tokens: {total_tokens}")
 
             # Put assistant message into memory
-            final_assistant_content = "".join(assistant_response_accumulator)
-            assistant_message = LlamaChatMessage(
-                role=MessageRole.ASSISTANT,
-                content=final_assistant_content,
-                additional_kwargs={
-                    "user_id": str(chat_data.user_id) if chat_data.user_id else "unknown_user",
-                    "multi_conversation_id": str(multi_conversation_id)
-                }
-            )
-            memory.put(assistant_message)
+            if memory:
+                final_assistant_content = "".join(assistant_response_accumulator)
+                assistant_message = LlamaChatMessage(
+                    role=MessageRole.ASSISTANT,
+                    content=final_assistant_content,
+                    additional_kwargs={
+                        "user_id": str(chat_data.user_id) if chat_data.user_id else "unknown_user",
+                        "multi_conversation_id": str(multi_conversation_id)
+                    }
+                )
+                try:
+                    memory.put(assistant_message)
+                except Exception as e:
+                    logger.error(f"Failed to store assistant message in memory: {str(e)}")
 
             end_time = time.time()
             logger.info(

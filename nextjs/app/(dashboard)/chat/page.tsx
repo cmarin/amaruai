@@ -40,6 +40,7 @@ import { KnowledgeBaseSelector } from '@/components/knowledge-base-selector'
 import { KnowledgeBase, fetchKnowledgeBases } from '@/utils/knowledge-base-service'
 import { fetchAssets } from '@/utils/asset-service'
 import { Asset } from '@/types/knowledge-base'
+import { ChatModel } from '@/components/data-context'
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css'
@@ -66,16 +67,7 @@ export default function Chat() {
   const [mode, setMode] = useState<'single' | 'dual' | 'quad'>('single')
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<any | null>(null)
-  // Initialize selectedModels with default model IDs
-  const [selectedModels, setSelectedModels] = useState<{ [key: string]: string }>(() => {
-    const defaultModel = chatModels?.[0]
-    return {
-      chat1: defaultModel?.id?.toString() || '',
-      chat2: defaultModel?.id?.toString() || '',
-      chat3: defaultModel?.id?.toString() || '',
-      chat4: defaultModel?.id?.toString() || ''
-    }
-  })
+  const [selectedModels, setSelectedModels] = useState<{ [key: string]: string }>({})
   const [selectedPersonas, setSelectedPersonas] = useState<{ [key: string]: string }>({
     chat1: 'default',
     chat2: 'default',
@@ -148,15 +140,24 @@ export default function Chat() {
 
   useEffect(() => {
     if (chatModels?.length > 0) {
-      const defaultModel = chatModels[0]
+      // Find the default model
+      const defaultModel = chatModels.find(model => model.default)
+      if (!defaultModel) return
+
+      // Get non-default models for other chat windows
+      const otherModels = chatModels
+        .filter(model => !model.default && model.id !== defaultModel.id)
+        .slice(0, 3) // We need at most 3 other models for chat2, chat3, chat4
+
       setSelectedModels(prev => ({
-        chat1: prev.chat1 || defaultModel.id.toString(),
-        chat2: prev.chat2 || defaultModel.id.toString(),
-        chat3: prev.chat3 || defaultModel.id.toString(),
-        chat4: prev.chat4 || defaultModel.id.toString()
+        ...prev,
+        chat1: defaultModel.id.toString(),
+        ...(mode !== 'single' && otherModels[0] && { chat2: otherModels[0].id.toString() }),
+        ...(mode === 'quad' && otherModels[1] && { chat3: otherModels[1].id.toString() }),
+        ...(mode === 'quad' && otherModels[2] && { chat4: otherModels[2].id.toString() })
       }))
     }
-  }, [chatModels])
+  }, [chatModels, mode])
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesEndRef2 = useRef<HTMLDivElement>(null);
@@ -549,9 +550,33 @@ export default function Chat() {
   // Add mode change handler
   const handleModeChange = (newMode: 'single' | 'dual' | 'quad') => {
     setMode(newMode)
-    // Reset retry attempts when changing modes
+    
+    // Find default and other models
+    const defaultModel = chatModels?.find(model => model.default)
+    const otherModels = chatModels
+      ?.filter(model => !model.default && model.id !== defaultModel?.id)
+      .slice(0, 3)
+
+    if (defaultModel) {
+      // Always keep chat1 as default model
+      const newModelSelections: { [key: string]: string } = {
+        chat1: defaultModel.id.toString()
+      }
+
+      // Add other models based on mode
+      if (newMode !== 'single' && otherModels?.[0]) {
+        newModelSelections.chat2 = otherModels[0].id.toString()
+      }
+      if (newMode === 'quad') {
+        if (otherModels?.[1]) newModelSelections.chat3 = otherModels[1].id.toString()
+        if (otherModels?.[2]) newModelSelections.chat4 = otherModels[2].id.toString()
+      }
+
+      setSelectedModels(newModelSelections)
+    }
+
+    // Reset retry attempts and multi-conversation tracking
     resetRetryAttempts()
-    // Reset multi-conversation tracking
     setMultiConversationId(null)
   }
 
@@ -610,7 +635,7 @@ export default function Chat() {
                     <SelectValue placeholder={title} />
                   </SelectTrigger>
                   <SelectContent>
-                    {chatModels?.map((model) => (
+                    {chatModels?.map((model: ChatModel) => (
                       <SelectItem key={model.id} value={model.id.toString()}>
                         {model.name}
                       </SelectItem>

@@ -1,11 +1,20 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { ChatModel, fetchChatModels } from '../utils/chat-model-service';
+import { ChatModel as BaseChatModel, fetchChatModels } from '../utils/chat-model-service';
 import { Persona, fetchPersonas } from '../utils/persona-service';
 import { PromptTemplate, fetchPromptTemplates } from '@/utils/prompt-template-service';
 import { Category, fetchCategories } from '../utils/category-service';
 import { useSession } from '@/app/utils/session/session';
+
+// Extend the base ChatModel type to include additional fields from the API
+export interface ChatModel extends Omit<BaseChatModel, 'id'> {
+  id: number;
+  model_id: string;
+  default: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 type DataContextType = {
   chatModels: ChatModel[];
@@ -47,46 +56,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      if (!apiUrl) {
-        throw new Error('API URL is not configured');
-      }
-
-      if (!apiUrl.startsWith('https://')) {
-        console.warn('Warning: API URL should use HTTPS in production');
-      }
-
-      const [
-        fetchedChatModels,
-        fetchedPersonas,
-        fetchedPromptTemplates,
-        fetchedCategories
-      ] = await Promise.all([
-        fetchChatModels(headers).catch((err: Error) => {
-          console.error('Error fetching chat models:', err);
-          return [];
-        }),
-        fetchPersonas(headers).catch((err: Error) => {
-          console.error('Error fetching personas:', err);
-          return [];
-        }),
-        fetchPromptTemplates(headers).catch((err: Error) => {
-          console.error('Error fetching prompt templates:', err);
-          return [];
-        }),
-        fetchCategories(headers).catch((err: Error) => {
-          console.error('Error fetching categories:', err);
-          return [];
-        })
+      const [models, personasData, templates, categoriesData] = await Promise.all([
+        fetchChatModels(headers),
+        fetchPersonas(headers),
+        fetchPromptTemplates(headers),
+        fetchCategories(headers),
       ]);
 
-      setChatModels(fetchedChatModels);
-      setPersonas(fetchedPersonas);
-      setPromptTemplates(fetchedPromptTemplates);
-      setCategories(fetchedCategories);
+      // Transform the chat models to include the additional fields
+      const transformedModels = models.map(model => ({
+        ...model,
+        id: typeof model.id === 'string' ? parseInt(model.id, 10) : model.id,
+        model_id: model.model || '',
+        // Set default based on model properties - assuming the first GPT-4 model is default
+        default: model.model?.toLowerCase().includes('gpt-4') || false,
+        created_at: model.created_at || new Date().toISOString(),
+        updated_at: model.updated_at || new Date().toISOString()
+      })) as ChatModel[];
+
+      // Ensure exactly one model is default - prefer GPT-4, fallback to first model
+      const hasDefault = transformedModels.some(m => m.default);
+      if (!hasDefault && transformedModels.length > 0) {
+        transformedModels[0].default = true;
+      }
+
+      setChatModels(transformedModels);
+      setPersonas(personasData);
+      setPromptTemplates(templates);
+      setCategories(categoriesData);
     } catch (err) {
       console.error('Error fetching data:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred while fetching data');
+      setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
       setIsLoading(false);
     }

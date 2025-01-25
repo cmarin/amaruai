@@ -284,17 +284,17 @@ class ChatData(BaseModel):
     user_id: Optional[UUID] = None
 
 class ChatMessage(BaseModel):
-    message: Optional[str] = None
-    messages: Optional[List[Message]] = []
-    data: Optional[ChatData] = None
-    model_id: Optional[UUID] = None
-    persona_id: Optional[UUID] = None
-    conversation_id: Optional[Union[str, UUID]] = None
     multi_conversation_id: Optional[UUID] = None
-    knowledge_base_ids: List[UUID] = []
-    asset_ids: List[UUID] = []
-    files: List[FileInfo] = []
-    user_id: Optional[Union[str, UUID]] = None
+    message: Optional[str] = None
+    messages: Optional[List[Message]] = None
+    data: Optional[Dict[str, Any]] = None
+    model_id: Optional[int] = None
+    persona_id: Optional[UUID] = None
+    conversation_id: Optional[UUID] = None
+    knowledge_base_ids: Optional[List[UUID]] = []
+    asset_ids: Optional[List[UUID]] = []
+    files: Optional[List[FileInfo]] = []
+    user_id: Optional[UUID] = None
 
     @validator('conversation_id', pre=True)
     def validate_conversation_id(cls, v):
