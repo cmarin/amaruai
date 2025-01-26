@@ -59,6 +59,7 @@ function ChatContent() {
   const { session, getApiHeaders } = useSession()
   const supabase = useSupabase()
   const searchParams = useSearchParams()
+  const router = useRouter()
 
   const [messages, setMessages] = useState<Message[]>([])
   const [messages2, setMessages2] = useState<Message[]>([])
@@ -593,6 +594,17 @@ function ChatContent() {
     setMultiConversationId(null)
   }
 
+  // Add toggleChatbot handler
+  const handleToggleChatbot = (modelId: string) => {
+    // Update the URL
+    router.push(`/chat?model=${modelId}`, { scroll: false })
+    // Update the selected model
+    setSelectedModels(prev => ({
+      ...prev,
+      chat1: modelId
+    }))
+  }
+
   // ChatWindow sub-component
   interface ChatWindowProps {
     messages: Message[]
@@ -754,7 +766,7 @@ function ChatContent() {
     <div className="flex h-screen w-screen overflow-hidden">
       {/* LEFT COLUMN (sidebar) */}
       <div className="w-64 h-full border-r border-gray-200">
-        <AppSidebar toggleChatbot={() => {}} />
+        <AppSidebar toggleChatbot={handleToggleChatbot} />
       </div>
 
       {/* RIGHT COLUMN (main content) */}
