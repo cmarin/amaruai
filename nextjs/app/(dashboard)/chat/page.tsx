@@ -42,6 +42,7 @@ import { fetchAssets } from '@/utils/asset-service'
 import { Asset } from '@/types/knowledge-base'
 import { ChatModel } from '@/components/data-context'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css'
@@ -52,7 +53,7 @@ interface Message {
   content: string;
 }
 
-export default function Chat() {
+function ChatContent() {
   const { sidebarOpen } = useSidebar()
   const { promptTemplates: prompts, categories, chatModels, personas } = useData()
   const { session, getApiHeaders } = useSession()
@@ -949,5 +950,13 @@ export default function Chat() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function Chat() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ChatContent />
+    </Suspense>
   )
 }
