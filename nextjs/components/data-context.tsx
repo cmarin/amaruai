@@ -9,7 +9,7 @@ import { useSession } from '@/app/utils/session/session';
 
 // Extend the base ChatModel type to include additional fields from the API
 export interface ChatModel extends Omit<BaseChatModel, 'id'> {
-  id: number;
+  id: string;
   model_id: string;
   default: boolean;
   created_at: string;
@@ -68,7 +68,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const now = new Date().toISOString();
         return {
           ...model,
-          id: typeof model.id === 'string' ? parseInt(model.id, 10) : model.id,
+          // Keep ID as string, don't convert to number
           model_id: model.model || '',
           // Set default based on model properties - assuming the first GPT-4 model is default
           default: model.model?.toLowerCase().includes('gpt-4') || false,

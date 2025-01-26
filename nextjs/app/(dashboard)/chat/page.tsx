@@ -151,10 +151,10 @@ export default function Chat() {
 
       setSelectedModels(prev => ({
         ...prev,
-        chat1: defaultModel.id.toString(),
-        ...(mode !== 'single' && otherModels[0] && { chat2: otherModels[0].id.toString() }),
-        ...(mode === 'quad' && otherModels[1] && { chat3: otherModels[1].id.toString() }),
-        ...(mode === 'quad' && otherModels[2] && { chat4: otherModels[2].id.toString() })
+        chat1: defaultModel.id,
+        ...(mode !== 'single' && otherModels[0] && { chat2: otherModels[0].id }),
+        ...(mode === 'quad' && otherModels[1] && { chat3: otherModels[1].id }),
+        ...(mode === 'quad' && otherModels[2] && { chat4: otherModels[2].id })
       }))
     }
   }, [chatModels, mode])
@@ -213,14 +213,14 @@ export default function Chat() {
 
   const getModelName = (chatWindowId: string) => {
     const modelId = selectedModels[chatWindowId]
-    const model = chatModels?.find(m => m.id.toString() === modelId)
+    const model = chatModels?.find(m => m.id === modelId)
     return model?.name || "Default Model"
   }
 
   const getModelIcon = (chatWindowId: string) => {
     const modelId = selectedModels[chatWindowId]
-    const model = chatModels?.find(m => m.id.toString() === modelId)
-    return model ? getProviderIcon(model.id.toString(), model.name) : Timer
+    const model = chatModels?.find(m => m.id === modelId)
+    return model ? getProviderIcon(model.id, model.name) : Timer
   }
 
   const handleFileUpload = async (result: any) => {
@@ -306,9 +306,9 @@ export default function Chat() {
         }
 
         // Get the selected model and persona for this chat
-        const modelId = isRetry ? undefined : (selectedModels[chatId] || chatModels?.[0]?.id?.toString())
+        const modelId = isRetry ? undefined : (selectedModels[chatId] || chatModels?.[0]?.id)
         const personaId = selectedPersonas[chatId]
-        const selectedModel = modelId ? chatModels?.find(model => model.id.toString() === modelId) : undefined
+        const selectedModel = modelId ? chatModels?.find(model => model.id === modelId) : undefined
         const selectedPersona = personas?.find(p => p.id.toString() === personaId)
 
         let streamStartTime: number | null = null
@@ -560,16 +560,16 @@ export default function Chat() {
     if (defaultModel) {
       // Always keep chat1 as default model
       const newModelSelections: { [key: string]: string } = {
-        chat1: defaultModel.id.toString()
+        chat1: defaultModel.id,
       }
 
       // Add other models based on mode
       if (newMode !== 'single' && otherModels?.[0]) {
-        newModelSelections.chat2 = otherModels[0].id.toString()
+        newModelSelections.chat2 = otherModels[0].id
       }
       if (newMode === 'quad') {
-        if (otherModels?.[1]) newModelSelections.chat3 = otherModels[1].id.toString()
-        if (otherModels?.[2]) newModelSelections.chat4 = otherModels[2].id.toString()
+        if (otherModels?.[1]) newModelSelections.chat3 = otherModels[1].id
+        if (otherModels?.[2]) newModelSelections.chat4 = otherModels[2].id
       }
 
       setSelectedModels(newModelSelections)
@@ -636,7 +636,7 @@ export default function Chat() {
                   </SelectTrigger>
                   <SelectContent>
                     {chatModels?.map((model: ChatModel) => (
-                      <SelectItem key={model.id} value={model.id.toString()}>
+                      <SelectItem key={model.id} value={model.id}>
                         {model.name}
                       </SelectItem>
                     ))}
