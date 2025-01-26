@@ -41,6 +41,7 @@ import { KnowledgeBase, fetchKnowledgeBases } from '@/utils/knowledge-base-servi
 import { fetchAssets } from '@/utils/asset-service'
 import { Asset } from '@/types/knowledge-base'
 import { ChatModel } from '@/components/data-context'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css'
@@ -56,6 +57,7 @@ export default function Chat() {
   const { promptTemplates: prompts, categories, chatModels, personas } = useData()
   const { session, getApiHeaders } = useSession()
   const supabase = useSupabase()
+  const searchParams = useSearchParams()
 
   const [messages, setMessages] = useState<Message[]>([])
   const [messages2, setMessages2] = useState<Message[]>([])
@@ -158,6 +160,16 @@ export default function Chat() {
       }))
     }
   }, [chatModels, mode])
+
+  useEffect(() => {
+    const modelId = searchParams.get('model')
+    if (modelId && chatModels?.some(model => model.id === modelId)) {
+      setSelectedModels(prev => ({
+        ...prev,
+        chat1: modelId
+      }))
+    }
+  }, [searchParams, chatModels])
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesEndRef2 = useRef<HTMLDivElement>(null);
