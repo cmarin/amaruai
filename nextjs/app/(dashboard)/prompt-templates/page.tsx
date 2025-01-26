@@ -233,50 +233,23 @@ export default function PromptTemplatesPage() {
 
   return (
     <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-white">
+      <div className="flex h-screen">
         <AppSidebar toggleChatbot={toggleChatbot} />
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-          <div className="flex-1 overflow-hidden flex flex-col">
-            <PromptTemplateLibrary
-              prompts={filteredPrompts}
-              onEdit={handleEditPrompt}
-              onDelete={handleDeletePrompt}
-              onNewSimple={handleNewSimplePrompt}
-              onNewComplex={handleNewComplexPrompt}
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              selectedCategory={selectedCategory}
-              onCategoryChange={setSelectedCategory}
-              categories={allCategories}
-            />
-            <div className="p-4 border-t">
-              <div className="flex gap-4">
-                <Input
-                  type="search"
-                  placeholder="Search prompts..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="max-w-sm"
-                />
-                <Select
-                  value={selectedCategory || 'all'}
-                  onValueChange={(value) => setSelectedCategory(value === 'all' ? null : value)}
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="All categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All categories</SelectItem>
-                    {allCategories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
+          <PromptTemplateLibrary
+            prompts={filteredPrompts}
+            onEdit={handleEditPrompt}
+            onDelete={handleDeletePrompt}
+            onNewSimple={handleNewSimplePrompt}
+            onNewComplex={handleNewComplexPrompt}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            categories={allCategories}
+          />
+
+          {/* Dialogs */}
           {/* New Simple Prompt Dialog */}
           <Dialog open={isNewSimplePromptDialogOpen} onOpenChange={setIsNewSimplePromptDialogOpen}>
             <DialogContent className="bg-white">

@@ -215,7 +215,7 @@ export default function PromptTemplateLibrary({
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b bg-white">
         <h1 className="text-2xl font-bold">Prompt Templates</h1>
-        <div className="flex gap-4">
+        <div className="flex items-center gap-4">
           <div className="flex border rounded-lg">
             <Button
               variant={viewMode === 'grid' ? 'default' : 'ghost'}
@@ -234,7 +234,7 @@ export default function PromptTemplateLibrary({
               <List className="h-4 w-4" />
             </Button>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2 min-w-[300px] justify-end">
             <Button onClick={onNewSimple} className="bg-blue-600 hover:bg-blue-700 text-white">
               <Plus className="mr-2 h-4 w-4" />
               New Simple
@@ -246,8 +246,8 @@ export default function PromptTemplateLibrary({
           </div>
         </div>
       </div>
-      <div className="p-4">
-        <div className="flex gap-4 mb-4">
+      <div className="p-4 bg-white border-b">
+        <div className="flex gap-4">
           <Input
             type="search"
             placeholder="Search prompts..."
