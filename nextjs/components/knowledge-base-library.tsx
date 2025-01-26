@@ -228,7 +228,7 @@ export function KnowledgeBaseLibrary({ knowledgeBases, onUpdateKnowledgeBases }:
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b bg-white">
         <h1 className="text-2xl font-bold">Knowledge Bases</h1>
-        <div className="flex gap-4">
+        <div className="flex items-center justify-end w-[500px] gap-4">
           <div className="flex border rounded-lg">
             <Button
               variant={viewMode === 'grid' ? 'default' : 'ghost'}
@@ -247,16 +247,18 @@ export function KnowledgeBaseLibrary({ knowledgeBases, onUpdateKnowledgeBases }:
               <List className="h-4 w-4" />
             </Button>
           </div>
-          <Link href="/assets">
-            <Button variant="outline">
-              <FileText className="mr-2 h-4 w-4" />
-              Manage Assets
+          <div className="flex items-center gap-2">
+            <Link href="/assets">
+              <Button variant="outline" className="whitespace-nowrap">
+                <FileText className="mr-2 h-4 w-4" />
+                Manage Assets
+              </Button>
+            </Link>
+            <Button onClick={handleCreateKnowledgeBase} className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap">
+              <Plus className="mr-2 h-4 w-4" />
+              New Knowledge Base
             </Button>
-          </Link>
-          <Button onClick={handleCreateKnowledgeBase} className="bg-blue-600 hover:bg-blue-700 text-white">
-            <Plus className="mr-2 h-4 w-4" />
-            New Knowledge Base
-          </Button>
+          </div>
         </div>
       </div>
       <div className="p-4">
