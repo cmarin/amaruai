@@ -27,6 +27,7 @@ llvmlite = ">=0.43.0"
 openai-whisper = "^20240930"
 llama-index-embeddings-openai = "^0.3.1"
 llama-index-vector-stores-supabase = "^0.3.0"
+pyjwt = "^2.10.1"
 
 [build-system]
 requires = ["poetry-core"]

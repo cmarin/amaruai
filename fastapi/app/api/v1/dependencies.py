@@ -21,14 +21,24 @@ security = HTTPBearer()
 async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
     """
     Get current user from authorization header.
-    Extracts email from Bearer token or uses direct email.
+    Handles both JWT tokens and direct email.
     """
     if authorization is None:
         raise HTTPException(status_code=401, detail="Authorization header missing")
     
     # Remove 'Bearer ' prefix if present
     if authorization.startswith('Bearer '):
-        authorization = authorization.split(' ')[1]
+        token = authorization.split(' ')[1]
+        try:
+            # Decode JWT token without verification (we trust our auth provider)
+            payload = jwt.decode(token, options={"verify_signature": False})
+            email = payload.get('email')
+            if not email:
+                raise HTTPException(status_code=401, detail="Invalid token: no email claim")
+            return email
+        except jwt.InvalidTokenError:
+            # If token decode fails, try using the token directly as email
+            return token
     
     return authorization
 
