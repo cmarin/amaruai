@@ -160,6 +160,11 @@ async def chat_endpoint(
             if chat_model:
                 model_name = chat_model.model
 
+        # Modify model name if web search is enabled
+        if chat_data.web:
+            model_name = f"{model_name}:online"
+            logger.info(f"Web search enabled. Using model: {model_name}")
+
         api_key = os.getenv("OPENROUTER_API_KEY")
         if not api_key:
             logger.error("OpenRouter API key not configured")

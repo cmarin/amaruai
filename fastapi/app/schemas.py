@@ -298,6 +298,7 @@ class ChatMessage(BaseModel):
     asset_ids: Optional[List[UUID]] = []
     files: Optional[List[FileInfo]] = []
     user_id: Optional[UUID] = None
+    web: Optional[bool] = False
 
     @validator('conversation_id', pre=True)
     def validate_conversation_id(cls, v):
