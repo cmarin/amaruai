@@ -89,6 +89,7 @@ function ChatContent() {
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(true)
   const [retryAttempts, setRetryAttempts] = useState<{ [key: string]: number }>({})
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
+  const [showKnowledgeBaseModal, setShowKnowledgeBaseModal] = useState(false);
 
   const uppyRef = useRef<Uppy | null>(null)
 
@@ -852,15 +853,33 @@ function ChatContent() {
 
         {/* Footer (input / mode toggle) */}
         <div className="border-t p-4 flex items-center gap-2">
-          <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <BookOpen className="h-4 w-4" />
-            </Button>
-          </PromptSelector>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <BookOpen className="h-4 w-4" />
+                  </Button>
+                </PromptSelector>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Prompts</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowUploadModal(true)}>
-            <Paperclip className="h-4 w-4" />
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowUploadModal(true)}>
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Add Attachment</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <KnowledgeBaseSelector
             knowledgeBases={knowledgeBases}
@@ -881,23 +900,43 @@ function ChatContent() {
             }}
           />
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
-                  className={isWebSearchEnabled ? "text-green-500" : ""}
-                >
-                  <Globe2 className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Enable Web Search</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowKnowledgeBaseModal(true)}
+                    className={(selectedKnowledgeBases.length > 0 || selectedAssets.length > 0) ? "text-green-500" : ""}
+                  >
+                    <Database className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="bg-white">
+                  <p>Add Knowledge Base or Asset</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+                    className={isWebSearchEnabled ? "text-green-500" : ""}
+                  >
+                    <Globe2 className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="bg-white">
+                  <p>Enable Web Search</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
 
           <Input
             value={input}
