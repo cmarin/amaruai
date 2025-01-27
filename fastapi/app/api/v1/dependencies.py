@@ -1,8 +1,8 @@
-from fastapi import Depends, HTTPException, Security
+from fastapi import Depends, HTTPException, Security, Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app import crud
+from app import crud, models
 from uuid import UUID
 from typing import Optional
 import logging
@@ -17,6 +17,12 @@ print(f"Loaded API key: {os.getenv('SERVICE1_API_KEY')}")
 logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
+
+async def get_current_user_old(authorization: Optional[str] = Header(None)) -> str:
+    """Legacy authentication that expects email in header."""
+    if authorization is None:
+        raise HTTPException(status_code=401, detail="Authorization header missing")
+    return authorization
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Security(security),
