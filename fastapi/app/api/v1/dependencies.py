@@ -18,32 +18,34 @@ logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
 
-async def get_current_user_old(authorization: Optional[str] = Header(None)) -> str:
-    """Legacy authentication that expects email in header."""
+async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
+    """
+    Get current user from authorization header.
+    Returns the email address as before.
+    """
     if authorization is None:
         raise HTTPException(status_code=401, detail="Authorization header missing")
     return authorization
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Security(security),
+def get_user_id(email: str, db: Session) -> UUID:
+    """
+    Helper function to get user UUID from email.
+    """
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user.id
+
+# Optional: Helper function to use when you need the UUID directly
+async def get_current_user_id(
+    current_user: str = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> UUID:
     """
-    Get current user from token and return their UUID.
-    The token/credentials.credentials in this case is the user's email.
+    Get current user's UUID.
+    Use this dependency when you need the UUID instead of email.
     """
-    try:
-        email = credentials.credentials
-        # Get user by email
-        user = db.query(models.User).filter(models.User.email == email).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        return user.id  # Return the UUID
-    except Exception as e:
-        raise HTTPException(
-            status_code=401,
-            detail=f"Could not validate credentials: {str(e)}"
-        )
+    return get_user_id(current_user, db)
 
 async def get_current_user_old(authorization: Optional[str] = Header(None)) -> str:
     """
