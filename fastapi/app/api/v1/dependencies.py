@@ -21,10 +21,15 @@ security = HTTPBearer()
 async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
     """
     Get current user from authorization header.
-    Returns the email address as before.
+    Extracts email from Bearer token or uses direct email.
     """
     if authorization is None:
         raise HTTPException(status_code=401, detail="Authorization header missing")
+    
+    # Remove 'Bearer ' prefix if present
+    if authorization.startswith('Bearer '):
+        authorization = authorization.split(' ')[1]
+    
     return authorization
 
 def get_user_id(email: str, db: Session) -> UUID:
