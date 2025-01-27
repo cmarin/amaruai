@@ -19,6 +19,14 @@ def read_prompt_templates(skip: int = 0, limit: int = 100, db: Session = Depends
     prompt_templates = crud.get_prompt_templates(db, skip=skip, limit=limit)
     return prompt_templates
 
+@router.get("/favorites", response_model=List[schemas.PromptTemplate])
+def get_favorite_prompt_templates(
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user)
+):
+    """Get all prompt templates favorited by the current user."""
+    return crud.get_favorite_prompt_templates(db=db, user_id=current_user)
+
 @router.get("/{prompt_template_id}", response_model=schemas.PromptTemplate)
 def read_prompt_template(prompt_template_id: UUID, db: Session = Depends(get_db)):
     db_prompt_template = crud.get_prompt_template(db, prompt_template_id=prompt_template_id)
@@ -71,11 +79,3 @@ def unfavorite_prompt_template(
         user_id=current_user,
         favorite=False
     )
-
-@router.get("/favorites", response_model=List[schemas.PromptTemplate])
-def get_favorite_prompt_templates(
-    db: Session = Depends(get_db),
-    current_user: UUID = Depends(get_current_user)
-):
-    """Get all prompt templates favorited by the current user."""
-    return crud.get_favorite_prompt_templates(db=db, user_id=current_user)
