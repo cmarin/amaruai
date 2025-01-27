@@ -846,7 +846,7 @@ def get_chat_history(db: Session, persona_id: UUID):
 def toggle_prompt_template_favorite(
     db: Session,
     prompt_template_id: UUID,
-    user_id: UUID,
+    user_id: str,  # Can be email or UUID
     favorite: bool = True
 ) -> models.PromptTemplate:
     """Toggle favorite status of a prompt template for a user."""
@@ -856,8 +856,13 @@ def toggle_prompt_template_favorite(
     
     if not prompt_template:
         raise HTTPException(status_code=404, detail="Prompt template not found")
+    
+    # Handle email-based user_id
+    if '@' in str(user_id):
+        user = db.query(models.User).filter(models.User.email == user_id).first()
+    else:
+        user = db.query(models.User).filter(models.User.id == user_id).first()
         
-    user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
