@@ -242,7 +242,7 @@ export async function unfavoritePromptTemplate(promptTemplateId: string, headers
   try {
     const response = await fetchWithRetry(
       async () => {
-        const res = await fetch(`${apiUrl}/api/v1/prompt_templates/${promptTemplateId}/favorite`, {
+        const res = await fetch(`${apiUrl}/prompt_templates/${promptTemplateId}/favorite`, {
           method: 'DELETE',
           headers: {
             ...headers,
