@@ -71,8 +71,12 @@ export function KnowledgeBaseSelector({
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8" title="Add Knowledge Base or Asset">
-          <Database className="h-4 w-4" />
+        <Button 
+          variant="ghost" 
+          size="icon"
+          className={(selectedKnowledgeBases.length > 0 || selectedAssets.length > 0) ? "text-green-500" : ""}
+        >
+          <Database className="h-5 w-5" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[400px] p-0">

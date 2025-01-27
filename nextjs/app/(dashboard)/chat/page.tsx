@@ -881,44 +881,35 @@ function ChatContent() {
             </Tooltip>
           </TooltipProvider>
 
-          <KnowledgeBaseSelector
-            knowledgeBases={knowledgeBases}
-            isLoadingKnowledgeBases={isLoadingKnowledgeBases}
-            selectedKnowledgeBases={selectedKnowledgeBases}
-            selectedAssets={selectedAssets}
-            onSelectKnowledgeBase={(kb: KnowledgeBase) => {
-              setSelectedKnowledgeBases([...selectedKnowledgeBases, kb]);
-            }}
-            onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
-              setSelectedKnowledgeBases(selectedKnowledgeBases.filter(k => k.id !== kb.id));
-            }}
-            onSelectAsset={(asset: Asset) => {
-              setSelectedAssets([...selectedAssets, asset]);
-            }}
-            onDeselectAsset={(asset: Asset) => {
-              setSelectedAssets(selectedAssets.filter(a => a.id !== asset.id));
-            }}
-          />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <KnowledgeBaseSelector
+                  knowledgeBases={knowledgeBases}
+                  isLoadingKnowledgeBases={isLoadingKnowledgeBases}
+                  selectedKnowledgeBases={selectedKnowledgeBases}
+                  selectedAssets={selectedAssets}
+                  onSelectKnowledgeBase={(kb: KnowledgeBase) => {
+                    setSelectedKnowledgeBases([...selectedKnowledgeBases, kb]);
+                  }}
+                  onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
+                    setSelectedKnowledgeBases(selectedKnowledgeBases.filter(k => k.id !== kb.id));
+                  }}
+                  onSelectAsset={(asset: Asset) => {
+                    setSelectedAssets([...selectedAssets, asset]);
+                  }}
+                  onDeselectAsset={(asset: Asset) => {
+                    setSelectedAssets(selectedAssets.filter(a => a.id !== asset.id));
+                  }}
+                />
+              </TooltipTrigger>
+              <TooltipContent className="bg-white">
+                <p>Add Knowledge Base or Asset</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <div className="flex items-center gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setShowKnowledgeBaseModal(true)}
-                    className={(selectedKnowledgeBases.length > 0 || selectedAssets.length > 0) ? "text-green-500" : ""}
-                  >
-                    <Database className="h-5 w-5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-white">
-                  <p>Add Knowledge Base or Asset</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
