@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Copy, Trash2, Send, BookOpen, Grid2X2, Columns, Square, MessageSquare,
-  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Database, ChevronDown
+  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Database, ChevronDown, Globe2
 } from 'lucide-react'
 import {
   Select,
@@ -88,6 +88,7 @@ function ChatContent() {
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>([])
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(true)
   const [retryAttempts, setRetryAttempts] = useState<{ [key: string]: number }>({})
+  const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
 
   const uppyRef = useRef<Uppy | null>(null)
 
@@ -345,7 +346,8 @@ function ChatContent() {
             conversation_id: currentConversationId,
             knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
             asset_ids: selectedAssets.map(asset => asset.id),
-            ...(currentMultiConversationId && { multi_conversation_id: currentMultiConversationId })
+            ...(currentMultiConversationId && { multi_conversation_id: currentMultiConversationId }),
+            web: isWebSearchEnabled
           }),
         })
 
@@ -878,6 +880,24 @@ function ChatContent() {
               setSelectedAssets(selectedAssets.filter(a => a.id !== asset.id));
             }}
           />
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+                  className={isWebSearchEnabled ? "text-green-500" : ""}
+                >
+                  <Globe2 className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Enable Web Search</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <Input
             value={input}

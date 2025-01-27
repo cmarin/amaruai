@@ -63,6 +63,7 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                   variant="ghost"
                   size="icon"
                   onClick={() => onEdit(prompt)}
+                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
@@ -70,6 +71,7 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                   variant="ghost"
                   size="icon"
                   onClick={() => onDelete(prompt)}
+                  className="text-red-500 hover:text-red-700 hover:bg-red-100"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -150,6 +152,7 @@ const TableView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                   variant="ghost"
                   size="icon"
                   onClick={() => onEdit(prompt)}
+                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
@@ -157,6 +160,7 @@ const TableView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                   variant="ghost"
                   size="icon"
                   onClick={() => onDelete(prompt)}
+                  className="text-red-500 hover:text-red-700 hover:bg-red-100"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

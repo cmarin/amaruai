@@ -15,6 +15,7 @@ interface ChatRequestBody {
   knowledge_base_ids?: string[]
   asset_ids?: string[]
   isRetry?: boolean
+  web?: boolean
 }
 
 export async function POST(req: NextRequest) {
@@ -33,7 +34,8 @@ export async function POST(req: NextRequest) {
       multi_conversation_id,
       knowledge_base_ids,
       asset_ids,
-      isRetry
+      isRetry,
+      web
     } = body
 
     // Don't retry more than once
@@ -76,7 +78,8 @@ export async function POST(req: NextRequest) {
       conversation_id,
       multi_conversation_id,
       knowledge_base_ids,
-      asset_ids
+      asset_ids,
+      web
     })
 
     const controller = new AbortController()
@@ -99,7 +102,8 @@ export async function POST(req: NextRequest) {
           conversation_id,
           multi_conversation_id,
           knowledge_base_ids,
-          asset_ids
+          asset_ids,
+          web
         }),
         signal: controller.signal
       })
