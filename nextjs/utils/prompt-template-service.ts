@@ -38,6 +38,7 @@ export interface PromptTemplate {
   tags: Tag[];
   category?: string;  // For form handling
   default_persona_id?: string | null;
+  is_favorite?: boolean;
 }
 
 export interface CreatePromptTemplateRequest {
@@ -211,4 +212,76 @@ export async function fetchPromptTemplate(promptTemplateId: string, headers: Api
       })) || []
     };
   });
+}
+
+export async function favoritePromptTemplate(promptTemplateId: string, headers: ApiHeaders): Promise<void> {
+  const apiUrl = getApiUrl();
+  try {
+    const response = await fetchWithRetry(
+      async () => {
+        const res = await fetch(`${apiUrl}/api/v1/prompt_templates/${promptTemplateId}/favorite`, {
+          method: 'POST',
+          headers: {
+            ...headers,
+          },
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res;
+      }
+    );
+  } catch (error) {
+    console.error('Error in favoritePromptTemplate:', error);
+    throw error;
+  }
+}
+
+export async function unfavoritePromptTemplate(promptTemplateId: string, headers: ApiHeaders): Promise<void> {
+  const apiUrl = getApiUrl();
+  try {
+    const response = await fetchWithRetry(
+      async () => {
+        const res = await fetch(`${apiUrl}/api/v1/prompt_templates/${promptTemplateId}/favorite`, {
+          method: 'DELETE',
+          headers: {
+            ...headers,
+          },
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res;
+      }
+    );
+  } catch (error) {
+    console.error('Error in unfavoritePromptTemplate:', error);
+    throw error;
+  }
+}
+
+export async function fetchFavoritePromptTemplates(headers: ApiHeaders): Promise<PromptTemplate[]> {
+  const apiUrl = getApiUrl();
+  try {
+    const response = await fetchWithRetry(
+      async () => {
+        const res = await fetch(`${apiUrl}/api/v1/prompt_templates/favorites`, {
+          method: 'GET',
+          headers: {
+            ...headers,
+          },
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res;
+      }
+    );
+
+    const data = await response.json();
+    return data as PromptTemplate[];
+  } catch (error) {
+    console.error('Error in fetchFavoritePromptTemplates:', error);
+    throw error;
+  }
 }

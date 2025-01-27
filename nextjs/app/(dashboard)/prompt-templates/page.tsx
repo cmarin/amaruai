@@ -2,7 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { PromptTemplate, fetchPromptTemplates, createPromptTemplate, updatePromptTemplate, deletePromptTemplate } from '@/utils/prompt-template-service';
+import { 
+  PromptTemplate, 
+  fetchPromptTemplates, 
+  createPromptTemplate, 
+  updatePromptTemplate, 
+  deletePromptTemplate,
+  favoritePromptTemplate,
+  unfavoritePromptTemplate,
+  fetchFavoritePromptTemplates 
+} from '@/utils/prompt-template-service';
 import { AppSidebar } from '@/components/app-sidebar';
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -50,6 +59,7 @@ export default function PromptTemplatesPage() {
   const [templateToDelete, setTemplateToDelete] = useState<PromptTemplate | null>(null)
   const { sidebarOpen } = useSidebar()
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const { getApiHeaders, loading: sessionLoading, initialized } = useSession();
 
   useEffect(() => {
@@ -62,12 +72,20 @@ export default function PromptTemplatesPage() {
         }
 
         try {
-          const [fetchedPrompts, fetchedCategories] = await Promise.all([
+          const [fetchedPrompts, fetchedCategories, fetchedFavorites] = await Promise.all([
             fetchPromptTemplates(headers),
-            fetchCategories(headers)
+            fetchCategories(headers),
+            fetchFavoritePromptTemplates(headers)
           ]);
           
-          setPrompts(fetchedPrompts);
+          // Mark favorite prompts
+          const favoriteIds = new Set(fetchedFavorites.map(p => p.id));
+          const promptsWithFavorites = fetchedPrompts.map(prompt => ({
+            ...prompt,
+            is_favorite: favoriteIds.has(prompt.id)
+          }));
+          
+          setPrompts(promptsWithFavorites);
           setCategories(fetchedCategories);
           setError(null);
         } catch (err) {
@@ -89,7 +107,8 @@ export default function PromptTemplatesPage() {
   const filteredPrompts = prompts.filter(prompt =>
     (prompt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (prompt.description || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
-    (!selectedCategory || prompt.categories.some(category => category.name === selectedCategory))
+    (!selectedCategory || prompt.categories.some(category => category.name === selectedCategory)) &&
+    (!showFavoritesOnly || prompt.is_favorite)
   );
 
   const allCategories = Array.from(new Set(prompts.flatMap((prompt) => prompt.categories.map(category => category.name))));
@@ -228,6 +247,32 @@ export default function PromptTemplatesPage() {
     }
   };
 
+  const handleFavoriteToggle = async (prompt: PromptTemplate) => {
+    const headers = getApiHeaders();
+    if (!headers) {
+      console.warn('No valid headers available');
+      return;
+    }
+
+    try {
+      if (prompt.is_favorite) {
+        await unfavoritePromptTemplate(prompt.id, headers);
+      } else {
+        await favoritePromptTemplate(prompt.id, headers);
+      }
+
+      // Update local state
+      setPrompts(prompts.map(p => 
+        p.id === prompt.id 
+          ? { ...p, is_favorite: !p.is_favorite }
+          : p
+      ));
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      setError('Failed to update favorite status');
+    }
+  };
+
   if (sessionLoading || isLoading) return <div>Loading prompts...</div>
   if (error) return <div>Error: {error}</div>
 
@@ -247,6 +292,7 @@ export default function PromptTemplatesPage() {
             selectedCategory={selectedCategory}
             onCategoryChange={setSelectedCategory}
             categories={allCategories}
+            onFavoriteToggle={handleFavoriteToggle}
           />
 
           {/* Dialogs */}
