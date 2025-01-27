@@ -1,10 +1,11 @@
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
 from app import crud, schemas, models
 from app.database import get_db
 from app.api.v1.router import create_protected_router
+from app.api.v1.dependencies import get_current_user
 
 # Create a protected router for prompt templates
 router = create_protected_router(prefix="prompt_templates", tags=["prompt_templates"])
@@ -42,3 +43,39 @@ def delete_prompt_template(prompt_template_id: UUID, db: Session = Depends(get_d
     if db_prompt_template is None:
         raise HTTPException(status_code=404, detail="Prompt template not found")
     return db_prompt_template
+
+@router.post("/{prompt_template_id}/favorite", response_model=schemas.PromptTemplate)
+def favorite_prompt_template(
+    prompt_template_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user)
+):
+    """Add a prompt template to user's favorites."""
+    return crud.toggle_prompt_template_favorite(
+        db=db,
+        prompt_template_id=prompt_template_id,
+        user_id=current_user,
+        favorite=True
+    )
+
+@router.delete("/{prompt_template_id}/favorite", response_model=schemas.PromptTemplate)
+def unfavorite_prompt_template(
+    prompt_template_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user)
+):
+    """Remove a prompt template from user's favorites."""
+    return crud.toggle_prompt_template_favorite(
+        db=db,
+        prompt_template_id=prompt_template_id,
+        user_id=current_user,
+        favorite=False
+    )
+
+@router.get("/favorites", response_model=List[schemas.PromptTemplate])
+def get_favorite_prompt_templates(
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user)
+):
+    """Get all prompt templates favorited by the current user."""
+    return crud.get_favorite_prompt_templates(db=db, user_id=current_user)

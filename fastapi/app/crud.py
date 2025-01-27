@@ -843,3 +843,47 @@ def get_chat_history(db: Session, persona_id: UUID):
     # Implement the actual chat history retrieval logic here
     return []
 
+def toggle_prompt_template_favorite(
+    db: Session,
+    prompt_template_id: UUID,
+    user_id: UUID,
+    favorite: bool = True
+) -> models.PromptTemplate:
+    """Toggle favorite status of a prompt template for a user."""
+    prompt_template = db.query(models.PromptTemplate).filter(
+        models.PromptTemplate.id == prompt_template_id
+    ).first()
+    
+    if not prompt_template:
+        raise HTTPException(status_code=404, detail="Prompt template not found")
+        
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if favorite:
+        if prompt_template not in user.favorite_templates:
+            user.favorite_templates.append(prompt_template)
+    else:
+        if prompt_template in user.favorite_templates:
+            user.favorite_templates.remove(prompt_template)
+    
+    db.commit()
+    db.refresh(prompt_template)
+    
+    # Add is_favorited field
+    setattr(prompt_template, 'is_favorited', favorite)
+    return prompt_template
+
+def get_favorite_prompt_templates(db: Session, user_id: UUID) -> List[models.PromptTemplate]:
+    """Get all prompt templates favorited by a user."""
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    templates = user.favorite_templates
+    # Add is_favorited=True to all results
+    for template in templates:
+        setattr(template, 'is_favorited', True)
+    return templates
+

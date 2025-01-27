@@ -42,6 +42,15 @@ knowledge_base_assets = Table(
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 )
 
+# Add the favorites association table
+prompt_template_favorites = Table(
+    'prompt_template_favorites',
+    Base.metadata,
+    Column('user_id', PGUUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), primary_key=True),
+    Column('prompt_template_id', PGUUID(as_uuid=True), ForeignKey('prompt_template.id', ondelete='CASCADE'), primary_key=True),
+    Column('created_at', TIMESTAMP(timezone=True), server_default=text('current_timestamp'))
+)
+
 class ProcessType(enum.Enum):
     SEQUENTIAL = "SEQUENTIAL"
     HIERARCHICAL = "HIERARCHICAL"  # Ensure this matches the database value
@@ -82,11 +91,15 @@ class PromptTemplate(Base):
     prompt = Column(String)
     is_complex = Column(Boolean)
     default_persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"), nullable=True)
+    created_by = Column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
 
     workflow_steps = relationship("WorkflowStep", back_populates="prompt_template")
     categories = relationship("Category", secondary=prompt_template_category, back_populates="prompt_templates")
     tags = relationship("Tag", secondary=prompt_template_tag, back_populates="prompt_templates")
     default_persona = relationship("Persona", back_populates="prompt_templates")
+
+    # Add relationship to users who favorited this template
+    favorited_by = relationship("User", secondary=prompt_template_favorites, back_populates="favorite_templates")
 
 class Category(Base):
     __tablename__ = "category"
@@ -184,3 +197,14 @@ class KnowledgeBase(Base):
     
     # Relationship with assets through the association table
     assets = relationship("Asset", secondary=knowledge_base_assets, back_populates="knowledge_bases")
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(PGUUID(as_uuid=True), primary_key=True)
+    name = Column(Text, nullable=False)
+    email = Column(Text, nullable=False, unique=True)
+    role = Column(Text, nullable=False, server_default=text("'regular'"))
+    
+    # Add relationship to favorited templates
+    favorite_templates = relationship("PromptTemplate", secondary=prompt_template_favorites, back_populates="favorited_by")

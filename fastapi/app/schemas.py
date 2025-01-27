@@ -54,6 +54,7 @@ class PromptTemplateCreate(BaseModel):
     default_persona_id: Optional[UUID] = None
     category_ids: List[Optional[UUID]] = []
     tags: List[str] = []
+    created_by: UUID
 
     @validator('category_ids', pre=True)
     def empty_list_if_none(cls, v):
@@ -66,6 +67,8 @@ class PromptTemplate(PromptTemplateBase):
     default_persona_id: Optional[UUID] = None
     categories: List[Category] = []
     tags: List[Tag] = []
+    created_by: UUID
+    is_favorited: bool = False  # Will be computed based on current user
 
     class Config:
         from_attributes = True
