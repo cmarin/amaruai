@@ -875,15 +875,28 @@ def toggle_prompt_template_favorite(
     setattr(prompt_template, 'is_favorited', favorite)
     return prompt_template
 
-def get_favorite_prompt_templates(db: Session, user_id: UUID) -> List[models.PromptTemplate]:
-    """Get all prompt templates favorited by a user."""
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-        
-    templates = user.favorite_templates
-    # Add is_favorited=True to all results
-    for template in templates:
-        setattr(template, 'is_favorited', True)
-    return templates
+def get_favorite_prompt_templates(db: Session, user_id: str) -> List[models.PromptTemplate]:
+    """
+    Get all prompt templates favorited by a user.
+    Now accepts either UUID or email as user_id.
+    """
+    # First get the user by email if user_id is an email
+    if '@' in str(user_id):  # Simple check to determine if it's an email
+        user = db.query(models.User).filter(models.User.email == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        user_id = user.id
+    else:
+        # If it's not an email, assume it's already a UUID
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+    # Get the favorite templates
+    return (
+        db.query(models.PromptTemplate)
+        .join(models.prompt_template_favorites)
+        .filter(models.prompt_template_favorites.c.user_id == user_id)
+        .all()
+    )
 
