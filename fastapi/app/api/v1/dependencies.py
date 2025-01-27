@@ -1,4 +1,9 @@
-from fastapi import Depends, HTTPException, Header
+from fastapi import Depends, HTTPException, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app import crud
+from uuid import UUID
 from typing import Optional
 import logging
 import os
@@ -11,7 +16,30 @@ print(f"Loaded API key: {os.getenv('SERVICE1_API_KEY')}")
 
 logger = logging.getLogger(__name__)
 
-async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
+security = HTTPBearer()
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Security(security),
+    db: Session = Depends(get_db)
+) -> UUID:
+    """
+    Get current user from token and return their UUID.
+    The token/credentials.credentials in this case is the user's email.
+    """
+    try:
+        email = credentials.credentials
+        # Get user by email
+        user = db.query(models.User).filter(models.User.email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user.id  # Return the UUID
+    except Exception as e:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Could not validate credentials: {str(e)}"
+        )
+
+async def get_current_user_old(authorization: Optional[str] = Header(None)) -> str:
     """
     Get the current authenticated user from the JWT token.
     
