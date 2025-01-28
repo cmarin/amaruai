@@ -13,7 +13,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 
 export default function PromptTemplatePage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const { getApiHeaders } = useSession();
+  const { getApiHeaders, initialized } = useSession();
   const { toast } = useToast();
   const [promptTemplate, setPromptTemplate] = useState<PromptTemplate | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -21,16 +21,14 @@ export default function PromptTemplatePage({ params }: { params: { id: string } 
   const { sidebarOpen } = useSidebar();
 
   useEffect(() => {
+    // Don't do anything until session is initialized
+    if (!initialized) return;
+
     const fetchData = async () => {
       try {
         const headers = getApiHeaders();
         if (!headers) {
-          toast({
-            title: 'Error',
-            description: 'You must be logged in to view prompt templates',
-            variant: 'destructive',
-          });
-          router.push('/login');
+          router.push('/auth/login');
           return;
         }
 
@@ -54,7 +52,7 @@ export default function PromptTemplatePage({ params }: { params: { id: string } 
     };
 
     fetchData();
-  }, [params.id, getApiHeaders, router, toast]);
+  }, [params.id, getApiHeaders, router, toast, initialized]);
 
   const handleSave = () => {
     router.push('/prompt-templates');
@@ -64,7 +62,8 @@ export default function PromptTemplatePage({ params }: { params: { id: string } 
     router.push('/prompt-templates');
   };
 
-  if (loading) {
+  // Show loading while session is initializing or data is loading
+  if (!initialized || loading) {
     return <div>Loading...</div>;
   }
 
