@@ -6,26 +6,27 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useSession } from '@/app/utils/session/session';
-import { PromptTemplate, updatePromptTemplate } from '@/utils/prompt-template-service';
+import { PromptTemplate, updatePromptTemplate, createPromptTemplate } from '@/utils/prompt-template-service';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TagSelector from '@/components/tag-selector';
 import { Tag } from '@/utils/tag-service';
 import { Category } from '@/utils/category-service';
 
 interface PromptTemplateEditorProps {
-  promptTemplate: PromptTemplate;
+  promptTemplate?: PromptTemplate;
   categories: Category[];
   onSave?: () => void;
   onClose?: () => void;
+  mode?: 'create' | 'edit';
 }
 
-export default function PromptTemplateEditor({ promptTemplate, categories, onSave, onClose }: PromptTemplateEditorProps) {
+export default function PromptTemplateEditor({ promptTemplate, categories, onSave, onClose, mode = 'edit' }: PromptTemplateEditorProps) {
   const { getApiHeaders } = useSession();
   const { toast } = useToast();
-  const [title, setTitle] = useState(promptTemplate.title);
-  const [prompt, setPrompt] = useState(promptTemplate.prompt);
-  const [selectedCategory, setSelectedCategory] = useState(promptTemplate.categories[0]?.id || '');
-  const [tags, setTags] = useState<Tag[]>(promptTemplate.tags || []);
+  const [title, setTitle] = useState(promptTemplate?.title || '');
+  const [prompt, setPrompt] = useState(promptTemplate?.prompt || '');
+  const [selectedCategory, setSelectedCategory] = useState(promptTemplate?.categories[0]?.id || categories[0]?.id || '');
+  const [tags, setTags] = useState<Tag[]>(promptTemplate?.tags || []);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -41,26 +42,36 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
         return;
       }
 
-      await updatePromptTemplate(promptTemplate.id, {
-        title,
-        prompt,
-        is_complex: false,
-        default_persona_id: promptTemplate.default_persona_id || null,
-        category_ids: [selectedCategory],
-        tags: tags.map(t => t.name),
-      }, headers);
+      if (mode === 'create') {
+        await createPromptTemplate({
+          title,
+          prompt,
+          is_complex: false,
+          category_ids: [selectedCategory],
+          tags: tags.map(t => t.name),
+        }, headers);
+      } else {
+        if (!promptTemplate) return;
+        await updatePromptTemplate(promptTemplate.id, {
+          title,
+          prompt,
+          is_complex: false,
+          default_persona_id: promptTemplate.default_persona_id || null,
+          category_ids: [selectedCategory],
+          tags: tags.map(t => t.name),
+        }, headers);
+      }
 
       toast({
         title: 'Success',
-        description: 'Prompt template saved successfully',
+        description: `Prompt template ${mode === 'create' ? 'created' : 'updated'} successfully`,
       });
-
       onSave?.();
     } catch (error) {
       console.error('Error saving prompt template:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save prompt template',
+        description: `Failed to ${mode === 'create' ? 'create' : 'update'} prompt template`,
         variant: 'destructive',
       });
     } finally {
@@ -71,7 +82,7 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Edit Prompt Template</h2>
+        <h2 className="text-3xl font-bold tracking-tight">{mode === 'create' ? 'Create Prompt Template' : 'Edit Prompt Template'}</h2>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -83,7 +94,7 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
             onClick={handleSave}
             disabled={isSaving}
           >
-            {isSaving ? 'Saving...' : 'Save'}
+            {isSaving ? 'Saving...' : mode === 'create' ? 'Create' : 'Save'}
           </Button>
         </div>
       </div>

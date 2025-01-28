@@ -4,21 +4,23 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useSession } from '@/app/utils/session/session';
-import { PromptTemplate, updatePromptTemplate } from '@/utils/prompt-template-service';
+import { PromptTemplate, updatePromptTemplate, createPromptTemplate } from '@/utils/prompt-template-service';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TagSelector from '@/components/tag-selector';
 import { Tag } from '@/utils/tag-service';
 import { Category } from '@/utils/category-service';
-import { ComplexPromptEditor, PromptContent } from '@/components/complex-prompt-editor';
+import ComplexPromptEditor from '@/components/complex-prompt-editor';
+import type { PromptContent } from '@/components/complex-prompt-editor';
 
 interface ComplexPromptTemplateEditorProps {
-  promptTemplate: PromptTemplate;
+  promptTemplate?: PromptTemplate;
   categories: Category[];
   onSave: () => void;
   onClose: () => void;
+  mode?: 'create' | 'edit';
 }
 
-export default function ComplexPromptTemplateEditor({ promptTemplate, categories, onSave, onClose }: ComplexPromptTemplateEditorProps) {
+export default function ComplexPromptTemplateEditor({ promptTemplate, categories, onSave, onClose, mode = 'edit' }: ComplexPromptTemplateEditorProps) {
   const { getApiHeaders } = useSession();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
@@ -36,18 +38,29 @@ export default function ComplexPromptTemplateEditor({ promptTemplate, categories
         return;
       }
 
-      await updatePromptTemplate(promptTemplate.id, {
-        title,
-        prompt: JSON.stringify(data),
-        is_complex: true,
-        default_persona_id: promptTemplate.default_persona_id || null,
-        category_ids: [category],
-        tags: tags.map(t => t.name),
-      }, headers);
+      if (mode === 'create') {
+        await createPromptTemplate({
+          title,
+          prompt: JSON.stringify(data),
+          is_complex: true,
+          category_ids: [category],
+          tags: tags.map(t => t.name),
+        }, headers);
+      } else {
+        if (!promptTemplate) return;
+        await updatePromptTemplate(promptTemplate.id, {
+          title,
+          prompt: JSON.stringify(data),
+          is_complex: true,
+          default_persona_id: promptTemplate.default_persona_id || null,
+          category_ids: [category],
+          tags: tags.map(t => t.name),
+        }, headers);
+      }
 
       toast({
         title: 'Success',
-        description: 'Prompt template saved successfully',
+        description: `Prompt template ${mode === 'create' ? 'created' : 'updated'} successfully`,
       });
 
       onSave();
@@ -55,7 +68,7 @@ export default function ComplexPromptTemplateEditor({ promptTemplate, categories
       console.error('Error saving prompt template:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save prompt template',
+        description: `Failed to ${mode === 'create' ? 'create' : 'update'} prompt template`,
         variant: 'destructive',
       });
     } finally {
@@ -66,13 +79,16 @@ export default function ComplexPromptTemplateEditor({ promptTemplate, categories
   return (
     <div className="space-y-4">
       <ComplexPromptEditor
-        initialData={typeof promptTemplate.prompt === 'string' ? JSON.parse(promptTemplate.prompt) : promptTemplate.prompt}
-        initialTitle={promptTemplate.title}
-        initialCategory={promptTemplate.categories[0]?.id || ''}
-        initialTags={promptTemplate.tags || []}
-        onSave={handleSave}
-        onClose={onClose}
+        title={promptTemplate?.title}
+        initialContent={promptTemplate?.prompt as PromptContent}
         categories={categories}
+        selectedCategory={promptTemplate?.categories[0]?.id}
+        selectedTags={promptTemplate?.tags || []}
+        onSave={handleSave}
+        onCancel={onClose}
+        isSaving={isSaving}
+        mode={mode}
+        // Add new props here
       />
     </div>
   );

@@ -51,16 +51,6 @@ export type PromptContent = {
   prompt: string
 }
 
-type ComplexPromptEditorProps = {
-  initialData?: PromptContent
-  initialTitle: string
-  initialCategory: string
-  initialTags: Tag[]
-  onSave: (title: string, category: string, tags: Tag[], data: PromptContent) => void
-  onClose: () => void
-  categories: Category[]
-}
-
 type VariableFieldValue =
   | string
   | boolean
@@ -70,41 +60,63 @@ type VariableFieldValue =
   | Partial<DateValidation>
   | undefined;
 
-export function ComplexPromptEditor({ initialData, initialTitle, initialCategory, initialTags, onSave, onClose, categories }: ComplexPromptEditorProps) {
+export interface ComplexPromptEditorProps {
+  title?: string;
+  initialContent?: PromptContent;
+  categories: Category[];
+  selectedCategory?: string;
+  selectedTags?: Tag[];
+  onSave: (title: string, category: string, tags: Tag[], data: PromptContent) => void;
+  onCancel: () => void;
+  isSaving?: boolean;
+  mode?: 'create' | 'edit';
+}
+
+const ComplexPromptEditor = ({ 
+  title = '',
+  initialContent,
+  categories,
+  selectedCategory = '',
+  selectedTags = [],
+  onSave,
+  onCancel,
+  isSaving = false,
+  mode = 'edit'
+}: ComplexPromptEditorProps) => {
   const [promptContent, setPromptContent] = useState<PromptContent>({
     variables: [],
     prompt: ""
   })
-  const [title, setTitle] = useState(initialTitle)
-  const [category, setCategory] = useState(initialCategory)
-  const [tags, setTags] = useState<Tag[]>(initialTags || [])
+  const [currentTitle, setCurrentTitle] = useState(title)
+  const [currentCategory, setCurrentCategory] = useState(selectedCategory)
+  const [tags, setTags] = useState<Tag[]>(selectedTags || [])
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>("visual")
   const [currentStep, setCurrentStep] = useState(1)
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    if (initialData) {
+    if (initialContent) {
       let parsedData: PromptContent;
-      if (typeof initialData === 'string') {
+      if (typeof initialContent === 'string') {
         try {
-          parsedData = JSON.parse(initialData);
+          parsedData = JSON.parse(initialContent);
         } catch (error) {
           console.error('Error parsing initialData:', error);
-          parsedData = { variables: [], prompt: initialData };
+          parsedData = { variables: [], prompt: initialContent };
         }
       } else {
-        parsedData = initialData;
+        parsedData = initialContent;
       }
       setPromptContent({
         variables: Array.isArray(parsedData.variables) ? parsedData.variables : [],
         prompt: parsedData.prompt || ""
       });
     }
-    setTitle(initialTitle)
-    setCategory(initialCategory)
-    setTags(initialTags || [])
-  }, [initialData, initialTitle, initialCategory, initialTags])
+    setCurrentTitle(title)
+    setCurrentCategory(selectedCategory)
+    setTags(selectedTags || [])
+  }, [initialContent, title, selectedCategory, selectedTags])
 
   const handleAddVariable = () => {
     setPromptContent(prev => ({
@@ -382,15 +394,15 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
   }
 
   const handleTitleChange = (value: string) => {
-    setTitle(value)
+    setCurrentTitle(value)
   }
 
   const handleCategoryChange = (value: string) => {
-    setCategory(value)
+    setCurrentCategory(value)
   }
 
   const handleSave = () => {
-    onSave(title, category, tags, promptContent)
+    onSave(currentTitle, currentCategory, tags, promptContent)
   }
 
   const renderStepIndicator = () => {
@@ -434,7 +446,7 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
                 </Label>
                 <Input
                   id="title"
-                  value={title}
+                  value={currentTitle}
                   onChange={(e) => handleTitleChange(e.target.value)}
                   className="flex-grow"
                 />
@@ -444,7 +456,7 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
                   Category
                 </Label>
                 <Select
-                  value={category}
+                  value={currentCategory}
                   onValueChange={handleCategoryChange}
                 >
                   <SelectTrigger className="flex-grow">
@@ -574,7 +586,7 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
       <div className="flex items-center justify-between p-4 border-b">
         <h1 className="text-2xl font-bold">Complex Prompt Editor</h1>
         <div className="flex gap-2">
-        <Button onClick={onClose} variant="outline">Close</Button>
+        <Button onClick={onCancel} variant="outline">Close</Button>
           <Button 
             onClick={handleSave} 
             className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -585,7 +597,7 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
       </div>
       <div className="bg-gray-50 px-4 py-3 border-b">
         <h2 className="text-gray-600 text-lg text-center">
-          {title || 'Untitled Prompt'}
+          {currentTitle || 'Untitled Prompt'}
         </h2>
       </div>
       <div className="flex-grow overflow-auto">
@@ -598,3 +610,5 @@ export function ComplexPromptEditor({ initialData, initialTitle, initialCategory
     </div>
   )
 }
+
+export default ComplexPromptEditor;
