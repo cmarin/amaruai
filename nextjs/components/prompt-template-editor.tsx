@@ -7,18 +7,25 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useSession } from '@/app/utils/session/session';
 import { PromptTemplate, updatePromptTemplate } from '@/utils/prompt-template-service';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import TagSelector from '@/components/tag-selector';
+import { Tag } from '@/utils/tag-service';
+import { Category } from '@/utils/category-service';
 
 interface PromptTemplateEditorProps {
   promptTemplate: PromptTemplate;
+  categories: Category[];
   onSave?: () => void;
   onClose?: () => void;
 }
 
-export default function PromptTemplateEditor({ promptTemplate, onSave, onClose }: PromptTemplateEditorProps) {
+export default function PromptTemplateEditor({ promptTemplate, categories, onSave, onClose }: PromptTemplateEditorProps) {
   const { getApiHeaders } = useSession();
   const { toast } = useToast();
   const [title, setTitle] = useState(promptTemplate.title);
   const [prompt, setPrompt] = useState(promptTemplate.prompt);
+  const [selectedCategory, setSelectedCategory] = useState(promptTemplate.categories[0]?.id || '');
+  const [tags, setTags] = useState<Tag[]>(promptTemplate.tags || []);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -37,10 +44,10 @@ export default function PromptTemplateEditor({ promptTemplate, onSave, onClose }
       await updatePromptTemplate(promptTemplate.id, {
         title,
         prompt,
-        is_complex: promptTemplate.is_complex,
+        is_complex: false,
         default_persona_id: promptTemplate.default_persona_id || null,
-        category_ids: promptTemplate.categories.map(c => c.id),
-        tags: promptTemplate.tags.map(t => t.name),
+        category_ids: [selectedCategory],
+        tags: tags.map(t => t.name),
       }, headers);
 
       toast({
@@ -91,6 +98,38 @@ export default function PromptTemplateEditor({ promptTemplate, onSave, onClose }
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Enter title"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="category" className="text-sm font-medium">
+            Category
+          </label>
+          <Select
+            value={selectedCategory}
+            onValueChange={setSelectedCategory}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select a category" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">
+            Tags
+          </label>
+          <TagSelector
+            tags={tags}
+            setTags={setTags}
+            placeholder="Add tags"
           />
         </div>
 
