@@ -1,6 +1,6 @@
 // promptTemplateService.ts
 
-import { PromptContent } from '@/components/complex-prompt-editor';
+import type { PromptContent } from '@/components/complex-prompt-editor';
 import { getApiUrl, fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
 import { Category } from '@/utils/category-service';

@@ -25,7 +25,8 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PromptTemplate, fetchPromptTemplates, createPromptTemplate, updatePromptTemplate, deletePromptTemplate } from '@/utils/prompt-template-service'
 import { Category, fetchCategories } from '../utils/category-service';
-import { ComplexPromptEditor, PromptContent } from './complex-prompt-editor';
+import ComplexPromptEditor from './complex-prompt-editor';
+import type { PromptContent } from './complex-prompt-editor';
 import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
@@ -409,27 +410,26 @@ export function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdatePrompts
 
       {isComplexEditorOpen && (
         <ComplexPromptEditor
-          initialData={
+          title={selectedComplexPrompt?.title || editingComplexPrompt?.title || ''}
+          initialContent={
             selectedComplexPrompt || editingComplexPrompt
               ? (selectedComplexPrompt || editingComplexPrompt)?.prompt as PromptContent
               : undefined
           }
-          initialTitle={
-            selectedComplexPrompt?.title || editingComplexPrompt?.title || ''
-          }
-          initialCategory={
+          selectedCategory={
             (selectedComplexPrompt || editingComplexPrompt)?.categories[0]?.id.toString() || ''
           }
-          initialTags={
+          selectedTags={
             (selectedComplexPrompt || editingComplexPrompt)?.tags || []
           }
+          categories={categories}
           onSave={handleSaveComplexPrompt}
-          onClose={() => {
+          onCancel={() => {
             setIsComplexEditorOpen(false);
             setSelectedComplexPrompt(null);
             setEditingComplexPrompt(null);
           }}
-          categories={categories}
+          mode={selectedComplexPrompt ? 'edit' : 'create'}
         />
       )}
 
