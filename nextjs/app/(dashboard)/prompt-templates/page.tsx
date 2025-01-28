@@ -6,7 +6,6 @@ import {
   PromptTemplate, 
   fetchPromptTemplates, 
   createPromptTemplate, 
-  updatePromptTemplate, 
   deletePromptTemplate,
   favoritePromptTemplate,
   unfavoritePromptTemplate,
@@ -20,9 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import TagSelector from '@/components/tag-selector'
 import { Tag } from '@/utils/tag-service'
-import { ComplexPromptEditor, PromptContent } from '@/components/complex-prompt-editor'
 import { fetchCategories, Category } from '@/utils/category-service'
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,8 +41,6 @@ export default function PromptTemplatesPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isNewSimplePromptDialogOpen, setIsNewSimplePromptDialogOpen] = useState(false);
-  const [isEditPromptDialogOpen, setIsEditPromptDialogOpen] = useState(false);
-  const [editingPrompt, setEditingPrompt] = useState<PromptTemplate | null>(null);
   const [newSimplePrompt, setNewSimplePrompt] = useState({
     title: '',
     prompt: '',
@@ -53,14 +48,12 @@ export default function PromptTemplatesPage() {
     tags: [] as Tag[],
   });
   const [categories, setCategories] = useState<Category[]>([]);
-  const [isComplexEditorOpen, setIsComplexEditorOpen] = useState(false);
-  const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<PromptTemplate | null>(null);
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
-  const [templateToDelete, setTemplateToDelete] = useState<PromptTemplate | null>(null)
-  const { sidebarOpen } = useSidebar()
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const { sidebarOpen } = useSidebar();
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const { getApiHeaders, loading: sessionLoading, initialized } = useSession();
+  const [isDeletePromptDialogOpen, setIsDeletePromptDialogOpen] = useState(false);
+  const [promptToDelete, setPromptToDelete] = useState<PromptTemplate | null>(null);
 
   useEffect(() => {
     if (!sessionLoading && initialized) {
@@ -100,10 +93,6 @@ export default function PromptTemplatesPage() {
     }
   }, [sessionLoading, initialized, getApiHeaders]);
 
-  const toggleChatbot = (modelId: string) => {
-    router.push(`/chat?model=${modelId}`);
-  };
-
   const filteredPrompts = prompts.filter(prompt =>
     (prompt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (prompt.description || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
@@ -118,23 +107,16 @@ export default function PromptTemplatesPage() {
   };
 
   const handleNewComplexPrompt = () => {
-    setIsComplexEditorOpen(true);
-    setSelectedComplexPrompt(null);
+    router.push('/prompt-templates/new?type=complex');
   };
 
   const handleEditPrompt = (prompt: PromptTemplate) => {
-    if (prompt.is_complex) {
-      setSelectedComplexPrompt(prompt);
-      setIsComplexEditorOpen(true);
-    } else {
-      setEditingPrompt(prompt);
-      setIsEditPromptDialogOpen(true);
-    }
+    router.push(`/prompt-templates/${prompt.id}`);
   };
 
   const handleDeletePrompt = (prompt: PromptTemplate) => {
-    setTemplateToDelete(prompt);
-    setShowDeleteConfirmation(true);
+    setPromptToDelete(prompt);
+    setIsDeletePromptDialogOpen(true);
   };
 
   const handleSaveNewSimplePrompt = async () => {
@@ -162,83 +144,17 @@ export default function PromptTemplatesPage() {
     }
   };
 
-  const handleSaveEditedPrompt = async () => {
-    if (!editingPrompt) return;
-    const headers = getApiHeaders();
-    if (!headers) {
-      console.error('No valid headers available');
-      return;
-    }
-    try {
-      if (!editingPrompt.id) {
-        throw new Error('Missing prompt template ID');
-      }
-      await updatePromptTemplate(editingPrompt.id, {
-        title: editingPrompt.title,
-        prompt: editingPrompt.prompt as string,
-        is_complex: false,
-        default_persona_id: null,
-        category_ids: editingPrompt.categories?.map(c => c.id) || [],
-        tags: editingPrompt.tags?.map(t => t.name) || []
-      }, headers);
-      setIsEditPromptDialogOpen(false);
-      const updatedPrompts = await fetchPromptTemplates(headers);
-      setPrompts(updatedPrompts);
-    } catch (error) {
-      console.error('Error updating prompt:', error);
-    }
-  };
-
-  const handleSaveComplexPrompt = async (
-    title: string,
-    category: string,
-    tags: Tag[],
-    data: PromptContent
-  ) => {
-    const headers = getApiHeaders();
-    if (!headers) {
-      console.error('No valid headers available');
-      return;
-    }
-    try {
-      if (selectedComplexPrompt) {
-        await updatePromptTemplate(selectedComplexPrompt.id, {
-          title,
-          prompt: JSON.stringify(data),
-          is_complex: true,
-          default_persona_id: selectedComplexPrompt.default_persona_id || null,
-          category_ids: [category],
-          tags: tags.map(t => t.name),
-        }, headers);
-      } else {
-        await createPromptTemplate({
-          title,
-          prompt: JSON.stringify(data),
-          is_complex: true,
-          category_ids: [category],
-          tags: tags.map(t => t.name),
-        }, headers);
-      }
-      setIsComplexEditorOpen(false);
-      setSelectedComplexPrompt(null);
-      const updatedPrompts = await fetchPromptTemplates(headers);
-      setPrompts(updatedPrompts);
-    } catch (error) {
-      console.error('Error saving complex prompt:', error);
-    }
-  };
-
   const confirmDelete = async () => {
-    if (templateToDelete) {
+    if (promptToDelete) {
       const headers = getApiHeaders();
       if (!headers) {
         console.error('No valid headers available');
         return;
       }
       try {
-        await deletePromptTemplate(templateToDelete.id, headers);
-        setShowDeleteConfirmation(false);
-        setTemplateToDelete(null);
+        await deletePromptTemplate(promptToDelete.id, headers);
+        setIsDeletePromptDialogOpen(false);
+        setPromptToDelete(null);
         const updatedPrompts = await fetchPromptTemplates(headers);
         setPrompts(updatedPrompts);
       } catch (error) {
@@ -279,7 +195,7 @@ export default function PromptTemplatesPage() {
   return (
     <div className="h-full w-full">
       <div className="flex h-screen">
-        <AppSidebar toggleChatbot={toggleChatbot} />
+        <AppSidebar />
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <PromptTemplateLibrary
             prompts={filteredPrompts}
@@ -295,7 +211,6 @@ export default function PromptTemplatesPage() {
             onFavoriteToggle={handleFavoriteToggle}
           />
 
-          {/* Dialogs */}
           {/* New Simple Prompt Dialog */}
           <Dialog open={isNewSimplePromptDialogOpen} onOpenChange={setIsNewSimplePromptDialogOpen}>
             <DialogContent className="bg-white">
@@ -343,72 +258,8 @@ export default function PromptTemplatesPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Edit Prompt Dialog */}
-          <Dialog open={isEditPromptDialogOpen} onOpenChange={setIsEditPromptDialogOpen}>
-            <DialogContent className="bg-white">
-              <DialogHeader>
-                <DialogTitle className="text-gray-900">Edit Prompt</DialogTitle>
-                <DialogDescription className="text-gray-600">Make changes to your prompt here</DialogDescription>
-              </DialogHeader>
-              {editingPrompt && (
-                <div className="grid gap-4 py-4">
-                  <Input
-                    placeholder="Title"
-                    value={editingPrompt.title}
-                    onChange={(e) => setEditingPrompt({ ...editingPrompt, title: e.target.value })}
-                    className="border-gray-300"
-                  />
-                  <Textarea
-                    placeholder="Prompt content"
-                    value={editingPrompt.prompt as string}
-                    onChange={(e) => setEditingPrompt({ ...editingPrompt, prompt: e.target.value })}
-                    className="border-gray-300"
-                  />
-                  <Select
-                    value={editingPrompt.category}
-                    onValueChange={(value) => setEditingPrompt({ ...editingPrompt, category: value })}
-                  >
-                    <SelectTrigger className="border-gray-300">
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id.toString()}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <TagSelector
-                    tags={editingPrompt.tags}
-                    setTags={(tags) => setEditingPrompt({ ...editingPrompt, tags })}
-                    placeholder="Add tags"
-                  />
-                </div>
-              )}
-              <DialogFooter>
-                <Button onClick={handleSaveEditedPrompt} className="bg-blue-600 hover:bg-blue-700 text-white">Save</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Complex Prompt Editor */}
-          {isComplexEditorOpen && (
-            <ComplexPromptEditor
-              initialData={selectedComplexPrompt?.prompt as PromptContent}
-              initialTitle={selectedComplexPrompt?.title || ''}
-              initialCategory={selectedComplexPrompt?.categories[0]?.id.toString() || ''}
-              initialTags={selectedComplexPrompt?.tags || []}
-              onSave={handleSaveComplexPrompt}
-              onClose={() => {
-                setIsComplexEditorOpen(false);
-                setSelectedComplexPrompt(null);
-              }}
-              categories={categories}
-            />
-          )}
-
-          <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+          {/* Delete Confirmation Dialog */}
+          <AlertDialog open={isDeletePromptDialogOpen} onOpenChange={setIsDeletePromptDialogOpen}>
             <AlertDialogContent className="bg-white">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-gray-900">Are you sure you want to delete this prompt template?</AlertDialogTitle>

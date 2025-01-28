@@ -1,4 +1,7 @@
+'use client';
+
 import { useState } from 'react'
+import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -49,31 +52,34 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
         <Card key={prompt.id} className="flex flex-col">
           <CardContent className="pt-6 flex-grow">
             <div className="flex justify-between items-start mb-2">
-              <h3 className="font-semibold">{prompt.title}</h3>
+              <div className="flex-grow">
+                <h3 className="text-lg font-semibold">{prompt.title}</h3>
+                <p className="text-sm text-gray-500 mt-1">{prompt.description}</p>
+              </div>
               <div className="flex gap-2">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => onFavoriteToggle(prompt)}
-                  className={prompt.is_favorite ? "text-yellow-500" : ""}
                 >
-                  <Star className="h-4 w-4" />
+                  <Star className={prompt.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"} size={20} />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onEdit(prompt)}
-                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
+                <Link href={`/prompt-templates/${prompt.id}`} passHref>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <Edit size={20} />
+                  </Button>
+                </Link>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => onDelete(prompt)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                  className="text-gray-500 hover:text-red-600"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 size={20} />
                 </Button>
               </div>
             </div>
@@ -148,21 +154,22 @@ const TableView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                 >
                   <Star className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onEdit(prompt)}
-                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
+                <Link href={`/prompt-templates/${prompt.id}`} passHref>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <Edit size={20} />
+                  </Button>
+                </Link>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => onDelete(prompt)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                  className="text-gray-500 hover:text-red-600"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 size={20} />
                 </Button>
               </div>
             </TableCell>
