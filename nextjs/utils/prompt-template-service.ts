@@ -53,9 +53,9 @@ export interface UpdatePromptTemplateRequest {
   title: string;
   prompt: string | PromptContent;
   is_complex: boolean;
-  default_persona_id: string | null;
-  category_ids: string[];
-  tags: string[];  // Array of tag names
+  category_ids?: string[];
+  tags?: string[];  // Array of tag names
+  default_persona_id?: string | null;
 }
 
 export async function createPromptTemplate(
@@ -73,32 +73,24 @@ export async function createPromptTemplate(
       tags: promptTemplate.tags || []  // Ensure tags is present
     };
 
-    const response = await fetch(`${getApiUrl()}/prompt_templates`, {
-      method: 'POST',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response:', response.status, errorText);
-      throw new Error(`Failed to create prompt template: ${response.status} ${response.statusText}`);
-    }
+    return await fetchWithRetry(async () => {
+      const response = await fetch(`${getApiUrl()}/prompt_templates`, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
 
-    const data = await response.json();
-    return {
-      ...data,
-      id: data.id?.toString() || '',
-      category_id: data.category_id?.toString(),
-      default_persona_id: data.default_persona_id?.toString(),
-      tags: data.tags?.map((tag: any) => ({
-        ...tag,
-        id: tag.id?.toString() || ''
-      })) || []
-    };
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', response.status, errorText);
+        throw new Error('Failed to create prompt template');
+      }
+
+      return response.json();
+    });
   } catch (error) {
     console.error('Error in createPromptTemplate:', error);
     throw error;
@@ -117,32 +109,24 @@ export async function updatePromptTemplate(
       tags: promptTemplate.tags || []  // Ensure tags is present
     };
 
-    const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
-      method: 'PUT',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
+    return await fetchWithRetry(async () => {
+      const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
+        method: 'PUT',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', response.status, errorText);
+        throw new Error('Failed to update prompt template');
+      }
+
+      return response.json();
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error response:', response.status, errorText);
-      throw new Error(`Failed to update prompt template: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return {
-      ...data,
-      id: data.id?.toString() || '',
-      category_id: data.category_id?.toString(),
-      default_persona_id: data.default_persona_id?.toString(),
-      tags: data.tags?.map((tag: any) => ({
-        ...tag,
-        id: tag.id?.toString() || ''
-      })) || []
-    };
   } catch (error) {
     console.error('Error in updatePromptTemplate:', error);
     throw error;
@@ -150,20 +134,21 @@ export async function updatePromptTemplate(
 }
 
 export async function deletePromptTemplate(promptTemplateId: string, headers: ApiHeaders): Promise<void> {
-  const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
-    method: 'DELETE',
-    headers,
-  });
+  return await fetchWithRetry(async () => {
+    const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
+      method: 'DELETE',
+      headers,
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Error response:', response.status, errorText);
-    throw new Error(`Failed to delete prompt template: ${response.status} ${response.statusText}`);
-  }
+    if (response.status !== 204) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to delete prompt template');
+    }
+  });
 }
 
 export async function fetchPromptTemplates(headers: ApiHeaders | null): Promise<PromptTemplate[]> {
-  return fetchWithRetry(async () => {
+  return await fetchWithRetry(async () => {
     const response = await fetch(`${getApiUrl()}/prompt_templates`, {
       headers: headers || {},
     });
@@ -189,7 +174,7 @@ export async function fetchPromptTemplates(headers: ApiHeaders | null): Promise<
 }
 
 export async function fetchPromptTemplate(promptTemplateId: string, headers: ApiHeaders): Promise<PromptTemplate> {
-  return fetchWithRetry(async () => {
+  return await fetchWithRetry(async () => {
     const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}`, {
       headers,
     });
@@ -215,73 +200,57 @@ export async function fetchPromptTemplate(promptTemplateId: string, headers: Api
 }
 
 export async function favoritePromptTemplate(promptTemplateId: string, headers: ApiHeaders): Promise<void> {
-  const apiUrl = getApiUrl();
-  try {
-    const response = await fetchWithRetry(
-      async () => {
-        const res = await fetch(`${apiUrl}/prompt_templates/${promptTemplateId}/favorite`, {
-          method: 'POST',
-          headers: {
-            ...headers,
-          },
-        });
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res;
-      }
-    );
-  } catch (error) {
-    console.error('Error in favoritePromptTemplate:', error);
-    throw error;
-  }
+  return await fetchWithRetry(async () => {
+    const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}/favorite`, {
+      method: 'POST',
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error favoriting prompt template:', response.status, errorText);
+      throw new Error('Failed to favorite prompt template');
+    }
+  });
 }
 
 export async function unfavoritePromptTemplate(promptTemplateId: string, headers: ApiHeaders): Promise<void> {
-  const apiUrl = getApiUrl();
-  try {
-    const response = await fetchWithRetry(
-      async () => {
-        const res = await fetch(`${apiUrl}/prompt_templates/${promptTemplateId}/favorite`, {
-          method: 'DELETE',
-          headers: {
-            ...headers,
-          },
-        });
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res;
-      }
-    );
-  } catch (error) {
-    console.error('Error in unfavoritePromptTemplate:', error);
-    throw error;
-  }
+  return await fetchWithRetry(async () => {
+    const response = await fetch(`${getApiUrl()}/prompt_templates/${promptTemplateId}/unfavorite`, {
+      method: 'POST',
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error unfavoriting prompt template:', response.status, errorText);
+      throw new Error('Failed to unfavorite prompt template');
+    }
+  });
 }
 
 export async function fetchFavoritePromptTemplates(headers: ApiHeaders): Promise<PromptTemplate[]> {
-  const apiUrl = getApiUrl();
-  try {
-    const response = await fetchWithRetry(
-      async () => {
-        const res = await fetch(`${apiUrl}/prompt_templates/favorites`, {
-          method: 'GET',
-          headers: {
-            ...headers,
-          },
-        });
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res;
-      }
-    );
+  return await fetchWithRetry(async () => {
+    const response = await fetch(`${getApiUrl()}/prompt_templates/favorites`, {
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error fetching favorite prompt templates:', response.status, errorText);
+      throw new Error('Failed to fetch favorite prompt templates');
+    }
 
     const data = await response.json();
-    return data as PromptTemplate[];
-  } catch (error) {
-    console.error('Error in fetchFavoritePromptTemplates:', error);
-    throw error;
-  }
+    return data.map((template: any) => ({
+      ...template,
+      id: template.id?.toString() || '',
+      category_id: template.category_id?.toString(),
+      default_persona_id: template.default_persona_id?.toString(),
+      tags: template.tags?.map((tag: any) => ({
+        ...tag,
+        id: tag.id?.toString() || ''
+      })) || []
+    }));
+  });
 }
