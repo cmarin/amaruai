@@ -54,7 +54,7 @@ class PromptTemplateCreate(BaseModel):
     default_persona_id: Optional[UUID] = None
     category_ids: List[Optional[UUID]] = []
     tags: List[str] = []
-    created_by: UUID
+    created_by: Optional[UUID] = None
 
     @validator('category_ids', pre=True)
     def empty_list_if_none(cls, v):
@@ -95,11 +95,11 @@ class PromptTemplateUpdate(BaseModel):
 
 class ChatModelBase(BaseModel):
     name: str
-    model: str  # Add this line
-    provider: str  # Add this line if it's not already there
+    model: str  
+    provider: str  
     description: str | None = None
     api_key: str | None = None
-    default: bool = False  # Add this line if it's not already there
+    default: bool = False  
 
 class ChatModelCreate(ChatModelBase):
     pass
@@ -108,7 +108,7 @@ class ChatModel(ChatModelBase):
     id: UUID
 
     class Config:
-        from_attributes = True  # Use from_attributes instead of orm_mode
+        from_attributes = True  
 
 class PersonaBase(BaseModel):
     role: str
@@ -120,8 +120,8 @@ class PersonaBase(BaseModel):
     avatar: Optional[str] = None
 
 class PersonaCreate(PersonaBase):
-    category_ids: List[Optional[UUID]] = []  # For dropdown selection
-    tags: List[str] = []  # Changed from tag_ids to tags
+    category_ids: List[Optional[UUID]] = []  
+    tags: List[str] = []  
     tools: List[UUID] = []
 
     @validator('category_ids', pre=True)
@@ -138,7 +138,7 @@ class PersonaCreate(PersonaBase):
 
 class PersonaUpdate(PersonaBase):
     category_ids: Optional[List[Optional[UUID]]] = None
-    tags: Optional[List[str]] = None  # Changed from tag_ids to tags
+    tags: Optional[List[str]] = None  
     tools: Optional[List[UUID]] = None
 
     @validator('category_ids', pre=True)
@@ -310,7 +310,7 @@ class ChatMessage(BaseModel):
             try:
                 return UUID(v)
             except ValueError:
-                return v  # Keep as string, will be converted in endpoint
+                return v  
         return v
 
     @validator('user_id', pre=True)
@@ -323,7 +323,7 @@ class ChatMessage(BaseModel):
             try:
                 return UUID(v)
             except ValueError:
-                return v  # Keep as string, will be converted in endpoint
+                return v  
         return v
 
     class Config:

@@ -20,11 +20,15 @@ def create_prompt_template(
     Create a new prompt template.
     The current user's UUID will be assigned as the creator.
     """
-    # Always set the current user as the creator
-    prompt_template.created_by = current_user
+    # Create a new instance to avoid modifying the input model
+    template_data = prompt_template.dict()
+    template_data["created_by"] = current_user
+    
+    # Create a new PromptTemplateCreate instance with the user ID
+    prompt_template_with_user = schemas.PromptTemplateCreate(**template_data)
 
     try:
-        new_template = crud.create_prompt_template(db=db, prompt_template=prompt_template)
+        new_template = crud.create_prompt_template(db=db, prompt_template=prompt_template_with_user)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     return new_template
