@@ -43,6 +43,7 @@ import { Asset } from '@/types/knowledge-base'
 import { ChatModel } from '@/components/data-context'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
+import ChatMessage from '@/components/chat-message'
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css'
@@ -633,6 +634,7 @@ function ChatContent() {
     chatWindowId
   }: ChatWindowProps) => {
     const isStreaming = isStreamingRef.current;
+    const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
     
     return (
       <TooltipProvider>
@@ -715,24 +717,12 @@ function ChatContent() {
           >
             <div className="space-y-4">
               {messages.map((message, index) => (
-                <div
+                <ChatMessage
                   key={index}
-                  className={`mb-4 ${message.role === 'user' ? 'text-right' : 'text-left'}`}
-                >
-                  <div
-                    className={`inline-block p-2 rounded-lg ${
-                      message.role === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-black'
-                    }`}
-                  >
-                    {isMarkdown(message.content) ? (
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
-                    ) : (
-                      <p>{message.content}</p>
-                    )}
-                  </div>
-                </div>
+                  role={message.role}
+                  content={message.content}
+                  avatar={message.role === 'assistant' ? selectedPersona?.avatar : null}
+                />
               ))}
               <div ref={messagesEndRef} className="h-4" />
             </div>
