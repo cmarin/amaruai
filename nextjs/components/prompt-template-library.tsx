@@ -111,6 +111,11 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                     {tag.name}
                   </Badge>
                 ))}
+                {prompt.is_complex && (
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                    Complex Prompt
+                  </Badge>
+                )}
               </div>
             </div>
           </CardContent>
