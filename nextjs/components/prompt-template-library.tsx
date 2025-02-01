@@ -48,10 +48,13 @@ type PromptTemplateLibraryProps = {
 type ViewMode = 'grid' | 'table';
 
 const getPromptPreview = (prompt: string | PromptContent): string => {
+  let previewText: string;
   if (typeof prompt === 'string') {
-    return prompt;
+    previewText = prompt;
+  } else {
+    previewText = JSON.stringify(prompt, null, 2);
   }
-  return JSON.stringify(prompt, null, 2);
+  return previewText.length > 100 ? `${previewText.substring(0, 100)}...` : previewText;
 };
 
 const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: { 
@@ -66,64 +69,71 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
         <Card key={prompt.id} className="flex flex-col">
           <CardContent className="pt-6 flex-grow">
             <div className="flex flex-col">
-              <div className="flex justify-end gap-2 mb-3">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        <Eye size={20} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[300px] p-2 break-words">
-                      <p className="text-sm">{prompt.is_complex ? "Complex prompt structure" : getPromptPreview(prompt.prompt)}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onFavoriteToggle(prompt)}
-                >
-                  <Star className={prompt.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"} size={20} />
-                </Button>
-                <Link href={`/prompt-templates/${prompt.id}`} passHref>
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex-grow">
+                  <h3 className="text-lg font-semibold">{prompt.title}</h3>
+                  <p className="text-sm text-gray-500 mt-1">{prompt.description}</p>
+                  {!prompt.is_complex && (
+                    <p className="text-sm text-gray-600 mt-2 font-mono">
+                      {getPromptPreview(prompt.prompt)}
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          <Eye size={20} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[300px] p-2 break-words">
+                        <p className="text-sm">{prompt.is_complex ? "Complex prompt structure" : getPromptPreview(prompt.prompt)}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-blue-500 hover:text-blue-700"
+                    onClick={() => onFavoriteToggle(prompt)}
                   >
-                    <Edit size={20} />
+                    <Star className={prompt.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"} size={20} />
                   </Button>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onDelete(prompt)}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  <Trash2 size={20} />
-                </Button>
+                  <Link href={`/prompt-templates/${prompt.id}`} passHref>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-blue-500 hover:text-blue-700"
+                    >
+                      <Edit size={20} />
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onDelete(prompt)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 size={20} />
+                  </Button>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold">{prompt.title}</h3>
-                <p className="text-sm text-gray-500 mt-1">{prompt.description}</p>
+              <div className="flex flex-wrap gap-2 mt-4">
+                {prompt.categories.map((category, index) => (
+                  <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800">
+                    {category.name}
+                  </Badge>
+                ))}
+                {prompt.tags.map((tag, index) => (
+                  <Badge key={`tag-${index}`} variant="outline">
+                    {tag.name}
+                  </Badge>
+                ))}
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-4">
-              {prompt.categories.map((category, index) => (
-                <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800">
-                  {category.name}
-                </Badge>
-              ))}
-              {prompt.tags.map((tag, index) => (
-                <Badge key={`tag-${index}`} variant="outline">
-                  {tag.name}
-                </Badge>
-              ))}
             </div>
           </CardContent>
         </Card>
