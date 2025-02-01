@@ -100,6 +100,7 @@ class ChatModelBase(BaseModel):
     description: str | None = None
     api_key: str | None = None
     default: bool = False  
+    max_tokens: int | None = None
 
 class ChatModelCreate(ChatModelBase):
     pass

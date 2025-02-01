@@ -298,6 +298,7 @@ async def chat_endpoint(
                         "model": model_name,
                         "stream": True,
                         "messages": local_messages,
+                        "max_tokens": chat_model.max_tokens if chat_model and chat_model.max_tokens else None
                     },
                 ) as resp:
                     api_response_time = time.time() - start_time

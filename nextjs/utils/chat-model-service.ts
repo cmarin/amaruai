@@ -10,6 +10,7 @@ export interface ChatModel {
   api_key: string;
   max_tokens: number;
   temperature: number;
+  description?: string;
   created_at?: string;
   updated_at?: string;
 }

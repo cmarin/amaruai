@@ -358,7 +358,8 @@ def create_chat_model(db: Session, chat_model: schemas.ChatModelCreate):
 def update_chat_model(db: Session, chat_model_id: UUID, chat_model: schemas.ChatModelCreate):
     db_chat_model = db.query(models.ChatModel).filter(models.ChatModel.id == chat_model_id).first()
     if db_chat_model:
-        for key, value in chat_model.dict().items():
+        update_data = chat_model.dict(exclude_unset=True)
+        for key, value in update_data.items():
             setattr(db_chat_model, key, value)
         db.commit()
         db.refresh(db_chat_model)

@@ -124,6 +124,7 @@ class ChatModel(Base):
     description = Column(String, nullable=True)
     api_key = Column(String, nullable=True)
     default = Column(Boolean, default=False)
+    max_tokens = Column(Integer, nullable=True)
     workflow_steps = relationship("WorkflowStep", back_populates="chat_model")
 
 class Workflow(Base):
