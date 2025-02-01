@@ -54,7 +54,7 @@ class PromptTemplateCreate(BaseModel):
     default_persona_id: Optional[UUID] = None
     category_ids: List[Optional[UUID]] = []
     tags: List[str] = []
-    created_by: UUID
+    created_by: Optional[UUID] = None
 
     @validator('category_ids', pre=True)
     def empty_list_if_none(cls, v):
