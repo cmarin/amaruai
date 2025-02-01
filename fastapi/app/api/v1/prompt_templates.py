@@ -11,8 +11,24 @@ from app.api.v1.dependencies import get_current_user
 router = create_protected_router(prefix="prompt_templates", tags=["prompt_templates"])
 
 @router.post("/", response_model=schemas.PromptTemplate)
-def create_prompt_template(prompt_template: schemas.PromptTemplateCreate, db: Session = Depends(get_db)):
-    return crud.create_prompt_template(db=db, prompt_template=prompt_template)
+def create_prompt_template(
+    prompt_template: schemas.PromptTemplateCreate,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    """
+    Create a new prompt template.
+    If the 'created_by' field is missing, we'll automatically
+    assign the current user's email.
+    """
+    if not prompt_template.created_by:
+        prompt_template.created_by = current_user  # Populate with current user info
+
+    try:
+        new_template = crud.create_prompt_template(db=db, prompt_template=prompt_template)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return new_template
 
 @router.get("/", response_model=List[schemas.PromptTemplate])
 def read_prompt_templates(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
