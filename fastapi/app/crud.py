@@ -238,31 +238,47 @@ def get_or_create_tags(db: Session, tag_names: List[str]) -> List[models.Tag]:
 
 def create_prompt_template(db: Session, prompt_template: schemas.PromptTemplateCreate):
     try:
+        logger.info(f"Creating prompt template with data: {prompt_template.dict()}")
+        
         # Create the prompt template
         db_prompt_template = models.PromptTemplate(
             title=prompt_template.title,
             prompt=prompt_template.prompt,
             is_complex=prompt_template.is_complex,
-            default_persona_id=prompt_template.default_persona_id
+            default_persona_id=prompt_template.default_persona_id,
+            created_by=prompt_template.created_by
         )
+        logger.debug(f"Created PromptTemplate model instance: {db_prompt_template.__dict__}")
+        
         db.add(db_prompt_template)
+        logger.debug("Added prompt template to session")
         
         # Handle categories
         for category_id in prompt_template.category_ids:
             if category_id:
+                logger.debug(f"Processing category_id: {category_id}")
                 category = db.query(models.Category).filter(models.Category.id == category_id).first()
                 if category:
+                    logger.debug(f"Found category: {category.name}")
                     db_prompt_template.categories.append(category)
+                else:
+                    logger.warning(f"Category not found for id: {category_id}")
         
         # Handle tags by name
+        logger.debug(f"Processing tags: {prompt_template.tags}")
         tags = get_or_create_tags(db, prompt_template.tags)
         db_prompt_template.tags = tags
+        logger.debug(f"Assigned tags: {[tag.name for tag in tags]}")
         
+        logger.debug("Committing transaction")
         db.commit()
+        logger.debug("Refreshing prompt template")
         db.refresh(db_prompt_template)
+        logger.info(f"Successfully created prompt template with id: {db_prompt_template.id}")
         return db_prompt_template
         
     except Exception as e:
+        logger.error(f"Error creating prompt template: {str(e)}", exc_info=True)
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -904,4 +920,3 @@ def get_favorite_prompt_templates(db: Session, user_id: str) -> List[models.Prom
         .filter(models.prompt_template_favorites.c.user_id == user_id)
         .all()
     )
-

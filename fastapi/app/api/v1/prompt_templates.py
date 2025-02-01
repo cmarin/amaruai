@@ -18,11 +18,10 @@ def create_prompt_template(
 ):
     """
     Create a new prompt template.
-    If the 'created_by' field is missing, we'll automatically
-    assign the current user's UUID.
+    The current user's UUID will be assigned as the creator.
     """
-    if not prompt_template.created_by:
-        prompt_template.created_by = current_user  # Assign current user's UUID
+    # Always set the current user as the creator
+    prompt_template.created_by = current_user
 
     try:
         new_template = crud.create_prompt_template(db=db, prompt_template=prompt_template)
