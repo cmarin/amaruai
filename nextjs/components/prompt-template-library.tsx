@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Plus, Edit, Trash2, LayoutGrid, List, Code, Star, Eye } from 'lucide-react'
+import { Plus, Edit, Trash2, LayoutGrid, List, Code, Star } from 'lucide-react'
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Table,
@@ -24,12 +24,6 @@ import {
 import { PromptTemplate } from '@/utils/prompt-template-service'
 import type { PromptContent } from '@/components/complex-prompt-editor'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 
 type PromptTemplateLibraryProps = {
   prompts: PromptTemplate[];
@@ -75,22 +69,6 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                   <p className="text-sm text-gray-500 mt-1">{prompt.description}</p>
                 </div>
                 <div className="flex gap-2 ml-4">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-gray-400 hover:text-gray-600"
-                        >
-                          <Eye size={20} />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-[300px] p-2 break-words">
-                        <p className="text-sm">{prompt.is_complex ? "Complex prompt structure" : getPromptPreview(prompt.prompt)}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -118,7 +96,7 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                 </div>
               </div>
               {!prompt.is_complex && (
-                <p className="text-sm text-gray-600 mt-2 font-mono w-full">
+                <p className="text-sm text-gray-600 mt-2">
                   {getPromptPreview(prompt.prompt)}
                 </p>
               )}
@@ -186,22 +164,6 @@ const TableView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
             </TableCell>
             <TableCell>
               <div className="flex gap-2 justify-end">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        <Eye size={20} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[300px] p-2 break-words">
-                      <p className="text-sm">{prompt.is_complex ? "Complex prompt structure" : getPromptPreview(prompt.prompt)}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
                 <Button
                   variant="ghost"
                   size="icon"
