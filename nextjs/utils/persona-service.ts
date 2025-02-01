@@ -53,6 +53,19 @@ export async function fetchPersonas(headers: ApiHeaders): Promise<Persona[]> {
   });
 }
 
+export async function fetchPersona(id: string, headers: Record<string, string>): Promise<Persona> {
+  const response = await fetch(`${getApiUrl()}/personas/${id}`, {
+    method: 'GET',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch persona');
+  }
+
+  return response.json();
+}
+
 export async function createPersona(persona: PersonaCreate, headers: ApiHeaders): Promise<Persona> {
   try {
     if (!getApiUrl()) {

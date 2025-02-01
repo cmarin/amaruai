@@ -25,6 +25,7 @@ import {
   PaginationPrevious 
 } from "@/components/ui/pagination"
 import AvatarDisplay from './ui/avatar-display'
+import { useRouter } from 'next/navigation'
 
 type PersonaLibraryProps = {
   personas: Persona[];
@@ -35,12 +36,9 @@ type ViewMode = 'grid' | 'table';
 
 export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLibraryProps) {
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null)
-  const [isCreating, setIsCreating] = useState(false)
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
-  const [personaToDelete, setPersonaToDelete] = useState<number | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [currentPage, setCurrentPage] = useState(1)
+  const router = useRouter()
   const itemsPerPage = 10
   const { getApiHeaders } = useSession();
 
@@ -55,11 +53,11 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
     : filteredPersonas
 
   const handleCreatePersona = () => {
-    setIsCreating(true)
+    router.push('/personas/new')
   }
 
   const handleEditPersona = (persona: Persona) => {
-    setSelectedPersona(persona)
+    router.push(`/personas/${persona.id}`)
   }
 
   const handleDeletePersona = async (personaId: number) => {
@@ -75,29 +73,6 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
     } catch (error) {
       console.error('Error deleting persona:', error);
     }
-  }
-
-  const handleSavePersona = async () => {
-    try {
-      await onUpdatePersonas()
-      setSelectedPersona(null)
-      setIsCreating(false)
-    } catch (error) {
-      console.error('Error saving persona:', error)
-    }
-  }
-
-  if (selectedPersona || isCreating) {
-    return (
-      <PersonaManager
-        persona={selectedPersona}
-        onSave={handleSavePersona}
-        onClose={() => {
-          setSelectedPersona(null)
-          setIsCreating(false)
-        }}
-      />
-    )
   }
 
   const renderGridView = () => (
