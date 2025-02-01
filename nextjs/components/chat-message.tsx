@@ -23,13 +23,13 @@ export default function ChatMessage({ role, content, avatar }: ChatMessageProps)
         {isAssistant ? (
           <AvatarDisplay
             avatar={avatar || null}
-            size={32}
+            size={45}
             alt="Assistant"
             className="border border-gray-200"
           />
         ) : (
-          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
-            <User className="w-5 h-5 text-white" />
+          <div className="w-[45px] h-[45px] rounded-full bg-blue-500 flex items-center justify-center">
+            <User className="w-6 h-6 text-white" />
           </div>
         )}
       </div>

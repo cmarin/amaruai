@@ -9,17 +9,29 @@ interface AvatarSelectorProps {
 }
 
 export default function AvatarSelector({ value, onChange, size = 128 }: AvatarSelectorProps) {
-  const seed = useMemo(() => value?.split(':')[1] || Math.random().toString(36).substring(7), [value]);
-  const currentStyle = value?.split(':')[0] as AvatarStyle || 'lorelei';
+  // Parse existing avatar value or create initial one
+  const [currentStyle, currentSeed] = useMemo(() => {
+    if (!value) {
+      return ['lorelei', Math.random().toString(36).substring(7)];
+    }
+    const [style = 'lorelei', seed] = value.split(':');
+    return [style, seed || Math.random().toString(36).substring(7)];
+  }, [value]);
 
   const handleStyleChange = (newStyle: string) => {
-    onChange(`${newStyle}:${seed}`);
+    // Keep the same seed when changing styles
+    onChange(`${newStyle}:${currentSeed}`);
+  };
+
+  const handleRandomize = () => {
+    // Only generate new seed when explicitly randomizing
+    onChange(`${currentStyle}:${Math.random().toString(36).substring(7)}`);
   };
 
   return (
     <div className="flex flex-col items-center gap-4">
       <AvatarDisplay 
-        avatar={value} 
+        avatar={`${currentStyle}:${currentSeed}`}
         size={size}
       />
       <Select value={currentStyle} onValueChange={handleStyleChange}>
@@ -33,7 +45,7 @@ export default function AvatarSelector({ value, onChange, size = 128 }: AvatarSe
         </SelectContent>
       </Select>
       <button
-        onClick={() => onChange(`${currentStyle}:${Math.random().toString(36).substring(7)}`)}
+        onClick={handleRandomize}
         className="text-sm text-blue-500 hover:text-blue-600"
       >
         Randomize
