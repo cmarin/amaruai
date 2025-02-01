@@ -87,11 +87,11 @@ class PromptTemplate(Base):
     __tablename__ = "prompt_template"
 
     id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('uuid_generate_v4()'))
-    title = Column(String)
-    prompt = Column(String)
-    is_complex = Column(Boolean)
+    title = Column(String, nullable=False)
+    prompt = Column(String, nullable=False)
+    is_complex = Column(Boolean, default=False)
     default_persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"), nullable=True)
-    created_by = Column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
+    created_by = Column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     workflow_steps = relationship("WorkflowStep", back_populates="prompt_template")
     categories = relationship("Category", secondary=prompt_template_category, back_populates="prompt_templates")
