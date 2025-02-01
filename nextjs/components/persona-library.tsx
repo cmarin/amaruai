@@ -24,6 +24,7 @@ import {
   PaginationNext, 
   PaginationPrevious 
 } from "@/components/ui/pagination"
+import AvatarDisplay from './ui/avatar-display'
 
 type PersonaLibraryProps = {
   personas: Persona[];
@@ -126,12 +127,20 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
               </div>
             </div>
             <p className="text-sm text-gray-600 mb-4">{persona.goal}</p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mb-4">
               {persona.tags.map((tag, index) => (
                 <Badge key={index} variant="secondary">
                   {tag.name}
                 </Badge>
               ))}
+            </div>
+            <div className="flex justify-end">
+              <AvatarDisplay
+                avatar={persona.avatar}
+                size={48}
+                alt={persona.role}
+                className="border-2 border-gray-200"
+              />
             </div>
           </CardContent>
         </Card>
