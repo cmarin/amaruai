@@ -65,12 +65,8 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
       {prompts.map((prompt) => (
         <Card key={prompt.id} className="flex flex-col">
           <CardContent className="pt-6 flex-grow">
-            <div className="flex justify-between items-start mb-2">
-              <div className="flex-grow">
-                <h3 className="text-lg font-semibold">{prompt.title}</h3>
-                <p className="text-sm text-gray-500 mt-1">{prompt.description}</p>
-              </div>
-              <div className="flex gap-2">
+            <div className="flex flex-col">
+              <div className="flex justify-end gap-2 mb-3">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -112,8 +108,12 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                   <Trash2 size={20} />
                 </Button>
               </div>
+              <div>
+                <h3 className="text-lg font-semibold">{prompt.title}</h3>
+                <p className="text-sm text-gray-500 mt-1">{prompt.description}</p>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mt-4">
               {prompt.categories.map((category, index) => (
                 <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800">
                   {category.name}
