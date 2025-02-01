@@ -221,8 +221,8 @@ async def chat_endpoint(
                 
                 # Append image attachments to the last user message by adding structured image parts
                 for file in chat_data.files:
-                    filename = file.get("name", "").lower()
-                    # Check if the file is an image based on extension
+                    filename = file.name.lower()  # FileInfo has direct attribute access
+                    # Check if file is an image based on extension
                     if any(ext in filename for ext in [".png", ".jpg", ".jpeg", ".webp"]):
                         # Locate the last user message
                         for i in range(len(local_messages) - 1, -1, -1):
@@ -237,11 +237,11 @@ async def chat_endpoint(
                                 local_messages[i]["content"].append({
                                     "type": "image_url",
                                     "image_url": {
-                                        "url": file.get("url"),
+                                        "url": file.url,  # FileInfo has direct attribute access
                                         "detail": "auto"
                                     }
                                 })
-                                logger.info(f"Appended image {file.get('name')} to last user message")
+                                logger.info(f"Appended image {file.name} to last user message")
                                 break
 
             # Process referenced knowledge bases and assets
