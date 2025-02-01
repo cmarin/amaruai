@@ -73,13 +73,8 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                 <div className="flex-grow">
                   <h3 className="text-lg font-semibold">{prompt.title}</h3>
                   <p className="text-sm text-gray-500 mt-1">{prompt.description}</p>
-                  {!prompt.is_complex && (
-                    <p className="text-sm text-gray-600 mt-2 font-mono">
-                      {getPromptPreview(prompt.prompt)}
-                    </p>
-                  )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 ml-4">
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -122,6 +117,11 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                   </Button>
                 </div>
               </div>
+              {!prompt.is_complex && (
+                <p className="text-sm text-gray-600 mt-2 font-mono w-full">
+                  {getPromptPreview(prompt.prompt)}
+                </p>
+              )}
               <div className="flex flex-wrap gap-2 mt-4">
                 {prompt.categories.map((category, index) => (
                   <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800">
