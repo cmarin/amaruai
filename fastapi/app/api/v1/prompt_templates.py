@@ -5,7 +5,7 @@ from uuid import UUID
 from app import crud, schemas, models
 from app.database import get_db
 from app.api.v1.router import create_protected_router
-from app.api.v1.dependencies import get_current_user
+from app.api.v1.dependencies import get_current_user_id
 
 # Create a protected router for prompt templates
 router = create_protected_router(prefix="prompt_templates", tags=["prompt_templates"])
@@ -14,15 +14,15 @@ router = create_protected_router(prefix="prompt_templates", tags=["prompt_templa
 def create_prompt_template(
     prompt_template: schemas.PromptTemplateCreate,
     db: Session = Depends(get_db),
-    current_user: str = Depends(get_current_user),
+    current_user: UUID = Depends(get_current_user_id),
 ):
     """
     Create a new prompt template.
     If the 'created_by' field is missing, we'll automatically
-    assign the current user's email.
+    assign the current user's UUID.
     """
     if not prompt_template.created_by:
-        prompt_template.created_by = current_user  # Populate with current user info
+        prompt_template.created_by = current_user  # Assign current user's UUID
 
     try:
         new_template = crud.create_prompt_template(db=db, prompt_template=prompt_template)
@@ -38,7 +38,7 @@ def read_prompt_templates(skip: int = 0, limit: int = 100, db: Session = Depends
 @router.get("/favorites", response_model=List[schemas.PromptTemplate])
 def get_favorite_prompt_templates(
     db: Session = Depends(get_db),
-    current_user: UUID = Depends(get_current_user)
+    current_user: UUID = Depends(get_current_user_id)
 ):
     """Get all prompt templates favorited by the current user."""
     return crud.get_favorite_prompt_templates(db=db, user_id=current_user)
@@ -72,7 +72,7 @@ def delete_prompt_template(prompt_template_id: UUID, db: Session = Depends(get_d
 def favorite_prompt_template(
     prompt_template_id: UUID,
     db: Session = Depends(get_db),
-    current_user: UUID = Depends(get_current_user)
+    current_user: UUID = Depends(get_current_user_id)
 ):
     """Add a prompt template to user's favorites."""
     return crud.toggle_prompt_template_favorite(
@@ -86,7 +86,7 @@ def favorite_prompt_template(
 def unfavorite_prompt_template(
     prompt_template_id: UUID,
     db: Session = Depends(get_db),
-    current_user: UUID = Depends(get_current_user)
+    current_user: UUID = Depends(get_current_user_id)
 ):
     """Remove a prompt template from user's favorites."""
     return crud.toggle_prompt_template_favorite(
