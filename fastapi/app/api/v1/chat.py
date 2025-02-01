@@ -191,7 +191,6 @@ async def chat_endpoint(
 
             # Process any attached files
             if chat_data.files:
-                file_contents = []
                 logger.info(f"Processing {len(chat_data.files)} files")
                 for file in chat_data.files:
                     file_url = file.url.strip(';')
@@ -211,7 +210,6 @@ async def chat_endpoint(
                         if asset:
                             logger.info(f"Found asset in database: {asset.id}")
                             if asset.content:
-                                file_contents.append(f"\nFile: {file.name}\nContent:\n{asset.content}\n")
                                 logger.info(f"Added content from file {file.name} ({len(asset.content)} characters)")
                             else:
                                 logger.warning(f"No content found in asset {asset.id} for file {file.name}")
@@ -221,31 +219,30 @@ async def chat_endpoint(
                         logger.error(f"Error processing file {file.name}: {str(e)}", exc_info=True)
                         continue
                 
-                if file_contents:
-                    # Append file contents to the last user message by adding structured image parts
-                    for file in chat_data.files:
-                        filename = file.get("name", "").lower()
-                        # Check if the file is an image based on extension
-                        if any(ext in filename for ext in [".png", ".jpg", ".jpeg", ".webp"]):
-                            # Locate the last user message
-                            for i in range(len(local_messages) - 1, -1, -1):
-                                if local_messages[i]["role"] == "user":
-                                    # If the content is a string, convert it to a list containing a text part
-                                    if isinstance(local_messages[i]["content"], str):
-                                        original_text = local_messages[i]["content"]
-                                        local_messages[i]["content"] = [
-                                            {"type": "text", "text": original_text}
-                                        ]
-                                    # Append the image content part following the OpenRouter schema
-                                    local_messages[i]["content"].append({
-                                        "type": "image_url",
-                                        "image_url": {
-                                            "url": file.get("url"),
-                                            "detail": "auto"
-                                        }
-                                    })
-                                    logger.info(f"Appended image {file.get('name')} to last user message")
-                                    break
+                # Append image attachments to the last user message by adding structured image parts
+                for file in chat_data.files:
+                    filename = file.get("name", "").lower()
+                    # Check if the file is an image based on extension
+                    if any(ext in filename for ext in [".png", ".jpg", ".jpeg", ".webp"]):
+                        # Locate the last user message
+                        for i in range(len(local_messages) - 1, -1, -1):
+                            if local_messages[i]["role"] == "user":
+                                # If the content is a string, convert it to a list containing a text part
+                                if isinstance(local_messages[i]["content"], str):
+                                    original_text = local_messages[i]["content"]
+                                    local_messages[i]["content"] = [
+                                        {"type": "text", "text": original_text}
+                                    ]
+                                # Append the image content part following the OpenRouter schema
+                                local_messages[i]["content"].append({
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": file.get("url"),
+                                        "detail": "auto"
+                                    }
+                                })
+                                logger.info(f"Appended image {file.get('name')} to last user message")
+                                break
 
             # Process referenced knowledge bases and assets
             if chat_data.knowledge_base_ids or chat_data.asset_ids:
