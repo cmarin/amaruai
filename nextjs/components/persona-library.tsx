@@ -106,7 +106,15 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
         <Card key={persona.id} className="flex flex-col">
           <CardContent className="flex-grow p-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">{persona.role}</h3>
+              <div className="flex items-center gap-3">
+                <AvatarDisplay
+                  avatar={persona.avatar}
+                  size={40}
+                  alt={persona.role}
+                  className="border-2 border-gray-200"
+                />
+                <h3 className="text-lg font-semibold">{persona.role}</h3>
+              </div>
               <div className="flex gap-2">
                 <Button
                   variant="ghost"
@@ -127,20 +135,12 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
               </div>
             </div>
             <p className="text-sm text-gray-600 mb-4">{persona.goal}</p>
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-wrap gap-2">
               {persona.tags.map((tag, index) => (
                 <Badge key={index} variant="secondary">
                   {tag.name}
                 </Badge>
               ))}
-            </div>
-            <div className="flex justify-end">
-              <AvatarDisplay
-                avatar={persona.avatar}
-                size={48}
-                alt={persona.role}
-                className="border-2 border-gray-200"
-              />
             </div>
           </CardContent>
         </Card>
