@@ -339,6 +339,18 @@ export function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdatePrompts
               <div className="flex justify-between items-start mb-2">
                 <h3 className="text-lg font-semibold">{prompt.title}</h3>
                 <div className="flex space-x-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-700 hover:bg-gray-100">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[300px] p-2 break-words">
+                        <p className="text-sm">{prompt.is_complex ? "Complex prompt structure" : prompt.prompt as string}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <Button variant="ghost" size="sm" onClick={() => handleEditPrompt(prompt)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-100">
                     <Edit className="h-4 w-4" />
                   </Button>
