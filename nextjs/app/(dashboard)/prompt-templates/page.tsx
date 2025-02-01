@@ -152,13 +152,18 @@ export default function PromptTemplatesPage() {
         return;
       }
       try {
-        await deletePromptTemplate(promptToDelete.id, headers);
+        // Optimistically update UI first
+        setPrompts(currentPrompts => currentPrompts.filter(p => p.id !== promptToDelete.id));
         setIsDeletePromptDialogOpen(false);
         setPromptToDelete(null);
-        const updatedPrompts = await fetchPromptTemplates(headers);
-        setPrompts(updatedPrompts);
+        
+        // Then perform the delete operation
+        await deletePromptTemplate(promptToDelete.id, headers);
       } catch (error) {
         console.error('Error deleting prompt template:', error);
+        // On error, revert the optimistic update by fetching fresh data
+        const updatedPrompts = await fetchPromptTemplates(headers);
+        setPrompts(updatedPrompts);
       }
     }
   };
