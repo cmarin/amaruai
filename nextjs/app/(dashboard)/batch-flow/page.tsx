@@ -234,6 +234,7 @@ export default function BatchFlow() {
   const promptTemplateOptions: PromptTemplateOption[] = promptTemplates.map(t => ({
     id: String(t.id),
     title: t.title,
+    prompt: t.prompt,
     // Include the full prompt template for preview
     _template: t
   }));
@@ -241,6 +242,7 @@ export default function BatchFlow() {
   const chatModelOptions: ChatModelOption[] = chatModels.map(m => ({
     id: String(m.id),
     name: m.name,
+    description: m.description || '',
     // Include the full chat model for preview
     _model: m
   }));
