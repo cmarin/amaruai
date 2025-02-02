@@ -468,7 +468,9 @@ export default function SettingsPage() {
                     <CardContent>
                       <div className="space-y-2">
                         <div>
-                          <Label>Model: {model.model}</Label>
+                          <p className="text-sm text-muted-foreground">
+                            {model.description || 'No description'}
+                          </p>
                         </div>
                         <div>
                           <Label>Max Tokens: {(model.max_tokens ?? 0).toLocaleString('en-US')}</Label>

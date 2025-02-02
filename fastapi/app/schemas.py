@@ -97,10 +97,17 @@ class ChatModelBase(BaseModel):
     name: str
     model: str
     provider: str | None = None
-    description: str | None = None
+    description: str = ""
     api_key: str | None = None
     default: bool = False
     max_tokens: int | None = None
+
+    @validator('description', pre=True, always=True)
+    def set_default_description(cls, v, values):
+        """Set a default description based on model if none provided"""
+        if not v and 'model' in values:
+            return f"Model: {values['model']}"
+        return v
 
 class ChatModelCreate(ChatModelBase):
     @validator('provider', pre=True, always=True)
