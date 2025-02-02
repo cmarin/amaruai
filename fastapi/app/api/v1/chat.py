@@ -153,8 +153,9 @@ async def chat_endpoint(
                     f"Goal: {persona.goal}\n"
                 )
 
-        # Get the model name
+        # Get the model name and chat model details
         model_name = "openai/gpt-4"  # default
+        chat_model = None
         if chat_data.model_id:
             chat_model = crud.get_chat_model(db, chat_data.model_id)
             if chat_model:
@@ -298,7 +299,7 @@ async def chat_endpoint(
                         "model": model_name,
                         "stream": True,
                         "messages": local_messages,
-                        "max_tokens": chat_model.max_tokens if chat_model and chat_model.max_tokens else None
+                        "max_tokens": chat_model.max_tokens if chat_model is not None else None
                     },
                 ) as resp:
                     api_response_time = time.time() - start_time
