@@ -14,7 +14,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { EyeIcon } from "lucide-react";
+import { EyeIcon, Trash2 } from "lucide-react";
 import type { BatchFlowStep } from "@/types";
 import type { PromptTemplateOption, ChatModelOption, PersonaOption } from "@/types";
 
@@ -176,11 +176,13 @@ export function WorkflowSteps({
           </div>
 
           <Button
-            variant="destructive"
+            variant="ghost"
+            size="icon"
             onClick={() => onRemoveStep(index)}
             disabled={steps.length === 1}
+            className="text-red-500 hover:text-red-600 hover:bg-red-50"
           >
-            Remove
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ))}
