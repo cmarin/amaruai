@@ -84,3 +84,17 @@ def unfavorite_chat_model(
         user_id=current_user,
         favorite=False
     )
+
+@router.post("/{chat_model_id}/unfavorite", response_model=schemas.ChatModel)
+def unfavorite_chat_model_post(
+    chat_model_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user_id)
+):
+    """Remove a chat model from user's favorites (POST method)."""
+    return crud.toggle_chat_model_favorite(
+        db=db,
+        chat_model_id=chat_model_id,
+        user_id=current_user,
+        favorite=False
+    )

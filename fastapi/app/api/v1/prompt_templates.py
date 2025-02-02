@@ -98,3 +98,17 @@ def unfavorite_prompt_template(
         user_id=current_user,
         favorite=False
     )
+
+@router.post("/{prompt_template_id}/unfavorite", response_model=schemas.PromptTemplate)
+def unfavorite_prompt_template_post(
+    prompt_template_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user_id)
+):
+    """Remove a prompt template from user's favorites (POST method)."""
+    return crud.toggle_prompt_template_favorite(
+        db=db,
+        prompt_template_id=prompt_template_id,
+        user_id=current_user,
+        favorite=False
+    )
