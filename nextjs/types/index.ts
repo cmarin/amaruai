@@ -1,5 +1,7 @@
 import type { AssetStatus } from '@/utils/batch-flow-service';
 import type { UploadedFile as BaseUploadedFile } from '@/utils/upload-service';
+import type { PromptTemplate } from '@/utils/prompt-template-service';
+import type { ChatModel } from '@/utils/chat-model-service';
 
 // Batch flow specific interfaces
 export interface FileStatus extends AssetStatus {
@@ -22,17 +24,9 @@ export interface BatchFlowStep {
   persona_id: string;
 }
 
-export interface PromptTemplateOption {
-  id: string;
-  title: string;
-  prompt: string;
-}
+export interface PromptTemplateOption extends Pick<PromptTemplate, 'id' | 'title' | 'prompt'> {}
 
-export interface ChatModelOption {
-  id: string;
-  name: string;
-  description: string;
-}
+export interface ChatModelOption extends Pick<ChatModel, 'id' | 'name' | 'description'> {}
 
 export interface PersonaOption {
   id: string;

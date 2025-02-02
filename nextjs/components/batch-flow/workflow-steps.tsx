@@ -73,7 +73,17 @@ export function WorkflowSteps({
                           <div className="space-y-2">
                             <p className="font-medium">Prompt Template</p>
                             <p className="text-sm whitespace-pre-wrap">
-                              {promptTemplates.find(t => t.id === step.prompt_template_id)?.prompt || 'No prompt available'}
+                              {(() => {
+                                const template = promptTemplates.find(t => t.id === step.prompt_template_id);
+                                if (!template?.prompt) return 'No prompt available';
+                                
+                                if (typeof template.prompt === 'string') {
+                                  return template.prompt;
+                                }
+                                
+                                // If it's a PromptContent object, show the prompt field
+                                return template.prompt.prompt;
+                              })()}
                             </p>
                           </div>
                         </TooltipContent>
