@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from app.api.v1.router import public_router, protected_router
 from app.api.v1.workflows import router as workflow_router, public_router as workflow_public_router
+from app.api.v1.dependencies import get_current_user
 from app.api.v1 import (
     authentication,
     categories,
