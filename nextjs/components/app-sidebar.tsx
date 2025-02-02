@@ -161,21 +161,25 @@ export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps
                 {sidebarOpen && <span className="text-sm">{item.title}</span>}
               </Button>
             ))}
-            {sidebarOpen && <div className="px-3 py-2 text-xs font-semibold text-gray-500">AI Models</div>}
-            {chatModels.map((model) => {
-              const IconComponent = getProviderIcon(model.id.toString(), model.name)
-              return (
-                <Button 
-                  key={model.id}
-                  variant="ghost"
-                  className={`w-full justify-start ${sidebarOpen ? 'px-3' : 'px-2'} py-2`}
-                  onClick={() => handleToggleChatbot(model.id.toString())}
-                >
-                  <IconComponent className={sidebarOpen ? "mr-2" : ""} size={16} />
-                  {sidebarOpen && <span className="text-sm">{model.name}</span>}
-                </Button>
-              )
-            })}
+            {chatModels.length > 0 && (
+              <>
+                {sidebarOpen && <div className="px-3 py-2 text-xs font-semibold text-gray-500">AI Models</div>}
+                {chatModels.map((model) => {
+                  const IconComponent = getProviderIcon(model.id.toString(), model.name)
+                  return (
+                    <Button 
+                      key={model.id}
+                      variant="ghost"
+                      className={`w-full justify-start ${sidebarOpen ? 'px-3' : 'px-2'} py-2`}
+                      onClick={() => handleToggleChatbot(model.id.toString())}
+                    >
+                      <IconComponent className={sidebarOpen ? "mr-2" : ""} size={16} />
+                      {sidebarOpen && <span className="text-sm">{model.name}</span>}
+                    </Button>
+                  )
+                })}
+              </>
+            )}
           </div>
         </div>
 

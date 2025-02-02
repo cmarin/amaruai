@@ -14,7 +14,9 @@ function estimateTokenCount(text: string): number {
 serve(async (req) => {
   try {
     const payload = await req.json();
+    console.log('Received payload:', JSON.stringify(payload));
     const storageId = payload.record.id;
+    console.log('Processing storage ID:', storageId);
     const supabaseClient = createClient(
       Deno.env.get('URL') ?? '',
       Deno.env.get('SERVICE_ROLE_KEY') ?? ''
@@ -27,8 +29,11 @@ serve(async (req) => {
       .single();
 
     if (assetError || !asset) {
+      console.error('Asset error:', assetError);
       throw new Error(`No asset found with storage_id: ${storageId}`);
     }
+
+    console.log('Asset found:', JSON.stringify(asset));
 
     const { data: fileData, error: downloadError } = await supabaseClient
       .storage
@@ -36,8 +41,11 @@ serve(async (req) => {
       .download(asset.file_url);
 
     if (downloadError) {
+      console.error('Download error:', downloadError);
       throw downloadError;
     }
+
+    console.log('File downloaded successfully, mime type:', asset.mime_type);
 
     let extractedText = '';
 
@@ -132,8 +140,13 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Function error:', error);
+    console.error('Error stack:', error.stack);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        stack: error.stack,
+        details: error.toString()
+      }),
       { 
         status: 500,
         headers: { "Content-Type": "application/json" }
