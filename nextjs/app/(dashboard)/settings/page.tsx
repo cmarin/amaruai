@@ -203,18 +203,37 @@ export default function SettingsPage() {
       return;
     }
 
+    // Update local state immediately for better UX
+    setChatModels(prevModels => 
+      prevModels.map(model => 
+        model.id === modelId 
+          ? { ...model, is_favorite: !isFavorite }
+          : model
+      )
+    );
+
     try {
       if (isFavorite) {
         await unfavoriteChatModel(modelId, headers);
       } else {
         await favoriteChatModel(modelId, headers);
       }
-      loadData();
+      
+      // No need to reload all data since we've already updated the local state
       toast({
         title: "Success",
         description: `Chat model ${isFavorite ? 'unfavorited' : 'favorited'} successfully`,
       });
     } catch (error) {
+      // Revert the local state change on error
+      setChatModels(prevModels => 
+        prevModels.map(model => 
+          model.id === modelId 
+            ? { ...model, is_favorite: isFavorite }
+            : model
+        )
+      );
+      
       console.error('Error toggling favorite:', error);
       toast({
         title: "Error",
@@ -419,7 +438,7 @@ export default function SettingsPage() {
                     <CardContent>
                       <div className="space-y-2">
                         <div>
-                          <Label>Max Tokens: {model.max_tokens}</Label>
+                          <Label>Max Tokens: {model.max_tokens.toLocaleString('en-US')}</Label>
                         </div>
                       </div>
                     </CardContent>
