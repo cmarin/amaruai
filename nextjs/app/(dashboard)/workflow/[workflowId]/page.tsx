@@ -19,6 +19,7 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/sidebar-context'
 import { addToScratchPad } from '@/utils/scratch-pad-service'
 import { useSession } from '@/app/utils/session/session'
+import { GeneratingButton } from '@/components/batch-flow/generating-button'
 
 export default function WorkflowStreamPage({ params }: { params: { workflowId: string } }) {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
@@ -213,10 +214,11 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   };
 
   return (
-    <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-white">
-        <AppSidebar toggleChatbot={toggleChatbot} />
-        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
+    <div className="flex min-h-screen w-full">
+      <AppSidebar toggleChatbot={toggleChatbot} />
+      <main className={`flex-1 min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
+        {isExecuting && <GeneratingButton isGenerating={isExecuting} />}
+        <div className="h-full w-full p-4">
           <div className="flex items-center justify-between p-4 border-b">
             <h1 className="text-2xl font-bold">{workflow?.name || 'Loading...'}</h1>
             <div className="flex space-x-2">
@@ -302,7 +304,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
             />
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 } 
