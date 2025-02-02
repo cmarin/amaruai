@@ -8,6 +8,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { EyeIcon } from "lucide-react";
 import type { BatchFlowStep } from "@/types";
 import type { PromptTemplateOption, ChatModelOption, PersonaOption } from "@/types";
 
@@ -38,59 +45,113 @@ export function WorkflowSteps({
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Prompt Template</label>
-                <Select
-                  value={step.prompt_template_id}
-                  onValueChange={(value) => onUpdateStep(index, 'prompt_template_id', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select prompt" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {promptTemplates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={step.prompt_template_id}
+                    onValueChange={(value) => onUpdateStep(index, 'prompt_template_id', value)}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select prompt" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {promptTemplates.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {step.prompt_template_id && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-9 w-9">
+                            <EyeIcon className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs whitespace-pre-wrap">
+                            {promptTemplates.find(t => t.id === step.prompt_template_id)?.prompt || 'No prompt available'}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-2">Chat Model</label>
-                <Select
-                  value={step.chat_model_id}
-                  onValueChange={(value) => onUpdateStep(index, 'chat_model_id', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {chatModels.map((model) => (
-                      <SelectItem key={model.id} value={model.id}>
-                        {model.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={step.chat_model_id}
+                    onValueChange={(value) => onUpdateStep(index, 'chat_model_id', value)}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {chatModels.map((model) => (
+                        <SelectItem key={model.id} value={model.id}>
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {step.chat_model_id && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-9 w-9">
+                            <EyeIcon className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs whitespace-pre-wrap">
+                            {chatModels.find(m => m.id === step.chat_model_id)?.description || 'No description available'}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-2">Persona</label>
-                <Select
-                  value={step.persona_id}
-                  onValueChange={(value) => onUpdateStep(index, 'persona_id', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select persona" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {personas.map((persona) => (
-                      <SelectItem key={persona.id} value={persona.id}>
-                        {persona.role}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={step.persona_id}
+                    onValueChange={(value) => onUpdateStep(index, 'persona_id', value)}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select persona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {personas.map((persona) => (
+                        <SelectItem key={persona.id} value={persona.id}>
+                          {persona.role}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {step.persona_id && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-9 w-9">
+                            <EyeIcon className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs">
+                            Role: {personas.find(p => p.id === step.persona_id)?.role || 'No role defined'}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
               </div>
             </div>
           </div>
