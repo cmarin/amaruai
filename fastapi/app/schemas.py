@@ -95,21 +95,25 @@ class PromptTemplateUpdate(BaseModel):
 
 class ChatModelBase(BaseModel):
     name: str
-    model: str  
-    provider: str  
+    model: str | None = None
+    provider: str | None = None
     description: str | None = None
     api_key: str | None = None
-    default: bool = False  
+    default: bool = False
     max_tokens: int | None = None
 
 class ChatModelCreate(ChatModelBase):
+    model: str  # Required for creation
+    provider: str  # Required for creation
     pass
 
 class ChatModel(ChatModelBase):
     id: UUID
+    model: str  # Always required in response
+    provider: str  # Always required in response
 
     class Config:
-        from_attributes = True  
+        from_attributes = True
 
 class PersonaBase(BaseModel):
     role: str

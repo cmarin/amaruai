@@ -27,9 +27,11 @@ import {
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { AppSidebar } from '@/components/app-sidebar';
+import { useSidebar } from '@/components/sidebar-context';
 
 export default function SettingsPage() {
   const { getApiHeaders, loading: sessionLoading, initialized } = useSession();
+  const { sidebarOpen } = useSidebar();
   const [categories, setCategories] = useState<Category[]>([]);
   const [chatModels, setChatModels] = useState<ChatModel[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -197,20 +199,23 @@ export default function SettingsPage() {
 
   if (sessionLoading || !initialized) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-lg font-semibold">Loading...</h2>
-          <p className="text-muted-foreground">Please wait while we load your settings</p>
+      <div className="flex h-screen">
+        <AppSidebar />
+        <div className={`flex-1 flex items-center justify-center transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+          <div className="text-center">
+            <h2 className="text-lg font-semibold">Loading...</h2>
+            <p className="text-muted-foreground">Please wait while we load your settings</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex h-screen">
       <AppSidebar />
-      <div className="flex-1">
-        <div className="container mx-auto py-6">
+      <div className={`flex-1 overflow-auto transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className="container mx-auto py-6 px-4">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold">Settings</h1>
