@@ -21,8 +21,6 @@ from app.api.v1 import (
     batch_flow
 )
 from app.database import engine, Base
-from app.admin import admin_router
-from app.api.v1.dependencies import get_current_user
 from dotenv import load_dotenv
 import logging
 import os
@@ -103,14 +101,6 @@ for router in protected_routes:
         prefix="/api/v1",
         dependencies=[Depends(get_current_user)]
     )
-
-# Include admin routes
-app.include_router(
-    admin_router, 
-    prefix="/admin", 
-    tags=["admin"],
-    dependencies=[Depends(get_current_user)]
-)
 
 # Mount workflow routes
 app.include_router(workflow_router, prefix="/api/v1")
