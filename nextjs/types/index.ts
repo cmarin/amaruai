@@ -25,13 +25,11 @@ export interface BatchFlowStep {
 export interface PromptTemplateOption {
   id: string;
   title: string;
-  prompt: string;
 }
 
 export interface ChatModelOption {
   id: string;
   name: string;
-  description: string;
 }
 
 export interface PersonaOption {

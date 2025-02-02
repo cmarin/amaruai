@@ -41,6 +41,7 @@ export default function SettingsPage() {
   const [isNewChatModelDialogOpen, setIsNewChatModelDialogOpen] = useState(false);
   const [newChatModel, setNewChatModel] = useState({ 
     name: '', 
+    model: '',
     max_tokens: 1,
     description: '' 
   });
@@ -196,7 +197,7 @@ export default function SettingsPage() {
     try {
       await createChatModel(newChatModel, headers);
       setIsNewChatModelDialogOpen(false);
-      setNewChatModel({ name: '', max_tokens: 1, description: '' });
+      setNewChatModel({ name: '', model: '', max_tokens: 1, description: '' });
       loadData();
       toast({
         title: "Success",
@@ -382,6 +383,19 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div>
+                        <Label>Model</Label>
+                        <Input
+                          value={newChatModel.model}
+                          onChange={(e) =>
+                            setNewChatModel({
+                              ...newChatModel,
+                              model: e.target.value,
+                            })
+                          }
+                          placeholder="Model identifier (e.g. gpt-4)"
+                        />
+                      </div>
+                      <div>
                         <Label>Max Tokens</Label>
                         <Input
                           type="number"
@@ -454,6 +468,9 @@ export default function SettingsPage() {
                     <CardContent>
                       <div className="space-y-2">
                         <div>
+                          <Label>Model: {model.model}</Label>
+                        </div>
+                        <div>
                           <Label>Max Tokens: {(model.max_tokens ?? 0).toLocaleString('en-US')}</Label>
                         </div>
                       </div>
@@ -512,7 +529,7 @@ export default function SettingsPage() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Edit Chat Model</DialogTitle>
-                <DialogDescription>Update chat model settings</DialogDescription>
+                <DialogDescription>Update chat model details</DialogDescription>
               </DialogHeader>
               {selectedChatModel && (
                 <div className="space-y-4">
@@ -523,6 +540,16 @@ export default function SettingsPage() {
                       onChange={(e) =>
                         setSelectedChatModel({ ...selectedChatModel, name: e.target.value })
                       }
+                    />
+                  </div>
+                  <div>
+                    <Label>Model</Label>
+                    <Input
+                      value={selectedChatModel.model}
+                      onChange={(e) =>
+                        setSelectedChatModel({ ...selectedChatModel, model: e.target.value })
+                      }
+                      placeholder="Model identifier (e.g. gpt-4)"
                     />
                   </div>
                   <div>
@@ -555,6 +582,7 @@ export default function SettingsPage() {
                     onClick={() => {
                       handleUpdateChatModel(selectedChatModel.id, {
                         name: selectedChatModel.name,
+                        model: selectedChatModel.model,
                         max_tokens: selectedChatModel.max_tokens,
                         description: selectedChatModel.description,
                       });

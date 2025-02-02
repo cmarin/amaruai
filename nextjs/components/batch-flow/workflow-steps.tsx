@@ -70,9 +70,9 @@ export function WorkflowSteps({
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="max-w-xs whitespace-pre-wrap">
-                            {promptTemplates.find(t => t.id === step.prompt_template_id)?.prompt || 'No prompt available'}
-                          </p>
+                          <pre className="max-w-xs whitespace-pre-wrap">
+                            {JSON.stringify(promptTemplates.find(t => t.id === step.prompt_template_id), null, 2)}
+                          </pre>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -107,9 +107,9 @@ export function WorkflowSteps({
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="max-w-xs whitespace-pre-wrap">
-                            {chatModels.find(m => m.id === step.chat_model_id)?.description || 'No description available'}
-                          </p>
+                          <pre className="max-w-xs whitespace-pre-wrap">
+                            {JSON.stringify(chatModels.find(m => m.id === step.chat_model_id), null, 2)}
+                          </pre>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>

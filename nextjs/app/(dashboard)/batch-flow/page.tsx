@@ -233,12 +233,16 @@ export default function BatchFlow() {
   // Convert data context items to the correct types
   const promptTemplateOptions: PromptTemplateOption[] = promptTemplates.map(t => ({
     id: String(t.id),
-    title: t.title
+    title: t.title,
+    // Include the full prompt template for preview
+    _template: t
   }));
 
   const chatModelOptions: ChatModelOption[] = chatModels.map(m => ({
     id: String(m.id),
-    name: m.name
+    name: m.name,
+    // Include the full chat model for preview
+    _model: m
   }));
 
   const personaOptions: PersonaOption[] = personas.map(p => ({
