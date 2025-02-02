@@ -69,10 +69,13 @@ export function WorkflowSteps({
                             <EyeIcon className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>
-                          <pre className="max-w-xs whitespace-pre-wrap">
-                            {JSON.stringify(promptTemplates.find(t => t.id === step.prompt_template_id), null, 2)}
-                          </pre>
+                        <TooltipContent side="right" align="center" className="max-w-sm">
+                          <div className="space-y-2">
+                            <p className="font-medium">Prompt Template</p>
+                            <p className="text-sm whitespace-pre-wrap">
+                              {promptTemplates.find(t => t.id === step.prompt_template_id)?.prompt || 'No prompt available'}
+                            </p>
+                          </div>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -106,10 +109,13 @@ export function WorkflowSteps({
                             <EyeIcon className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>
-                          <pre className="max-w-xs whitespace-pre-wrap">
-                            {JSON.stringify(chatModels.find(m => m.id === step.chat_model_id), null, 2)}
-                          </pre>
+                        <TooltipContent side="right" align="center" className="max-w-sm">
+                          <div className="space-y-2">
+                            <p className="font-medium">Chat Model</p>
+                            <p className="text-sm whitespace-pre-wrap">
+                              {chatModels.find(m => m.id === step.chat_model_id)?.description || 'No description available'}
+                            </p>
+                          </div>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -143,10 +149,13 @@ export function WorkflowSteps({
                             <EyeIcon className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs">
-                            Role: {personas.find(p => p.id === step.persona_id)?.role || 'No role defined'}
-                          </p>
+                        <TooltipContent side="right" align="center" className="max-w-sm">
+                          <div className="space-y-2">
+                            <p className="font-medium">Persona</p>
+                            <p className="text-sm whitespace-pre-wrap">
+                              {personas.find(p => p.id === step.persona_id)?.role || 'No role defined'}
+                            </p>
+                          </div>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
