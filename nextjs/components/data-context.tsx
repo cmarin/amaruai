@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { ChatModel as BaseChatModel, fetchChatModels } from '../utils/chat-model-service';
+import { ChatModel as BaseChatModel, fetchChatModels, fetchFavoriteChatModels } from '../utils/chat-model-service';
 import { Persona, fetchPersonas } from '../utils/persona-service';
 import { PromptTemplate, fetchPromptTemplates } from '@/utils/prompt-template-service';
 import { Category, fetchCategories } from '../utils/category-service';
@@ -14,6 +14,7 @@ export interface ChatModel extends Omit<BaseChatModel, 'id'> {
   default: boolean;
   created_at: string;
   updated_at: string;
+  is_favorite: boolean;
 }
 
 type DataContextType = {
@@ -57,7 +58,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const [models, personasData, templates, categoriesData] = await Promise.all([
-        fetchChatModels(headers),
+        fetchFavoriteChatModels(headers),
         fetchPersonas(headers),
         fetchPromptTemplates(headers),
         fetchCategories(headers),
@@ -68,12 +69,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const now = new Date().toISOString();
         return {
           ...model,
-          // Keep ID as string, don't convert to number
           model_id: model.model || '',
-          // Set default based on model properties - assuming the first GPT-4 model is default
           default: model.model?.toLowerCase().includes('gpt-4') || false,
           created_at: now,
-          updated_at: now
+          updated_at: now,
+          is_favorite: true // These are from favorites endpoint
         };
       }) as ChatModel[];
 
