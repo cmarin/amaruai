@@ -31,7 +31,8 @@ export async function fetchChatModels(headers: ApiHeaders): Promise<ChatModel[]>
     const data = await response.json();
     return data.map((model: any) => ({
       ...model,
-      id: model.id.toString()
+      id: model.id.toString(),
+      is_favorite: model.is_favorite || false
     }));
   });
 }
@@ -50,7 +51,8 @@ export async function fetchChatModel(id: string, headers: ApiHeaders): Promise<C
     const model = await response.json();
     return {
       ...model,
-      id: model.id.toString()
+      id: model.id.toString(),
+      is_favorite: model.is_favorite || false
     };
   });
 }
