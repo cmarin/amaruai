@@ -96,14 +96,19 @@ class PromptTemplateUpdate(BaseModel):
 class ChatModelBase(BaseModel):
     name: str
     model: str
-    provider: str
+    provider: str | None = None
     description: str | None = None
     api_key: str | None = None
     default: bool = False
     max_tokens: int | None = None
 
 class ChatModelCreate(ChatModelBase):
-    pass
+    @validator('provider', pre=True, always=True)
+    def set_provider_from_model(cls, v, values):
+        """Set provider to openrouter if not explicitly provided"""
+        if not v:
+            return "openrouter"
+        return v
 
 class ChatModelUpdate(BaseModel):
     name: str | None = None
