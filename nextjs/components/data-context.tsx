@@ -19,6 +19,7 @@ export interface ChatModel extends Omit<BaseChatModel, 'id'> {
 
 type DataContextType = {
   chatModels: ChatModel[];
+  favoriteChatModels: ChatModel[];
   personas: Persona[];
   promptTemplates: PromptTemplate[];
   categories: Category[];
@@ -27,6 +28,7 @@ type DataContextType = {
   refetchData: () => Promise<void>;
   setData: (data: {
     chatModels?: ChatModel[];
+    favoriteChatModels?: ChatModel[];
     personas?: Persona[];
     promptTemplates?: PromptTemplate[];
     categories?: Category[];
@@ -37,6 +39,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [chatModels, setChatModels] = useState<ChatModel[]>([]);
+  const [favoriteChatModels, setFavoriteChatModels] = useState<ChatModel[]>([]);
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -57,7 +60,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      const [models, personasData, templates, categoriesData] = await Promise.all([
+      const [allModels, favoriteModels, personasData, templates, categoriesData] = await Promise.all([
+        fetchChatModels(headers),
         fetchFavoriteChatModels(headers),
         fetchPersonas(headers),
         fetchPromptTemplates(headers),
@@ -65,7 +69,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       // Transform the chat models to include the additional fields
-      const transformedModels = models.map(model => {
+      const transformAllModels = (models: BaseChatModel[]) => models.map(model => {
         const now = new Date().toISOString();
         return {
           ...model,
@@ -73,17 +77,33 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           default: model.model?.toLowerCase().includes('gpt-4') || false,
           created_at: now,
           updated_at: now,
-          is_favorite: true // These are from favorites endpoint
+          is_favorite: false
         };
       }) as ChatModel[];
 
+      // Create a set of favorite model IDs for quick lookup
+      const favoriteIds = new Set(favoriteModels.map(m => m.id));
+
+      // Transform all models and mark favorites
+      const transformedAllModels = transformAllModels(allModels).map(model => ({
+        ...model,
+        is_favorite: favoriteIds.has(model.id)
+      }));
+
+      // Transform favorite models
+      const transformedFavoriteModels = transformAllModels(favoriteModels).map(model => ({
+        ...model,
+        is_favorite: true
+      }));
+
       // Ensure exactly one model is default - prefer GPT-4, fallback to first model
-      const hasDefault = transformedModels.some(m => m.default);
-      if (!hasDefault && transformedModels.length > 0) {
-        transformedModels[0].default = true;
+      const hasDefault = transformedAllModels.some(m => m.default);
+      if (!hasDefault && transformedAllModels.length > 0) {
+        transformedAllModels[0].default = true;
       }
 
-      setChatModels(transformedModels);
+      setChatModels(transformedAllModels);
+      setFavoriteChatModels(transformedFavoriteModels);
       setPersonas(personasData);
       setPromptTemplates(templates);
       setCategories(categoriesData);
@@ -101,11 +121,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const setData = useCallback((data: {
     chatModels?: ChatModel[];
+    favoriteChatModels?: ChatModel[];
     personas?: Persona[];
     promptTemplates?: PromptTemplate[];
     categories?: Category[];
   }) => {
     if (data.chatModels) setChatModels(data.chatModels);
+    if (data.favoriteChatModels) setFavoriteChatModels(data.favoriteChatModels);
     if (data.personas) setPersonas(data.personas);
     if (data.promptTemplates) setPromptTemplates(data.promptTemplates);
     if (data.categories) setCategories(data.categories);
@@ -116,16 +138,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [fetchData]);
 
   return (
-    <DataContext.Provider value={{
-      chatModels,
-      personas,
-      promptTemplates,
-      categories,
-      isLoading,
-      error,
-      refetchData,
-      setData,
-    }}>
+    <DataContext.Provider
+      value={{
+        chatModels,
+        favoriteChatModels,
+        personas,
+        promptTemplates,
+        categories,
+        isLoading,
+        error,
+        refetchData,
+        setData,
+      }}
+    >
       {children}
     </DataContext.Provider>
   );

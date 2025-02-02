@@ -75,7 +75,7 @@ const getProviderIcon = (modelId: string, modelName: string) => {
 
 export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps) {
   const router = useRouter()
-  const { chatModels } = useData()
+  const { chatModels: allModels, favoriteChatModels } = useData()
   const { sidebarOpen, toggleSidebar } = useSidebar()
   const [user, setUser] = useState<User | null>(null)
   const supabase = useSupabase()
@@ -109,6 +109,8 @@ export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps
       router.push(`/chat?model=${modelId}`);
     }
   };
+
+  const chatModels = favoriteChatModels;
 
   return (
     <div className={`fixed top-0 left-0 h-full bg-gray-100 transition-all duration-300 ${sidebarOpen ? 'w-56' : 'w-14'} overflow-hidden`}>

@@ -56,7 +56,7 @@ interface Message {
 
 function ChatContent() {
   const { sidebarOpen } = useSidebar()
-  const { promptTemplates: prompts, categories, chatModels, personas } = useData()
+  const { promptTemplates: prompts, categories, chatModels: allChatModels, personas } = useData()
   const { session, getApiHeaders } = useSession()
   const supabase = useSupabase()
   const searchParams = useSearchParams()
@@ -146,13 +146,13 @@ function ChatContent() {
   }, [getApiHeaders])
 
   useEffect(() => {
-    if (chatModels?.length > 0) {
+    if (allChatModels?.length > 0) {
       // Find the default model
-      const defaultModel = chatModels.find(model => model.default)
+      const defaultModel = allChatModels.find(model => model.default)
       if (!defaultModel) return
 
       // Get non-default models for other chat windows
-      const otherModels = chatModels
+      const otherModels = allChatModels
         .filter(model => !model.default && model.id !== defaultModel.id)
         .slice(0, 3) // We need at most 3 other models for chat2, chat3, chat4
 
@@ -164,17 +164,17 @@ function ChatContent() {
         ...(mode === 'quad' && otherModels[2] && { chat4: otherModels[2].id })
       }))
     }
-  }, [chatModels, mode])
+  }, [allChatModels, mode])
 
   useEffect(() => {
     const modelId = searchParams.get('model')
-    if (modelId && chatModels?.some(model => model.id === modelId)) {
+    if (modelId && allChatModels?.some(model => model.id === modelId)) {
       setSelectedModels(prev => ({
         ...prev,
         chat1: modelId
       }))
     }
-  }, [searchParams, chatModels])
+  }, [searchParams, allChatModels])
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesEndRef2 = useRef<HTMLDivElement>(null);
@@ -230,13 +230,13 @@ function ChatContent() {
 
   const getModelName = (chatWindowId: string) => {
     const modelId = selectedModels[chatWindowId]
-    const model = chatModels?.find(m => m.id === modelId)
+    const model = allChatModels?.find(m => m.id === modelId)
     return model?.name || "Default Model"
   }
 
   const getModelIcon = (chatWindowId: string) => {
     const modelId = selectedModels[chatWindowId]
-    const model = chatModels?.find(m => m.id === modelId)
+    const model = allChatModels?.find(m => m.id === modelId)
     return model ? getProviderIcon(model.id, model.name) : Timer
   }
 
@@ -323,9 +323,9 @@ function ChatContent() {
         }
 
         // Get the selected model and persona for this chat
-        const modelId = isRetry ? undefined : (selectedModels[chatId] || chatModels?.[0]?.id)
+        const modelId = isRetry ? undefined : (selectedModels[chatId] || allChatModels?.[0]?.id)
         const personaId = selectedPersonas[chatId]
-        const selectedModel = modelId ? chatModels?.find(model => model.id === modelId) : undefined
+        const selectedModel = modelId ? allChatModels?.find(model => model.id === modelId) : undefined
         const selectedPersona = personas?.find(p => p.id.toString() === personaId)
 
         let streamStartTime: number | null = null
@@ -570,8 +570,8 @@ function ChatContent() {
     setMode(newMode)
     
     // Find default and other models
-    const defaultModel = chatModels?.find(model => model.default)
-    const otherModels = chatModels
+    const defaultModel = allChatModels?.find(model => model.default)
+    const otherModels = allChatModels
       ?.filter(model => !model.default && model.id !== defaultModel?.id)
       .slice(0, 3)
 
@@ -665,7 +665,7 @@ function ChatContent() {
                     <SelectValue placeholder={title} />
                   </SelectTrigger>
                   <SelectContent>
-                    {chatModels?.map((model: ChatModel) => (
+                    {allChatModels?.map((model: ChatModel) => (
                       <SelectItem key={model.id} value={model.id}>
                         {model.name}
                       </SelectItem>
