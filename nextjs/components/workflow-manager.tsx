@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { WorkflowSteps } from "@/components/batch-flow/workflow-steps"
 
 import { Workflow, WorkflowStep, createWorkflow, updateWorkflow } from '../utils/workflow-service'
 import { PromptTemplate, fetchPromptTemplates } from '@/utils/prompt-template-service'
@@ -313,90 +314,19 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
         <CardHeader>
           <CardTitle>Steps</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {workflow.steps.map((step, index) => (
-            <div key={index} className="flex items-start space-x-4">
-              <div className="flex-1 space-y-4">
-                <div className="flex items-center space-x-2">
-                  <span className="font-medium">Step {index + 1}</span>
-                  <div className="flex-1" />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => moveStep(index, 'up')}
-                    disabled={index === 0}
-                  >
-                    <ArrowUp className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => moveStep(index, 'down')}
-                    disabled={index === workflow.steps.length - 1}
-                  >
-                    <ArrowDown className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeStep(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  <Select
-                    value={step.prompt_template_id}
-                    onValueChange={(value) => updateStep(index, "prompt_template_id", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select prompt template" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {promptTemplates.map((template) => (
-                        <SelectItem key={template.id} value={template.id}>
-                          {template.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={step.chat_model_id}
-                    onValueChange={(value) => updateStep(index, "chat_model_id", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select chat model" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {chatModels.map((model) => (
-                        <SelectItem key={model.id} value={model.id?.toString() || ""}>
-                          {model.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={step.persona_id}
-                    onValueChange={(value) => updateStep(index, "persona_id", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select persona" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {personas.map((persona) => (
-                        <SelectItem key={persona.id} value={persona.id.toString()}>
-                          {persona.role}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          ))}
-          <Button onClick={addStep} className="w-full">
-            <Plus className="mr-2 h-4 w-4" /> Add Step
-          </Button>
+        <CardContent>
+          <WorkflowSteps
+            steps={workflow.steps}
+            onUpdateStep={updateStep}
+            onRemoveStep={removeStep}
+            onAddStep={addStep}
+            promptTemplates={promptTemplates}
+            chatModels={chatModels}
+            personas={personas.map(p => ({
+              id: String(p.id),
+              role: p.role
+            }))}
+          />
         </CardContent>
       </Card>
 
