@@ -41,7 +41,6 @@ export default function SettingsPage() {
   const [isNewChatModelDialogOpen, setIsNewChatModelDialogOpen] = useState(false);
   const [newChatModel, setNewChatModel] = useState({ 
     name: '', 
-    temperature: 0, 
     max_tokens: 1,
     description: '' 
   });
@@ -182,7 +181,7 @@ export default function SettingsPage() {
     try {
       await createChatModel(newChatModel, headers);
       setIsNewChatModelDialogOpen(false);
-      setNewChatModel({ name: '', temperature: 0, max_tokens: 1, description: '' });
+      setNewChatModel({ name: '', max_tokens: 1, description: '' });
       loadData();
       toast({
         title: "Success",
@@ -322,22 +321,6 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div>
-                        <Label>Temperature</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="2"
-                          step="0.1"
-                          value={newChatModel.temperature}
-                          onChange={(e) =>
-                            setNewChatModel({
-                              ...newChatModel,
-                              temperature: parseFloat(e.target.value),
-                            })
-                          }
-                        />
-                      </div>
-                      <div>
                         <Label>Max Tokens</Label>
                         <Input
                           type="number"
@@ -389,9 +372,6 @@ export default function SettingsPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        <div>
-                          <Label>Temperature: {model.temperature}</Label>
-                        </div>
                         <div>
                           <Label>Max Tokens: {model.max_tokens}</Label>
                         </div>
@@ -481,22 +461,6 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <Label>Temperature</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      value={selectedChatModel.temperature}
-                      onChange={(e) =>
-                        setSelectedChatModel({
-                          ...selectedChatModel,
-                          temperature: parseFloat(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
-                  <div>
                     <Label>Max Tokens</Label>
                     <Input
                       type="number"
@@ -526,7 +490,6 @@ export default function SettingsPage() {
                     onClick={() => {
                       handleUpdateChatModel(selectedChatModel.id, {
                         name: selectedChatModel.name,
-                        temperature: selectedChatModel.temperature,
                         max_tokens: selectedChatModel.max_tokens,
                         description: selectedChatModel.description,
                       });
