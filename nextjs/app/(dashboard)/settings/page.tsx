@@ -438,7 +438,7 @@ export default function SettingsPage() {
                     <CardContent>
                       <div className="space-y-2">
                         <div>
-                          <Label>Max Tokens: {model.max_tokens.toLocaleString('en-US')}</Label>
+                          <Label>Max Tokens: {(model.max_tokens ?? 0).toLocaleString('en-US')}</Label>
                         </div>
                       </div>
                     </CardContent>
