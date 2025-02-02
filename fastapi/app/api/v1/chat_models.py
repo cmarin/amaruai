@@ -9,6 +9,14 @@ from app.api.v1.dependencies import get_current_user_id
 
 router = create_protected_router(prefix="chat_models", tags=["chat_models"])
 
+@router.get("/favorites", response_model=List[schemas.ChatModel])
+def get_favorite_chat_models(
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user_id)
+):
+    """Get all chat models favorited by the current user."""
+    return crud.get_favorite_chat_models(db=db, user_id=current_user)
+
 @router.post("", response_model=schemas.ChatModel)
 def create_chat_model(chat_model: schemas.ChatModelCreate, db: Session = Depends(get_db)):
     return crud.create_chat_model(db=db, chat_model=chat_model)
@@ -76,11 +84,3 @@ def unfavorite_chat_model(
         user_id=current_user,
         favorite=False
     )
-
-@router.get("/favorites", response_model=List[schemas.ChatModel])
-def get_favorite_chat_models(
-    db: Session = Depends(get_db),
-    current_user: UUID = Depends(get_current_user_id)
-):
-    """Get all chat models favorited by the current user."""
-    return crud.get_favorite_chat_models(db=db, user_id=current_user)
