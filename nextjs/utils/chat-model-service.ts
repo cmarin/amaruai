@@ -148,3 +148,24 @@ export async function unfavoriteChatModel(chatModelId: string, headers: ApiHeade
     }
   });
 }
+
+export async function fetchFavoriteChatModels(headers: ApiHeaders): Promise<ChatModel[]> {
+  return await fetchWithRetry(async () => {
+    const response = await fetch(`${getApiUrl()}/chat_models/favorites`, {
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error fetching favorite chat models:', response.status, errorText);
+      throw new Error('Failed to fetch favorite chat models');
+    }
+
+    const data = await response.json();
+    return data.map((model: any) => ({
+      ...model,
+      id: model.id.toString(),
+      is_favorite: true // These are from favorites endpoint, so they are all favorites
+    }));
+  });
+}

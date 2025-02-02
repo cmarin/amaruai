@@ -337,16 +337,25 @@ def delete_prompt_template(db: Session, prompt_template_id: UUID):
 def get_chat_model(db: Session, chat_model_id: UUID):
     return db.query(models.ChatModel).filter(models.ChatModel.id == chat_model_id).first()
 
-def get_chat_models(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.ChatModel).options(load_only(
-        models.ChatModel.id,
-        models.ChatModel.name,
-        models.ChatModel.model,
-        models.ChatModel.provider,
-        models.ChatModel.description,
-        models.ChatModel.api_key,
-        models.ChatModel.default
-    )).offset(skip).limit(limit).all()
+def get_chat_models(db: Session, user_id: UUID, skip: int = 0, limit: int = 100):
+    """Get all chat models and mark which ones are favorited by the user."""
+    # First get the user's favorite chat models
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    favorite_model_ids = {
+        model.id for model in user.favorite_chat_models
+    }
+
+    # Get all chat models
+    chat_models = db.query(models.ChatModel).offset(skip).limit(limit).all()
+
+    # Mark favorites
+    for model in chat_models:
+        setattr(model, 'is_favorited', model.id in favorite_model_ids)
+
+    return chat_models
 
 def create_chat_model(db: Session, chat_model: schemas.ChatModelCreate):
     db_chat_model = models.ChatModel(**chat_model.dict())

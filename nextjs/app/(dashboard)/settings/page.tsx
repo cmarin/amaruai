@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from '@/utils/session/session';
 import { Category, fetchCategories, createCategory, updateCategory, deleteCategory } from '@/utils/category-service';
-import { ChatModel, fetchChatModels, createChatModel, updateChatModel, deleteChatModel, favoriteChatModel, unfavoriteChatModel } from '@/utils/chat-model-service';
+import { ChatModel, fetchChatModels, createChatModel, updateChatModel, deleteChatModel, favoriteChatModel, unfavoriteChatModel, fetchFavoriteChatModels } from '@/utils/chat-model-service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -54,16 +54,31 @@ export default function SettingsPage() {
 
   const loadData = async () => {
     const headers = getApiHeaders();
-    if (!headers) return;
+    if (!headers) {
+      console.error('No valid headers available');
+      return;
+    }
 
     try {
-      const [categoriesData, chatModelsData] = await Promise.all([
+      const [categoriesData, chatModelsData, favoriteChatModelsData] = await Promise.all([
         fetchCategories(headers),
-        fetchChatModels(headers)
+        fetchChatModels(headers),
+        fetchFavoriteChatModels(headers)
       ]);
+
+      // Create a map of favorite chat model IDs for quick lookup
+      const favoriteIds = new Set(favoriteChatModelsData.map(model => model.id));
+
+      // Mark chat models as favorites based on the favorites list
+      const modelsWithFavorites = chatModelsData.map(model => ({
+        ...model,
+        is_favorite: favoriteIds.has(model.id)
+      }));
+
       setCategories(categoriesData);
-      setChatModels(chatModelsData);
+      setChatModels(modelsWithFavorites);
     } catch (error) {
+      console.error('Error loading data:', error);
       toast({
         title: "Error",
         description: "Failed to load settings data",
@@ -315,30 +330,29 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {categories.map((category) => (
                   <Card key={category.id}>
-                    <CardHeader>
-                      <CardTitle>{category.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{category.description}</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex justify-end space-x-2">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <div className="space-y-1">
+                        <CardTitle>{category.name}</CardTitle>
+                      </div>
+                      <div className="flex space-x-2">
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="icon"
-                          onClick={() => {
-                            setSelectedCategory(category);
-                          }}
+                          onClick={() => setSelectedCategory(category)}
+                          className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
                         >
-                          <Settings2 className="w-4 h-4" />
+                          <Edit className="h-4 w-4" />
                         </Button>
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteCategory(category.id)}
+                          className="text-red-500 hover:text-red-600 hover:bg-red-50"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                    </CardContent>
+                    </CardHeader>
                   </Card>
                 ))}
               </div>
@@ -423,6 +437,7 @@ export default function SettingsPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => setSelectedChatModel(model)}
+                          className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -430,6 +445,7 @@ export default function SettingsPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteChatModel(model.id)}
+                          className="text-red-500 hover:text-red-600 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

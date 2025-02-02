@@ -14,8 +14,14 @@ def create_chat_model(chat_model: schemas.ChatModelCreate, db: Session = Depends
     return crud.create_chat_model(db=db, chat_model=chat_model)
 
 @router.get("", response_model=List[schemas.ChatModel])
-def read_chat_models(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    chat_models = crud.get_chat_models(db, skip=skip, limit=limit)
+def read_chat_models(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user_id)
+):
+    """Get all chat models, with is_favorited field set based on the current user's favorites."""
+    chat_models = crud.get_chat_models(db, user_id=current_user, skip=skip, limit=limit)
     return chat_models
 
 @router.get("/{chat_model_id}", response_model=schemas.ChatModel)
