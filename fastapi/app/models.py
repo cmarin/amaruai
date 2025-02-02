@@ -51,6 +51,15 @@ prompt_template_favorites = Table(
     Column('created_at', TIMESTAMP(timezone=True), server_default=text('current_timestamp'))
 )
 
+# Add the favorites association table for chat models
+chat_model_favorites = Table(
+    'chat_model_favorites',
+    Base.metadata,
+    Column('user_id', PGUUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), primary_key=True),
+    Column('chat_model_id', PGUUID(as_uuid=True), ForeignKey('chat_model.id', ondelete='CASCADE'), primary_key=True),
+    Column('created_at', TIMESTAMP(timezone=True), server_default=text('current_timestamp'))
+)
+
 class ProcessType(enum.Enum):
     SEQUENTIAL = "SEQUENTIAL"
     HIERARCHICAL = "HIERARCHICAL"  # Ensure this matches the database value
@@ -126,6 +135,8 @@ class ChatModel(Base):
     default = Column(Boolean, default=False)
     max_tokens = Column(Integer, nullable=True)
     workflow_steps = relationship("WorkflowStep", back_populates="chat_model")
+    # Add relationship to users who favorited this model
+    favorited_by = relationship("User", secondary=chat_model_favorites, back_populates="favorite_chat_models")
 
 class Workflow(Base):
     __tablename__ = "workflow"
@@ -209,3 +220,5 @@ class User(Base):
     
     # Add relationship to favorited templates
     favorite_templates = relationship("PromptTemplate", secondary=prompt_template_favorites, back_populates="favorited_by")
+    # Add relationship to favorited chat models
+    favorite_chat_models = relationship("ChatModel", secondary=chat_model_favorites, back_populates="favorited_by")

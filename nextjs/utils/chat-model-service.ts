@@ -13,6 +13,7 @@ export interface ChatModel {
   description?: string;
   created_at?: string;
   updated_at?: string;
+  is_favorite?: boolean;
 }
 
 export async function fetchChatModels(headers: ApiHeaders): Promise<ChatModel[]> {
@@ -113,5 +114,35 @@ export async function createChatModel(model: Partial<ChatModel>, headers: ApiHea
       ...data,
       id: data.id.toString()
     };
+  });
+}
+
+export async function favoriteChatModel(chatModelId: string, headers: ApiHeaders): Promise<void> {
+  return await fetchWithRetry(async () => {
+    const response = await fetch(`${getApiUrl()}/chat_models/${chatModelId}/favorite`, {
+      method: 'POST',
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error favoriting chat model:', response.status, errorText);
+      throw new Error('Failed to favorite chat model');
+    }
+  });
+}
+
+export async function unfavoriteChatModel(chatModelId: string, headers: ApiHeaders): Promise<void> {
+  return await fetchWithRetry(async () => {
+    const response = await fetch(`${getApiUrl()}/chat_models/${chatModelId}/unfavorite`, {
+      method: 'POST',
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error unfavoriting chat model:', response.status, errorText);
+      throw new Error('Failed to unfavorite chat model');
+    }
   });
 }

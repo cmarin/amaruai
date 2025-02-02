@@ -355,7 +355,7 @@ def create_chat_model(db: Session, chat_model: schemas.ChatModelCreate):
     db.refresh(db_chat_model)
     return db_chat_model
 
-def update_chat_model(db: Session, chat_model_id: UUID, chat_model: schemas.ChatModelCreate):
+def update_chat_model(db: Session, chat_model_id: UUID, chat_model: schemas.ChatModelUpdate):
     db_chat_model = db.query(models.ChatModel).filter(models.ChatModel.id == chat_model_id).first()
     if db_chat_model:
         update_data = chat_model.dict(exclude_unset=True)
@@ -919,5 +919,50 @@ def get_favorite_prompt_templates(db: Session, user_id: str) -> List[models.Prom
         db.query(models.PromptTemplate)
         .join(models.prompt_template_favorites)
         .filter(models.prompt_template_favorites.c.user_id == user_id)
+        .all()
+    )
+
+def toggle_chat_model_favorite(
+    db: Session,
+    chat_model_id: UUID,
+    user_id: UUID,
+    favorite: bool = True
+) -> models.ChatModel:
+    """Toggle favorite status of a chat model for a user."""
+    chat_model = db.query(models.ChatModel).filter(
+        models.ChatModel.id == chat_model_id
+    ).first()
+    
+    if not chat_model:
+        raise HTTPException(status_code=404, detail="Chat model not found")
+    
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if favorite:
+        if chat_model not in user.favorite_chat_models:
+            user.favorite_chat_models.append(chat_model)
+    else:
+        if chat_model in user.favorite_chat_models:
+            user.favorite_chat_models.remove(chat_model)
+    
+    db.commit()
+    db.refresh(chat_model)
+    
+    # Add is_favorited field
+    setattr(chat_model, 'is_favorited', favorite)
+    return chat_model
+
+def get_favorite_chat_models(db: Session, user_id: UUID) -> List[models.ChatModel]:
+    """Get all chat models favorited by a user."""
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return (
+        db.query(models.ChatModel)
+        .join(models.chat_model_favorites)
+        .filter(models.chat_model_favorites.c.user_id == user_id)
         .all()
     )

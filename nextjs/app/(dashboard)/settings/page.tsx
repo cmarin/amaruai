@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from '@/utils/session/session';
 import { Category, fetchCategories, createCategory, updateCategory, deleteCategory } from '@/utils/category-service';
-import { ChatModel, fetchChatModels, updateChatModel, deleteChatModel, createChatModel } from '@/utils/chat-model-service';
+import { ChatModel, fetchChatModels, createChatModel, updateChatModel, deleteChatModel, favoriteChatModel, unfavoriteChatModel } from '@/utils/chat-model-service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,7 +15,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Trash2, Settings2 } from 'lucide-react';
+import { Plus, Trash2, Settings2, Star, Edit } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -196,6 +196,34 @@ export default function SettingsPage() {
     }
   };
 
+  const handleToggleFavorite = async (modelId: string, isFavorite: boolean) => {
+    const headers = getApiHeaders();
+    if (!headers) {
+      console.error('No valid headers available');
+      return;
+    }
+
+    try {
+      if (isFavorite) {
+        await unfavoriteChatModel(modelId, headers);
+      } else {
+        await favoriteChatModel(modelId, headers);
+      }
+      loadData();
+      toast({
+        title: "Success",
+        description: `Chat model ${isFavorite ? 'unfavorited' : 'favorited'} successfully`,
+      });
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast({
+        title: "Error",
+        description: `Failed to ${isFavorite ? 'unfavorite' : 'favorite'} chat model`,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (sessionLoading || !initialized) {
     return (
       <div className="flex h-screen">
@@ -356,40 +384,42 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {chatModels.map((model) => (
                   <Card key={model.id}>
-                    <CardHeader>
-                      <CardTitle>{model.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        Provider: {model.provider}
-                        <br />
-                        Model: {model.model}
-                        {model.description && (
-                          <>
-                            <br />
-                            Description: {model.description}
-                          </>
-                        )}
-                      </p>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <div className="space-y-1">
+                        <CardTitle>{model.name}</CardTitle>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleToggleFavorite(model.id, model.is_favorite || false)}
+                        >
+                          {model.is_favorite ? (
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          ) : (
+                            <Star className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedChatModel(model)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteChatModel(model.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
                         <div>
                           <Label>Max Tokens: {model.max_tokens}</Label>
-                        </div>
-                        <div className="flex justify-end space-x-2 mt-4">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => setSelectedChatModel(model)}
-                          >
-                            <Settings2 className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleDeleteChatModel(model.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
                         </div>
                       </div>
                     </CardContent>
