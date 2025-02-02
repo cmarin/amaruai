@@ -9,6 +9,7 @@ import type { BatchFlowStep, BatchFlowFile } from '@/types';
 import { useData } from "@/components/data-context";
 import { useToast } from "@/hooks/use-toast";
 import { addToScratchPad } from "@/utils/scratch-pad-service";
+import { GeneratingButton } from "./generating-button";
 import {
   Tooltip,
   TooltipContent,
@@ -211,100 +212,104 @@ export function StreamingResults({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="text-lg font-semibold mb-4">Processing Results</div>
+    <div className="space-y-4">
+      {isProcessing && <GeneratingButton isGenerating={isProcessing} />}
       
-      {error ? (
-        <div className="text-red-500 p-4 rounded-lg bg-red-50">
-          Error: {error}
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {steps.map((step, stepIndex) => {
-            const config = getStepConfig(step);
-            const stepContent = getStepResults(stepIndex);
-            
-            return (
-              <div key={stepIndex} className="border rounded-lg p-4">
-                <div className="flex justify-between items-center mb-4">
-                  <div className="space-y-2">
-                    <div className="font-medium">Step {stepIndex + 1}</div>
-                    <div className="text-sm text-gray-600">
-                      <div>Model: {config.model}</div>
-                      <div>Persona: {config.persona}</div>
-                      <div>Template: {config.template}</div>
+      <div className="flex items-center justify-between">
+        <div className="text-lg font-semibold mb-4">Processing Results</div>
+        
+        {error ? (
+          <div className="text-red-500 p-4 rounded-lg bg-red-50">
+            Error: {error}
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {steps.map((step, stepIndex) => {
+              const config = getStepConfig(step);
+              const stepContent = getStepResults(stepIndex);
+              
+              return (
+                <div key={stepIndex} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="space-y-2">
+                      <div className="font-medium">Step {stepIndex + 1}</div>
+                      <div className="text-sm text-gray-600">
+                        <div>Model: {config.model}</div>
+                        <div>Persona: {config.persona}</div>
+                        <div>Template: {config.template}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleCopy(stepContent)}
+                              className="h-8 w-8"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Copy transcript</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleAddToScratchPad(stepContent)}
+                              className="h-8 w-8"
+                            >
+                              <BookMarked className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Add to scratch pad</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </div>
                   
-                  <div className="flex gap-2">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleCopy(stepContent)}
-                            className="h-8 w-8"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Copy transcript</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleAddToScratchPad(stepContent)}
-                            className="h-8 w-8"
-                          >
-                            <BookMarked className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Add to scratch pad</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
+                  {stepIndex === currentStepIndex && isProcessing && (
+                    <div className="text-blue-500 flex items-center">
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </div>
+                  )}
+                  
+                  <ScrollArea className="h-[200px] w-full rounded border p-4 bg-gray-50">
+                    <ReactMarkdown>
+                      {getStepResults(stepIndex) || rawContent[stepIndex] || ''}
+                    </ReactMarkdown>
+                  </ScrollArea>
                 </div>
-                
-                {stepIndex === currentStepIndex && isProcessing && (
-                  <div className="text-blue-500 flex items-center">
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Processing...
-                  </div>
-                )}
-                
-                <ScrollArea className="h-[200px] w-full rounded border p-4 bg-gray-50">
-                  <ReactMarkdown>
-                    {getStepResults(stepIndex) || rawContent[stepIndex] || ''}
-                  </ReactMarkdown>
-                </ScrollArea>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
 
-      <div className="flex justify-between mt-6">
-        <Button
-          variant="outline"
-          onClick={onPrevious}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          onClick={onStartNewBatch}
-        >
-          Start New Batch
-        </Button>
+        <div className="flex justify-between mt-6">
+          <Button
+            variant="outline"
+            onClick={onPrevious}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onStartNewBatch}
+          >
+            Start New Batch
+          </Button>
+        </div>
       </div>
     </div>
   );
