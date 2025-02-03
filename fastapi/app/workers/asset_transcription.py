@@ -9,6 +9,7 @@ import json
 import tempfile
 from pathlib import Path
 from uuid import UUID
+import urllib.parse
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -74,12 +75,27 @@ class TranscriptionWorker:
         encoder = tiktoken.encoding_for_model("gpt-3.5-turbo")
         return len(encoder.encode(text))
 
+    async def update_asset_status(self, asset_id: UUID, status: str, error_message: str = None):
+        """Update asset status and error message in database"""
+        db = SessionLocal()
+        try:
+            asset = crud.get_asset(db, asset_id=asset_id)
+            if asset:
+                asset.status = status
+                if error_message:
+                    asset.error_message = error_message
+                db.commit()
+                logger.info(f"Updated status of asset {asset_id} to {status}")
+            else:
+                logger.warning(f"No asset found with ID: {asset_id}")
+        finally:
+            db.close()
+
     async def process_message(self, message: dict):
         try:
             logger.info(f"Worker {self.worker_id} processing message: {message['msg_id']}")
             logger.debug(f"Full message structure: {message}")
 
-            # Parse the message body - PGMQ uses 'message' field
             msg_data = json.loads(message.get('message', '{}'))
             logger.debug(f"Parsed message data: {msg_data}")
 
@@ -91,13 +107,35 @@ class TranscriptionWorker:
             asset_id = msg_data['payload']['asset_id']
             persona_id = msg_data['payload'].get('persona_id', None)
 
-            logger.info(f"Downloading file from path: {file_url}")
+            # URL encode the file path
+            encoded_file_url = urllib.parse.quote(file_url, safe='/')
+            logger.info(f"Downloading file from path: {encoded_file_url}")
 
             # Create a temporary directory for processing
             with tempfile.TemporaryDirectory() as temp_dir:
                 try:
-                    # Download file from Supabase
-                    data = supabase_client.storage.from_(self.bucket_name).download(file_url)
+                    # Check if file exists first
+                    storage_client = supabase_client.storage.from_(self.bucket_name)
+                    try:
+                        # List files to verify existence
+                        files = storage_client.list(os.path.dirname(file_url))
+                        file_exists = any(f['name'] == os.path.basename(file_url) for f in files)
+                        
+                        if not file_exists:
+                            error_msg = f"File not found in storage: {file_url}"
+                            logger.error(error_msg)
+                            await self.update_asset_status(asset_id, "failed", error_msg)
+                            return
+
+                        # Download file from Supabase
+                        data = storage_client.download(encoded_file_url)
+                        
+                    except Exception as e:
+                        error_msg = f"Error accessing storage: {str(e)}"
+                        logger.error(error_msg)
+                        await self.update_asset_status(asset_id, "failed", error_msg)
+                        return
+
                     temp_file_path = os.path.join(temp_dir, os.path.basename(file_url))
 
                     # Write the binary data to a temporary file
@@ -162,14 +200,10 @@ class TranscriptionWorker:
                             shutil.rmtree(audio_temp_dir)
 
                 except Exception as e:
-                    logger.error(f"Error processing file: {str(e)}", exc_info=True)
-                    # Update asset status to failed
-                    db = SessionLocal()
-                    try:
-                        crud.update_asset_status(db, asset_id=asset_id, status="failed")
-                    finally:
-                        db.close()
-                    raise
+                    error_msg = f"Error processing file: {str(e)}"
+                    logger.error(error_msg, exc_info=True)
+                    await self.update_asset_status(asset_id, "failed", error_msg)
+                    return
 
             # Archive the message after successful processing
             supabase_client.rpc(
