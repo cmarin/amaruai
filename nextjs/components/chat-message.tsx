@@ -21,12 +21,18 @@ export default function ChatMessage({ role, content, avatar }: ChatMessageProps)
     )}>
       <div className="flex-shrink-0 mt-1">
         {isAssistant ? (
-          <AvatarDisplay
-            avatar={avatar || null}
-            size={45}
-            alt="Assistant"
-            className="border border-gray-200"
-          />
+          avatar ? (
+            <AvatarDisplay
+              avatar={avatar}
+              size={45}
+              alt="Assistant"
+              className="border border-gray-200"
+            />
+          ) : (
+            <div className="w-[45px] h-[45px] rounded-full bg-green-500 flex items-center justify-center">
+              <User className="w-6 h-6 text-white" />
+            </div>
+          )
         ) : (
           <div className="w-[45px] h-[45px] rounded-full bg-blue-500 flex items-center justify-center">
             <User className="w-6 h-6 text-white" />
