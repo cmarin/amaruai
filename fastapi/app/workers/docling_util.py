@@ -5,6 +5,9 @@ from docling.document_converter import DocumentConverter, PdfFormatOption, WordF
 from docling.pipeline.simple_pipeline import SimplePipeline
 from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
 from uuid import UUID
+import os
+from pathlib import Path
+import logging
 
 
 class DoclingService:
@@ -20,6 +23,13 @@ class DoclingService:
         model_storage_directory: str = "/root/.EasyOCR/model",
         pipeline_artifacts_path: str = "/app/models"
     ):
+        # Create a directory for OCR models in a writable location
+        self.ocr_model_path = Path('/tmp/.EasyOCR')
+        self.ocr_model_path.mkdir(parents=True, exist_ok=True)
+        
+        # Set environment variable for EasyOCR
+        os.environ['EASYOCR_MODULE_PATH'] = str(self.ocr_model_path)
+        
         # Initialize EasyOCR
         # Disable downloads to prevent concurrency conflicts
         self.reader = easyocr.Reader(
@@ -56,8 +66,12 @@ class DoclingService:
         Convert the given file to Markdown text using Docling.
         Returns the extracted text.
         """
-        result = self.converter.convert(file_path)
-        return result.document.export_to_markdown()
+        try:
+            result = self.converter.convert(file_path)
+            return result.document.export_to_markdown()
+        except Exception as e:
+            logging.error(f"Error converting file: {str(e)}")
+            raise
 
     def process_with_persona(self, text: str, persona_id: UUID) -> str:
         """

@@ -148,6 +148,13 @@ class TranscriptionWorker:
                         finally:
                             db.close()
 
+                    except FileNotFoundError as e:
+                        logging.error(f"OCR model file not found: {str(e)}")
+                        await self.update_asset_status(asset_id, "failed", "OCR model initialization failed")
+                    except Exception as e:
+                        logging.error(f"Error processing document: {str(e)}")
+                        await self.update_asset_status(asset_id, "failed", f"Processing failed: {str(e)}")
+
                     finally:
                         # Clean up audio temp directory if it exists
                         if audio_temp_dir and os.path.exists(audio_temp_dir):

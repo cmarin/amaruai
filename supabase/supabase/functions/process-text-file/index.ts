@@ -63,7 +63,8 @@ serve(async (req) => {
 
       extractedText = textContent.join('\n');
     } else if (asset.mime_type === 'text/plain' || asset.mime_type === 'text/markdown') {
-      extractedText = new TextDecoder().decode(fileData);
+      const buffer = await fileData.arrayBuffer();
+      extractedText = new TextDecoder().decode(buffer);
     } else if (asset.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       const buffer = await fileData.arrayBuffer();
       const result = await mammoth.extractRawText({ buffer });
