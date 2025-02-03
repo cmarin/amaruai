@@ -20,6 +20,7 @@ export interface BatchFlowFile extends BaseUploadedFile {
     status: string;
     token_count: number;
     file_name: string;
+    content?: string;
     model?: {
       id: number;
       name: string;
