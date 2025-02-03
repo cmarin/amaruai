@@ -141,6 +141,13 @@ class PersonaBase(BaseModel):
     verbose: bool
     memory: bool
     avatar: Optional[str] = None
+    temperature: Optional[float] = Field(None, ge=0.0, le=1.0, description="Temperature value between 0 and 1")
+
+    @validator('temperature')
+    def validate_temperature(cls, v):
+        if v is not None and (v < 0.0 or v > 1.0):
+            raise ValueError("Temperature must be between 0 and 1")
+        return v
 
 class PersonaCreate(PersonaBase):
     category_ids: List[Optional[UUID]] = []  
@@ -160,6 +167,14 @@ class PersonaCreate(PersonaBase):
         ]
 
 class PersonaUpdate(PersonaBase):
+    role: Optional[str] = None
+    goal: Optional[str] = None
+    backstory: Optional[str] = None
+    allow_delegation: Optional[bool] = None
+    verbose: Optional[bool] = None
+    memory: Optional[bool] = None
+    avatar: Optional[str] = None
+    temperature: Optional[float] = Field(None, ge=0.0, le=1.0)
     category_ids: Optional[List[Optional[UUID]]] = None
     tags: Optional[List[str]] = None  
     tools: Optional[List[UUID]] = None

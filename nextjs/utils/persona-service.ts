@@ -12,6 +12,7 @@ export type Persona = {
   allow_delegation: boolean;
   verbose: boolean;
   memory: boolean;
+  temperature?: number;
   avatar: string | null;
   tools: Array<{ id: number; name: string }>;
   categories: Array<{ id: number; name: string }>;
@@ -29,6 +30,7 @@ export type PersonaCreate = {
   allow_delegation: boolean;
   verbose: boolean;
   memory: boolean;
+  temperature?: number;
   avatar: string | null;
   tools: Array<{ id: number; name: string }>;
   category_ids: string[];

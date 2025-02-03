@@ -26,7 +26,8 @@ def create_persona(db: Session, persona: schemas.PersonaCreate):
             allow_delegation=persona.allow_delegation,
             verbose=persona.verbose,
             memory=persona.memory,
-            avatar=persona.avatar
+            avatar=persona.avatar,
+            temperature=persona.temperature
         )
         db.add(db_persona)
         

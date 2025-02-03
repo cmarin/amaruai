@@ -33,6 +33,7 @@ interface PersonaState {
   allow_delegation: boolean;
   verbose: boolean;
   memory: boolean;
+  temperature?: number;
   avatar: string | null;
   tools: Tool[];
   category_ids: string[];
@@ -49,6 +50,7 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
     allow_delegation: false,
     verbose: false,
     memory: false,
+    temperature: 0.7,
     avatar: null,
     tools: [],
     category_ids: [],
@@ -190,6 +192,26 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
                   value={currentPersona.backstory || ''} 
                   onChange={handleInputChange}
                   placeholder="You are a seasoned software engineer with 10 years of experience in various programming languages and frameworks. You specialize in backend development and system architecture."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="temperature">Temperature (0-1)</Label>
+                <Input
+                  type="number"
+                  id="temperature"
+                  name="temperature"
+                  value={currentPersona.temperature || ''}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    if (!isNaN(value) && value >= 0 && value <= 1) {
+                      setCurrentPersona(prev => ({ ...prev, temperature: value }));
+                    }
+                  }}
+                  step="0.1"
+                  min="0"
+                  max="1"
+                  className="w-full"
                 />
               </div>
 
