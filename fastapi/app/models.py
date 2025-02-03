@@ -1,10 +1,11 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, Text, Enum, UUID, BigInteger, TIMESTAMP, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, Text, Enum, UUID, BigInteger, TIMESTAMP, DateTime, Float
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import text, func
 import enum
 import uuid
 from uuid import uuid4
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -67,22 +68,26 @@ class ProcessType(enum.Enum):
 class Persona(Base):
     __tablename__ = 'persona'
 
-    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('uuid_generate_v4()'))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     role = Column(String, nullable=False)
     goal = Column(String, nullable=False)
     backstory = Column(String, nullable=False)
     allow_delegation = Column(Boolean, nullable=False)
     verbose = Column(Boolean, nullable=False)
     memory = Column(Boolean, nullable=False)
-    avatar = Column(String)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
-    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+    avatar = Column(String, nullable=True)
+    temperature = Column(Float, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     workflow_steps = relationship("WorkflowStep", back_populates="persona")
 
     tools = relationship("Tool", secondary=tool_persona, back_populates="personas")
     categories = relationship("Category", secondary=persona_category, back_populates="personas")
     tags = relationship("Tag", secondary=persona_tag, back_populates="personas")
     prompt_templates = relationship("PromptTemplate", back_populates="default_persona")
+
+    def __repr__(self):
+        return f"<Persona {self.role}>"
 
 class Tool(Base):
     __tablename__ = 'tool'
