@@ -107,38 +107,59 @@ class TranscriptionWorker:
             asset_id = msg_data['payload']['asset_id']
             persona_id = msg_data['payload'].get('persona_id', None)
 
-            # URL encode the file path
-            encoded_file_url = urllib.parse.quote(file_url, safe='/')
-            logger.info(f"Downloading file from path: {encoded_file_url}")
-
             # Create a temporary directory for processing
             with tempfile.TemporaryDirectory() as temp_dir:
                 try:
-                    # Check if file exists first
                     storage_client = supabase_client.storage.from_(self.bucket_name)
+                    
                     try:
-                        # List files to verify existence
-                        files = storage_client.list(os.path.dirname(file_url))
-                        file_exists = any(f['name'] == os.path.basename(file_url) for f in files)
+                        # Get the directory path and filename separately
+                        dir_path = os.path.dirname(file_url)
+                        filename = os.path.basename(file_url)
                         
+                        logger.info(f"Checking directory: {dir_path}")
+                        logger.info(f"Looking for file: {filename}")
+                        
+                        # List files in the directory
+                        try:
+                            files = storage_client.list(dir_path)
+                            logger.debug(f"Files in directory: {files}")
+                        except Exception as e:
+                            logger.error(f"Error listing directory {dir_path}: {str(e)}")
+                            files = []
+
+                        # Check if file exists
+                        file_exists = any(f['name'] == filename for f in files)
                         if not file_exists:
-                            error_msg = f"File not found in storage: {file_url}"
+                            error_msg = f"File not found in storage: {filename} in {dir_path}"
                             logger.error(error_msg)
                             await self.update_asset_status(asset_id, "failed", error_msg)
                             return
 
-                        # Download file from Supabase
-                        data = storage_client.download(encoded_file_url)
-                        
+                        # Try to download using the original path first
+                        try:
+                            logger.info(f"Attempting to download: {file_url}")
+                            data = storage_client.download(file_url)
+                        except Exception as first_error:
+                            # If that fails, try with URL encoding
+                            try:
+                                encoded_file_url = urllib.parse.quote(file_url, safe='/')
+                                logger.info(f"Retrying with encoded URL: {encoded_file_url}")
+                                data = storage_client.download(encoded_file_url)
+                            except Exception as second_error:
+                                error_msg = f"Failed to download file. Original error: {str(first_error)}. Encoded error: {str(second_error)}"
+                                logger.error(error_msg)
+                                await self.update_asset_status(asset_id, "failed", error_msg)
+                                return
+
                     except Exception as e:
                         error_msg = f"Error accessing storage: {str(e)}"
                         logger.error(error_msg)
                         await self.update_asset_status(asset_id, "failed", error_msg)
                         return
 
-                    temp_file_path = os.path.join(temp_dir, os.path.basename(file_url))
-
-                    # Write the binary data to a temporary file
+                    # Write downloaded data to temp file
+                    temp_file_path = os.path.join(temp_dir, filename)
                     with open(temp_file_path, 'wb') as f:
                         f.write(data)
 
