@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
+import { GeneratingButton } from "./generating-button";
 import type { BatchFlowFile } from "@/types";
 
 interface ProcessingResultsProps {
@@ -22,7 +23,7 @@ export function ProcessingResults({
 }: ProcessingResultsProps) {
   return (
     <div className="space-y-6">
-      <div className="text-lg font-semibold mb-4">Processing Results</div>
+      <GeneratingButton isGenerating={isProcessing} />
       
       {isProcessing ? (
         <div className="text-center py-8">
@@ -36,9 +37,23 @@ export function ProcessingResults({
             return (
               <div 
                 key={fileId}
-                className="p-4 border rounded-lg bg-white"
+                className="p-4 border rounded-lg bg-white space-y-4"
               >
-                <div className="font-medium mb-2">{file?.status.file_name}</div>
+                <div className="font-medium">{file?.status.file_name}</div>
+                <div className="grid grid-cols-3 gap-4 text-sm text-gray-600">
+                  <div>
+                    <div className="font-semibold">Model</div>
+                    <div>{file?.status.model?.name || 'Unknown Model'}</div>
+                  </div>
+                  <div>
+                    <div className="font-semibold">Persona</div>
+                    <div>{file?.status.persona?.role || 'Unknown Persona'}</div>
+                  </div>
+                  <div>
+                    <div className="font-semibold">Template</div>
+                    <div>{file?.status.template?.name || 'Unknown Template'}</div>
+                  </div>
+                </div>
                 <div className="text-sm text-gray-600 whitespace-pre-wrap">
                   {response}
                 </div>
@@ -46,13 +61,7 @@ export function ProcessingResults({
             );
           })}
 
-          <div className="flex justify-between mt-6">
-            <Button
-              variant="outline"
-              onClick={onPrevious}
-            >
-              Previous
-            </Button>
+          <div className="flex justify-center mt-6">
             <Button
               variant="outline"
               onClick={onStartNewBatch}

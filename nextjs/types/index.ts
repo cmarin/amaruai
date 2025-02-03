@@ -15,7 +15,24 @@ export interface FileStatus extends AssetStatus {
 
 export interface BatchFlowFile extends BaseUploadedFile {
   file_name: string;
-  status: FileStatus;
+  status: {
+    id: string;
+    status: string;
+    token_count: number;
+    file_name: string;
+    model?: {
+      id: number;
+      name: string;
+    };
+    persona?: {
+      id: number;
+      role: string;
+    };
+    template?: {
+      id: number;
+      name: string;
+    };
+  };
 }
 
 export interface BatchFlowStep {

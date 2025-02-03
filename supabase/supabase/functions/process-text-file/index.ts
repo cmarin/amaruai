@@ -120,6 +120,7 @@ serve(async (req) => {
       .update({
         content: extractedText,
         token_count: estimateTokenCount(extractedText),
+        status: 'completed',
         updated_at: new Date().toISOString()
       })
       .eq('id', asset.id);
