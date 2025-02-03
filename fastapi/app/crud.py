@@ -19,16 +19,21 @@ def get_personas(db: Session, skip: int = 0, limit: int = 100):
 def create_persona(db: Session, persona: schemas.PersonaCreate):
     try:
         # Create the persona
-        db_persona = models.Persona(
-            role=persona.role,
-            goal=persona.goal,
-            backstory=persona.backstory,
-            allow_delegation=persona.allow_delegation,
-            verbose=persona.verbose,
-            memory=persona.memory,
-            avatar=persona.avatar,
-            temperature=persona.temperature
-        )
+        create_data = {
+            "role": persona.role,
+            "goal": persona.goal,
+            "backstory": persona.backstory,
+            "allow_delegation": persona.allow_delegation,
+            "verbose": persona.verbose,
+            "memory": persona.memory,
+            "avatar": persona.avatar,
+        }
+        
+        # Only add temperature if it's provided
+        if persona.temperature is not None:
+            create_data["temperature"] = float(persona.temperature)
+            
+        db_persona = models.Persona(**create_data)
         db.add(db_persona)
         
         # Handle categories
@@ -54,6 +59,7 @@ def create_persona(db: Session, persona: schemas.PersonaCreate):
         
     except Exception as e:
         db.rollback()
+        logger.error(f"Error creating persona: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 def update_persona(db: Session, persona_id: UUID, persona: schemas.PersonaUpdate):

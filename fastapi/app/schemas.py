@@ -141,18 +141,31 @@ class PersonaBase(BaseModel):
     verbose: bool
     memory: bool
     avatar: Optional[str] = None
-    temperature: Optional[float] = Field(None, ge=0.0, le=1.0, description="Temperature value between 0 and 1")
+    temperature: Optional[float] = Field(
+        None, 
+        ge=0.0, 
+        le=1.0, 
+        description="Temperature value between 0 and 1"
+    )
 
     @validator('temperature')
     def validate_temperature(cls, v):
-        if v is not None and (v < 0.0 or v > 1.0):
-            raise ValueError("Temperature must be between 0 and 1")
+        if v is not None:
+            try:
+                v = float(v)  # Convert to float if possible
+                if v < 0.0 or v > 1.0:
+                    raise ValueError("Temperature must be between 0 and 1")
+                return v
+            except (TypeError, ValueError):
+                raise ValueError("Temperature must be a valid number between 0 and 1")
         return v
 
 class PersonaCreate(PersonaBase):
     category_ids: List[Optional[UUID]] = []  
     tags: List[str] = []  
     tools: List[UUID] = []
+    description: Optional[str] = None  # Add this if it's in your payload
+    prompt_templates: Optional[List[Any]] = []  # Add this if it's in your payload
 
     @validator('category_ids', pre=True)
     def validate_category_ids(cls, v):
@@ -166,7 +179,10 @@ class PersonaCreate(PersonaBase):
             if cat_id not in (None, "")
         ]
 
-class PersonaUpdate(PersonaBase):
+    class Config:
+        extra = "ignore"  # This will ignore extra fields in the payload
+
+class PersonaUpdate(BaseModel):
     role: Optional[str] = None
     goal: Optional[str] = None
     backstory: Optional[str] = None
@@ -178,17 +194,23 @@ class PersonaUpdate(PersonaBase):
     category_ids: Optional[List[Optional[UUID]]] = None
     tags: Optional[List[str]] = None  
     tools: Optional[List[UUID]] = None
+    description: Optional[str] = None
+    prompt_templates: Optional[List[Any]] = None
 
-    @validator('category_ids', pre=True)
-    def validate_category_ids(cls, v):
-        if v is None:
-            return []
-        return [
-            UUID(cat_id) if isinstance(cat_id, str) and cat_id 
-            else cat_id 
-            for cat_id in v 
-            if cat_id not in (None, "")
-        ]
+    class Config:
+        extra = "ignore"
+
+    @validator('temperature')
+    def validate_temperature(cls, v):
+        if v is not None:
+            try:
+                v = float(v)
+                if v < 0.0 or v > 1.0:
+                    raise ValueError("Temperature must be between 0 and 1")
+                return v
+            except (TypeError, ValueError):
+                raise ValueError("Temperature must be a valid number between 0 and 1")
+        return v
 
 class Persona(PersonaBase):
     id: UUID
