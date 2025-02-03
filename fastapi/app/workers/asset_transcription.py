@@ -62,9 +62,13 @@ class TranscriptionWorker:
             logger.error("SUPABASE_BUCKET environment variable is not set")
             raise ValueError("SUPABASE_BUCKET environment variable must be set")
 
-        # Instantiate DoclingService, WhisperService, and VideoService
+        # Create necessary directories
+        os.makedirs("/tmp/.EasyOCR/model", exist_ok=True)
+        os.makedirs("/tmp/models", exist_ok=True)
+
+        # Instantiate services
         self.docling_service = DoclingService()
-        self.whisper_service = WhisperService()  # Let WhisperService handle model selection from env vars
+        self.whisper_service = WhisperService()
         self.video_service = VideoService()
   
 

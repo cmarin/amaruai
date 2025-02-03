@@ -20,27 +20,28 @@ class DoclingService:
 
     def __init__(
         self,
-        model_storage_directory: str = "/root/.EasyOCR/model",
-        pipeline_artifacts_path: str = "/app/models"
+        model_storage_directory: str = "/tmp/.EasyOCR/model",
+        pipeline_artifacts_path: str = "/tmp/models"
     ):
-        # Create a directory for OCR models in a writable location
-        self.ocr_model_path = Path('/tmp/.EasyOCR')
-        self.ocr_model_path.mkdir(parents=True, exist_ok=True)
+        # Create directories
+        os.makedirs(model_storage_directory, exist_ok=True)
+        os.makedirs(pipeline_artifacts_path, exist_ok=True)
         
         # Set environment variable for EasyOCR
-        os.environ['EASYOCR_MODULE_PATH'] = str(self.ocr_model_path)
+        os.environ['EASYOCR_MODULE_PATH'] = os.path.dirname(model_storage_directory)
         
-        # Initialize EasyOCR
-        # Disable downloads to prevent concurrency conflicts
+        # Initialize EasyOCR with the correct path
         self.reader = easyocr.Reader(
             ['en'], 
             model_storage_directory=model_storage_directory,
-            download_enabled=False
+            download_enabled=True  # Enable downloads since we're using a writable path
         )
 
-
         # Set up Docling PDF pipeline options
-        pipeline_options = PdfPipelineOptions(artifacts_path=pipeline_artifacts_path)
+        pipeline_options = PdfPipelineOptions(
+            artifacts_path=pipeline_artifacts_path,
+            ocr_model_path=model_storage_directory
+        )
 
         # Create the DocumentConverter with multiple supported input formats
         self.converter = DocumentConverter(
