@@ -60,7 +60,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
     router.push(`/personas/${persona.id}`)
   }
 
-  const handleDeletePersona = async (personaId: number) => {
+  const handleDeletePersona = async (personaId: string) => {
     try {
       const headers = getApiHeaders();
       if (!headers) {
@@ -102,7 +102,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => handleDeletePersona(Number(persona.id))}
+                  onClick={() => handleDeletePersona(String(persona.id))}
                   className="text-red-500 hover:text-red-700 hover:bg-red-100"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -161,7 +161,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleDeletePersona(Number(persona.id))}
+                    onClick={() => handleDeletePersona(String(persona.id))}
                     className="text-red-500 hover:text-red-700 hover:bg-red-100"
                   >
                     <Trash2 className="h-4 w-4" />

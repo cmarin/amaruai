@@ -164,7 +164,7 @@ export async function updatePersona(personaId: string, persona: PersonaUpdate, h
   }
 }
 
-export async function deletePersona(personaId: number, headers: ApiHeaders): Promise<void> {
+export async function deletePersona(personaId: string, headers: ApiHeaders): Promise<void> {
   try {
     if (!getApiUrl()) {
       throw new Error('API_BASE_URL is not defined');
