@@ -149,7 +149,7 @@ export async function deletePromptTemplate(promptTemplateId: string, headers: Ap
 
 export async function fetchPromptTemplates(headers: ApiHeaders | null): Promise<PromptTemplate[]> {
   return await fetchWithRetry(async () => {
-    const response = await fetch(`${getApiUrl()}/prompt_templates`, {
+    const response = await fetch(`${getApiUrl()}/prompt_templates/`, {
       headers: headers || {},
     });
 

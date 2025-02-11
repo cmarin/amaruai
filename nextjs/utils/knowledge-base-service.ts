@@ -10,7 +10,7 @@ export async function fetchKnowledgeBases(headers: ApiHeaders): Promise<Knowledg
     if (!getApiUrl()) {
       throw new Error('API_BASE_URL is not defined');
     }
-    const response = await fetch(`${getApiUrl()}/knowledge_bases`, {
+    const response = await fetch(`${getApiUrl()}/knowledge_bases/`, {
       headers
     });
     if (!response.ok) {
