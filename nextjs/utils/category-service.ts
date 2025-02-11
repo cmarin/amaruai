@@ -8,7 +8,7 @@ export type Category = {
 };
 
 export async function fetchCategories(headers: ApiHeaders): Promise<Category[]> {
-  const response = await fetch(`${getApiUrl()}/categories`, {
+  const response = await fetch(`${getApiUrl()}/categories/`, {
     method: 'GET',
     headers: {
       ...headers,
