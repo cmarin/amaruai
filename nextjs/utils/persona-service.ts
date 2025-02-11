@@ -1,7 +1,7 @@
 import { fetchWithRetry } from './api-utils';
 import { createTag, fetchTags, Tag } from './tag-service';
 import { ApiHeaders } from '@/app/utils/session/session';
-import { getApiUrl } from './api-utils';
+import { getApiUrl, getFetchOptions } from './api-utils';
 
 export type Persona = {
   id: string | number;
@@ -45,9 +45,9 @@ export async function fetchPersonas(headers: ApiHeaders): Promise<Persona[]> {
     if (!getApiUrl()) {
       throw new Error('API_BASE_URL is not defined');
     }
-    const response = await fetch(`${getApiUrl()}/personas`, {
+    const response = await fetch(`${getApiUrl()}/personas`, getFetchOptions({
       headers
-    });
+    }));
     if (!response.ok) {
       throw new Error('Failed to fetch personas');
     }

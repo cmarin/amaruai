@@ -60,8 +60,7 @@ origins = [
     "http://amaruai.vercel.app",
     "https://amaruai.vercel.app",
     "https://amaruai-l2117eld6-cmarins-projects.vercel.app",
-    "https://accurate-courtesy-production.up.railway.app",
-    "https://*.vercel.app"
+    "https://accurate-courtesy-production.up.railway.app"
 ]
 
 app.add_middleware(

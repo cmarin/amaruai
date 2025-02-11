@@ -18,20 +18,33 @@ export function getApiUrl() {
   return url.toString();
 }
 
+// Helper function to safely get origin in both client and server contexts
+function getOrigin(): string {
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  // Default to production URL during SSR
+  return 'https://amaruai.vercel.app';
+}
+
 export function getFetchOptions(options: RequestInit = {}): RequestInit {
-  const isLocalhost = process.env.NEXT_PUBLIC_API_URL?.includes('localhost');
-  
+  const defaultHeaders = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'Origin': getOrigin(),
+  };
+
+  // Merge headers, ensuring custom headers take precedence
+  const headers = {
+    ...defaultHeaders,
+    ...options.headers,
+  };
+
   return {
     ...options,
     credentials: 'include',
     mode: 'cors',
-    headers: {
-      ...options.headers,
-      'Accept': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'Origin': window.location.origin,
-    },
+    headers,
   };
 }
 
