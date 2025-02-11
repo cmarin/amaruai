@@ -47,6 +47,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const { getApiHeaders, initialized } = useSession();
 
+  // Transform function defined outside the loop to avoid hoisting issues
+  const transformChatModels = (models: BaseChatModel[]): ChatModel[] => {
+    return models.map(model => {
+      const now = new Date().toISOString();
+      return {
+        ...model,
+        model_id: model.model || '',
+        default: model.model?.toLowerCase().includes('gpt-4') || false,
+        created_at: now,
+        updated_at: now,
+        is_favorite: false
+      };
+    });
+  };
+
   const fetchData = useCallback(async () => {
     if (!initialized) return;
 
@@ -60,7 +75,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      const [allModels, favoriteModels, personasData, templates, categoriesData] = await Promise.all([
+      // Fetch each resource independently to handle partial failures
+      const fetchResults = await Promise.allSettled([
         fetchChatModels(headers),
         fetchFavoriteChatModels(headers),
         fetchPersonas(headers),
@@ -68,50 +84,44 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         fetchCategories(headers),
       ]);
 
-      console.log('Fetched personas data:', personasData);
+      console.log('Fetch results:', fetchResults);
 
-      // Transform the chat models to include the additional fields
-      const transformAllModels = (models: BaseChatModel[]) => models.map(model => {
-        const now = new Date().toISOString();
-        return {
-          ...model,
-          model_id: model.model || '',
-          default: model.model?.toLowerCase().includes('gpt-4') || false,
-          created_at: now,
-          updated_at: now,
-          is_favorite: false
-        };
-      }) as ChatModel[];
+      // Process each result individually with proper type handling
+      fetchResults.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          switch (index) {
+            case 0: // chatModels
+              setChatModels(transformChatModels(result.value as BaseChatModel[]));
+              break;
 
-      // Create a set of favorite model IDs for quick lookup
-      const favoriteIds = new Set(favoriteModels.map(m => m.id));
+            case 1: // favoriteChatModels
+              setFavoriteChatModels(
+                transformChatModels(result.value as BaseChatModel[]).map(model => ({
+                  ...model,
+                  is_favorite: true
+                }))
+              );
+              break;
 
-      // Transform all models and mark favorites
-      const transformedAllModels = transformAllModels(allModels).map(model => ({
-        ...model,
-        is_favorite: favoriteIds.has(model.id)
-      }));
+            case 2: // personas
+              console.log('Setting personas:', result.value);
+              setPersonas(result.value as Persona[]);
+              break;
 
-      // Transform favorite models
-      const transformedFavoriteModels = transformAllModels(favoriteModels).map(model => ({
-        ...model,
-        is_favorite: true
-      }));
+            case 3: // promptTemplates
+              setPromptTemplates(result.value as PromptTemplate[]);
+              break;
 
-      // Ensure exactly one model is default - prefer GPT-4, fallback to first model
-      const hasDefault = transformedAllModels.some(m => m.default);
-      if (!hasDefault && transformedAllModels.length > 0) {
-        transformedAllModels[0].default = true;
-      }
-
-      setChatModels(transformedAllModels);
-      setFavoriteChatModels(transformedFavoriteModels);
-      console.log('Setting personas state:', personasData);
-      setPersonas(personasData);
-      setPromptTemplates(templates);
-      setCategories(categoriesData);
+            case 4: // categories
+              setCategories(result.value as Category[]);
+              break;
+          }
+        } else {
+          console.error(`Failed to fetch data for index ${index}:`, result.reason);
+        }
+      });
     } catch (err) {
-      console.error('Error fetching data:', err);
+      console.error('Error in fetchData:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
       setIsLoading(false);

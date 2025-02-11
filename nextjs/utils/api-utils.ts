@@ -22,13 +22,12 @@ export function getFetchOptions(options: RequestInit = {}): RequestInit {
   };
 
   // Basic fetch options
-  const fetchOptions: RequestInit = {
+  return {
     ...options,
     mode: 'cors',
     headers,
+    credentials: 'omit', // Explicitly omit credentials since we're using token auth
   };
-
-  return fetchOptions;
 }
 
 export async function fetchWithRetry<T>(
