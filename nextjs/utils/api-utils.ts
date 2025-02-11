@@ -23,18 +23,15 @@ export function getFetchOptions(options: RequestInit = {}): RequestInit {
   
   return {
     ...options,
+    credentials: 'include',
+    mode: 'cors',
     headers: {
       ...options.headers,
       'Accept': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
+      'Origin': window.location.origin,
     },
-    // Disable SSL verification for localhost
-    ...(isLocalhost && {
-      mode: 'cors',
-      credentials: 'include',
-      rejectUnauthorized: false,
-    }),
   };
 }
 
