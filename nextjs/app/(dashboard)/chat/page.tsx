@@ -62,8 +62,6 @@ function ChatContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  console.log('Chat component personas:', personas);
-
   const [messages, setMessages] = useState<Message[]>([])
   const [messages2, setMessages2] = useState<Message[]>([])
   const [messages3, setMessages3] = useState<Message[]>([])
