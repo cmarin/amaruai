@@ -42,15 +42,22 @@ export type PersonaUpdate = Omit<PersonaCreate, 'prompt_templates'>;
 
 export async function fetchPersonas(headers: ApiHeaders): Promise<Persona[]> {
   return fetchWithRetry(async () => {
-    if (!getApiUrl()) {
+    const apiUrl = getApiUrl();
+    if (!apiUrl) {
       throw new Error('API_BASE_URL is not defined');
     }
-    const response = await fetch(`${getApiUrl()}/personas`, getFetchOptions({
+
+    const response = await fetch(`${apiUrl}/personas`, getFetchOptions({
+      method: 'GET',
       headers
     }));
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to fetch personas:', response.status, errorText);
       throw new Error('Failed to fetch personas');
     }
+
     return response.json();
   });
 }

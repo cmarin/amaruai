@@ -5,33 +5,14 @@ export function getApiUrl() {
   if (!apiUrl) {
     throw new Error('API URL not configured');
   }
-
-  // Use URL object to ensure correct protocol
-  const url = new URL(apiUrl);
-  if (url.hostname === 'localhost') {
-    url.protocol = 'http:';
-  } else {
-    url.protocol = 'https:';
-  }
-
-  console.log('getApiUrl:', url.toString());
-  return url.toString();
-}
-
-// Helper function to safely get origin in both client and server contexts
-function getOrigin(): string {
-  if (typeof window !== 'undefined') {
-    return window.location.origin;
-  }
-  // Default to production URL during SSR
-  return 'https://amaruai.vercel.app';
+  return apiUrl;
 }
 
 export function getFetchOptions(options: RequestInit = {}): RequestInit {
+  // Basic headers that should be present in every request
   const defaultHeaders = {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
-    'Origin': getOrigin(),
   };
 
   // Merge headers, ensuring custom headers take precedence
@@ -40,12 +21,14 @@ export function getFetchOptions(options: RequestInit = {}): RequestInit {
     ...options.headers,
   };
 
-  return {
+  // Basic fetch options
+  const fetchOptions: RequestInit = {
     ...options,
-    credentials: 'include',
     mode: 'cors',
     headers,
   };
+
+  return fetchOptions;
 }
 
 export async function fetchWithRetry<T>(
@@ -57,7 +40,6 @@ export async function fetchWithRetry<T>(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      console.log('Attempting fetch with URL:', fetchFunction.toString());
       return await fetchFunction();
     } catch (error) {
       lastError = error as Error;
