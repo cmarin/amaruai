@@ -366,10 +366,8 @@ function ChatContent() {
         const decoder = new TextDecoder()
 
         let assistantMessage = ''
-        setMessagesFunction(prev => [
-          ...prev,
-          { role: 'assistant', content: '' },
-        ])
+        let hasCreatedAssistantMessage = false
+        // Removed initial empty message creation
 
         streamStartTime = Date.now()
 
@@ -418,17 +416,23 @@ function ChatContent() {
                 if (parsed.choices?.[0]?.delta?.content) {
                   hasReceivedContent = true
                   assistantMessage += parsed.choices[0].delta.content
-                  setMessagesFunction(prev => {
-                    const updated = [...prev]
-                    updated[updated.length - 1] = {
-                      role: 'assistant',
-                      content: assistantMessage,
-                    }
-                    if (chatContainerRef.current) {
-                      chatContainerRef.current.style.overflowY = 'auto';
-                    }
-                    return updated
-                  })
+                  
+                  if (!hasCreatedAssistantMessage) {
+                    hasCreatedAssistantMessage = true
+                    setMessagesFunction(prev => [...prev, { role: 'assistant', content: assistantMessage }])
+                  } else {
+                    setMessagesFunction(prev => {
+                      const updated = [...prev]
+                      updated[updated.length - 1] = {
+                        role: 'assistant',
+                        content: assistantMessage,
+                      }
+                      if (chatContainerRef.current) {
+                        chatContainerRef.current.style.overflowY = 'auto';
+                      }
+                      return updated
+                    })
+                  }
                 }
               } catch (parseError) {
                 console.warn('Error parsing chunk, skipping:', parseError)
