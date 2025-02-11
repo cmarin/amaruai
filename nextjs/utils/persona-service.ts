@@ -47,7 +47,7 @@ export async function fetchPersonas(headers: ApiHeaders): Promise<Persona[]> {
       throw new Error('API_BASE_URL is not defined');
     }
 
-    const response = await fetch(`${apiUrl}/personas`, getFetchOptions({
+    const response = await fetch(`${apiUrl}/personas/`, getFetchOptions({
       method: 'GET',
       headers
     }));
