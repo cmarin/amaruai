@@ -62,6 +62,8 @@ function ChatContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
+  console.log('Chat component personas:', personas);
+
   const [messages, setMessages] = useState<Message[]>([])
   const [messages2, setMessages2] = useState<Message[]>([])
   const [messages3, setMessages3] = useState<Message[]>([])
@@ -79,6 +81,11 @@ function ChatContent() {
     chat3: 'default',
     chat4: 'default'
   })
+
+  useEffect(() => {
+    console.log('Personas changed:', personas);
+  }, [personas]);
+
   const [conversationIds, setConversationIds] = useState<{ [key: string]: string }>({})
   const [multiConversationId, setMultiConversationId] = useState<string | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])

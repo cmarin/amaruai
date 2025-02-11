@@ -68,6 +68,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         fetchCategories(headers),
       ]);
 
+      console.log('Fetched personas data:', personasData);
+
       // Transform the chat models to include the additional fields
       const transformAllModels = (models: BaseChatModel[]) => models.map(model => {
         const now = new Date().toISOString();
@@ -104,6 +106,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       setChatModels(transformedAllModels);
       setFavoriteChatModels(transformedFavoriteModels);
+      console.log('Setting personas state:', personasData);
       setPersonas(personasData);
       setPromptTemplates(templates);
       setCategories(categoriesData);
