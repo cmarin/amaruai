@@ -112,3 +112,79 @@ def create_embeddings_for_asset(
     except Exception as e:
         logger.error(f"Error creating embeddings for asset {asset_id}: {str(e)}", exc_info=True)
         return False
+
+def text_to_embedding(text: str) -> list[float]:
+    """
+    Convert input text to an embedding using OpenAI's embedding model.
+    
+    Args:
+        text (str): The input text to convert to an embedding
+        
+    Returns:
+        list[float]: The embedding vector
+        
+    Raises:
+        ValueError: If OpenAI API key is not set or if the API call fails
+    """
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if not openai_key:
+        raise ValueError("No OPENAI_API_KEY found in environment.")
+        
+    from openai import OpenAI
+    openai_client = OpenAI(api_key=openai_key)
+    
+    resp = openai_client.embeddings.create(
+        model="text-embedding-ada-002",
+        input=text
+    )
+    return resp.data[0].embedding
+
+def find_relevant_chunks(
+    embedding: list[float],
+    postgres_connection_string: str,
+    collection_name: str = "embeddings",
+    num_chunks: int = 5,
+    similarity_cutoff: float = 0.7
+) -> list[dict]:
+    """
+    Find the most relevant chunks based on a query embedding.
+    
+    Args:
+        embedding (list[float]): The query embedding vector
+        postgres_connection_string (str): Connection string for the Postgres database
+        collection_name (str): Name of the vecs collection to search in
+        num_chunks (int): Number of chunks to return
+        similarity_cutoff (float): Minimum similarity score threshold
+        
+    Returns:
+        list[dict]: List of relevant chunks with their metadata and similarity scores
+    """
+    # Connect to vecs
+    c = vecs.create_client(postgres_connection_string)
+    
+    try:
+        # Get the collection
+        coll = c.get_collection(name=collection_name)
+        
+        # Query for similar vectors
+        results = coll.query(
+            data=embedding,
+            limit=num_chunks,
+            include_value=True,
+            include_metadata=True
+        )
+        
+        # Filter and format results
+        relevant_chunks = []
+        for record_id, score, value, metadata in results:
+            if score >= similarity_cutoff:
+                relevant_chunks.append({
+                    "id": record_id,
+                    "score": score,
+                    "metadata": metadata
+                })
+                
+        return relevant_chunks
+        
+    finally:
+        c.disconnect()
