@@ -1,10 +1,19 @@
 # embeddings.py
 import logging
 import os
+from dotenv import load_dotenv
 import psycopg2
 from datetime import datetime
 import vecs
 from vecs.collection import CollectionNotFound
+
+# Load environment variables
+load_dotenv()
+
+# Get database URL
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if DATABASE_URL is None:
+    raise ValueError("DATABASE_URL environment variable is not set")
 
 # LlamaIndex imports
 from llama_index.core.node_parser import SemanticSplitterNodeParser
@@ -139,52 +148,87 @@ def text_to_embedding(text: str) -> list[float]:
     )
     return resp.data[0].embedding
 
+def get_vector_store():
+    """Get or create a vector store instance."""
+    from llama_index.vector_stores.supabase import SupabaseVectorStore
+    
+    vector_store = SupabaseVectorStore(
+        postgres_connection_string=DATABASE_URL,
+        collection_name="embeddings",  # This should match your table name in Supabase
+        dimension=1536,  # OpenAI ada-002 embedding dimension
+        schema_name="vecs"  # Add schema name to match your setup
+    )
+    
+    return vector_store
+
 def find_relevant_chunks(
-    embedding: list[float],
-    postgres_connection_string: str,
-    collection_name: str = "embeddings",
+    query_text: str,
     num_chunks: int = 5,
     similarity_cutoff: float = 0.7
 ) -> list[dict]:
     """
-    Find the most relevant chunks based on a query embedding.
+    Find the most relevant chunks based on a query text.
     
     Args:
-        embedding (list[float]): The query embedding vector
-        postgres_connection_string (str): Connection string for the Postgres database
-        collection_name (str): Name of the vecs collection to search in
+        query_text (str): The query text to search for
         num_chunks (int): Number of chunks to return
         similarity_cutoff (float): Minimum similarity score threshold
         
     Returns:
         list[dict]: List of relevant chunks with their metadata and similarity scores
     """
-    # Connect to vecs
-    c = vecs.create_client(postgres_connection_string)
+    from llama_index.embeddings.openai import OpenAIEmbedding
+    import psycopg2
+    import json
     
     try:
-        # Get the collection
-        coll = c.get_collection(name=collection_name)
+        # Initialize embedding model
+        embed_model = OpenAIEmbedding()
         
-        # Query for similar vectors
-        results = coll.query(
-            data=embedding,
-            limit=num_chunks,
-            include_value=True,
-            include_metadata=True
-        )
+        # Get query embedding
+        query_embedding = embed_model.get_query_embedding(query_text)
         
-        # Filter and format results
-        relevant_chunks = []
-        for record_id, score, value, metadata in results:
-            if score >= similarity_cutoff:
-                relevant_chunks.append({
-                    "id": record_id,
-                    "score": score,
-                    "metadata": metadata
-                })
-                
-        return relevant_chunks
+        # Connect directly to database
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor()
         
-    finally:
-        c.disconnect()
+        # Execute vector similarity search
+        cur.execute("""
+            SELECT 
+                id,
+                metadata,
+                1 - (vec <=> %s::vector) as similarity
+            FROM vecs.embeddings
+            WHERE 1 - (vec <=> %s::vector) > %s
+            ORDER BY similarity DESC
+            LIMIT %s;
+        """, (query_embedding, query_embedding, similarity_cutoff, num_chunks))
+        
+        # Get results
+        results = cur.fetchall()
+        
+        # Format response
+        chunks = []
+        for item in results:
+            id_, metadata_str, similarity = item
+            metadata = json.loads(metadata_str) if isinstance(metadata_str, str) else metadata_str
+            
+            chunks.append({
+                "id": id_,
+                "score": float(similarity),
+                "text": metadata.get('text', ''),
+                "metadata": {
+                    k: v for k, v in metadata.items()
+                    if k != 'text'  # Exclude text since we're including it separately
+                }
+            })
+        
+        # Clean up
+        cur.close()
+        conn.close()
+        
+        return chunks
+        
+    except Exception as e:
+        logger.error(f"Error querying vector store: {str(e)}", exc_info=True)
+        raise ValueError(f"Error querying vector store: {str(e)}")

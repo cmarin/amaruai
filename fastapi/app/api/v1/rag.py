@@ -1,10 +1,15 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from app.database import get_db, DATABASE_URL
+from app.database import get_db
 from app.api.v1.router import create_protected_router
-from app.embeddings import text_to_embedding, find_relevant_chunks
+from app.embeddings import find_relevant_chunks
 from typing import Optional
 import logging
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -27,16 +32,16 @@ async def search_chunks(
         similarity_cutoff (float, optional): Minimum similarity score threshold. Defaults to 0.7.
         
     Returns:
-        list[dict]: List of relevant chunks with their metadata and similarity scores
+        dict: Dictionary containing chunks and total count
     """
     try:
-        # Convert query to embedding
-        query_embedding = text_to_embedding(query)
-        
-        # Find relevant chunks
+        # Check for OpenAI API key
+        if not os.getenv("OPENAI_API_KEY"):
+            raise ValueError("OPENAI_API_KEY environment variable is not set")
+            
+        # Find relevant chunks using LlamaIndex
         chunks = find_relevant_chunks(
-            embedding=query_embedding,
-            postgres_connection_string=DATABASE_URL,
+            query_text=query,
             num_chunks=num_chunks,
             similarity_cutoff=similarity_cutoff
         )
