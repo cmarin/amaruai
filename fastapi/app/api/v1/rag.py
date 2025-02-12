@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends
+from typing import Optional, List
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.v1.router import create_protected_router
 from app.embeddings import find_relevant_chunks
-from typing import Optional
 import logging
 import os
 from dotenv import load_dotenv
@@ -18,18 +18,24 @@ router = create_protected_router(prefix="rag", tags=["rag"])
 
 @router.post("/search")
 async def search_chunks(
-    query: str,
-    num_chunks: Optional[int] = 5,
-    similarity_cutoff: Optional[float] = 0.7,
+    query: str = Query(..., description="The search query"),
+    num_chunks: int = Query(5, description="Number of chunks to return"),
+    similarity_cutoff: float = Query(0.7, description="Minimum similarity score threshold"),
+    asset_ids: List[str] = Query(
+        default=None,
+        description="Optional list of asset IDs to filter by. Multiple values can be provided.",
+        example=["c1978409-e8bb-417b-b074-f3e94991ecb6"]
+    ),
     db: Session = Depends(get_db)
 ):
     """
     Search for relevant chunks using RAG (Retrieval Augmented Generation).
     
     Args:
-        query (str): The text query to search for
-        num_chunks (int, optional): Number of chunks to return. Defaults to 5.
-        similarity_cutoff (float, optional): Minimum similarity score threshold. Defaults to 0.7.
+        query (str): The search query
+        num_chunks (int): Number of chunks to return (default: 5)
+        similarity_cutoff (float): Minimum similarity score threshold (default: 0.7)
+        asset_ids (list[str]): Optional list of asset IDs to filter by
         
     Returns:
         dict: Dictionary containing chunks and total count
@@ -43,7 +49,8 @@ async def search_chunks(
         chunks = find_relevant_chunks(
             query_text=query,
             num_chunks=num_chunks,
-            similarity_cutoff=similarity_cutoff
+            similarity_cutoff=similarity_cutoff,
+            asset_ids=asset_ids
         )
         
         return {
@@ -55,4 +62,7 @@ async def search_chunks(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error in RAG search: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Error querying vector store: {str(e)}"
+        )

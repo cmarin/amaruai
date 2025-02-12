@@ -164,7 +164,8 @@ def get_vector_store():
 def find_relevant_chunks(
     query_text: str,
     num_chunks: int = 5,
-    similarity_cutoff: float = 0.7
+    similarity_cutoff: float = 0.7,
+    asset_ids: list[str] | None = None
 ) -> list[dict]:
     """
     Find the most relevant chunks based on a query text.
@@ -173,6 +174,8 @@ def find_relevant_chunks(
         query_text (str): The query text to search for
         num_chunks (int): Number of chunks to return
         similarity_cutoff (float): Minimum similarity score threshold
+        asset_ids (list[str] | None): Optional list of asset IDs to filter by. If provided,
+            only chunks from these assets will be returned.
         
     Returns:
         list[dict]: List of relevant chunks with their metadata and similarity scores
@@ -192,17 +195,33 @@ def find_relevant_chunks(
         conn = psycopg2.connect(DATABASE_URL)
         cur = conn.cursor()
         
-        # Execute vector similarity search
-        cur.execute("""
+        # Build query
+        query = """
             SELECT 
                 id,
                 metadata,
                 1 - (vec <=> %s::vector) as similarity
             FROM vecs.embeddings
             WHERE 1 - (vec <=> %s::vector) > %s
+        """
+        params = [query_embedding, query_embedding, similarity_cutoff]
+        
+        # Add asset_ids filter if provided
+        if asset_ids:
+            # Use jsonb containment operator @> to check if metadata.asset_id is in the list
+            asset_filter = "AND metadata->>'asset_id' = ANY(%s)"
+            query += asset_filter
+            params.append(asset_ids)
+        
+        # Add ordering and limit
+        query += """
             ORDER BY similarity DESC
             LIMIT %s;
-        """, (query_embedding, query_embedding, similarity_cutoff, num_chunks))
+        """
+        params.append(num_chunks)
+        
+        # Execute vector similarity search
+        cur.execute(query, params)
         
         # Get results
         results = cur.fetchall()
@@ -216,10 +235,10 @@ def find_relevant_chunks(
             chunks.append({
                 "id": id_,
                 "score": float(similarity),
-                "text": metadata.get('text', ''),
+                "text": metadata.get('chunk_text', ''),
                 "metadata": {
                     k: v for k, v in metadata.items()
-                    if k != 'text'  # Exclude text since we're including it separately
+                    if k != 'chunk_text'
                 }
             })
         
