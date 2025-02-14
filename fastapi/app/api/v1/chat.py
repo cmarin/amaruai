@@ -23,6 +23,7 @@ from app import crud
 from app.database import get_db
 from app.utils import format_openai_message, log_chat_request, UUIDEncoder
 from app.config.asset_utils import collect_reference_content
+from app.config.chat_utils import get_optimized_reference_content
 
 logging.basicConfig(
     level=logging.INFO,
@@ -135,7 +136,6 @@ async def chat_endpoint(
         else:
             raise HTTPException(status_code=422, detail="No message(s) provided.")
 
-
         global active_connections
         start_time = time.time()
 
@@ -245,12 +245,15 @@ async def chat_endpoint(
                                 logger.info(f"Appended image {file.name} to last user message")
                                 break
 
-            # Process referenced knowledge bases and assets
+            # Process referenced knowledge bases and assets with optimization
             if chat_data.knowledge_base_ids or chat_data.asset_ids:
-                reference_content, total_tokens = collect_reference_content(
+                reference_content, content_tokens, used_rag = get_optimized_reference_content(
                     db=db,
+                    query_text=chat_data.message,
                     knowledge_base_ids=chat_data.knowledge_base_ids,
-                    asset_ids=chat_data.asset_ids
+                    asset_ids=chat_data.asset_ids,
+                    max_tokens=chat_model.max_tokens,
+                    token_threshold=0.75
                 )
                 
                 if reference_content:
@@ -258,7 +261,8 @@ async def chat_endpoint(
                     for i in range(len(local_messages) - 1, -1, -1):
                         if local_messages[i]["role"] == "user":
                             local_messages[i]["content"] += "\n\nReferenced Content:" + reference_content
-                            logger.info(f"Added referenced content with {total_tokens} total tokens to user message")
+                            strategy = "RAG" if used_rag else "full content"
+                            logger.info(f"Added referenced content using {strategy} strategy with {content_tokens} tokens")
                             break
 
             # Put user messages into memory
