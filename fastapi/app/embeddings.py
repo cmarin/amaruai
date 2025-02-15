@@ -58,7 +58,7 @@ def create_embeddings_for_asset(
         #    We'll need an embedding model handle for LlamaIndex to decide chunk breakpoints
         embed_model = OpenAIEmbedding(api_key=openai_key)
         splitter = SemanticSplitterNodeParser(
-            buffer_size=1,
+            buffer_size=3,
             breakpoint_percentile_threshold=95,  # tune as needed
             embed_model=embed_model
         )
@@ -80,7 +80,7 @@ def create_embeddings_for_asset(
 
             # 1) Generate embedding for this chunk
             resp = openai_client.embeddings.create(
-                model="text-embedding-ada-002",
+                model="text-embedding-3-small",
                 input=chunk_text
             )
             chunk_embedding = resp.data[0].embedding
@@ -143,7 +143,7 @@ def text_to_embedding(text: str) -> list[float]:
     openai_client = OpenAI(api_key=openai_key)
     
     resp = openai_client.embeddings.create(
-        model="text-embedding-ada-002",
+        model="text-embedding-3-small",
         input=text
     )
     return resp.data[0].embedding
@@ -155,7 +155,7 @@ def get_vector_store():
     vector_store = SupabaseVectorStore(
         postgres_connection_string=DATABASE_URL,
         collection_name="embeddings",  # This should match your table name in Supabase
-        dimension=1536,  # OpenAI ada-002 embedding dimension
+        dimension=1536,  # OpenAI text-embedding-3-small embedding dimension
         schema_name="vecs"  # Add schema name to match your setup
     )
     
