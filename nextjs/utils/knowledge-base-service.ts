@@ -62,20 +62,13 @@ export async function createKnowledgeBase(knowledgeBase: KnowledgeBaseCreate, he
       throw new Error('API_BASE_URL is not defined');
     }
 
-    // First create the knowledge base without assets
-    const initialKB = {
-      title: knowledgeBase.title,
-      description: knowledgeBase.description,
-      asset_ids: [] // Initially create with no assets
-    };
-
     const response = await fetch(`${getApiUrl()}/knowledge_bases`, {
       method: 'POST',
       headers: {
         ...headers,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(initialKB),
+      body: JSON.stringify(knowledgeBase),
     });
 
     if (!response.ok) {
@@ -84,33 +77,7 @@ export async function createKnowledgeBase(knowledgeBase: KnowledgeBaseCreate, he
       throw new Error(`Failed to create knowledge base: ${response.status} ${response.statusText}`);
     }
 
-    const createdKB = await response.json();
-
-    // If there are assets to associate, update the knowledge base with them
-    if (knowledgeBase.asset_ids && knowledgeBase.asset_ids.length > 0) {
-      const updateResponse = await fetch(`${getApiUrl()}/knowledge_bases/${createdKB.id}`, {
-        method: 'PUT',
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: knowledgeBase.title,
-          description: knowledgeBase.description,
-          asset_ids: knowledgeBase.asset_ids
-        }),
-      });
-
-      if (!updateResponse.ok) {
-        const errorText = await updateResponse.text();
-        console.error('Error updating knowledge base with assets:', updateResponse.status, errorText);
-        throw new Error(`Failed to update knowledge base with assets: ${updateResponse.status} ${updateResponse.statusText}`);
-      }
-
-      return await updateResponse.json();
-    }
-
-    return createdKB;
+    return await response.json();
   } catch (error) {
     console.error('Error creating knowledge base:', error);
     throw error;

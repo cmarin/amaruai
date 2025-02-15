@@ -16,7 +16,7 @@ import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { useToast } from "@/hooks/use-toast";
 import { useParams } from 'next/navigation';
 import { fetchAssetsForKnowledgeBase } from '@/utils/knowledge-base-service';
-import { UploadService, UploadedFile } from '@/utils/upload-service';
+import { UploadService } from '@/utils/upload-service';
 import { Uppy } from '@uppy/core';
 import { Dashboard } from '@uppy/react';
 import '@uppy/core/dist/style.css';
@@ -24,19 +24,8 @@ import '@uppy/dashboard/dist/style.css';
 
 interface KnowledgeBaseManagerProps {
   knowledgeBase: KnowledgeBase | null;
-  onSave: (data: KnowledgeBaseCreate) => void;
+  onSave: () => void;
   onClose: () => void;
-}
-
-interface UppyResult {
-  successful: Array<{
-    id: string;
-    name: string;
-    type: string;
-    data: Blob;
-    size: number;
-  }>;
-  failed: Array<any>;
 }
 
 export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: KnowledgeBaseManagerProps): JSX.Element {
@@ -100,9 +89,6 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
   useEffect(() => {
     if (!supabase) return;
 
-    const headers = getApiHeaders();
-    if (!headers) return;
-
     const uppyInstance = UploadService.createUppy(
       'knowledge-base-uploader',
       {
@@ -110,34 +96,35 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
         storageFolder: 'knowledge-bases',
         storageBucket: 'amaruai-dev'
       },
-      async (file: UploadedFile) => {
+      async (file) => {
+        console.log('File uploaded:', file);
+      },
+      async (result) => {
         try {
-          const allAssets = await fetchAssets(headers);
-          const newAsset = allAssets.find(asset => asset.id === file.id);
-          
-          if (newAsset) {
-            setSelectedAssets(prev => [...prev, newAsset]);
-            setAvailableAssets(prev => [...prev, newAsset]);
+          const headers = getApiHeaders();
+          if (!headers) return;
+
+          if (knowledgeBaseId) {
+            const updatedAssets = await fetchAssetsForKnowledgeBase(knowledgeBaseId, headers);
+            setSelectedAssets(updatedAssets);
           }
+
+          setShowUploadModal(false);
+          toast({
+            title: "Success",
+            description: `${result.successful?.length || 0} file(s) uploaded successfully`,
+          });
         } catch (error) {
-          console.error('Error fetching new asset:', error);
+          console.error('Error processing uploaded files:', error);
           toast({
             title: "Error",
-            description: "Failed to process uploaded file",
+            description: "Failed to process uploaded files",
             variant: "destructive",
           });
         }
       },
-      async (result: UppyResult) => {
-        setShowUploadModal(false);
-        toast({
-          title: "Success",
-          description: `${result.successful?.length || 0} file(s) uploaded successfully`,
-        });
-      },
       supabase,
-      knowledgeBaseId,
-      headers
+      knowledgeBaseId
     );
 
     setUppy(uppyInstance);
@@ -172,16 +159,16 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       };
 
       if (knowledgeBaseId) {
-        // If we have an ID, we're updating an existing knowledge base
         await updateKnowledgeBase(knowledgeBaseId, payload, headers);
-        toast({
-          title: "Success",
-          description: "Knowledge base updated successfully",
-        });
       } else {
-        // If we don't have an ID, let the parent handle the creation
-        onSave(payload);
+        await createKnowledgeBase(payload, headers);
       }
+      
+      onSave();
+      toast({
+        title: "Success",
+        description: `Knowledge base ${knowledgeBaseId ? 'updated' : 'created'} successfully`,
+      });
     } catch (error) {
       console.error('Error saving knowledge base:', error);
       toast({
@@ -326,28 +313,22 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       </Dialog>
 
       {/* Upload Modal */}
-      <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
-        <DialogContent className="w-[800px] max-w-[90vw]">
-          <DialogHeader>
-            <DialogTitle>Upload Assets</DialogTitle>
-          </DialogHeader>
-          <div className="h-[400px]">
-            {uppy && (
-              <Dashboard
-                uppy={uppy}
-                plugins={[]}
-                width="100%"
-                height="100%"
+      {showUploadModal && uppy && (
+        <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+          <DialogContent className="w-[600px] max-w-[90vw]">
+            <DialogHeader>
+              <DialogTitle>Upload Assets</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <Dashboard 
+                uppy={uppy} 
+                plugins={[]} 
+                proudlyDisplayPoweredByUppy={false}
               />
-            )}
-          </div>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setShowUploadModal(false)}>
-              Cancel
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
