@@ -164,11 +164,13 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
         await createKnowledgeBase(payload, headers);
       }
       
-      onSave();
       toast({
         title: "Success",
         description: `Knowledge base ${knowledgeBaseId ? 'updated' : 'created'} successfully`,
       });
+
+      onSave();
+      onClose();
     } catch (error) {
       console.error('Error saving knowledge base:', error);
       toast({
