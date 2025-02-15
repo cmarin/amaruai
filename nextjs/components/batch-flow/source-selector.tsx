@@ -64,6 +64,25 @@ export function SourceSelector({
     );
   };
 
+  const handleFileUpload = (file: UploadedFile) => {
+    // Convert UploadedFile to BatchFlowFile
+    const batchFlowFile: BatchFlowFile = {
+      id: file.id,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      uploadURL: file.uploadURL,
+      file_name: file.name,
+      status: {
+        id: '',
+        status: 'pending',
+        token_count: 0,
+        file_name: file.name
+      }
+    };
+    onFileUpload(batchFlowFile as any); // Using 'any' here because onFileUpload expects UploadedFile
+  };
+
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -75,7 +94,7 @@ export function SourceSelector({
         <TabsContent value="upload" className="space-y-4">
           <AssetUploader
             onUploadComplete={(files) => {
-              files.forEach(file => onFileUpload(file));
+              files.forEach(handleFileUpload);
             }}
           />
           
