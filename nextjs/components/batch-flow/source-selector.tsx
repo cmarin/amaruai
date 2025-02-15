@@ -7,6 +7,7 @@ import { Asset, KnowledgeBase } from "@/types/knowledge-base";
 import { useSession } from '@/app/utils/session/session';
 import { fetchKnowledgeBases } from '@/utils/knowledge-base-service';
 import { useEffect } from 'react';
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface SourceSelectorProps {
   onFileUpload: (file: UploadedFile) => void;
@@ -48,6 +49,17 @@ export function SourceSelector({
     fetchData();
   }, [getApiHeaders]);
 
+  const renderFileStatus = (file: UploadedFile) => {
+    return (
+      <li key={file.id} className="flex items-center justify-between py-2">
+        <span>{file.name}</span>
+        <span className="text-sm text-muted-foreground">
+          {file.status?.status || 'Uploading...'}
+        </span>
+      </li>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -56,12 +68,23 @@ export function SourceSelector({
           <TabsTrigger value="select">Select Sources</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="upload">
+        <TabsContent value="upload" className="space-y-4">
           <AssetUploader
             onUploadComplete={(files) => {
               files.forEach(file => onFileUpload(file));
             }}
           />
+          
+          {uploadedFiles.length > 0 && (
+            <div className="border rounded-lg p-4">
+              <h4 className="font-medium mb-2">Upload Status:</h4>
+              <ScrollArea className="h-[200px]">
+                <ul className="divide-y">
+                  {uploadedFiles.map(renderFileStatus)}
+                </ul>
+              </ScrollArea>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="select">
