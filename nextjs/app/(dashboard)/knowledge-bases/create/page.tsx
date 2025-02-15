@@ -31,8 +31,13 @@ export default function CreateKnowledgeBasePage() {
         return;
       }
       
-      // First create the knowledge base
-      const newKnowledgeBase = await createKnowledgeBase(data, headers);
+      // Create the knowledge base
+      await createKnowledgeBase(data, headers);
+      
+      toast({
+        title: "Success",
+        description: "Knowledge base created successfully",
+      });
       
       router.push('/knowledge-bases');
     } catch (error) {

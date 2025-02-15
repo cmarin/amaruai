@@ -115,6 +115,9 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
           const headers = getApiHeaders();
           if (!headers) return;
 
+          // Wait a bit for the server to process the files
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
           // Load all assets and find the newly uploaded ones
           const allAssets = await fetchAssets(headers);
           const newAssets = allAssets.filter(asset => 
@@ -175,16 +178,16 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       };
 
       if (knowledgeBaseId) {
+        // If we have an ID, we're updating an existing knowledge base
         await updateKnowledgeBase(knowledgeBaseId, payload, headers);
+        toast({
+          title: "Success",
+          description: "Knowledge base updated successfully",
+        });
       } else {
-        await createKnowledgeBase(payload, headers);
+        // If we don't have an ID, let the parent handle the creation
+        onSave(payload);
       }
-      
-      onSave(payload);
-      toast({
-        title: "Success",
-        description: `Knowledge base ${knowledgeBaseId ? 'updated' : 'created'} successfully`,
-      });
     } catch (error) {
       console.error('Error saving knowledge base:', error);
       toast({
