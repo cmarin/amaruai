@@ -31,6 +31,7 @@ type KnowledgeBaseManagerProps = {
 export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: KnowledgeBaseManagerProps): JSX.Element {
   const params = useParams();
   const knowledgeBaseId = params?.id as string || knowledgeBase?.id || undefined;
+  const isEditing = !!knowledgeBaseId;
   const [currentKnowledgeBase, setCurrentKnowledgeBase] = useState({
     title: knowledgeBase?.title || '',
     description: knowledgeBase?.description || '',
@@ -195,7 +196,7 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       <div className="flex-grow p-6 overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">
-            {knowledgeBaseId ? 'Edit Knowledge Base' : 'Create Knowledge Base'}
+            {isEditing ? 'Edit Knowledge Base' : 'Create Knowledge Base'}
           </h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-6 w-6" />
@@ -204,7 +205,7 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
 
         <div className="space-y-6">
           {/* Title and Description Panel */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+          <div className="rounded-lg border bg-card text-card-foreground shadow">
             <div className="p-6 space-y-4">
               <div>
                 <Label htmlFor="title" className="text-base">Title</Label>
@@ -232,33 +233,35 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
             </div>
           </div>
 
-          {/* Assets Panel */}
-          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Assets</h3>
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => setShowUploadModal(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Upload Assets
-                  </Button>
-                  <Button onClick={() => setShowAssetSelector(true)}>
-                    Select Assets
-                  </Button>
+          {/* Only show Assets Panel when editing */}
+          {isEditing && (
+            <div className="rounded-lg border bg-card text-card-foreground shadow">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Assets</h3>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => setShowUploadModal(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Upload Assets
+                    </Button>
+                    <Button onClick={() => setShowAssetSelector(true)}>
+                      Select Assets
+                    </Button>
+                  </div>
+                </div>
+                <div className="overflow-hidden rounded-md border">
+                  <AssetsTable 
+                    assets={selectedAssets}
+                    onDeleteAsset={handleRemoveAsset}
+                    showActions={true}
+                  />
                 </div>
               </div>
-              <div className="overflow-hidden rounded-md border">
-                <AssetsTable 
-                  assets={selectedAssets}
-                  onDeleteAsset={handleRemoveAsset}
-                  showActions={true}
-                />
-              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -274,62 +277,66 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
         </div>
       </div>
 
-      <Dialog open={showAssetSelector} onOpenChange={setShowAssetSelector}>
-        <DialogContent className="w-[800px] max-w-[90vw]">
-          <DialogHeader>
-            <DialogTitle>Select Assets</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search assets..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1"
-              />
-            </div>
-            <AssetsTable 
-              assets={availableAssets.filter(asset => 
-                !selectedAssets.some(selected => selected.id === asset.id)
-              )}
-              showActions={true}
-              showStatus={false}
-              actionType="select"
-              onSelectAsset={handleAddAsset}
-              searchQuery={searchQuery}
-              currentPage={currentPage}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-              totalItems={availableAssets.filter(asset => 
-                !selectedAssets.some(selected => selected.id === asset.id)
-              ).length}
-            />
-          </div>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setShowAssetSelector(false)}>
-              Cancel
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Only render dialogs when editing */}
+      {isEditing && (
+        <>
+          <Dialog open={showAssetSelector} onOpenChange={setShowAssetSelector}>
+            <DialogContent className="w-[800px] max-w-[90vw]">
+              <DialogHeader>
+                <DialogTitle>Select Assets</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Search className="h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search assets..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+                <AssetsTable 
+                  assets={availableAssets.filter(asset => 
+                    !selectedAssets.some(selected => selected.id === asset.id)
+                  )}
+                  showActions={true}
+                  showStatus={false}
+                  actionType="select"
+                  onSelectAsset={handleAddAsset}
+                  searchQuery={searchQuery}
+                  currentPage={currentPage}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                  totalItems={availableAssets.filter(asset => 
+                    !selectedAssets.some(selected => selected.id === asset.id)
+                  ).length}
+                />
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => setShowAssetSelector(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
-      {/* Upload Modal */}
-      {showUploadModal && uppy && (
-        <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
-          <DialogContent className="w-[600px] max-w-[90vw]">
-            <DialogHeader>
-              <DialogTitle>Upload Assets</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <Dashboard 
-                uppy={uppy} 
-                plugins={[]} 
-                proudlyDisplayPoweredByUppy={false}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
+          {showUploadModal && uppy && (
+            <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+              <DialogContent className="w-[600px] max-w-[90vw]">
+                <DialogHeader>
+                  <DialogTitle>Upload Assets</DialogTitle>
+                </DialogHeader>
+                <div className="py-4">
+                  <Dashboard 
+                    uppy={uppy} 
+                    plugins={[]} 
+                    proudlyDisplayPoweredByUppy={false}
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </>
       )}
     </div>
   );
