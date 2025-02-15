@@ -22,9 +22,9 @@ import { Dashboard } from '@uppy/react';
 import '@uppy/core/dist/style.css';
 import '@uppy/dashboard/dist/style.css';
 
-interface KnowledgeBaseManagerProps {
+type KnowledgeBaseManagerProps = {
   knowledgeBase: KnowledgeBase | null;
-  onSave: () => void;
+  onSave: () => void | Promise<void>;
   onClose: () => void;
 }
 

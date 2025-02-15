@@ -1,12 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import KnowledgeBaseManager from '@/components/knowledge-base-manager';
+import { useSession } from '@/app/utils/session/session';
 import { AppSidebar } from '@/components/app-sidebar';
 import { useSidebar } from '@/components/sidebar-context';
-import { createKnowledgeBase } from '@/utils/knowledge-base-service';
-import { KnowledgeBaseCreate } from '@/types/knowledge-base';
-import { useSession } from '@/app/utils/session/session';
+import KnowledgeBaseManager from '@/components/knowledge-base-manager';
+import { createKnowledgeBase, KnowledgeBaseCreate } from '@/utils/knowledge-base-service';
 import { useToast } from '@/hooks/use-toast';
 
 export default function CreateKnowledgeBasePage() {
@@ -14,13 +14,15 @@ export default function CreateKnowledgeBasePage() {
   const { sidebarOpen } = useSidebar();
   const { getApiHeaders } = useSession();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   const toggleChatbot = (modelId: string) => {
     router.push(`/chat?model=${modelId}`);
   };
 
-  const handleSave = async (data: KnowledgeBaseCreate) => {
+  const handleSave = async () => {
     try {
+      setIsLoading(true);
       const headers = getApiHeaders();
       if (!headers) {
         toast({
@@ -32,7 +34,7 @@ export default function CreateKnowledgeBasePage() {
       }
       
       // Create the knowledge base
-      await createKnowledgeBase(data, headers);
+      await createKnowledgeBase(null, headers);
       
       toast({
         title: "Success",
@@ -41,12 +43,14 @@ export default function CreateKnowledgeBasePage() {
       
       router.push('/knowledge-bases');
     } catch (error) {
-      console.error('Failed to create knowledge base:', error);
+      console.error('Error creating knowledge base:', error);
       toast({
         title: "Error",
         description: "Failed to create knowledge base",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
