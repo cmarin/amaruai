@@ -70,8 +70,6 @@ export default function BatchFlow() {
       }
     };
     setUploadedFiles(prev => [...prev, fileWithStatus]);
-    // Automatically advance to the process step
-    setCurrentStep('process');
   }, []);
 
   const handleRemoveFile = useCallback((file: BatchFlowFile) => {

@@ -11,6 +11,7 @@ interface SourceSelectorProps {
   selectedAssets: Asset[];
   selectedKnowledgeBases: KnowledgeBase[];
   uploadedFiles: UploadedFile[];
+  onUploadComplete?: () => void;
 }
 
 export function SourceSelector({
@@ -19,7 +20,8 @@ export function SourceSelector({
   onKnowledgeBaseSelect,
   selectedAssets,
   selectedKnowledgeBases,
-  uploadedFiles
+  uploadedFiles,
+  onUploadComplete
 }: SourceSelectorProps) {
   const [activeTab, setActiveTab] = useState("upload");
 
@@ -34,6 +36,9 @@ export function SourceSelector({
           <AssetUploader
             onUploadComplete={(files) => {
               files.forEach(file => onFileUpload(file));
+              if (onUploadComplete) {
+                onUploadComplete();
+              }
             }}
           />
         </TabsContent>
