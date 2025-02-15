@@ -166,10 +166,12 @@ export default function BatchFlow() {
         }
       },
       handleFileUpload,
-      undefined,
+      (result) => {
+        setCurrentStep('process');
+      },
       supabase
     );
-  }, [session, supabase, handleFileUpload]);
+  }, [session, supabase, handleFileUpload, setCurrentStep]);
 
   useEffect(() => {
     const newTotal = uploadedFiles.reduce((sum, file) => 

@@ -36,7 +36,7 @@ export class UploadService {
 
         const uppy = new Uppy({
             id,
-            autoProceed: false,  // Changed back to false to match old behavior
+            autoProceed: true,  // Changed to true to auto-upload files
             restrictions: {
                 maxFileSize: config.restrictions?.maxFileSize || 10 * 1024 * 1024,
                 maxNumberOfFiles: config.maxFiles || 10,
@@ -117,6 +117,7 @@ export class UploadService {
         });
 
         uppy.on('complete', (result) => {
+            // Disable toast notification here
             if (onComplete) {
                 onComplete(result);
             }
