@@ -155,13 +155,30 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       const payload: KnowledgeBaseCreate = {
         title: currentKnowledgeBase.title,
         description: currentKnowledgeBase.description,
-        asset_ids: selectedAssets.map(asset => asset.id)
+        asset_ids: [] // Initially create without assets
       };
 
+      let savedKnowledgeBaseId: string;
+
       if (knowledgeBaseId) {
-        await updateKnowledgeBase(knowledgeBaseId, payload, headers);
+        // Updating existing knowledge base
+        await updateKnowledgeBase(knowledgeBaseId, {
+          ...payload,
+          asset_ids: selectedAssets.map(asset => asset.id)
+        }, headers);
+        savedKnowledgeBaseId = knowledgeBaseId;
       } else {
-        await createKnowledgeBase(payload, headers);
+        // Creating new knowledge base
+        const newKnowledgeBase = await createKnowledgeBase(payload, headers);
+        savedKnowledgeBaseId = newKnowledgeBase.id;
+
+        // If we have assets, update the knowledge base with them
+        if (selectedAssets.length > 0) {
+          await updateKnowledgeBase(savedKnowledgeBaseId, {
+            ...payload,
+            asset_ids: selectedAssets.map(asset => asset.id)
+          }, headers);
+        }
       }
       
       toast({
