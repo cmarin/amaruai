@@ -99,6 +99,32 @@ export class UploadService {
                     .from(bucket)
                     .getPublicUrl(filePath);
 
+                // Create the asset in the database
+                const { data: asset, error: assetError } = await supabase
+                    .from('assets')
+                    .insert([
+                        {
+                            id: fileUuid,
+                            title: file.name,
+                            file_name: file.name,
+                            description: '',
+                            url: publicUrl,
+                            managed: true,
+                            type: 'file',
+                            mime_type: mimeType,
+                            file_type: mimeType.split('/')[1] || 'unknown',
+                            size: file.size,
+                            user_id: session.user.id,
+                            ...(knowledgeBaseId ? { knowledge_base_id: knowledgeBaseId } : {})
+                        }
+                    ])
+                    .select()
+                    .single();
+
+                if (assetError) {
+                    throw assetError;
+                }
+
                 const uploadedFile: UploadedFile = {
                     id: fileUuid,
                     name: file.name || '',

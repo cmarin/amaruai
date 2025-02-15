@@ -108,40 +108,28 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
         storageBucket: 'amaruai-dev'
       },
       async (file: UploadedFile) => {
-        console.log('File uploaded:', file);
-      },
-      async (result: UppyResult) => {
+        // When a file is uploaded, immediately fetch its asset data
         try {
           const headers = getApiHeaders();
           if (!headers) return;
 
-          // Wait a bit for the server to process the files
-          await new Promise(resolve => setTimeout(resolve, 1000));
-
-          // Load all assets and find the newly uploaded ones
           const allAssets = await fetchAssets(headers);
-          const managedAssets = allAssets.filter(asset => asset.managed);
-          const newAssets = managedAssets.filter(asset => 
-            result.successful?.some(file => file.name === asset.file_name)
-          );
-
-          // Update both available and selected assets
-          setAvailableAssets(managedAssets);
-          setSelectedAssets(prev => [...prev, ...newAssets]);
-
-          setShowUploadModal(false);
-          toast({
-            title: "Success",
-            description: `${result.successful?.length || 0} file(s) uploaded successfully`,
-          });
+          const newAsset = allAssets.find(asset => asset.id === file.id);
+          
+          if (newAsset) {
+            setSelectedAssets(prev => [...prev, newAsset]);
+            setAvailableAssets(prev => [...prev, newAsset]);
+          }
         } catch (error) {
-          console.error('Error processing uploaded files:', error);
-          toast({
-            title: "Error",
-            description: "Failed to process uploaded files",
-            variant: "destructive",
-          });
+          console.error('Error fetching new asset:', error);
         }
+      },
+      async (result: UppyResult) => {
+        setShowUploadModal(false);
+        toast({
+          title: "Success",
+          description: `${result.successful?.length || 0} file(s) uploaded successfully`,
+        });
       },
       supabase,
       knowledgeBaseId
