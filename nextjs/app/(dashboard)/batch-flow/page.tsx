@@ -18,6 +18,8 @@ import { WorkflowSteps } from '@/components/batch-flow/workflow-steps';
 import { FileProcessing } from '@/components/batch-flow/file-processing';
 import { ReviewStep } from '@/components/batch-flow/review-step';
 import { StreamingResults } from '@/components/batch-flow/streaming-results';
+import { Asset, KnowledgeBase } from '@/types/knowledge-base';
+import { SourceSelector } from '@/components/batch-flow/source-selector';
 
 const MAX_TOKENS = 100_000;
 
@@ -49,6 +51,8 @@ export default function BatchFlow() {
   const [processingStatus, setProcessingStatus] = useState('');
   const [fileResponses, setFileResponses] = useState<Record<string, string>>({});
   const [totalTokens, setTotalTokens] = useState(0);
+  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
+  const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([]);
 
   const handleFileUpload = useCallback((file: UploadedFile) => {
     const fileWithStatus: BatchFlowFile = {
@@ -116,6 +120,8 @@ export default function BatchFlow() {
       await executeBatchFlow(
         {
           file_ids: uploadedFiles.map(file => file.status.id),
+          asset_ids: selectedAssets.map(asset => asset.id),
+          knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
           steps: workflowSteps,
           customInstructions
         },
@@ -145,7 +151,7 @@ export default function BatchFlow() {
     } finally {
       setIsProcessing(false);
     }
-  }, [session, uploadedFiles, workflowSteps, customInstructions]);
+  }, [session, uploadedFiles, selectedAssets, selectedKnowledgeBases, workflowSteps, customInstructions]);
 
   const uppyRef = useMemo(() => {
     if (!session || !supabase) return null;
@@ -282,16 +288,13 @@ export default function BatchFlow() {
           <div className="p-6 border rounded-lg">
             {currentStep === 'upload' && (
               <div>
-                <Dashboard
-                  uppy={uppyRef}
-                  proudlyDisplayPoweredByUppy={false}
-                  showProgressDetails
-                  height={400}
-                  showRemoveButtonAfterComplete={true}
-                  hideUploadButton={true}
-                  hideRetryButton={true}
-                  hideCancelButton={false}
-                  doneButtonHandler={null}
+                <SourceSelector
+                  onFileUpload={handleFileUpload}
+                  onAssetSelect={setSelectedAssets}
+                  onKnowledgeBaseSelect={setSelectedKnowledgeBases}
+                  selectedAssets={selectedAssets}
+                  selectedKnowledgeBases={selectedKnowledgeBases}
+                  uploadedFiles={uploadedFiles}
                 />
 
                 <div className="flex justify-between mt-4">
@@ -305,7 +308,11 @@ export default function BatchFlow() {
                   <Button
                     variant="outline"
                     onClick={handleNext}
-                    disabled={uploadedFiles.length === 0}
+                    disabled={
+                      uploadedFiles.length === 0 && 
+                      selectedAssets.length === 0 && 
+                      selectedKnowledgeBases.length === 0
+                    }
                   >
                     Next
                   </Button>
