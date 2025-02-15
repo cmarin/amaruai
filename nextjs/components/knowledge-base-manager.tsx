@@ -100,6 +100,9 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
   useEffect(() => {
     if (!supabase) return;
 
+    const headers = getApiHeaders();
+    if (!headers) return;
+
     const uppyInstance = UploadService.createUppy(
       'knowledge-base-uploader',
       {
@@ -108,11 +111,7 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
         storageBucket: 'amaruai-dev'
       },
       async (file: UploadedFile) => {
-        // When a file is uploaded, immediately fetch its asset data
         try {
-          const headers = getApiHeaders();
-          if (!headers) return;
-
           const allAssets = await fetchAssets(headers);
           const newAsset = allAssets.find(asset => asset.id === file.id);
           
@@ -122,6 +121,11 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
           }
         } catch (error) {
           console.error('Error fetching new asset:', error);
+          toast({
+            title: "Error",
+            description: "Failed to process uploaded file",
+            variant: "destructive",
+          });
         }
       },
       async (result: UppyResult) => {
@@ -132,7 +136,8 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
         });
       },
       supabase,
-      knowledgeBaseId
+      knowledgeBaseId,
+      headers
     );
 
     setUppy(uppyInstance);

@@ -1,6 +1,8 @@
 import Uppy from '@uppy/core';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
+import { createAsset } from './asset-service';
+import { ApiHeaders } from '@/app/utils/session/session';
 
 export interface UploadedFile {
     id: string;
@@ -28,15 +30,20 @@ export class UploadService {
         onFileUploaded?: (file: UploadedFile) => void,
         onComplete?: (result: any) => void,
         supabase?: SupabaseClient,
-        knowledgeBaseId?: string
+        knowledgeBaseId?: string,
+        headers?: ApiHeaders
     ) {
         if (!supabase) {
             throw new Error('Supabase client is required');
         }
 
+        if (!headers) {
+            throw new Error('API headers are required');
+        }
+
         const uppy = new Uppy({
             id,
-            autoProceed: false,  // Changed back to false to match old behavior
+            autoProceed: false,
             restrictions: {
                 maxFileSize: config.restrictions?.maxFileSize || 10 * 1024 * 1024,
                 maxNumberOfFiles: config.maxFiles || 10,
@@ -74,6 +81,7 @@ export class UploadService {
                 const mimeType = file.type || 'application/octet-stream';
                 const bucket = config.storageBucket || 'amaruai-dev';
 
+                // First upload the file to storage
                 const { error: uploadError } = await supabase.storage
                     .from(bucket)
                     .upload(filePath, file.data, {
@@ -99,37 +107,25 @@ export class UploadService {
                     .from(bucket)
                     .getPublicUrl(filePath);
 
-                // Create the asset in the database
-                const { data: asset, error: assetError } = await supabase
-                    .from('assets')
-                    .insert([
-                        {
-                            id: fileUuid,
-                            title: file.name,
-                            file_name: file.name,
-                            description: '',
-                            url: publicUrl,
-                            managed: true,
-                            type: 'file',
-                            mime_type: mimeType,
-                            file_type: mimeType.split('/')[1] || 'unknown',
-                            size: file.size,
-                            user_id: session.user.id,
-                            ...(knowledgeBaseId ? { knowledge_base_id: knowledgeBaseId } : {})
-                        }
-                    ])
-                    .select()
-                    .single();
-
-                if (assetError) {
-                    throw assetError;
-                }
+                // Create the asset using the API
+                const asset = await createAsset({
+                    title: file.name,
+                    file_name: file.name,
+                    description: '',
+                    url: publicUrl,
+                    managed: true,
+                    type: 'file',
+                    mime_type: mimeType,
+                    file_type: mimeType.split('/')[1] || 'unknown',
+                    size: file.size,
+                    content: ''
+                }, headers);
 
                 const uploadedFile: UploadedFile = {
-                    id: fileUuid,
-                    name: file.name || '',
+                    id: asset.id,
+                    name: file.name,
                     type: file.type || 'application/octet-stream',
-                    size: file.size || 0,
+                    size: file.size,
                     uploadURL: publicUrl
                 };
 
