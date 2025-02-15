@@ -120,13 +120,14 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
 
           // Load all assets and find the newly uploaded ones
           const allAssets = await fetchAssets(headers);
-          const newAssets = allAssets.filter(asset => 
+          const managedAssets = allAssets.filter(asset => asset.managed);
+          const newAssets = managedAssets.filter(asset => 
             result.successful?.some(file => file.name === asset.file_name)
           );
 
-          // Update selected assets with the new ones
+          // Update both available and selected assets
+          setAvailableAssets(managedAssets);
           setSelectedAssets(prev => [...prev, ...newAssets]);
-          setAvailableAssets(allAssets.filter(asset => asset.managed));
 
           setShowUploadModal(false);
           toast({
@@ -332,22 +333,28 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       </Dialog>
 
       {/* Upload Modal */}
-      {showUploadModal && uppy && (
-        <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
-          <DialogContent className="w-[600px] max-w-[90vw]">
-            <DialogHeader>
-              <DialogTitle>Upload Assets</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <Dashboard 
-                uppy={uppy} 
-                plugins={[]} 
-                proudlyDisplayPoweredByUppy={false}
+      <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+        <DialogContent className="w-[800px] max-w-[90vw]">
+          <DialogHeader>
+            <DialogTitle>Upload Assets</DialogTitle>
+          </DialogHeader>
+          <div className="h-[400px]">
+            {uppy && (
+              <Dashboard
+                uppy={uppy}
+                plugins={[]}
+                width="100%"
+                height="100%"
               />
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            )}
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowUploadModal(false)}>
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
