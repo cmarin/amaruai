@@ -24,7 +24,7 @@ import '@uppy/dashboard/dist/style.css';
 
 interface KnowledgeBaseManagerProps {
   knowledgeBase: KnowledgeBase | null;
-  onSave: () => void;
+  onSave: (data: KnowledgeBaseCreate) => void;
   onClose: () => void;
 }
 
@@ -164,7 +164,7 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
         await createKnowledgeBase(payload, headers);
       }
       
-      onSave();
+      onSave(payload);
       toast({
         title: "Success",
         description: `Knowledge base ${knowledgeBaseId ? 'updated' : 'created'} successfully`,

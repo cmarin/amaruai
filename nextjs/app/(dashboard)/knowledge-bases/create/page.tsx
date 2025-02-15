@@ -4,18 +4,45 @@ import { useRouter } from 'next/navigation';
 import KnowledgeBaseManager from '@/components/knowledge-base-manager';
 import { AppSidebar } from '@/components/app-sidebar';
 import { useSidebar } from '@/components/sidebar-context';
+import { createKnowledgeBase } from '@/utils/knowledge-base-service';
+import { KnowledgeBaseCreate } from '@/types/knowledge-base';
+import { useSession } from '@/app/utils/session/session';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CreateKnowledgeBasePage() {
   const router = useRouter();
   const { sidebarOpen } = useSidebar();
+  const { getApiHeaders } = useSession();
+  const { toast } = useToast();
 
   const toggleChatbot = (modelId: string) => {
     router.push(`/chat?model=${modelId}`);
   };
 
-  const handleSave = async () => {
-    // Save logic here
-    router.push('/knowledge-bases');
+  const handleSave = async (data: KnowledgeBaseCreate) => {
+    try {
+      const headers = getApiHeaders();
+      if (!headers) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to create a knowledge base",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // First create the knowledge base
+      const newKnowledgeBase = await createKnowledgeBase(data, headers);
+      
+      router.push('/knowledge-bases');
+    } catch (error) {
+      console.error('Failed to create knowledge base:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create knowledge base",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -25,10 +52,7 @@ export default function CreateKnowledgeBasePage() {
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <KnowledgeBaseManager
             knowledgeBase={null}
-            onSave={() => {
-              handleSave();
-              router.push('/knowledge-bases');
-            }}
+            onSave={handleSave}
             onClose={() => router.push('/knowledge-bases')}
           />
         </div>
