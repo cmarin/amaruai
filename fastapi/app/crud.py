@@ -629,7 +629,19 @@ def get_asset_by_file_url(db: Session, file_url: str):
     # Perform the actual query
     asset = db.query(models.Asset).filter(models.Asset.file_url == file_url).first()
     if asset:
-        logger.info(f"Found matching asset: {asset.id}")
+        # Create a copy of the asset info without the content
+        asset_info = {
+            'id': asset.id,
+            'title': asset.title,
+            'file_name': asset.file_name,
+            'file_type': asset.file_type,
+            'size': asset.size,
+            'token_count': asset.token_count,
+            'file_url': asset.file_url,
+            'status': asset.status,
+            'managed': asset.managed
+        }
+        logger.info(f"Found asset: {asset_info}")
     else:
         logger.info("No matching asset found")
     
@@ -641,7 +653,19 @@ def get_asset(db: Session, asset_id: UUID):
     try:
         asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
         if asset:
-            logger.info(f"Found asset: {asset.__dict__}")
+            # Create a copy of the asset info without the content
+            asset_info = {
+                'id': asset.id,
+                'title': asset.title,
+                'file_name': asset.file_name,
+                'file_type': asset.file_type,
+                'size': asset.size,
+                'token_count': asset.token_count,
+                'file_url': asset.file_url,
+                'status': asset.status,
+                'managed': asset.managed
+            }
+            logger.info(f"Found asset: {asset_info}")
         else:
             logger.warning(f"No asset found with ID: {asset_id}")
             # Let's also check if the asset exists with a different case

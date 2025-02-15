@@ -92,6 +92,15 @@ def get_optimized_reference_content(
         asset_ids=list(all_asset_ids) if all_asset_ids else None
     )
     
+    # Log the retrieved chunks
+    logger.info("Retrieved the following chunks:")
+    for i, chunk in enumerate(relevant_chunks, 1):
+        logger.info(f"Chunk {i} (score: {chunk['score']:.3f}):")
+        logger.info(f"Text: {chunk['text'][:200]}..." if len(chunk['text']) > 200 else f"Text: {chunk['text']}")
+        if chunk['metadata'].get('source'):
+            logger.info(f"Source: {chunk['metadata']['source']}")
+        logger.info("-" * 50)
+    
     # Format chunks into reference content
     rag_content = "\nRelevant Content:\n"
     for chunk in relevant_chunks:

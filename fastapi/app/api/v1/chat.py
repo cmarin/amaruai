@@ -23,7 +23,7 @@ from app import crud
 from app.database import get_db
 from app.utils import format_openai_message, log_chat_request, UUIDEncoder
 from app.config.asset_utils import collect_reference_content
-from app.config.chat_utils import get_optimized_reference_content
+from app.config.rag_utils import get_optimized_reference_content
 
 logging.basicConfig(
     level=logging.INFO,
