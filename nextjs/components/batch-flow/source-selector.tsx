@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { BatchFlowFile } from '@/types';
 
 interface SourceSelectorProps {
-  onFileUpload: (file: UploadedFile) => void;
+  onFileUpload: (file: BatchFlowFile) => void;
   onAssetSelect: (assets: Asset[]) => void;
   onKnowledgeBaseSelect: (kbs: KnowledgeBase[]) => void;
   selectedAssets: Asset[];
@@ -80,7 +80,7 @@ export function SourceSelector({
         file_name: file.name
       }
     };
-    onFileUpload(batchFlowFile as any); // Using 'any' here because onFileUpload expects UploadedFile
+    onFileUpload(batchFlowFile);
   };
 
   return (
