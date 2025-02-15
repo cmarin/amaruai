@@ -58,7 +58,7 @@ def create_embeddings_for_asset(
         #    We'll need an embedding model handle for LlamaIndex to decide chunk breakpoints
         embed_model = OpenAIEmbedding(api_key=openai_key)
         splitter = SemanticSplitterNodeParser(
-            buffer_size=3,
+            buffer_size=2,
             breakpoint_percentile_threshold=95,  # tune as needed
             embed_model=embed_model
         )

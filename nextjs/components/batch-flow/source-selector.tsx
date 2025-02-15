@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AssetUploader } from "@/components/asset-uploader";
-import { AssetLibrary } from "@/components/asset-library";
-import { KnowledgeBaseLibrary } from "@/components/knowledge-base-library";
+import { KnowledgeBaseSelector } from "@/components/knowledge-base-selector";
 import { UploadedFile } from "@/utils/upload-service";
-import { Asset } from "@/types/knowledge-base";
-import { KnowledgeBase } from "@/types/knowledge-base";
+import { Asset, KnowledgeBase } from "@/types/knowledge-base";
+import { useSession } from '@/app/utils/session/session';
+import { fetchKnowledgeBases } from '@/utils/knowledge-base-service';
+import { useEffect } from 'react';
 
 interface SourceSelectorProps {
   onFileUpload: (file: UploadedFile) => void;
@@ -25,14 +26,34 @@ export function SourceSelector({
   uploadedFiles
 }: SourceSelectorProps) {
   const [activeTab, setActiveTab] = useState("upload");
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
+  const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(true);
+  const { getApiHeaders } = useSession();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const headers = await getApiHeaders();
+        if (!headers) return;
+
+        setIsLoadingKnowledgeBases(true);
+        const fetchedKnowledgeBases = await fetchKnowledgeBases(headers);
+        setKnowledgeBases(fetchedKnowledgeBases);
+      } catch (error) {
+        console.error('Error fetching knowledge bases:', error);
+      } finally {
+        setIsLoadingKnowledgeBases(false);
+      }
+    };
+    fetchData();
+  }, [getApiHeaders]);
 
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="upload">Upload Files</TabsTrigger>
-          <TabsTrigger value="assets">Select Assets</TabsTrigger>
-          <TabsTrigger value="knowledge-bases">Knowledge Bases</TabsTrigger>
+          <TabsTrigger value="select">Select Sources</TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload">
@@ -43,20 +64,27 @@ export function SourceSelector({
           />
         </TabsContent>
 
-        <TabsContent value="assets">
-          <AssetLibrary
-            selectedAssets={selectedAssets}
-            onAssetSelect={onAssetSelect}
-            multiSelect={true}
-          />
-        </TabsContent>
-
-        <TabsContent value="knowledge-bases">
-          <KnowledgeBaseLibrary
-            selectedKnowledgeBases={selectedKnowledgeBases}
-            onKnowledgeBaseSelect={onKnowledgeBaseSelect}
-            multiSelect={true}
-          />
+        <TabsContent value="select">
+          <div className="border rounded-lg p-4">
+            <KnowledgeBaseSelector
+              knowledgeBases={knowledgeBases}
+              isLoadingKnowledgeBases={isLoadingKnowledgeBases}
+              selectedKnowledgeBases={selectedKnowledgeBases}
+              selectedAssets={selectedAssets}
+              onSelectKnowledgeBase={(kb: KnowledgeBase) => {
+                onKnowledgeBaseSelect([...selectedKnowledgeBases, kb]);
+              }}
+              onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
+                onKnowledgeBaseSelect(selectedKnowledgeBases.filter(k => k.id !== kb.id));
+              }}
+              onSelectAsset={(asset: Asset) => {
+                onAssetSelect([...selectedAssets, asset]);
+              }}
+              onDeselectAsset={(asset: Asset) => {
+                onAssetSelect(selectedAssets.filter(a => a.id !== asset.id));
+              }}
+            />
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -79,7 +107,7 @@ export function SourceSelector({
               <h4 className="font-medium">Selected Assets:</h4>
               <ul className="list-disc pl-5">
                 {selectedAssets.map(asset => (
-                  <li key={asset.id}>{asset.name}</li>
+                  <li key={asset.id}>{asset.title}</li>
                 ))}
               </ul>
             </div>
@@ -90,7 +118,7 @@ export function SourceSelector({
               <h4 className="font-medium">Selected Knowledge Bases:</h4>
               <ul className="list-disc pl-5">
                 {selectedKnowledgeBases.map(kb => (
-                  <li key={kb.id}>{kb.name}</li>
+                  <li key={kb.id}>{kb.title}</li>
                 ))}
               </ul>
             </div>
