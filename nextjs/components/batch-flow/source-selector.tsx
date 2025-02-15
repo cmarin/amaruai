@@ -8,6 +8,7 @@ import { useSession } from '@/app/utils/session/session';
 import { fetchKnowledgeBases } from '@/utils/knowledge-base-service';
 import { useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { BatchFlowFile } from '@/types';
 
 interface SourceSelectorProps {
   onFileUpload: (file: UploadedFile) => void;
@@ -15,7 +16,7 @@ interface SourceSelectorProps {
   onKnowledgeBaseSelect: (kbs: KnowledgeBase[]) => void;
   selectedAssets: Asset[];
   selectedKnowledgeBases: KnowledgeBase[];
-  uploadedFiles: UploadedFile[];
+  uploadedFiles: BatchFlowFile[];
 }
 
 export function SourceSelector({
@@ -49,12 +50,15 @@ export function SourceSelector({
     fetchData();
   }, [getApiHeaders]);
 
-  const renderFileStatus = (file: UploadedFile) => {
+  const renderFileStatus = (file: BatchFlowFile) => {
     return (
       <li key={file.id} className="flex items-center justify-between py-2">
         <span>{file.name}</span>
         <span className="text-sm text-muted-foreground">
-          {file.status?.status || 'Uploading...'}
+          {file.status.status === 'pending' ? 'Processing...' : 
+           file.status.status === 'completed' ? 'Ready' :
+           file.status.status === 'failed' ? 'Failed' :
+           'Processing...'}
         </span>
       </li>
     );
