@@ -16,7 +16,7 @@ import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { useToast } from "@/hooks/use-toast";
 import { useParams } from 'next/navigation';
 import { fetchAssetsForKnowledgeBase } from '@/utils/knowledge-base-service';
-import { UploadService } from '@/utils/upload-service';
+import { UploadService, UploadedFile } from '@/utils/upload-service';
 import { Uppy } from '@uppy/core';
 import { Dashboard } from '@uppy/react';
 import '@uppy/core/dist/style.css';
@@ -26,6 +26,17 @@ interface KnowledgeBaseManagerProps {
   knowledgeBase: KnowledgeBase | null;
   onSave: (data: KnowledgeBaseCreate) => void;
   onClose: () => void;
+}
+
+interface UppyResult {
+  successful: Array<{
+    id: string;
+    name: string;
+    type: string;
+    data: Blob;
+    size: number;
+  }>;
+  failed: Array<any>;
 }
 
 export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }: KnowledgeBaseManagerProps): JSX.Element {
@@ -96,18 +107,23 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
         storageFolder: 'knowledge-bases',
         storageBucket: 'amaruai-dev'
       },
-      async (file) => {
+      async (file: UploadedFile) => {
         console.log('File uploaded:', file);
       },
-      async (result) => {
+      async (result: UppyResult) => {
         try {
           const headers = getApiHeaders();
           if (!headers) return;
 
-          if (knowledgeBaseId) {
-            const updatedAssets = await fetchAssetsForKnowledgeBase(knowledgeBaseId, headers);
-            setSelectedAssets(updatedAssets);
-          }
+          // Load all assets and find the newly uploaded ones
+          const allAssets = await fetchAssets(headers);
+          const newAssets = allAssets.filter(asset => 
+            result.successful?.some(file => file.name === asset.file_name)
+          );
+
+          // Update selected assets with the new ones
+          setSelectedAssets(prev => [...prev, ...newAssets]);
+          setAvailableAssets(allAssets.filter(asset => asset.managed));
 
           setShowUploadModal(false);
           toast({
