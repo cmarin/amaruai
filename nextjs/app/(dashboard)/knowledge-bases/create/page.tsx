@@ -6,7 +6,6 @@ import { useSession } from '@/app/utils/session/session';
 import { AppSidebar } from '@/components/app-sidebar';
 import { useSidebar } from '@/components/sidebar-context';
 import KnowledgeBaseManager from '@/components/knowledge-base-manager';
-import { createKnowledgeBase, KnowledgeBaseCreate } from '@/utils/knowledge-base-service';
 import { useToast } from '@/hooks/use-toast';
 
 export default function CreateKnowledgeBasePage() {
@@ -23,24 +22,6 @@ export default function CreateKnowledgeBasePage() {
   const handleSave = async () => {
     try {
       setIsLoading(true);
-      const headers = getApiHeaders();
-      if (!headers) {
-        toast({
-          title: "Error",
-          description: "You must be logged in to create a knowledge base",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Create the knowledge base
-      await createKnowledgeBase(null, headers);
-      
-      toast({
-        title: "Success",
-        description: "Knowledge base created successfully",
-      });
-      
       router.push('/knowledge-bases');
     } catch (error) {
       console.error('Error creating knowledge base:', error);
