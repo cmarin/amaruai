@@ -361,6 +361,7 @@ export default function BatchFlow() {
                   setCurrentStep('upload');
                   setIsProcessing(false);
                 }}
+                onProcessingChange={setIsProcessing}
                 session={session}
               />
             )}

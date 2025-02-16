@@ -25,6 +25,7 @@ interface StreamingResultsProps {
   customInstructions: string;
   onPrevious: () => void;
   onStartNewBatch: () => void;
+  onProcessingChange: (processing: boolean) => void;
   session: { access_token: string };
 }
 
@@ -41,6 +42,7 @@ export function StreamingResults({
   customInstructions,
   onPrevious,
   onStartNewBatch,
+  onProcessingChange,
   session,
 }: StreamingResultsProps) {
   const { toast } = useToast();
@@ -97,12 +99,17 @@ export function StreamingResults({
 
             try {
               const parsed = JSON.parse(jsonData);
-              if (parsed.choices?.[0]?.delta?.content) {
-                content += parsed.choices[0].delta.content;
-                setResults([{
-                  stepIndex: 0,
-                  content
-                }]);
+              if (parsed.choices?.[0]?.delta) {
+                if (parsed.choices[0].delta.content) {
+                  content += parsed.choices[0].delta.content;
+                  setResults([{
+                    stepIndex: 0,
+                    content
+                  }]);
+                }
+                if (parsed.choices[0].finish_reason === 'stop') {
+                  onProcessingChange(false);
+                }
               }
             } catch (err) {
               console.error('Error parsing SSE message:', err);
