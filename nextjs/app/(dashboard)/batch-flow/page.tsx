@@ -6,6 +6,7 @@ import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { useData } from '@/components/data-context';
 import { useSidebar } from '@/components/sidebar-context';
 import { AppSidebar } from '@/components/app-sidebar';
+import Uppy from '@uppy/core';
 import { Dashboard } from '@uppy/react';
 import '@uppy/core/dist/style.min.css';
 import '@uppy/dashboard/dist/style.min.css';
@@ -18,11 +19,15 @@ import { WorkflowSteps } from '@/components/batch-flow/workflow-steps';
 import { FileProcessing } from '@/components/batch-flow/file-processing';
 import { ReviewStep } from '@/components/batch-flow/review-step';
 import { StreamingResults } from '@/components/batch-flow/streaming-results';
+import { KnowledgeBaseSelector } from '@/components/knowledge-base-selector';
+import type { KnowledgeBase, Asset } from '@/types/knowledge-base';
+import type { Uppy as UppyType } from '@uppy/core';
 
 const MAX_TOKENS = 100_000;
 
 const steps = [
-  { id: 'upload', label: 'Upload' },
+  { id: 'upload', label: 'Upload Files (Optional)' },
+  { id: 'select-sources', label: 'Select Sources' },
   { id: 'process', label: 'Process' },
   { id: 'configure', label: 'Configure' },
   { id: 'review', label: 'Review' },
@@ -34,7 +39,7 @@ type StepId = typeof steps[number]['id'];
 export default function BatchFlow() {
   const { session } = useSession();
   const supabase = useSupabase();
-  const { promptTemplates, chatModels, personas, isLoading } = useData();
+  const { promptTemplates, chatModels, personas, knowledgeBases, isLoading } = useData();
   const { sidebarOpen, toggleSidebar } = useSidebar();
 
   const [currentStep, setCurrentStep] = useState<StepId>('upload');
@@ -49,6 +54,9 @@ export default function BatchFlow() {
   const [processingStatus, setProcessingStatus] = useState('');
   const [fileResponses, setFileResponses] = useState<Record<string, string>>({});
   const [totalTokens, setTotalTokens] = useState(0);
+  const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([]);
+  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
+  const [uppyInstance, setUppyInstance] = useState<UppyType | null>(null);
 
   const handleFileUpload = useCallback((file: UploadedFile) => {
     const fileWithStatus: BatchFlowFile = {
@@ -147,23 +155,30 @@ export default function BatchFlow() {
     }
   }, [session, uploadedFiles, workflowSteps, customInstructions]);
 
-  const uppyRef = useMemo(() => {
-    if (!session || !supabase) return null;
+  useEffect(() => {
+    const uppy = new Uppy({
+      restrictions: {
+        maxFileSize: 10 * 1024 * 1024, // 10MB
+        allowedFileTypes: ['text/*', '.pdf', '.doc', '.docx']
+      }
+    });
 
-    return UploadService.createUppy(
-      'batch-uploader',
-      {
-        maxFiles: 10,
-        storageFolder: 'batch-flow',
-        restrictions: {
-          allowedFileTypes: ['video/*', 'image/*', '.pdf', '.doc', '.docx', '.txt']
-        }
-      },
-      handleFileUpload,
-      undefined,
-      supabase
-    );
-  }, [session, supabase, handleFileUpload]);
+    uppy.on('file-added', (file) => {
+      // Handle file added
+    });
+
+    uppy.on('file-removed', (file) => {
+      // Handle file removed
+    });
+
+    setUppyInstance(uppy);
+
+    return () => {
+      uppy.cancelAll();
+      const fileIds = uppy.getFiles().map(f => f.id);
+      uppy.removeFiles(fileIds);
+    };
+  }, []);
 
   useEffect(() => {
     const newTotal = uploadedFiles.reduce((sum, file) => 
@@ -218,6 +233,184 @@ export default function BatchFlow() {
     return () => clearInterval(pollInterval);
   }, [session, uploadedFiles, currentStep]);
 
+  const canProceed = useMemo(() => {
+    switch (currentStep) {
+      case 'upload':
+        return true; // Upload step is now optional
+      case 'select-sources':
+        return uploadedFiles.length > 0 || selectedKnowledgeBases.length > 0 || selectedAssets.length > 0;
+      case 'process':
+        return uploadedFiles.every(file => file.status.status === 'completed');
+      case 'configure':
+        return workflowSteps.every(step => 
+          step.prompt_template_id && step.chat_model_id && step.persona_id
+        );
+      case 'review':
+        return true;
+      default:
+        return false;
+    }
+  }, [currentStep, uploadedFiles, selectedKnowledgeBases, selectedAssets, workflowSteps]);
+
+  const renderCurrentStep = () => {
+    switch (currentStep) {
+      case 'upload':
+        return (
+          <div className="space-y-4">
+            {uppyInstance && (
+              <Dashboard
+                uppy={uppyInstance}
+                proudlyDisplayPoweredByUppy={false}
+                showProgressDetails
+                height={400}
+                showRemoveButtonAfterComplete={true}
+                hideUploadButton={true}
+                hideRetryButton={true}
+                hideCancelButton={false}
+                doneButtonHandler={null}
+              />
+            )}
+          </div>
+        );
+      case 'select-sources':
+        return (
+          <div className="space-y-4">
+            <KnowledgeBaseSelector
+              knowledgeBases={knowledgeBases}
+              isLoadingKnowledgeBases={isLoading}
+              selectedKnowledgeBases={selectedKnowledgeBases}
+              selectedAssets={selectedAssets}
+              onSelectKnowledgeBase={(kb) => setSelectedKnowledgeBases(prev => [...prev, kb])}
+              onDeselectKnowledgeBase={(kb) => setSelectedKnowledgeBases(prev => prev.filter(k => k.id !== kb.id))}
+              onSelectAsset={(asset) => setSelectedAssets(prev => [...prev, asset])}
+              onDeselectAsset={(asset) => setSelectedAssets(prev => prev.filter(a => a.id !== asset.id))}
+            />
+            <div className="mt-4">
+              {selectedKnowledgeBases.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium mb-2">Selected Knowledge Bases</h3>
+                  {selectedKnowledgeBases.map((kb) => (
+                    <div key={kb.id} className="flex items-center justify-between p-2 border rounded mb-2">
+                      <span>{kb.title}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setSelectedKnowledgeBases(prev => prev.filter(k => k.id !== kb.id))}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {selectedAssets.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Selected Assets</h3>
+                  {selectedAssets.map((asset) => (
+                    <div key={asset.id} className="flex items-center justify-between p-2 border rounded mb-2">
+                      <span>{asset.title}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setSelectedAssets(prev => prev.filter(a => a.id !== asset.id))}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      case 'process':
+        return (
+          <FileProcessing
+            totalTokens={totalTokens}
+            maxTokens={MAX_TOKENS}
+            uploadedFiles={uploadedFiles}
+            onRemoveFile={handleRemoveFile}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+          />
+        );
+      case 'configure':
+        return (
+          <>
+            <WorkflowSteps
+              steps={workflowSteps}
+              onUpdateStep={handleUpdateStep}
+              onRemoveStep={handleRemoveStep}
+              onAddStep={handleAddStep}
+              promptTemplates={promptTemplates.map(t => ({
+                id: String(t.id),
+                title: t.title,
+                prompt: t.prompt,
+                // Include the full prompt template for preview
+                _template: t
+              }))}
+              chatModels={chatModels.map(m => ({
+                id: String(m.id),
+                name: m.name,
+                description: m.description || '',
+                // Include the full chat model for preview
+                _model: m
+              }))}
+              personas={personas.map(p => ({
+                id: String(p.id),
+                role: p.role
+              }))}
+            />
+
+            <div className="flex justify-between mt-6">
+              <Button variant="outline" onClick={handlePrevious}>
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleNext}
+                disabled={!workflowSteps.some(step => 
+                  step.prompt_template_id && step.chat_model_id && step.persona_id
+                )}
+              >
+                Next
+              </Button>
+            </div>
+          </>
+        );
+      case 'review':
+        return (
+          <ReviewStep
+            customInstructions={customInstructions}
+            onInstructionsChange={setCustomInstructions}
+            onPrevious={handlePrevious}
+            onExecute={() => {
+              handleExecute();
+              setCurrentStep('results');
+            }}
+          />
+        );
+      case 'results':
+        return (
+          <StreamingResults
+            isProcessing={isProcessing}
+            processingStatus={processingStatus}
+            uploadedFiles={uploadedFiles}
+            steps={workflowSteps}
+            customInstructions={customInstructions}
+            onPrevious={handlePrevious}
+            onStartNewBatch={() => {
+              setUploadedFiles([]);
+              setCurrentStep('upload');
+            }}
+            session={session!}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -226,31 +419,9 @@ export default function BatchFlow() {
     );
   }
 
-  if (!session || !uppyRef) {
+  if (!session || !uppyInstance) {
     return null;
   }
-
-  // Convert data context items to the correct types
-  const promptTemplateOptions: PromptTemplateOption[] = promptTemplates.map(t => ({
-    id: String(t.id),
-    title: t.title,
-    prompt: t.prompt,
-    // Include the full prompt template for preview
-    _template: t
-  }));
-
-  const chatModelOptions: ChatModelOption[] = chatModels.map(m => ({
-    id: String(m.id),
-    name: m.name,
-    description: m.description || '',
-    // Include the full chat model for preview
-    _model: m
-  }));
-
-  const personaOptions: PersonaOption[] = personas.map(p => ({
-    id: String(p.id),
-    role: p.role
-  }));
 
   return (
     <div className="flex h-screen bg-white">
@@ -280,106 +451,7 @@ export default function BatchFlow() {
           </div>
 
           <div className="p-6 border rounded-lg">
-            {currentStep === 'upload' && (
-              <div>
-                <Dashboard
-                  uppy={uppyRef}
-                  proudlyDisplayPoweredByUppy={false}
-                  showProgressDetails
-                  height={400}
-                  showRemoveButtonAfterComplete={true}
-                  hideUploadButton={true}
-                  hideRetryButton={true}
-                  hideCancelButton={false}
-                  doneButtonHandler={null}
-                />
-
-                <div className="flex justify-between mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={handlePrevious}
-                    disabled={true}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleNext}
-                    disabled={uploadedFiles.length === 0}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {currentStep === 'process' && (
-              <FileProcessing
-                totalTokens={totalTokens}
-                maxTokens={MAX_TOKENS}
-                uploadedFiles={uploadedFiles}
-                onRemoveFile={handleRemoveFile}
-                onPrevious={handlePrevious}
-                onNext={handleNext}
-              />
-            )}
-
-            {currentStep === 'configure' && (
-              <>
-                <WorkflowSteps
-                  steps={workflowSteps}
-                  onUpdateStep={handleUpdateStep}
-                  onRemoveStep={handleRemoveStep}
-                  onAddStep={handleAddStep}
-                  promptTemplates={promptTemplateOptions}
-                  chatModels={chatModelOptions}
-                  personas={personaOptions}
-                />
-
-                <div className="flex justify-between mt-6">
-                  <Button variant="outline" onClick={handlePrevious}>
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleNext}
-                    disabled={!workflowSteps.some(step => 
-                      step.prompt_template_id && step.chat_model_id && step.persona_id
-                    )}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </>
-            )}
-
-            {currentStep === 'review' && (
-              <ReviewStep
-                customInstructions={customInstructions}
-                onInstructionsChange={setCustomInstructions}
-                onPrevious={handlePrevious}
-                onExecute={() => {
-                  handleExecute();
-                  setCurrentStep('results');
-                }}
-              />
-            )}
-
-            {currentStep === 'results' && (
-              <StreamingResults
-                isProcessing={isProcessing}
-                processingStatus={processingStatus}
-                uploadedFiles={uploadedFiles}
-                steps={workflowSteps}
-                customInstructions={customInstructions}
-                onPrevious={handlePrevious}
-                onStartNewBatch={() => {
-                  setUploadedFiles([]);
-                  setCurrentStep('upload');
-                }}
-                session={session}
-              />
-            )}
+            {renderCurrentStep()}
           </div>
         </div>
       </div>
