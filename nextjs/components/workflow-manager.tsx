@@ -196,7 +196,9 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
         steps: workflow.steps.map((step, index) => ({
           ...step,
           position: index
-        }))
+        })),
+        knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
+        asset_ids: selectedAssets.map(asset => asset.id)
       };
 
       if (workflow.process_type === 'HIERARCHICAL') {
