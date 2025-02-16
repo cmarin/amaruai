@@ -9,11 +9,6 @@ import type { Asset } from '@/types/knowledge-base';
 
 export const runtime = 'edge';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-);
-
 const getServiceHeaders = (): ApiHeaders => ({
   'Content-Type': 'application/json',
   'Accept': 'application/json',
@@ -41,6 +36,17 @@ export async function POST(req: NextRequest) {
   const encoder = new TextEncoder();
 
   try {
+    // Create Supabase client inside the handler to ensure env vars are available
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!,
+      {
+        auth: {
+          persistSession: false // Since this is a server environment
+        }
+      }
+    );
+
     const body: BatchFlowRequestBody = await req.json()
     const { file_ids, knowledge_base_ids, asset_ids, steps, customInstructions } = body
     
