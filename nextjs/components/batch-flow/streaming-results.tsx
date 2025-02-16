@@ -52,11 +52,10 @@ export function StreamingResults({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isProcessing) {
-      setResults([]);
-      return;
-    }
-
+    if (!isProcessing) return;
+    
+    // Clear results when starting a new batch
+    setResults([]);
     const processStream = async () => {
       try {
         const response = await fetch('/api/batch-flow', {
