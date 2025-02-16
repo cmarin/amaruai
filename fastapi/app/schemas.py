@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Union, ForwardRef
 from enum import Enum
 from uuid import UUID
 from datetime import datetime
@@ -314,11 +314,65 @@ class WorkflowUpdate(WorkflowBase):
     asset_ids: Optional[List[UUID]] = None
     knowledge_base_ids: Optional[List[UUID]] = None
 
+class AssetBase(BaseModel):
+    title: str
+    file_name: str
+    file_url: str
+    file_type: str
+    mime_type: str
+    size: int
+    content: Optional[str] = None
+    token_count: Optional[int] = 0
+    status: Optional[str] = None
+    managed: Optional[bool] = False
+
+class AssetCreate(AssetBase):
+    uploaded_by: UUID
+    storage_id: Optional[UUID] = None
+
+class Asset(AssetBase):
+    id: UUID
+    uploaded_by: UUID
+    storage_id: Optional[UUID] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class KnowledgeBaseBase(BaseModel):
+    title: str
+    description: str
+    token_count: Optional[int] = 0
+
+class KnowledgeBaseCreate(KnowledgeBaseBase):
+    asset_ids: List[UUID] = []
+
+class KnowledgeBaseUpdate(KnowledgeBaseBase):
+    asset_ids: Optional[List[UUID]] = None
+
+class KnowledgeBase(KnowledgeBaseBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+    assets: List[Asset] = []
+
+    class Config:
+        from_attributes = True
+
+class AssetIds(BaseModel):
+    asset_ids: List[UUID]
+
+class WorkflowExecuteInput(BaseModel):
+    message: Optional[str] = None
+    knowledge_base_ids: Optional[List[UUID]] = None
+    asset_ids: Optional[List[UUID]] = None
+
 class Workflow(WorkflowBase):
     id: UUID
     steps: List[WorkflowStep] = []
-    assets: List[Asset] = []
-    knowledge_bases: List[KnowledgeBase] = []
+    assets: List["Asset"] = []
+    knowledge_bases: List["KnowledgeBase"] = []
 
     @property
     def effective_max_iterations(self) -> Optional[int]:
@@ -403,58 +457,4 @@ class ChatMessage(BaseModel):
             }
         }
 
-class AssetBase(BaseModel):
-    title: str
-    file_name: str
-    file_url: str
-    file_type: str
-    mime_type: str
-    size: int
-    content: Optional[str] = None
-    token_count: Optional[int] = 0
-    status: Optional[str] = None
-    managed: Optional[bool] = False
-
-class AssetCreate(AssetBase):
-    uploaded_by: UUID
-    storage_id: Optional[UUID] = None
-
-class Asset(AssetBase):
-    id: UUID
-    uploaded_by: UUID
-    storage_id: Optional[UUID] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
-
-class KnowledgeBaseBase(BaseModel):
-    title: str
-    description: str
-    token_count: Optional[int] = 0
-
-class KnowledgeBaseCreate(KnowledgeBaseBase):
-    asset_ids: List[UUID] = []
-
-class KnowledgeBaseUpdate(KnowledgeBaseBase):
-    asset_ids: Optional[List[UUID]] = None
-
-class KnowledgeBase(KnowledgeBaseBase):
-    id: UUID
-    created_at: datetime
-    updated_at: datetime
-    assets: List[Asset] = []
-
-    class Config:
-        from_attributes = True
-
-class AssetIds(BaseModel):
-    asset_ids: List[UUID]
-
-class WorkflowExecuteInput(BaseModel):
-    message: Optional[str] = None
-    knowledge_base_ids: Optional[List[UUID]] = None
-    asset_ids: Optional[List[UUID]] = None
-
-Workflow.update_forward_refs()
+Workflow.update_forward_refs(Asset=Asset, KnowledgeBase=KnowledgeBase)
