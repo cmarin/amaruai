@@ -95,22 +95,27 @@ def get_optimized_reference_content(
     # Log the retrieved chunks
     logger.info("Retrieved the following chunks:")
     if not relevant_chunks:
-        logger.info("No relevant chunks found")
-    else:
-        total_chunk_tokens = 0
-        for i, chunk in enumerate(relevant_chunks, 1):
-            chunk_text = chunk['text']
-            chunk_tokens = count_tokens(chunk_text)
-            total_chunk_tokens += chunk_tokens
-            
-            logger.info(f"\nChunk {i}:")
-            logger.info(f"Score: {chunk['score']:.3f}")
-            logger.info(f"Tokens: {chunk_tokens}")
-            logger.info(f"Source: {chunk['metadata'].get('document_name', 'Unknown')}")
-            logger.info(f"Content: {chunk_text[:500]}..." if len(chunk_text) > 500 else f"Content: {chunk_text}")
-            logger.info("-" * 80)
+        logger.warning("No relevant chunks found - this may indicate:")
+        logger.warning("1. No embeddings in the database")
+        logger.warning("2. Similarity threshold too high")
+        logger.warning("3. Asset IDs filter excluding relevant content")
+        logger.warning("4. Content not properly indexed")
+        return "", 0, True
+    
+    total_chunk_tokens = 0
+    for i, chunk in enumerate(relevant_chunks, 1):
+        chunk_text = chunk['text']
+        chunk_tokens = count_tokens(chunk_text)
+        total_chunk_tokens += chunk_tokens
         
-        logger.info(f"\nRAG optimization reduced tokens from {total_tokens} to {total_chunk_tokens}")
+        logger.info(f"\nChunk {i}:")
+        logger.info(f"Score: {chunk['score']:.3f}")
+        logger.info(f"Tokens: {chunk_tokens}")
+        logger.info(f"Source: {chunk['metadata'].get('document_name', 'Unknown')}")
+        logger.info(f"Content: {chunk_text[:500]}..." if len(chunk_text) > 500 else f"Content: {chunk_text}")
+        logger.info("-" * 80)
+    
+    logger.info(f"\nRAG optimization reduced tokens from {total_tokens} to {total_chunk_tokens}")
     
     # Combine chunks into reference content
     rag_content = "\n\n".join([chunk['text'] for chunk in relevant_chunks])

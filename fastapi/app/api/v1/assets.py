@@ -200,7 +200,7 @@ def embed_asset(
         document_name=asset.file_name,
         postgres_connection_string=DATABASE_URL,  # The same env var from database.py
         collection_name="embeddings",             # or any other collection
-        dimension=1536                            # match text-embedding-3-small
+        dimension=1536                            # match text-embedding-ada-002
     )
 
     if not success:

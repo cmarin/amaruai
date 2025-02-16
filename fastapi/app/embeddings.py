@@ -80,7 +80,7 @@ def create_embeddings_for_asset(
 
             # 1) Generate embedding for this chunk
             resp = openai_client.embeddings.create(
-                model="text-embedding-3-small",
+                model="text-embedding-ada-002",
                 input=chunk_text
             )
             chunk_embedding = resp.data[0].embedding
@@ -143,7 +143,7 @@ def text_to_embedding(text: str) -> list[float]:
     openai_client = OpenAI(api_key=openai_key)
     
     resp = openai_client.embeddings.create(
-        model="text-embedding-3-small",
+        model="text-embedding-ada-002",
         input=text
     )
     return resp.data[0].embedding
@@ -155,7 +155,7 @@ def get_vector_store():
     vector_store = SupabaseVectorStore(
         postgres_connection_string=DATABASE_URL,
         collection_name="embeddings",  # This should match your table name in Supabase
-        dimension=1536,  # OpenAI text-embedding-3-small embedding dimension
+        dimension=1536,  # OpenAI text-embedding-ada-002 embedding dimension
         schema_name="vecs"  # Add schema name to match your setup
     )
     
@@ -164,7 +164,7 @@ def get_vector_store():
 def find_relevant_chunks(
     query_text: str,
     num_chunks: int = 5,
-    similarity_cutoff: float = 0.7,
+    similarity_cutoff: float = 0.5,
     asset_ids: list[str] | None = None
 ) -> list[dict]:
     """
@@ -195,6 +195,15 @@ def find_relevant_chunks(
         conn = psycopg2.connect(DATABASE_URL)
         cur = conn.cursor()
         
+        # First check if we have any embeddings at all
+        cur.execute("SELECT COUNT(*) FROM vecs.embeddings")
+        count = cur.fetchone()[0]
+        logger.info(f"Found {count} total embeddings in database")
+        
+        if count == 0:
+            logger.warning("No embeddings found in database. Have documents been indexed?")
+            return []
+            
         # Build query
         query = """
             SELECT 
@@ -208,7 +217,8 @@ def find_relevant_chunks(
         
         # Add asset_ids filter if provided
         if asset_ids:
-            # Use jsonb containment operator @> to check if metadata.asset_id is in the list
+            # Log the asset IDs we're filtering by
+            logger.info(f"Filtering by asset IDs: {asset_ids}")
             asset_filter = "AND metadata->>'asset_id' = ANY(%s)"
             query += asset_filter
             params.append(asset_ids)
@@ -220,11 +230,15 @@ def find_relevant_chunks(
         """
         params.append(num_chunks)
         
+        # Log the query being executed (with params redacted for security)
+        logger.info(f"Executing vector search query with similarity cutoff {similarity_cutoff}")
+        
         # Execute vector similarity search
         cur.execute(query, params)
         
         # Get results
         results = cur.fetchall()
+        logger.info(f"Vector search returned {len(results)} results")
         
         # Format response
         chunks = []
@@ -250,4 +264,7 @@ def find_relevant_chunks(
         
     except Exception as e:
         logger.error(f"Error querying vector store: {str(e)}", exc_info=True)
+        # Log the full traceback for better debugging
+        import traceback
+        logger.error(f"Full traceback:\n{traceback.format_exc()}")
         raise ValueError(f"Error querying vector store: {str(e)}")
