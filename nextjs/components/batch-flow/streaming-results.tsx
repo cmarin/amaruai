@@ -51,43 +51,26 @@ export function StreamingResults({
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [results, setResults] = useState<StepResult[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const abortControllers = useRef<AbortController[]>([]);
+  const [content, setContent] = useState('');
+
+  useEffect(() => {
+    if (!isProcessing) {
+      setContent('');
+      setResults([]);
+    }
+  }, [isProcessing]);
+
   useEffect(() => {
     if (streamingContent) {
       try {
-        const lines = streamingContent.split('\n');
-        for (const line of lines) {
-          if (line.trim() === '' || !line.startsWith('data: ')) continue;
-
-          const jsonData = line.slice(5).trim();
-          if (jsonData === '[DONE]') continue;
-
-          const parsed = JSON.parse(jsonData);
-          if (parsed.choices && parsed.choices[0].delta.content) {
-            const content = parsed.choices[0].delta.content;
-            setResults(prev => {
-              const newResults = [...prev];
-              const existingIndex = newResults.findIndex(r => r.stepIndex === 0);
-
-              if (existingIndex >= 0) {
-                newResults[existingIndex] = {
-                  ...newResults[existingIndex],
-                  content: newResults[existingIndex].content + content,
-                };
-              } else {
-                newResults.push({
-                  stepIndex: 0,
-                  fileId: uploadedFiles[0].status.id,
-                  content,
-                });
-              }
-
-              return newResults;
-            });
-          }
-        }
+        setResults([{
+          stepIndex: 0,
+          fileId: uploadedFiles[0].status.id,
+          content: streamingContent
+        }]);
       } catch (error) {
         console.error('Error processing streaming content:', error);
+        setError(error instanceof Error ? error.message : 'Unknown error occurred');
       }
     }
   }, [streamingContent, uploadedFiles]);

@@ -56,6 +56,7 @@ export default function BatchFlow() {
   const [streamingContent, setStreamingContent] = useState('');
   const [totalTokens, setTotalTokens] = useState(0);
   const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([]);
+  const contentRef = useRef('');
 
   useEffect(() => {
     const loadKnowledgeBases = async () => {
@@ -150,6 +151,7 @@ export default function BatchFlow() {
       const execute = async () => {
         setIsProcessing(true);
         setStreamingContent('');
+        contentRef.current = '';
         
         try {
           await executeBatchFlow(
@@ -164,8 +166,17 @@ export default function BatchFlow() {
             },
             session.access_token,
             (message) => {
-              setStreamingContent(prev => prev + '\ndata: ' + JSON.stringify(message));
-              if (message.type === 'progress') {
+              if (typeof message === 'string') {
+                try {
+                  const parsed = JSON.parse(message);
+                  if (parsed.choices?.[0]?.delta?.content) {
+                    contentRef.current += parsed.choices[0].delta.content;
+                    setStreamingContent(contentRef.current);
+                  }
+                } catch (err) {
+                  console.error('Error parsing message:', err);
+                }
+              } else if (message.type === 'progress') {
                 setProcessingStatus(
                   `Processing ${message.fileName} (${message.currentStep}/${message.totalSteps})`
                 );
