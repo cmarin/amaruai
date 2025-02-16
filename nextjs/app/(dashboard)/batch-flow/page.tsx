@@ -351,6 +351,8 @@ export default function BatchFlow() {
                 isProcessing={isProcessing}
                 processingStatus={processingStatus}
                 uploadedFiles={uploadedFiles}
+                selectedKnowledgeBases={selectedKnowledgeBases}
+                selectedAssets={selectedAssets}
                 steps={workflowSteps}
                 customInstructions={customInstructions}
                 onPrevious={handlePrevious}

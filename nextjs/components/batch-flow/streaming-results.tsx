@@ -6,6 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import ReactMarkdown from 'react-markdown';
 import { Loader2, Copy, BookMarked } from 'lucide-react';
 import type { BatchFlowStep, BatchFlowFile } from '@/types';
+import type { KnowledgeBase } from '@/utils/knowledge-base-service';
+import type { Asset } from '@/types/knowledge-base';
 import { useData } from "@/components/data-context";
 import { useToast } from "@/hooks/use-toast";
 import { addToScratchPad } from "@/utils/scratch-pad-service";
@@ -21,6 +23,8 @@ interface StreamingResultsProps {
   isProcessing: boolean;
   processingStatus: string;
   uploadedFiles: BatchFlowFile[];
+  selectedKnowledgeBases: KnowledgeBase[];
+  selectedAssets: Asset[];
   steps: BatchFlowStep[];
   customInstructions: string;
   onPrevious: () => void;
@@ -38,6 +42,8 @@ export function StreamingResults({
   isProcessing,
   processingStatus,
   uploadedFiles,
+  selectedKnowledgeBases,
+  selectedAssets,
   steps,
   customInstructions,
   onPrevious,
@@ -66,6 +72,8 @@ export function StreamingResults({
           },
           body: JSON.stringify({
             file_ids: uploadedFiles.map(file => file.status.id),
+            knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
+            asset_ids: selectedAssets.map(asset => asset.id),
             steps,
             customInstructions
           }),
@@ -122,7 +130,7 @@ export function StreamingResults({
     };
 
     processStream();
-  }, [isProcessing, session.access_token, uploadedFiles, steps, customInstructions]);
+  }, [isProcessing, session.access_token, uploadedFiles, selectedKnowledgeBases, selectedAssets, steps, customInstructions]);
 
   const getStepResults = (stepIndex: number) => {
     // Combine all file results for this step into one string

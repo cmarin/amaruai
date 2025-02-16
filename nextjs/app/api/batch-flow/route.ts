@@ -5,6 +5,8 @@ export const runtime = 'edge'
 
 interface BatchFlowRequestBody {
   file_ids: string[]
+  knowledge_base_ids?: string[]
+  asset_ids?: string[]
   steps: Array<{
     prompt_template_id: string
     chat_model_id: string
@@ -19,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     // 1) Parse request body
     const body: BatchFlowRequestBody = await req.json()
-    const { file_ids, steps, customInstructions } = body
+    const { file_ids, knowledge_base_ids, asset_ids, steps, customInstructions } = body
 
     if (!file_ids || !Array.isArray(file_ids) || file_ids.length === 0) {
       return new Response(JSON.stringify({ error: 'Invalid file_ids' }), {
@@ -56,9 +58,11 @@ export async function POST(req: NextRequest) {
         Authorization: authHeader,
       },
       body: JSON.stringify({
-        file_ids,
-        steps,
-        customInstructions
+          file_ids,
+          knowledge_base_ids,
+          asset_ids,
+          steps,
+          customInstructions
       })
     })
 
