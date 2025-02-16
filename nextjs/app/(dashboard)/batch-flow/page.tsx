@@ -53,7 +53,7 @@ export default function BatchFlow() {
   const [customInstructions, setCustomInstructions] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
-  const [fileResponses, setFileResponses] = useState<Record<string, string>>({});
+  const [streamingContent, setStreamingContent] = useState('');
   const [totalTokens, setTotalTokens] = useState(0);
   const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([]);
 
@@ -149,7 +149,7 @@ export default function BatchFlow() {
     if (shouldExecute && currentStep === 'results' && session) {
       const execute = async () => {
         setIsProcessing(true);
-        setFileResponses({});
+        setStreamingContent('');
         
         try {
           await executeBatchFlow(
@@ -164,20 +164,14 @@ export default function BatchFlow() {
             },
             session.access_token,
             (message) => {
+              setStreamingContent(prev => prev + '\ndata: ' + JSON.stringify(message));
               if (message.type === 'progress') {
                 setProcessingStatus(
                   `Processing ${message.fileName} (${message.currentStep}/${message.totalSteps})`
                 );
               } else if (message.type === 'error') {
                 setProcessingStatus(`Error: ${message.error}`);
-              } else if (message.type === 'completion' && message.fileId && message.response) {
-                setFileResponses(prev => {
-                  const newResponses = { ...prev };
-                  if (message.fileId) {
-                    newResponses[message.fileId] = message.response || '';
-                  }
-                  return newResponses;
-                });
+              } else if (message.type === 'completion') {
                 setProcessingStatus('Processing complete!');
               }
             }
@@ -414,6 +408,7 @@ export default function BatchFlow() {
                   setCurrentStep('upload');
                 }}
                 session={session}
+                streamingContent={streamingContent}
               />
             )}
           </div>

@@ -26,6 +26,7 @@ interface StreamingResultsProps {
   onPrevious: () => void;
   onStartNewBatch: () => void;
   session: { access_token: string };
+  streamingContent: string;
 }
 
 interface StepResult {
@@ -43,6 +44,7 @@ export function StreamingResults({
   onPrevious,
   onStartNewBatch,
   session,
+  streamingContent,
 }: StreamingResultsProps) {
   const { toast } = useToast();
   const { promptTemplates, chatModels, personas } = useData();
@@ -50,126 +52,45 @@ export function StreamingResults({
   const [results, setResults] = useState<StepResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const abortControllers = useRef<AbortController[]>([]);
-  const [rawContent, setRawContent] = useState<Record<number, string>>({});
-
   useEffect(() => {
-    if (!isProcessing) return;
-
-    // Initialize abort controllers for each step
-    abortControllers.current = steps.map(() => new AbortController());
-
-    // Process all steps concurrently
-    const processSteps = async () => {
+    if (streamingContent) {
       try {
-        await Promise.all(steps.map((step, stepIndex) => processStep(step, stepIndex)));
-      } catch (error) {
-        console.error('Error processing steps:', error);
-        setError(error instanceof Error ? error.message : 'Unknown error occurred');
-      }
-    };
+        const lines = streamingContent.split('\n');
+        for (const line of lines) {
+          if (line.trim() === '' || !line.startsWith('data: ')) continue;
 
-    const processStep = async (step: BatchFlowStep, stepIndex: number) => {
-      try {
-        const response = await fetch('/api/batch-flow', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            file_ids: uploadedFiles.map(f => f.status.id),
-            steps: [step],
-            customInstructions,
-          }),
-          signal: abortControllers.current[stepIndex].signal,
-        });
+          const jsonData = line.slice(5).trim();
+          if (jsonData === '[DONE]') continue;
 
-        if (!response.ok) {
-          throw new Error(`Failed to process batch flow step ${stepIndex + 1}`);
-        }
+          const parsed = JSON.parse(jsonData);
+          if (parsed.choices && parsed.choices[0].delta.content) {
+            const content = parsed.choices[0].delta.content;
+            setResults(prev => {
+              const newResults = [...prev];
+              const existingIndex = newResults.findIndex(r => r.stepIndex === 0);
 
-        const reader = response.body?.getReader();
-        if (!reader) throw new Error('No response body');
-
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let stepContent = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            if (line.trim() === '' || !line.startsWith('data: ')) continue;
-
-            const jsonData = line.slice(5).trim();
-            if (jsonData === '[DONE]') continue;
-
-            try {
-              const parsed = JSON.parse(jsonData);
-              if (parsed.choices && parsed.choices[0].delta.content) {
-                const content = parsed.choices[0].delta.content;
-                stepContent += content;
-
-                // Update both raw content and parsed results
-                setRawContent(prev => ({
-                  ...prev,
-                  [stepIndex]: stepContent
-                }));
-
-                try {
-                  setResults(prev => {
-                    const newResults = [...prev];
-                    const existingIndex = newResults.findIndex(r => r.stepIndex === stepIndex);
-
-                    if (existingIndex >= 0) {
-                      newResults[existingIndex] = {
-                        ...newResults[existingIndex],
-                        content: stepContent,
-                      };
-                    } else {
-                      newResults.push({
-                        stepIndex,
-                        fileId: uploadedFiles[0].status.id,
-                        content: stepContent,
-                      });
-                    }
-
-                    return newResults;
-                  });
-                } catch (parseError) {
-                  console.error('Error updating parsed results:', parseError);
-                }
+              if (existingIndex >= 0) {
+                newResults[existingIndex] = {
+                  ...newResults[existingIndex],
+                  content: newResults[existingIndex].content + content,
+                };
+              } else {
+                newResults.push({
+                  stepIndex: 0,
+                  fileId: uploadedFiles[0].status.id,
+                  content,
+                });
               }
-            } catch (parseError) {
-              console.error('Failed to parse SSE data:', parseError);
-              // Still update raw content even if parsing fails
-              setRawContent(prev => ({
-                ...prev,
-                [stepIndex]: stepContent
-              }));
-            }
+
+              return newResults;
+            });
           }
         }
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          console.log(`Batch flow step ${stepIndex + 1} aborted`);
-        } else {
-          throw err;
-        }
+      } catch (error) {
+        console.error('Error processing streaming content:', error);
       }
-    };
-
-    processSteps();
-
-    return () => {
-      abortControllers.current.forEach(controller => controller.abort());
-    };
-  }, [isProcessing, steps, uploadedFiles, customInstructions, session.access_token]);
+    }
+  }, [streamingContent, uploadedFiles]);
 
   const getStepResults = (stepIndex: number) => {
     // Combine all file results for this step into one string
@@ -293,7 +214,7 @@ export function StreamingResults({
                 
                 <ScrollArea className="h-[200px] w-full rounded border p-4 bg-gray-50">
                   <ReactMarkdown>
-                    {getStepResults(stepIndex) || rawContent[stepIndex] || ''}
+                    {getStepResults(stepIndex) || ''}
                   </ReactMarkdown>
                 </ScrollArea>
               </div>
