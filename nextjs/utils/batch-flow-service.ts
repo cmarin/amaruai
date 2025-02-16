@@ -9,8 +9,6 @@ export interface BatchFlowStep {
 
 export interface BatchFlowRequest {
   file_ids: string[];
-  asset_ids?: string[];
-  knowledge_base_ids?: string[];
   steps: BatchFlowStep[];
   customInstructions?: string;
 }
