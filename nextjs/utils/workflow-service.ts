@@ -233,6 +233,8 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       manager_chat_model_id: workflow.manager_chat_model_id,
       manager_persona_id: workflow.manager_persona_id,
       max_iterations: workflow.max_iterations,
+      knowledge_base_ids: workflow.knowledge_base_ids,
+      asset_ids: workflow.asset_ids,
       steps: workflow.steps?.map((step, index) => ({
         prompt_template_id: step.prompt_template_id,
         chat_model_id: step.chat_model_id,
@@ -263,6 +265,8 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       id: data.id?.toString() || '',
       manager_chat_model_id: data.manager_chat_model_id?.toString(),
       manager_persona_id: data.manager_persona_id?.toString(),
+      knowledge_base_ids: data.knowledge_base_ids || [],
+      asset_ids: data.asset_ids || [],
       steps: data.steps?.map((step: any) => ({
         ...step,
         id: step.id?.toString() || '',

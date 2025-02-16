@@ -95,6 +95,23 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     if (initialWorkflow) {
       console.log('Setting initial workflow:', initialWorkflow);
       setWorkflow(initialWorkflow);
+      
+      // Initialize selected knowledge bases from workflow data
+      if (initialWorkflow.knowledge_base_ids && initialWorkflow.knowledge_base_ids.length > 0) {
+        const selectedKBs = knowledgeBases.filter(kb => 
+          initialWorkflow.knowledge_base_ids?.includes(kb.id)
+        );
+        setSelectedKnowledgeBases(selectedKBs);
+      }
+
+      // Initialize selected assets
+      if (initialWorkflow.asset_ids && initialWorkflow.asset_ids.length > 0) {
+        const selectedAssetsList = assets.filter(asset => 
+          initialWorkflow.asset_ids?.includes(asset.id)
+        );
+        setSelectedAssets(selectedAssetsList);
+      }
+
       if (initialWorkflow.process_type === 'HIERARCHICAL') {
         console.log('Setting hierarchical values:', {
           manager_chat_model_id: initialWorkflow.manager_chat_model_id,
@@ -106,7 +123,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
         setMaxIterations(initialWorkflow.max_iterations || 5);
       }
     }
-  }, [initialWorkflow]);
+  }, [initialWorkflow, knowledgeBases, assets]);
 
   const handleProcessTypeChange = (value: "SEQUENTIAL" | "HIERARCHICAL") => {
     setWorkflow({ ...workflow, process_type: value });
