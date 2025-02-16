@@ -143,50 +143,61 @@ export default function BatchFlow() {
     }
   }, [currentStep]);
 
-  const handleExecute = useCallback(async () => {
-    if (!session) return;
-    
-    setIsProcessing(true);
-    setFileResponses({});
-    
-    try {
-      await executeBatchFlow(
-        {
-          file_ids: [
-            ...uploadedFiles.map(file => file.status.id),
-            ...selectedKnowledgeBases.map(kb => kb.id),
-            ...selectedAssets.map(asset => asset.id)
-          ],
-          steps: workflowSteps,
-          customInstructions
-        },
-        session.access_token,
-        (message) => {
-          if (message.type === 'progress') {
-            setProcessingStatus(
-              `Processing ${message.fileName} (${message.currentStep}/${message.totalSteps})`
-            );
-          } else if (message.type === 'error') {
-            setProcessingStatus(`Error: ${message.error}`);
-          } else if (message.type === 'completion' && message.fileId && message.response) {
-            setFileResponses(prev => {
-              const newResponses = { ...prev };
-              if (message.fileId) {
-                newResponses[message.fileId] = message.response || '';
+  const [shouldExecute, setShouldExecute] = useState(false);
+
+  useEffect(() => {
+    if (shouldExecute && currentStep === 'results' && session) {
+      const execute = async () => {
+        setIsProcessing(true);
+        setFileResponses({});
+        
+        try {
+          await executeBatchFlow(
+            {
+              file_ids: [
+                ...uploadedFiles.map(file => file.status.id),
+                ...selectedKnowledgeBases.map(kb => kb.id),
+                ...selectedAssets.map(asset => asset.id)
+              ],
+              steps: workflowSteps,
+              customInstructions
+            },
+            session.access_token,
+            (message) => {
+              if (message.type === 'progress') {
+                setProcessingStatus(
+                  `Processing ${message.fileName} (${message.currentStep}/${message.totalSteps})`
+                );
+              } else if (message.type === 'error') {
+                setProcessingStatus(`Error: ${message.error}`);
+              } else if (message.type === 'completion' && message.fileId && message.response) {
+                setFileResponses(prev => {
+                  const newResponses = { ...prev };
+                  if (message.fileId) {
+                    newResponses[message.fileId] = message.response || '';
+                  }
+                  return newResponses;
+                });
+                setProcessingStatus('Processing complete!');
               }
-              return newResponses;
-            });
-            setProcessingStatus('Processing complete!');
-          }
+            }
+          );
+        } catch (error: unknown) {
+          console.error('Failed to execute batch flow:', error);
+          setProcessingStatus('Failed to execute batch flow');
+        } finally {
+          setIsProcessing(false);
+          setShouldExecute(false);
         }
-      );
-    } catch (error: unknown) {
-      console.error('Failed to execute batch flow:', error);
-      setProcessingStatus('Failed to execute batch flow');
-    } finally {
-      setIsProcessing(false);
-      setCurrentStep('results');
+      };
+
+      execute();
     }
+  }, [shouldExecute, currentStep, session, uploadedFiles, selectedKnowledgeBases, selectedAssets, workflowSteps, customInstructions]);
+
+  const handleExecute = useCallback(() => {
+    setCurrentStep('results');
+    setShouldExecute(true);
   }, [session, uploadedFiles, selectedKnowledgeBases, selectedAssets, workflowSteps, customInstructions, setCurrentStep]);
 
   const uppyRef = useMemo(() => {

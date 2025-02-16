@@ -17,7 +17,13 @@ export function ReviewStep({
   onExecute,
 }: ReviewStepProps) {
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <form 
+      className="space-y-6 max-w-5xl mx-auto" 
+      onSubmit={(e) => {
+        e.preventDefault();
+        onExecute();
+      }}
+    >
       <div className="w-full">
         <label className="block text-sm font-medium mb-2">
           Custom Instructions (Optional)
@@ -26,24 +32,31 @@ export function ReviewStep({
           className="min-h-[200px] w-full"
           placeholder="Add any custom instructions for processing..."
           value={customInstructions}
-          onChange={(e) => onInstructionsChange(e.target.value)}
+          onChange={(e) => {
+            e.preventDefault();
+            onInstructionsChange(e.target.value);
+          }}
         />
       </div>
 
       <div className="flex justify-between mt-4">
         <Button 
-          variant="outline" 
-          onClick={onPrevious}
+          variant="outline"
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            onPrevious();
+          }}
         >
           Previous
         </Button>
         <Button 
           variant="outline"
-          onClick={onExecute}
+          type="submit"
         >
           Execute
         </Button>
       </div>
-    </div>
+    </form>
   );
 }
