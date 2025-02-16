@@ -61,6 +61,23 @@ chat_model_favorites = Table(
     Column('created_at', TIMESTAMP(timezone=True), server_default=text('current_timestamp'))
 )
 
+# Add these new association tables after the existing ones
+workflow_assets = Table(
+    'workflow_assets',
+    Base.metadata,
+    Column('workflow_id', PGUUID(as_uuid=True), ForeignKey('workflow.id', ondelete='CASCADE'), primary_key=True),
+    Column('asset_id', PGUUID(as_uuid=True), ForeignKey('assets.id', ondelete='CASCADE'), primary_key=True),
+    Column('created_at', TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+)
+
+workflow_knowledge_bases = Table(
+    'workflow_knowledge_bases',
+    Base.metadata,
+    Column('workflow_id', PGUUID(as_uuid=True), ForeignKey('workflow.id', ondelete='CASCADE'), primary_key=True),
+    Column('knowledge_base_id', PGUUID(as_uuid=True), ForeignKey('knowledge_bases.id', ondelete='CASCADE'), primary_key=True),
+    Column('created_at', TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+)
+
 class ProcessType(enum.Enum):
     SEQUENTIAL = "SEQUENTIAL"
     HIERARCHICAL = "HIERARCHICAL"  # Ensure this matches the database value
@@ -153,6 +170,19 @@ class Workflow(Base):
     manager_chat_model_id = Column(UUID(as_uuid=True), ForeignKey("chat_model.id"), nullable=True)
     manager_persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"), nullable=True)
     max_iterations = Column(Integer, nullable=True)
+    
+    # Add the new relationships
+    assets = relationship(
+        "Asset",
+        secondary=workflow_assets,
+        backref="workflows"
+    )
+    
+    knowledge_bases = relationship(
+        "KnowledgeBase",
+        secondary=workflow_knowledge_bases,
+        backref="workflows"
+    )
     
     steps = relationship(
         "WorkflowStep",

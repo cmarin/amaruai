@@ -464,18 +464,25 @@ def get_workflow(db: Session, workflow_id: UUID):
         raise HTTPException(status_code=500, detail=str(e))
 
 def create_workflow(db: Session, workflow: schemas.WorkflowCreate):
-    # Create a dictionary of the data, converting the enum to string
-    workflow_data = workflow.dict()
-    workflow_data['process_type'] = workflow_data['process_type'].value  # Convert enum to string
+    workflow_data = workflow.dict(exclude={'asset_ids', 'knowledge_base_ids'})
+    workflow_data['process_type'] = workflow_data['process_type'].value
 
-    db_workflow = models.Workflow(
-        name=workflow.name,
-        description=workflow.description,
-        process_type=workflow_data['process_type'],
-        manager_chat_model_id=workflow.manager_chat_model_id,
-        manager_persona_id=workflow.manager_persona_id,
-        max_iterations=workflow.max_iterations or 1  # Ensure a default value
-    )
+    db_workflow = models.Workflow(**workflow_data)
+
+    # Add assets if provided
+    if workflow.asset_ids:
+        for asset_id in workflow.asset_ids:
+            asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+            if asset:
+                db_workflow.assets.append(asset)
+
+    # Add knowledge bases if provided
+    if workflow.knowledge_base_ids:
+        for kb_id in workflow.knowledge_base_ids:
+            kb = db.query(models.KnowledgeBase).filter(models.KnowledgeBase.id == kb_id).first()
+            if kb:
+                db_workflow.knowledge_bases.append(kb)
+
     db.add(db_workflow)
     db.commit()
     db.refresh(db_workflow)
@@ -484,14 +491,13 @@ def create_workflow(db: Session, workflow: schemas.WorkflowCreate):
 def update_workflow(db: Session, workflow_id: UUID, workflow: schemas.WorkflowUpdate):
     db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id).first()
     if db_workflow:
-        update_data = workflow.dict(exclude_unset=True, exclude={'steps'})
+        update_data = workflow.dict(exclude_unset=True, exclude={'steps', 'asset_ids', 'knowledge_base_ids'})
         for key, value in update_data.items():
             setattr(db_workflow, key, value)
             
+        # Update steps if provided
         if workflow.steps is not None:
-            # Clear existing steps
             db_workflow.steps = []
-            # Add updated steps
             for step_data in workflow.steps:
                 step = models.WorkflowStep(
                     workflow_id=workflow_id,
@@ -501,6 +507,22 @@ def update_workflow(db: Session, workflow_id: UUID, workflow: schemas.WorkflowUp
                     position=step_data.position
                 )
                 db_workflow.steps.append(step)
+
+        # Update assets if provided
+        if workflow.asset_ids is not None:
+            db_workflow.assets = []
+            for asset_id in workflow.asset_ids:
+                asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+                if asset:
+                    db_workflow.assets.append(asset)
+
+        # Update knowledge bases if provided
+        if workflow.knowledge_base_ids is not None:
+            db_workflow.knowledge_bases = []
+            for kb_id in workflow.knowledge_base_ids:
+                kb = db.query(models.KnowledgeBase).filter(models.KnowledgeBase.id == kb_id).first()
+                if kb:
+                    db_workflow.knowledge_bases.append(kb)
         
         db.commit()
         db.refresh(db_workflow)

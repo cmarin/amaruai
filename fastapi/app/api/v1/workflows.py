@@ -4,7 +4,7 @@ from typing import List, Dict, Optional
 from app import crud, schemas, models
 from app.database import get_db
 from app.api.v1.router import create_protected_router, create_public_router
-from app.schemas import ChatMessage
+from app.schemas import ChatMessage, WorkflowExecuteInput
 from crewai import Agent, Task, Crew, Process, LLM
 import logging
 import os
@@ -39,12 +39,6 @@ public_router = create_public_router(prefix="workflows", tags=["workflows"])
 workflow_results = {}
 
 logger = logging.getLogger(__name__)
-
-# Update the input model to include knowledge bases and assets
-class WorkflowExecuteInput(BaseModel):
-    message: Optional[str] = None
-    knowledge_base_ids: Optional[List[UUID]] = None
-    asset_ids: Optional[List[UUID]] = None
 
 @router.post("/", response_model=schemas.Workflow)
 def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_db)):

@@ -306,13 +306,19 @@ class WorkflowBase(BaseModel):
 
 class WorkflowCreate(WorkflowBase):
     process_type: ProcessType
+    asset_ids: Optional[List[UUID]] = []
+    knowledge_base_ids: Optional[List[UUID]] = []
 
 class WorkflowUpdate(WorkflowBase):
     steps: Optional[List[WorkflowStepUpdate]] = None
+    asset_ids: Optional[List[UUID]] = None
+    knowledge_base_ids: Optional[List[UUID]] = None
 
 class Workflow(WorkflowBase):
     id: UUID
     steps: List[WorkflowStep] = []
+    assets: List[Asset] = []
+    knowledge_bases: List[KnowledgeBase] = []
 
     @property
     def effective_max_iterations(self) -> Optional[int]:
@@ -445,5 +451,10 @@ class KnowledgeBase(KnowledgeBaseBase):
 
 class AssetIds(BaseModel):
     asset_ids: List[UUID]
+
+class WorkflowExecuteInput(BaseModel):
+    message: Optional[str] = None
+    knowledge_base_ids: Optional[List[UUID]] = None
+    asset_ids: Optional[List[UUID]] = None
 
 Workflow.update_forward_refs()
