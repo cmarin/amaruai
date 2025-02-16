@@ -148,6 +148,7 @@ export default function BatchFlow() {
     
     setIsProcessing(true);
     setFileResponses({});
+    setCurrentStep('results');
     
     try {
       await executeBatchFlow(
@@ -383,10 +384,7 @@ export default function BatchFlow() {
                 customInstructions={customInstructions}
                 onInstructionsChange={setCustomInstructions}
                 onPrevious={handlePrevious}
-                onExecute={() => {
-                  handleExecute();
-                  setCurrentStep('results');
-                }}
+                onExecute={handleExecute}
               />
             )}
 
