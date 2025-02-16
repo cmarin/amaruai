@@ -1,8 +1,10 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { FileVideo, X, Copy, Check } from "lucide-react";
+import { FileVideo, X, Copy, Check, Database, FileText } from "lucide-react";
 import type { BatchFlowFile } from "@/types";
+import type { KnowledgeBase } from '@/utils/knowledge-base-service';
+import type { Asset } from '@/types/knowledge-base';
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -16,7 +18,11 @@ interface FileProcessingProps {
   totalTokens: number;
   maxTokens: number;
   uploadedFiles: BatchFlowFile[];
+  selectedKnowledgeBases: KnowledgeBase[];
+  selectedAssets: Asset[];
   onRemoveFile: (file: BatchFlowFile) => void;
+  onRemoveKnowledgeBase: (kb: KnowledgeBase) => void;
+  onRemoveAsset: (asset: Asset) => void;
   onPrevious: () => void;
   onNext: () => void;
 }
@@ -25,7 +31,11 @@ export function FileProcessing({
   totalTokens,
   maxTokens,
   uploadedFiles,
+  selectedKnowledgeBases,
+  selectedAssets,
   onRemoveFile,
+  onRemoveKnowledgeBase,
+  onRemoveAsset,
   onPrevious,
   onNext,
 }: FileProcessingProps) {
@@ -81,9 +91,11 @@ export function FileProcessing({
         />
       </div>
 
-      <div className="space-y-3">
-        <div className="text-lg font-semibold">Processing Files:</div>
-        {uploadedFiles.map((file: BatchFlowFile, index) => (
+      <div className="space-y-6">
+        {uploadedFiles.length > 0 && (
+          <div className="space-y-3">
+            <div className="text-lg font-semibold">Processing Files:</div>
+            {uploadedFiles.map((file: BatchFlowFile, index) => (
           <div 
             key={file.uploadURL || index}
             className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
@@ -137,7 +149,58 @@ export function FileProcessing({
               </button>
             </div>
           </div>
-        ))}
+            ))}
+          </div>
+        )}
+
+        {selectedKnowledgeBases.length > 0 && (
+          <div className="space-y-3">
+            <div className="text-lg font-semibold">Selected Knowledge Bases:</div>
+            {selectedKnowledgeBases.map((kb) => (
+              <div 
+                key={kb.id}
+                className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
+              >
+                <Database className="w-5 h-5 text-blue-500" />
+                <div className="flex-1">
+                  <div className="font-medium">{kb.title}</div>
+                  {kb.description && (
+                    <div className="text-sm text-muted-foreground line-clamp-2">{kb.description}</div>
+                  )}
+                </div>
+                <button
+                  onClick={() => onRemoveKnowledgeBase(kb)}
+                  className="p-1 hover:bg-gray-200 rounded-full"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {selectedAssets.length > 0 && (
+          <div className="space-y-3">
+            <div className="text-lg font-semibold">Selected Assets:</div>
+            {selectedAssets.map((asset) => (
+              <div 
+                key={asset.id}
+                className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
+              >
+                <FileText className="w-5 h-5 text-blue-500" />
+                <div className="flex-1">
+                  <div className="font-medium">{asset.title}</div>
+                </div>
+                <button
+                  onClick={() => onRemoveAsset(asset)}
+                  className="p-1 hover:bg-gray-200 rounded-full"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex justify-between mt-4">
@@ -150,9 +213,11 @@ export function FileProcessing({
         <Button
           variant="outline"
           onClick={onNext}
-          disabled={!uploadedFiles.every((f: BatchFlowFile) => 
-            ['completed', 'failed', 'max_attempts_exceeded'].includes(f.status.status)
-          )}
+          disabled={
+            (uploadedFiles.length > 0 && !uploadedFiles.every((f: BatchFlowFile) => 
+              ['completed', 'failed', 'max_attempts_exceeded'].includes(f.status.status)
+            )) && selectedKnowledgeBases.length === 0 && selectedAssets.length === 0
+          }
         >
           Next
         </Button>

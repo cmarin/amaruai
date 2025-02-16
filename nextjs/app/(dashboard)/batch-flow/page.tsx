@@ -5,6 +5,9 @@ import { useSession } from '@/app/utils/session/session';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { useData } from '@/components/data-context';
 import { useSidebar } from '@/components/sidebar-context';
+import type { KnowledgeBase } from '@/utils/knowledge-base-service';
+import { fetchKnowledgeBases } from '@/utils/knowledge-base-service';
+import type { Asset } from '@/types/knowledge-base';
 import { AppSidebar } from '@/components/app-sidebar';
 import { Dashboard } from '@uppy/react';
 import '@uppy/core/dist/style.min.css';
@@ -18,6 +21,7 @@ import { WorkflowSteps } from '@/components/batch-flow/workflow-steps';
 import { FileProcessing } from '@/components/batch-flow/file-processing';
 import { ReviewStep } from '@/components/batch-flow/review-step';
 import { StreamingResults } from '@/components/batch-flow/streaming-results';
+import { UploadStep } from '@/components/batch-flow/upload-step';
 
 const MAX_TOKENS = 100_000;
 
@@ -32,9 +36,11 @@ const steps = [
 type StepId = typeof steps[number]['id'];
 
 export default function BatchFlow() {
-  const { session } = useSession();
+  const { session, getApiHeaders } = useSession();
   const supabase = useSupabase();
   const { promptTemplates, chatModels, personas, isLoading } = useData();
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
+  const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(false);
   const { sidebarOpen, toggleSidebar } = useSidebar();
 
   const [currentStep, setCurrentStep] = useState<StepId>('upload');
@@ -49,6 +55,29 @@ export default function BatchFlow() {
   const [processingStatus, setProcessingStatus] = useState('');
   const [fileResponses, setFileResponses] = useState<Record<string, string>>({});
   const [totalTokens, setTotalTokens] = useState(0);
+  const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([]);
+
+  useEffect(() => {
+    const loadKnowledgeBases = async () => {
+      if (!session) return;
+      
+      setIsLoadingKnowledgeBases(true);
+      try {
+        const headers = await getApiHeaders();
+        if (headers) {
+          const fetchedKnowledgeBases = await fetchKnowledgeBases(headers);
+          setKnowledgeBases(fetchedKnowledgeBases);
+        }
+      } catch (error) {
+        console.error('Error fetching knowledge bases:', error);
+      } finally {
+        setIsLoadingKnowledgeBases(false);
+      }
+    };
+
+    loadKnowledgeBases();
+  }, [session, getApiHeaders]);
+  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
 
   const handleFileUpload = useCallback((file: UploadedFile) => {
     const fileWithStatus: BatchFlowFile = {
@@ -70,6 +99,14 @@ export default function BatchFlow() {
 
   const handleRemoveFile = useCallback((file: BatchFlowFile) => {
     setUploadedFiles(prev => prev.filter(f => f !== file));
+  }, []);
+
+  const handleRemoveKnowledgeBase = useCallback((kb: KnowledgeBase) => {
+    setSelectedKnowledgeBases(prev => prev.filter(k => k.id !== kb.id));
+  }, []);
+
+  const handleRemoveAsset = useCallback((asset: Asset) => {
+    setSelectedAssets(prev => prev.filter(a => a.id !== asset.id));
   }, []);
 
   const handleUpdateStep = useCallback((index: number, field: keyof BatchFlowStep, value: string) => {
@@ -115,7 +152,11 @@ export default function BatchFlow() {
     try {
       await executeBatchFlow(
         {
-          file_ids: uploadedFiles.map(file => file.status.id),
+          file_ids: [
+            ...uploadedFiles.map(file => file.status.id),
+            ...selectedKnowledgeBases.map(kb => kb.id),
+            ...selectedAssets.map(asset => asset.id)
+          ],
           steps: workflowSteps,
           customInstructions
         },
@@ -145,7 +186,7 @@ export default function BatchFlow() {
     } finally {
       setIsProcessing(false);
     }
-  }, [session, uploadedFiles, workflowSteps, customInstructions]);
+  }, [session, uploadedFiles, selectedKnowledgeBases, selectedAssets, workflowSteps, customInstructions]);
 
   const uppyRef = useMemo(() => {
     if (!session || !supabase) return null;
@@ -281,36 +322,16 @@ export default function BatchFlow() {
 
           <div className="p-6 border rounded-lg">
             {currentStep === 'upload' && (
-              <div>
-                <Dashboard
-                  uppy={uppyRef}
-                  proudlyDisplayPoweredByUppy={false}
-                  showProgressDetails
-                  height={400}
-                  showRemoveButtonAfterComplete={true}
-                  hideUploadButton={true}
-                  hideRetryButton={true}
-                  hideCancelButton={false}
-                  doneButtonHandler={null}
-                />
-
-                <div className="flex justify-between mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={handlePrevious}
-                    disabled={true}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleNext}
-                    disabled={uploadedFiles.length === 0}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
+              <UploadStep
+                uppyRef={uppyRef}
+                uploadedFiles={uploadedFiles}
+                knowledgeBases={knowledgeBases}
+                isLoadingKnowledgeBases={isLoadingKnowledgeBases}
+                onPrevious={handlePrevious}
+                onNext={handleNext}
+                onKnowledgeBasesChange={setSelectedKnowledgeBases}
+                onAssetsChange={setSelectedAssets}
+              />
             )}
 
             {currentStep === 'process' && (
@@ -318,7 +339,11 @@ export default function BatchFlow() {
                 totalTokens={totalTokens}
                 maxTokens={MAX_TOKENS}
                 uploadedFiles={uploadedFiles}
+                selectedKnowledgeBases={selectedKnowledgeBases}
+                selectedAssets={selectedAssets}
                 onRemoveFile={handleRemoveFile}
+                onRemoveKnowledgeBase={handleRemoveKnowledgeBase}
+                onRemoveAsset={handleRemoveAsset}
                 onPrevious={handlePrevious}
                 onNext={handleNext}
               />
@@ -375,6 +400,8 @@ export default function BatchFlow() {
                 onPrevious={handlePrevious}
                 onStartNewBatch={() => {
                   setUploadedFiles([]);
+                  setSelectedKnowledgeBases([]);
+                  setSelectedAssets([]);
                   setCurrentStep('upload');
                 }}
                 session={session}
