@@ -1,17 +1,16 @@
-// app/api/batch-flow/route.ts
 import { NextRequest } from 'next/server'
 import { getApiUrl } from '@/utils/api-utils'
 
 export const runtime = 'edge'
 
 interface BatchFlowRequestBody {
-  file_ids: string[];
+  file_ids: string[]
   steps: Array<{
-    prompt_template_id: string;
-    chat_model_id: string;
-    persona_id: string;
-  }>;
-  customInstructions?: string;
+    prompt_template_id: string
+    chat_model_id: string
+    persona_id: string
+  }>
+  customInstructions?: string
 }
 
 export async function POST(req: NextRequest) {
@@ -21,7 +20,7 @@ export async function POST(req: NextRequest) {
     // 1) Parse request body
     const body: BatchFlowRequestBody = await req.json()
     const { file_ids, steps, customInstructions } = body
-    
+
     if (!file_ids || !Array.isArray(file_ids) || file_ids.length === 0) {
       return new Response(JSON.stringify({ error: 'Invalid file_ids' }), {
         status: 400,
@@ -54,14 +53,13 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'text/event-stream',
         Authorization: authHeader,
       },
       body: JSON.stringify({
         file_ids,
         steps,
         customInstructions
-      }),
+      })
     })
 
     if (!response.ok) {
@@ -81,21 +79,15 @@ export async function POST(req: NextRequest) {
     }
 
     // 4) Stream the SSE response
-    return new Response(response.body, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
+    const transformedBody = response.body || new ReadableStream()
+    return new Response(transformedBody, {
+      headers: { 'Content-Type': 'text/event-stream' },
     })
   } catch (error) {
-    console.error('Error in batch-flow route:', error)
+    console.error('Error in batch flow route:', error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
 }

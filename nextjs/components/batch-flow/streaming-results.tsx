@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ReactMarkdown from 'react-markdown';
@@ -26,12 +26,10 @@ interface StreamingResultsProps {
   onPrevious: () => void;
   onStartNewBatch: () => void;
   session: { access_token: string };
-  streamingContent: string;
 }
 
 interface StepResult {
   stepIndex: number;
-  fileId: string;
   content: string;
 }
 
@@ -44,36 +42,81 @@ export function StreamingResults({
   onPrevious,
   onStartNewBatch,
   session,
-  streamingContent,
 }: StreamingResultsProps) {
   const { toast } = useToast();
   const { promptTemplates, chatModels, personas } = useData();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [results, setResults] = useState<StepResult[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [content, setContent] = useState('');
 
   useEffect(() => {
     if (!isProcessing) {
-      setContent('');
       setResults([]);
+      return;
     }
-  }, [isProcessing]);
 
-  useEffect(() => {
-    if (streamingContent) {
+    const processStream = async () => {
       try {
-        setResults([{
-          stepIndex: 0,
-          fileId: uploadedFiles[0].status.id,
-          content: streamingContent
-        }]);
+        const response = await fetch('/api/batch-flow', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            file_ids: uploadedFiles.map(file => file.status.id),
+            steps,
+            customInstructions
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to execute batch flow');
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('No response body');
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let content = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.trim() === '' || !line.startsWith('data: ')) continue;
+
+            const jsonData = line.slice(5).trim();
+            if (jsonData === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(jsonData);
+              if (parsed.choices?.[0]?.delta?.content) {
+                content += parsed.choices[0].delta.content;
+                setResults([{
+                  stepIndex: 0,
+                  content
+                }]);
+              }
+            } catch (err) {
+              console.error('Error parsing SSE message:', err);
+            }
+          }
+        }
       } catch (error) {
-        console.error('Error processing streaming content:', error);
+        console.error('Error processing stream:', error);
         setError(error instanceof Error ? error.message : 'Unknown error occurred');
       }
-    }
-  }, [streamingContent, uploadedFiles]);
+    };
+
+    processStream();
+  }, [isProcessing, session.access_token, uploadedFiles, steps, customInstructions]);
 
   const getStepResults = (stepIndex: number) => {
     // Combine all file results for this step into one string
@@ -197,7 +240,7 @@ export function StreamingResults({
                 
                 <ScrollArea className="h-[200px] w-full rounded border p-4 bg-gray-50">
                   <ReactMarkdown>
-                    {getStepResults(stepIndex) || ''}
+                    {stepContent}
                   </ReactMarkdown>
                 </ScrollArea>
               </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/app/utils/session/session';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { useData } from '@/components/data-context';
@@ -13,7 +13,7 @@ import { Dashboard } from '@uppy/react';
 import '@uppy/core/dist/style.min.css';
 import '@uppy/dashboard/dist/style.min.css';
 import { Button } from '@/components/ui/button';
-import { getAssetStatus, executeBatchFlow } from '@/utils/batch-flow-service';
+import { getAssetStatus } from '@/utils/batch-flow-service';
 import { UploadService } from '@/utils/upload-service';
 import type { BatchFlowStep, BatchFlowFile, PromptTemplateOption, ChatModelOption, PersonaOption } from '@/types';
 import type { UploadedFile } from '@/utils/upload-service';
@@ -53,10 +53,9 @@ export default function BatchFlow() {
   const [customInstructions, setCustomInstructions] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
-  const [streamingContent, setStreamingContent] = useState('');
   const [totalTokens, setTotalTokens] = useState(0);
   const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([]);
-  const contentRef = useRef('');
+  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
 
   useEffect(() => {
     const loadKnowledgeBases = async () => {
@@ -78,7 +77,6 @@ export default function BatchFlow() {
 
     loadKnowledgeBases();
   }, [session, getApiHeaders]);
-  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
 
   const handleFileUpload = useCallback((file: UploadedFile) => {
     const fileWithStatus: BatchFlowFile = {
@@ -144,66 +142,10 @@ export default function BatchFlow() {
     }
   }, [currentStep]);
 
-  const [shouldExecute, setShouldExecute] = useState(false);
-
-  useEffect(() => {
-    if (shouldExecute && currentStep === 'results' && session) {
-      const execute = async () => {
-        setIsProcessing(true);
-        setStreamingContent('');
-        contentRef.current = '';
-        
-        try {
-          await executeBatchFlow(
-            {
-              file_ids: [
-                ...uploadedFiles.map(file => file.status.id),
-                ...selectedKnowledgeBases.map(kb => kb.id),
-                ...selectedAssets.map(asset => asset.id)
-              ],
-              steps: workflowSteps,
-              customInstructions
-            },
-            session.access_token,
-            (message) => {
-              if (typeof message === 'string') {
-                try {
-                  const parsed = JSON.parse(message);
-                  if (parsed.choices?.[0]?.delta?.content) {
-                    contentRef.current += parsed.choices[0].delta.content;
-                    setStreamingContent(contentRef.current);
-                  }
-                } catch (err) {
-                  console.error('Error parsing message:', err);
-                }
-              } else if (message.type === 'progress') {
-                setProcessingStatus(
-                  `Processing ${message.fileName} (${message.currentStep}/${message.totalSteps})`
-                );
-              } else if (message.type === 'error') {
-                setProcessingStatus(`Error: ${message.error}`);
-              } else if (message.type === 'completion') {
-                setProcessingStatus('Processing complete!');
-              }
-            }
-          );
-        } catch (error: unknown) {
-          console.error('Failed to execute batch flow:', error);
-          setProcessingStatus('Failed to execute batch flow');
-        } finally {
-          setIsProcessing(false);
-          setShouldExecute(false);
-        }
-      };
-
-      execute();
-    }
-  }, [shouldExecute, currentStep, session, uploadedFiles, selectedKnowledgeBases, selectedAssets, workflowSteps, customInstructions]);
-
   const handleExecute = useCallback(() => {
     setCurrentStep('results');
-    setShouldExecute(true);
-  }, [session, uploadedFiles, selectedKnowledgeBases, selectedAssets, workflowSteps, customInstructions, setCurrentStep]);
+    setIsProcessing(true);
+  }, []);
 
   const uppyRef = useMemo(() => {
     if (!session || !supabase) return null;
@@ -417,9 +359,9 @@ export default function BatchFlow() {
                   setSelectedKnowledgeBases([]);
                   setSelectedAssets([]);
                   setCurrentStep('upload');
+                  setIsProcessing(false);
                 }}
                 session={session}
-                streamingContent={streamingContent}
               />
             )}
           </div>
