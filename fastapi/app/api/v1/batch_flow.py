@@ -17,6 +17,7 @@ from app.api.v1.router import create_protected_router
 from app.utils import format_openai_message, log_chat_request
 from app.database import get_db
 from app import crud
+from app.config.rag_utils import get_optimized_reference_content
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,6 +56,8 @@ class BatchFlowPayload(BaseModel):
     file_ids: List[str]
     steps: List[Step]
     customInstructions: Optional[str] = None
+    knowledge_base_ids: Optional[List[str]] = None
+    asset_ids: Optional[List[str]] = None
 
 
 # ----------------------------------------------------
@@ -77,12 +80,13 @@ async def batch_flow_endpoint(
     db: Session = Depends(get_db),
 ):
     """
-    Process a batch flow request where:
-      - We retrieve a prompt template by ID.
-      - We optionally retrieve a persona by ID.
-      - We retrieve one or more file assets by ID.
-      - We build a single prompt from {prompt_template}, {customInstructions}, and each {asset.content}.
-      - We send that prompt to the LLM (via OpenRouter) and stream back the response.
+    Process a batch flow request with support for knowledge bases and assets:
+      - We retrieve a prompt template by ID
+      - We optionally retrieve a persona by ID
+      - We retrieve referenced knowledge bases and assets
+      - We retrieve file assets by ID
+      - We build a single prompt combining all content while respecting token limits
+      - We send that prompt to the LLM (via OpenRouter) and stream back the response
     """
     # Log request details
     raw_body = await request.body()
@@ -101,7 +105,7 @@ async def batch_flow_endpoint(
     logger.info("=" * 50)
 
     # ----------------------------------------------------------------
-    # For simplicity, we’ll handle just the first step in this example.
+    # For simplicity, we'll handle just the first step in this example.
     # You can extend for multiple steps if needed.
     # ----------------------------------------------------------------
     if not batch_flow_data.steps:
@@ -124,7 +128,7 @@ async def batch_flow_endpoint(
             status_code=404,
             detail=f"ChatModel with ID {step.chat_model_id} not found."
         )
-    model_name = chat_model.model  # e.g. "openai/gpt-4"
+    model_name = chat_model.model
 
     # Retrieve persona (optional)
     system_message = ""
@@ -136,22 +140,45 @@ async def batch_flow_endpoint(
                 f"Goal: {persona.goal}\n"
             )
 
-    # Retrieve file assets by ID
-    file_contents = []
+    # Build the initial prompt from template and custom instructions
+    prompt_parts = [prompt_template.prompt]
+    if batch_flow_data.customInstructions:
+        prompt_parts.append(batch_flow_data.customInstructions)
+    initial_prompt = "\n\n".join(prompt_parts)
+
+    # Process referenced knowledge bases and assets with optimization
+    reference_content = ""
+    if batch_flow_data.knowledge_base_ids or batch_flow_data.asset_ids:
+        reference_content, content_tokens, used_rag = get_optimized_reference_content(
+            db=db,
+            query_text=initial_prompt,  # Use the prompt as the query text
+            knowledge_base_ids=batch_flow_data.knowledge_base_ids,
+            asset_ids=batch_flow_data.asset_ids,
+            max_tokens=chat_model.max_tokens,
+            token_threshold=0.75
+        )
+        
+        if reference_content:
+            strategy = "RAG" if used_rag else "full content"
+            logger.info(f"Added referenced content using {strategy} strategy with {content_tokens} tokens")
+            prompt_parts.append("Referenced Content:" + reference_content)
+
+    # Add content from file_ids
     if batch_flow_data.file_ids:
         for file_id in batch_flow_data.file_ids:
             asset = crud.get_asset(db, file_id)
             if asset and asset.content:
-                file_contents.append(asset.content)
+                prompt_parts.append(asset.content)
                 logger.info(f"Added content from asset {file_id} ({len(asset.content)} characters)")
 
-    # Construct final user prompt: {prompt_template.prompt}\n{customInstructions}\n{all asset.content}
-    final_prompt_parts = [prompt_template.prompt]
-    if batch_flow_data.customInstructions:
-        final_prompt_parts.append(batch_flow_data.customInstructions)
-    for fc in file_contents:
-        final_prompt_parts.append(fc)
-    final_user_prompt = "\n\n".join(final_prompt_parts)
+    # Combine all parts into final prompt
+    final_user_prompt = "\n\n".join(prompt_parts)
+
+    # Build messages list
+    local_messages = []
+    if system_message:
+        local_messages.append({"role": "system", "content": system_message})
+    local_messages.append({"role": "user", "content": final_user_prompt})
 
     # -------------------------------------------------------
     # SSE streaming generator
@@ -160,13 +187,6 @@ async def batch_flow_endpoint(
         chunks_received = 0
         total_tokens = 0
         stream_start_time = time.time()
-
-        # Prepare a standard set of messages for the OpenRouter call
-        # We'll use a system message for persona (if present), plus one user message
-        local_messages = []
-        if system_message:
-            local_messages.append({"role": "system", "content": system_message})
-        local_messages.append({"role": "user", "content": final_user_prompt})
 
         # Build the request headers
         headers = {
