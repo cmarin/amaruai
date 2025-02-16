@@ -9,8 +9,6 @@ export interface BatchFlowStep {
 
 export interface BatchFlowRequest {
   file_ids: string[];
-  knowledge_base_ids?: string[];
-  asset_ids?: string[];
   steps: BatchFlowStep[];
   customInstructions?: string;
 }
@@ -54,57 +52,57 @@ export interface AssetStatus {
 export async function executeBatchFlow(
   request: BatchFlowRequest,
   accessToken: string,
-  onProgress?: (message: BatchFlowStreamMessage) => void,
+  onMessage?: (message: BatchFlowStreamMessage) => void,
   onError?: (error: Error) => void,
   onComplete?: () => void,
 ): Promise<void> {
   try {
-    const response = await fetch(`${getApiUrl()}/api/batch-flow/execute`, {
+    const response = await fetch('/api/batch-flow', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`
       },
-      body: JSON.stringify(request)
+      body: JSON.stringify(request),
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error('Failed to execute batch flow');
     }
 
     if (!response.body) {
-      throw new Error('No response body');
+      throw new Error('No response body received');
     }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = '';
 
-    try {
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
+      const chunk = decoder.decode(value);
+      const messages = chunk
+        .split('\n')
+        .filter(line => line.trim())
+        .map(line => {
+          if (!line.startsWith('data: ')) return null;
           try {
-            const message = JSON.parse(line) as BatchFlowStreamMessage;
-            if (message.type === 'error') {
-              onError?.(new Error(message.error));
-            } else {
-              onProgress?.(message);
-            }
+            return JSON.parse(line.slice(6)) as BatchFlowStreamMessage;
           } catch (e) {
-            console.error('Error parsing message:', e);
+            console.error('Failed to parse SSE message:', e);
+            return null;
           }
+        })
+        .filter((msg): msg is BatchFlowStreamMessage => msg !== null);
+
+      for (const message of messages) {
+        if (message.type === 'error') {
+          onError?.(new Error(message.error));
+        } else {
+          onMessage?.(message);
         }
       }
-    } finally {
-      reader.releaseLock();
     }
 
     onComplete?.();

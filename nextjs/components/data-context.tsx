@@ -5,7 +5,6 @@ import { ChatModel as BaseChatModel, fetchChatModels, fetchFavoriteChatModels } 
 import { Persona, fetchPersonas } from '../utils/persona-service';
 import { PromptTemplate, fetchPromptTemplates } from '@/utils/prompt-template-service';
 import { Category, fetchCategories } from '../utils/category-service';
-import { KnowledgeBase, fetchKnowledgeBases } from '../utils/knowledge-base-service';
 import { useSession } from '@/app/utils/session/session';
 
 // Extend the base ChatModel type to include additional fields from the API
@@ -24,7 +23,6 @@ type DataContextType = {
   personas: Persona[];
   promptTemplates: PromptTemplate[];
   categories: Category[];
-  knowledgeBases: KnowledgeBase[];
   isLoading: boolean;
   error: string | null;
   refetchData: () => Promise<void>;
@@ -34,7 +32,6 @@ type DataContextType = {
     personas?: Persona[];
     promptTemplates?: PromptTemplate[];
     categories?: Category[];
-    knowledgeBases?: KnowledgeBase[];
   }) => void;
 };
 
@@ -46,7 +43,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { getApiHeaders, initialized } = useSession();
@@ -69,77 +65,105 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const fetchData = useCallback(async () => {
     if (!initialized) return;
 
+    const headers = getApiHeaders();
+    if (!headers) {
+      console.error('No valid headers available');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      const headers = await getApiHeaders();
-      if (!headers) {
-        throw new Error('No API headers available');
-      }
-
-      const [
-        chatModelsData,
-        favoriteChatModelsData,
-        personasData,
-        promptTemplatesData,
-        categoriesData,
-        knowledgeBasesData
-      ] = await Promise.all([
+      // Fetch each resource independently to handle partial failures
+      const fetchResults = await Promise.allSettled([
         fetchChatModels(headers),
         fetchFavoriteChatModels(headers),
         fetchPersonas(headers),
         fetchPromptTemplates(headers),
         fetchCategories(headers),
-        fetchKnowledgeBases(headers)
       ]);
 
-      setChatModels(transformChatModels(chatModelsData));
-      setFavoriteChatModels(transformChatModels(favoriteChatModelsData));
-      setPersonas(personasData);
-      setPromptTemplates(promptTemplatesData);
-      setCategories(categoriesData);
-      setKnowledgeBases(knowledgeBasesData);
+      console.log('Fetch results:', fetchResults);
+
+      // Process each result individually with proper type handling
+      fetchResults.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          switch (index) {
+            case 0: // chatModels
+              setChatModels(transformChatModels(result.value as BaseChatModel[]));
+              break;
+
+            case 1: // favoriteChatModels
+              setFavoriteChatModels(
+                transformChatModels(result.value as BaseChatModel[]).map(model => ({
+                  ...model,
+                  is_favorite: true
+                }))
+              );
+              break;
+
+            case 2: // personas
+              console.log('Setting personas:', result.value);
+              setPersonas(result.value as Persona[]);
+              break;
+
+            case 3: // promptTemplates
+              setPromptTemplates(result.value as PromptTemplate[]);
+              break;
+
+            case 4: // categories
+              setCategories(result.value as Category[]);
+              break;
+          }
+        } else {
+          console.error(`Failed to fetch data for index ${index}:`, result.reason);
+        }
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Error in fetchData:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
       setIsLoading(false);
     }
-  }, [initialized, getApiHeaders]);
+  }, [getApiHeaders, initialized]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const value = {
-    chatModels,
-    favoriteChatModels,
-    personas,
-    promptTemplates,
-    categories,
-    knowledgeBases,
-    isLoading,
-    error,
-    refetchData: fetchData,
-    setData: (data: {
-      chatModels?: ChatModel[];
-      favoriteChatModels?: ChatModel[];
-      personas?: Persona[];
-      promptTemplates?: PromptTemplate[];
-      categories?: Category[];
-      knowledgeBases?: KnowledgeBase[];
-    }) => {
-      if (data.chatModels) setChatModels(data.chatModels);
-      if (data.favoriteChatModels) setFavoriteChatModels(data.favoriteChatModels);
-      if (data.personas) setPersonas(data.personas);
-      if (data.promptTemplates) setPromptTemplates(data.promptTemplates);
-      if (data.categories) setCategories(data.categories);
-      if (data.knowledgeBases) setKnowledgeBases(data.knowledgeBases);
-    }
-  };
+  const setData = useCallback((data: {
+    chatModels?: ChatModel[];
+    favoriteChatModels?: ChatModel[];
+    personas?: Persona[];
+    promptTemplates?: PromptTemplate[];
+    categories?: Category[];
+  }) => {
+    if (data.chatModels) setChatModels(data.chatModels);
+    if (data.favoriteChatModels) setFavoriteChatModels(data.favoriteChatModels);
+    if (data.personas) setPersonas(data.personas);
+    if (data.promptTemplates) setPromptTemplates(data.promptTemplates);
+    if (data.categories) setCategories(data.categories);
+  }, []);
+
+  const refetchData = useCallback(async () => {
+    await fetchData();
+  }, [fetchData]);
 
   return (
-    <DataContext.Provider value={value}>
+    <DataContext.Provider
+      value={{
+        chatModels,
+        favoriteChatModels,
+        personas,
+        promptTemplates,
+        categories,
+        isLoading,
+        error,
+        refetchData,
+        setData,
+      }}
+    >
       {children}
     </DataContext.Provider>
   );
