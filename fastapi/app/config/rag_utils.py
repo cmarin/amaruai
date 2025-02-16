@@ -94,22 +94,26 @@ def get_optimized_reference_content(
     
     # Log the retrieved chunks
     logger.info("Retrieved the following chunks:")
-    for i, chunk in enumerate(relevant_chunks, 1):
-        logger.info(f"Chunk {i} (score: {chunk['score']:.3f}):")
-        logger.info(f"Text: {chunk['text'][:200]}..." if len(chunk['text']) > 200 else f"Text: {chunk['text']}")
-        if chunk['metadata'].get('source'):
-            logger.info(f"Source: {chunk['metadata']['source']}")
-        logger.info("-" * 50)
+    if not relevant_chunks:
+        logger.info("No relevant chunks found")
+    else:
+        total_chunk_tokens = 0
+        for i, chunk in enumerate(relevant_chunks, 1):
+            chunk_text = chunk['text']
+            chunk_tokens = count_tokens(chunk_text)
+            total_chunk_tokens += chunk_tokens
+            
+            logger.info(f"\nChunk {i}:")
+            logger.info(f"Score: {chunk['score']:.3f}")
+            logger.info(f"Tokens: {chunk_tokens}")
+            logger.info(f"Source: {chunk['metadata'].get('document_name', 'Unknown')}")
+            logger.info(f"Content: {chunk_text[:500]}..." if len(chunk_text) > 500 else f"Content: {chunk_text}")
+            logger.info("-" * 80)
+        
+        logger.info(f"\nRAG optimization reduced tokens from {total_tokens} to {total_chunk_tokens}")
     
-    # Format chunks into reference content
-    rag_content = "\nRelevant Content:\n"
-    for chunk in relevant_chunks:
-        rag_content += f"\n{chunk['text']}\n"
-        if chunk['metadata'].get('source'):
-            rag_content += f"(Source: {chunk['metadata']['source']})\n"
+    # Combine chunks into reference content
+    rag_content = "\n\n".join([chunk['text'] for chunk in relevant_chunks])
+    final_token_count = count_tokens(rag_content)
     
-    # Calculate new token count
-    rag_tokens = count_tokens(rag_content) + query_tokens
-    logger.info(f"RAG optimization reduced tokens from {total_tokens} to {rag_tokens}")
-    
-    return rag_content, rag_tokens, True
+    return rag_content, final_token_count, True
