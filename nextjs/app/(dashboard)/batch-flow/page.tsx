@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useSession } from '@/app/utils/session/session';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { useData } from '@/components/data-context';
@@ -148,7 +148,6 @@ export default function BatchFlow() {
     
     setIsProcessing(true);
     setFileResponses({});
-    setCurrentStep('results');
     
     try {
       await executeBatchFlow(
@@ -186,8 +185,9 @@ export default function BatchFlow() {
       setProcessingStatus('Failed to execute batch flow');
     } finally {
       setIsProcessing(false);
+      setCurrentStep('results');
     }
-  }, [session, uploadedFiles, selectedKnowledgeBases, selectedAssets, workflowSteps, customInstructions]);
+  }, [session, uploadedFiles, selectedKnowledgeBases, selectedAssets, workflowSteps, customInstructions, setCurrentStep]);
 
   const uppyRef = useMemo(() => {
     if (!session || !supabase) return null;
