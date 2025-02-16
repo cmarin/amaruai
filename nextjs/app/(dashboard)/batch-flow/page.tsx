@@ -336,47 +336,30 @@ export default function BatchFlow() {
         );
       case 'configure':
         return (
-          <>
-            <WorkflowSteps
-              steps={workflowSteps}
-              onUpdateStep={handleUpdateStep}
-              onRemoveStep={handleRemoveStep}
-              onAddStep={handleAddStep}
-              promptTemplates={promptTemplates.map(t => ({
-                id: String(t.id),
-                title: t.title,
-                prompt: t.prompt,
-                // Include the full prompt template for preview
-                _template: t
-              }))}
-              chatModels={chatModels.map(m => ({
-                id: String(m.id),
-                name: m.name,
-                description: m.description || '',
-                // Include the full chat model for preview
-                _model: m
-              }))}
-              personas={personas.map(p => ({
-                id: String(p.id),
-                role: p.role
-              }))}
-            />
-
-            <div className="flex justify-between mt-6">
-              <Button variant="outline" onClick={handlePrevious}>
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleNext}
-                disabled={!workflowSteps.some(step => 
-                  step.prompt_template_id && step.chat_model_id && step.persona_id
-                )}
-              >
-                Next
-              </Button>
-            </div>
-          </>
+          <WorkflowSteps
+            steps={workflowSteps}
+            onUpdateStep={handleUpdateStep}
+            onRemoveStep={handleRemoveStep}
+            onAddStep={handleAddStep}
+            promptTemplates={promptTemplates.map(t => ({
+              id: String(t.id),
+              title: t.title,
+              prompt: t.prompt,
+              // Include the full prompt template for preview
+              _template: t
+            }))}
+            chatModels={chatModels.map(m => ({
+              id: String(m.id),
+              name: m.name,
+              description: m.description || '',
+              // Include the full chat model for preview
+              _model: m
+            }))}
+            personas={personas.map(p => ({
+              id: String(p.id),
+              role: p.role
+            }))}
+          />
         );
       case 'review':
         return (
@@ -424,34 +407,70 @@ export default function BatchFlow() {
   }
 
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen">
       <AppSidebar toggleChatbot={(modelId: string) => {}} />
-      
-      <div className={`flex-1 p-8 bg-white ${sidebarOpen ? 'ml-64' : ''}`}>
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl font-bold mb-8">Batch Flow</h1>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-2xl font-bold mb-6">Batch Flow</h1>
+            
+            {/* Progress Steps */}
+            <div className="mb-8">
+              <ol className="flex items-center">
+                {steps.map((step, i) => (
+                  <li key={step.id} className="flex items-center">
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
+                      currentStep === step.id ? 'bg-blue-500 border-blue-500 text-white' :
+                      steps.findIndex(s => s.id === currentStep) > i ? 'bg-green-500 border-green-500 text-white' :
+                      'border-gray-300 text-gray-500'
+                    }`}>
+                      {steps.findIndex(s => s.id === currentStep) > i ? '✓' : i + 1}
+                    </div>
+                    <span className="ml-2 text-sm">{step.label}</span>
+                    {i < steps.length - 1 && (
+                      <div className="w-12 h-px bg-gray-300 mx-2" />
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
 
-          <div className="flex items-center justify-between mb-8">
-            {steps.map((step, index) => (
-              <React.Fragment key={step.id}>
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    step.id === currentStep
-                      ? 'bg-blue-500 text-white'
-                      : 'border-2 border-blue-500 text-blue-500'
-                  }`}
+            {/* Current Step Content */}
+            <div className="mb-6">
+              {renderCurrentStep()}
+            </div>
+
+            {/* Navigation Buttons */}
+            {currentStep !== 'results' && (
+              <div className="flex justify-between mt-6">
+                <Button
+                  variant="outline"
+                  onClick={handlePrevious}
+                  disabled={currentStep === 'upload'}
                 >
-                  {index + 1}
-                </div>
-                {index < steps.length - 1 && (
-                  <div className="flex-1 h-0.5 bg-blue-500 mx-2" />
+                  Previous
+                </Button>
+                {currentStep === 'review' ? (
+                  <Button
+                    onClick={() => {
+                      handleExecute();
+                      setCurrentStep('results');
+                    }}
+                    disabled={!canProceed}
+                  >
+                    Execute
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={handleNext}
+                    disabled={!canProceed}
+                  >
+                    Next
+                  </Button>
                 )}
-              </React.Fragment>
-            ))}
-          </div>
-
-          <div className="p-6 border rounded-lg">
-            {renderCurrentStep()}
+              </div>
+            )}
           </div>
         </div>
       </div>
