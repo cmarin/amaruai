@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException, BackgroundTasks, WebSocket, Request
 from sqlalchemy.orm import Session
-from typing import List, Dict
+from typing import List, Dict, Optional
 from app import crud, schemas, models
 from app.database import get_db
 from app.api.v1.router import create_protected_router, create_public_router
@@ -20,6 +20,8 @@ from llama_index.storage.chat_store.postgres import PostgresChatStore
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
 from fastapi.responses import StreamingResponse
+from app.config.rag_utils import get_optimized_reference_content
+from pydantic import BaseModel
 
 # Load environment variables
 load_dotenv()
@@ -37,6 +39,12 @@ public_router = create_public_router(prefix="workflows", tags=["workflows"])
 workflow_results = {}
 
 logger = logging.getLogger(__name__)
+
+# Update the input model to include knowledge bases and assets
+class WorkflowExecuteInput(BaseModel):
+    message: Optional[str] = None
+    knowledge_base_ids: Optional[List[UUID]] = None
+    asset_ids: Optional[List[UUID]] = None
 
 @router.post("/", response_model=schemas.Workflow)
 def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_db)):
@@ -97,7 +105,12 @@ def delete_workflow(workflow_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.post("/{workflow_id}/execute", response_model=Dict[str, str])
-async def execute_workflow(workflow_id: int, user_input: Dict[str, str], background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def execute_workflow(
+    workflow_id: UUID, 
+    user_input: WorkflowExecuteInput,  # Update to use the new model
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db)
+):
     try:
         workflow = crud.get_workflow(db, workflow_id=workflow_id)
         if not workflow:
@@ -164,20 +177,37 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
                         allow_delegation=persona.allow_delegation,
                         verbose=persona.verbose,
                         llm=llm,
-                        max_iter=max_iterations if max_iterations is not None else 1  # Default to 1 if not set
+                        max_iter=max_iterations if max_iterations is not None else 1
                     )
                     agents.append(agent)
 
-                    if i == 0 and "message" in user_input:
-                        description = user_input["message"]
+                    # Build the initial prompt
+                    if i == 0 and "message" in user_input.dict():
+                        description = user_input.message
                     else:
-                        description = prompt_template.prompt.format(**user_input)
+                        description = prompt_template.prompt
+
+                    # Process referenced knowledge bases and assets with optimization
+                    if user_input.knowledge_base_ids or user_input.asset_ids:
+                        reference_content, content_tokens, used_rag = get_optimized_reference_content(
+                            db=db,
+                            query_text=description,  # Use the current description as query
+                            knowledge_base_ids=user_input.knowledge_base_ids,
+                            asset_ids=user_input.asset_ids,
+                            max_tokens=chat_model.max_tokens,
+                            token_threshold=0.75
+                        )
+                        
+                        if reference_content:
+                            strategy = "RAG" if used_rag else "full content"
+                            logger.info(f"Added referenced content using {strategy} strategy with {content_tokens} tokens")
+                            description += "\n\nReferenced Content:" + reference_content
+
                     task = Task(
                         description=description,
                         agent=agent,
                         expected_output="Quality writing"
                     )
-
                     tasks.append(task)
 
                 logging.debug(f"Workflow process type: {workflow.process_type}")
@@ -222,20 +252,18 @@ async def execute_workflow(workflow_id: int, user_input: Dict[str, str], backgro
 
             except Exception as e:
                 logging.error(f"Error during workflow execution: {str(e)}")
-
                 workflow_results[workflow_id] = [{
                     "step": "Error",
                     "prompt": "Error occurred",
                     "response": str(e)
-                }, {"completed": True}]  # Add completion flag even for errors
-
+                }, {"completed": True}]
                 return {"result": f"Error during workflow execution: {str(e)}"}
 
         background_tasks.add_task(run_workflow)
         return {"message": "Workflow execution started in the background"}
 
     except Exception as e:
-        logging.error(f"Error executing workflow: {str(e)}")
+        logger.error(f"Error executing workflow: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

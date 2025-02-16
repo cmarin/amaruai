@@ -20,6 +20,8 @@ export interface Workflow {
   manager_chat_model_id?: string;
   manager_persona_id?: string;
   max_iterations?: number;
+  knowledge_base_ids?: string[];
+  asset_ids?: string[];
 }
 
 export interface WorkflowResult {

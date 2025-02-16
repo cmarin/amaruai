@@ -10,11 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { WorkflowSteps } from "@/components/batch-flow/workflow-steps"
+import { KnowledgeBaseSelector } from "@/components/knowledge-base-selector"
 
 import { Workflow, WorkflowStep, createWorkflow, updateWorkflow } from '../utils/workflow-service'
 import { PromptTemplate, fetchPromptTemplates } from '@/utils/prompt-template-service'
 import { ChatModel, fetchChatModels } from '../utils/chat-model-service'
 import { Persona, fetchPersonas } from '../utils/persona-service'
+import { KnowledgeBase, fetchKnowledgeBases } from '@/utils/knowledge-base-service'
+import { Asset } from '@/types/knowledge-base'
 import { useSession } from '@/app/utils/session/session';
 
 interface WorkflowManagerProps {
@@ -29,10 +32,17 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     description: "",
     process_type: "SEQUENTIAL",
     steps: [],
+    knowledge_base_ids: [],
+    asset_ids: [],
   });
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [chatModels, setChatModels] = useState<ChatModel[]>([]);
   const [personas, setPersonas] = useState<Persona[]>([]);
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
+  const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([]);
+  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
+  const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(false);
+  const [assets, setAssets] = useState<Asset[]>([]);
   const [managerChatModelId, setManagerChatModelId] = useState<string | undefined>(undefined);
   const [managerPersonaId, setManagerPersonaId] = useState<string | undefined>(undefined);
   const [maxIterations, setMaxIterations] = useState<number>(5);
@@ -50,25 +60,26 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
         return;
       }
 
-      const [templatesData, modelsData, personasData] = await Promise.all([
+      const [
+        promptTemplatesData,
+        chatModelsData,
+        personasData,
+        knowledgeBasesData,
+      ] = await Promise.all([
         fetchPromptTemplates(headers),
         fetchChatModels(headers),
-        fetchPersonas(headers)
+        fetchPersonas(headers),
+        fetchKnowledgeBases(headers),
       ]);
 
-      console.log('Data loaded:', {
-        promptTemplates: templatesData,
-        chatModels: modelsData,
-        personas: personasData
-      });
-
-      setPromptTemplates(templatesData);
-      setChatModels(modelsData);
+      setPromptTemplates(promptTemplatesData);
+      setChatModels(chatModelsData);
       setPersonas(personasData);
+      setKnowledgeBases(knowledgeBasesData);
       setError(null);
     } catch (err) {
       console.error('Error loading data:', err);
-      setError('Failed to load necessary data');
+      setError('Failed to load data');
     } finally {
       setIsLoading(false);
     }
@@ -310,25 +321,73 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Steps</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <WorkflowSteps
-            steps={workflow.steps}
-            onUpdateStep={updateStep}
-            onRemoveStep={removeStep}
-            onAddStep={addStep}
-            promptTemplates={promptTemplates}
-            chatModels={chatModels}
-            personas={personas.map(p => ({
-              id: String(p.id),
-              role: p.role
-            }))}
-          />
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <div className="grid gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Knowledge Bases & Assets</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <KnowledgeBaseSelector
+                  knowledgeBases={knowledgeBases}
+                  isLoadingKnowledgeBases={isLoadingKnowledgeBases}
+                  selectedKnowledgeBases={selectedKnowledgeBases}
+                  selectedAssets={selectedAssets}
+                  onSelectKnowledgeBase={(kb: KnowledgeBase) => {
+                    setSelectedKnowledgeBases(prev => [...prev, kb]);
+                    setWorkflow(prev => ({
+                      ...prev,
+                      knowledge_base_ids: [...(prev.knowledge_base_ids || []), kb.id]
+                    }));
+                  }}
+                  onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
+                    setSelectedKnowledgeBases(prev => prev.filter(k => k.id !== kb.id));
+                    setWorkflow(prev => ({
+                      ...prev,
+                      knowledge_base_ids: (prev.knowledge_base_ids || []).filter(id => id !== kb.id)
+                    }));
+                  }}
+                  onSelectAsset={(asset: Asset) => {
+                    setSelectedAssets(prev => [...prev, asset]);
+                    setWorkflow(prev => ({
+                      ...prev,
+                      asset_ids: [...(prev.asset_ids || []), asset.id]
+                    }));
+                  }}
+                  onDeselectAsset={(asset: Asset) => {
+                    setSelectedAssets(prev => prev.filter(a => a.id !== asset.id));
+                    setWorkflow(prev => ({
+                      ...prev,
+                      asset_ids: (prev.asset_ids || []).filter(id => id !== asset.id)
+                    }));
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Steps</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <WorkflowSteps
+                steps={workflow.steps}
+                onUpdateStep={updateStep}
+                onRemoveStep={removeStep}
+                onAddStep={addStep}
+                promptTemplates={promptTemplates}
+                chatModels={chatModels}
+                personas={personas.map(p => ({
+                  id: String(p.id),
+                  role: p.role
+                }))}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       <div className="flex justify-end space-x-4">
         <Button variant="outline" onClick={onCancel}>
