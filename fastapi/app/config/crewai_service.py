@@ -39,23 +39,163 @@ class CrewAIService:
     def __init__(self):
         self.api_key = os.environ.get("OPENROUTER_API_KEY")
         self.base_url = os.environ.get("OPENROUTER_API_BASE")
-        self._stream_tokens = {}  # Store stream data
-        self._task_results = {}   # Store task results
+        self._stream_tokens: Dict[str, Dict] = {}
+        self._task_metadata: Dict[int, Dict] = {}
+        self._task_results: Dict[str, List] = {}
+        self._stdout_buffers: Dict[str, StringIO] = {}
+
+    def _generate_stream_token(self, workflow_id: UUID) -> str:
+        token = str(uuid.uuid4())
+        self._stream_tokens[token] = {
+            'workflow_id': workflow_id,
+            'created_at': datetime.now(),
+            'result': None,
+            'status': 'pending'
+        }
+        self._stdout_buffers[token] = StringIO()  # Create buffer for this token
+        return token
+
+    def get_stream_data(self, token: str) -> Optional[Dict]:
+        data = self._stream_tokens.get(token)
+        if data and token in self._stdout_buffers:
+            buffer = self._stdout_buffers[token]
+            buffer_value = buffer.getvalue()
+            if buffer_value:
+                try:
+                    lines = buffer_value.splitlines()
+                    for line in lines:
+                        if line.strip():
+                            try:
+                                result = json.loads(line)
+                                if 'result' not in data:
+                                    data['result'] = []
+                                data['result'].append(result)
+                            except json.JSONDecodeError:
+                                continue
+                    
+                    buffer.truncate(0)
+                    buffer.seek(0)
+                except Exception as e:
+                    logger.error(f"Error processing buffer: {str(e)}")
+
+        return data
 
     async def prepare_workflow_stream(self, workflow_id: UUID) -> str:
-        """Initialize a new stream for a workflow"""
-        stream_token = str(uuid.uuid4())
-        self._stream_tokens[stream_token] = {
-            'workflow_id': workflow_id,
-            'status': 'pending',
-            'result': []
-        }
-        self._task_results[stream_token] = []
-        return stream_token
+        return self._generate_stream_token(workflow_id)
 
-    def get_stream_data(self, stream_token: str) -> Optional[Dict]:
-        """Get current stream data"""
-        return self._stream_tokens.get(stream_token)
+    def create_callback(self, step_metadata, stream_token):
+        def callback(output):
+            if stream_token:
+                result = {
+                    "step": step_metadata["step"],
+                    "prompt": step_metadata["prompt"],
+                    "response": output.raw if hasattr(output, 'raw') else str(output),
+                    "persona": {
+                        "id": str(step_metadata["persona"]["id"]),
+                        "role": step_metadata["persona"]["role"],
+                        "goal": step_metadata["persona"]["goal"]
+                    },
+                    "chat_model": {
+                        "id": str(step_metadata["chat_model"]["id"]),
+                        "name": step_metadata["chat_model"]["name"],
+                        "model": step_metadata["chat_model"]["model"]
+                    }
+                }
+                print(json.dumps(result, cls=UUIDEncoder), flush=True)
+                if stream_token in self._stdout_buffers:
+                    self._stdout_buffers[stream_token].flush()
+        return callback
+
+    async def execute_workflow(self, workflow_id: UUID, user_input: dict, db: Session, stream_token: str):
+        try:
+            workflow = db.query(models.Workflow).options(
+                joinedload(models.Workflow.steps),
+                joinedload(models.Workflow.assets),
+                joinedload(models.Workflow.knowledge_bases)
+            ).filter(
+                models.Workflow.id == workflow_id
+            ).first()
+
+            if not workflow:
+                raise HTTPException(status_code=404, detail="Workflow not found")
+
+            # Redirect stdout to capture output
+            old_stdout = sys.stdout
+            if stream_token in self._stdout_buffers:
+                sys.stdout = self._stdout_buffers[stream_token]
+
+            try:
+                agents = []
+                tasks = []
+
+                for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.position)):
+                    prompt_template = step.prompt_template
+                    chat_model = step.chat_model
+                    persona = step.persona
+
+                    agent = self.create_agent(persona, chat_model)
+                    agents.append(agent)
+
+                    # Build prompt with RAG content
+                    description = user_input.get("message") if i == 0 and "message" in user_input else prompt_template.prompt
+
+                    if workflow.assets or workflow.knowledge_bases:
+                        kb_ids = [kb.id for kb in workflow.knowledge_bases] if workflow.knowledge_bases else None
+                        asset_ids = [asset.id for asset in workflow.assets] if workflow.assets else None
+                        
+                        reference_content, content_tokens, used_rag = get_optimized_reference_content(
+                            db=db,
+                            query_text=description,
+                            knowledge_base_ids=kb_ids,
+                            asset_ids=asset_ids,
+                            max_tokens=chat_model.max_tokens,
+                            token_threshold=0.75
+                        )
+                        
+                        if reference_content:
+                            description = f"{description}\n\nReferenced Content:\n{reference_content}"
+
+                    metadata = {
+                        "step": i + 1,
+                        "prompt": description,
+                        "persona": {
+                            "id": persona.id,
+                            "role": persona.role,
+                            "goal": persona.goal
+                        },
+                        "chat_model": {
+                            "id": chat_model.id,
+                            "name": chat_model.name,
+                            "model": chat_model.model
+                        }
+                    }
+
+                    task = Task(
+                        description=description,
+                        agent=agent,
+                        expected_output="Quality writing",
+                        callback=self.create_callback(metadata, stream_token)
+                    )
+                    tasks.append(task)
+
+                crew = Crew(
+                    agents=agents,
+                    tasks=tasks,
+                    process=Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL.value else Process.hierarchical,
+                    verbose=True
+                )
+
+                result = await asyncio.to_thread(crew.kickoff)
+                self._stream_tokens[stream_token]['status'] = 'completed'
+
+            finally:
+                sys.stdout = old_stdout
+
+        except Exception as e:
+            logger.error(f"Error in workflow execution: {str(e)}")
+            self._stream_tokens[stream_token]['status'] = 'error'
+            self._stream_tokens[stream_token]['error'] = str(e)
+            raise
 
     def create_agent(self, persona, chat_model, max_iterations=None):
         try:
@@ -77,119 +217,5 @@ class CrewAIService:
         except Exception as e:
             logger.error(f"Failed to create agent: {str(e)}")
             raise CrewAIError(f"Agent creation failed: {str(e)}")
-
-    def create_callback(self, metadata: Dict, stream_token: str):
-        """Create a callback function for task results"""
-        def callback(output):
-            if stream_token in self._stream_tokens:
-                result = {
-                    "step": metadata["step"],
-                    "prompt": metadata["prompt"],
-                    "response": output.raw if hasattr(output, 'raw') else str(output),
-                    "persona": metadata["persona"],
-                    "chat_model": metadata["chat_model"]
-                }
-                self._task_results[stream_token].append(result)
-                self._stream_tokens[stream_token]['result'] = self._task_results[stream_token]
-        return callback
-
-    async def execute_workflow(self, workflow_id: UUID, user_input: Dict[str, Any], db: Session, stream_token: str):
-        try:
-            # Get workflow with relationships
-            workflow = db.query(models.Workflow).options(
-                joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.prompt_template),
-                joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
-                joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona),
-                joinedload(models.Workflow.assets),
-                joinedload(models.Workflow.knowledge_bases)
-            ).filter(
-                models.Workflow.id == workflow_id
-            ).first()
-
-            if not workflow:
-                self._update_stream_data(stream_token, {'status': 'error', 'error': 'Workflow not found'})
-                return
-
-            agents = []
-            tasks = []
-
-            for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.position)):
-                prompt_template = step.prompt_template
-                chat_model = step.chat_model
-                persona = step.persona
-
-                # Create agent
-                agent = self.create_agent(persona, chat_model)
-                agents.append(agent)
-
-                # Build prompt with RAG content
-                description = user_input.get("message") if i == 0 and "message" in user_input else prompt_template.prompt
-
-                if workflow.assets or workflow.knowledge_bases:
-                    kb_ids = [kb.id for kb in workflow.knowledge_bases] if workflow.knowledge_bases else None
-                    asset_ids = [asset.id for asset in workflow.assets] if workflow.assets else None
-                    
-                    reference_content, content_tokens, used_rag = get_optimized_reference_content(
-                        db=db,
-                        query_text=description,
-                        knowledge_base_ids=kb_ids,
-                        asset_ids=asset_ids,
-                        max_tokens=chat_model.max_tokens,
-                        token_threshold=0.75
-                    )
-                    
-                    if reference_content:
-                        description = f"{description}\n\nReferenced Content:\n{reference_content}"
-
-                # Create task with callback
-                metadata = {
-                    "step": i + 1,
-                    "prompt": description,
-                    "persona": {
-                        "id": persona.id,
-                        "role": persona.role,
-                        "goal": persona.goal
-                    },
-                    "chat_model": {
-                        "id": chat_model.id,
-                        "name": chat_model.name,
-                        "model": chat_model.model
-                    }
-                }
-
-                task = Task(
-                    description=description,
-                    agent=agent,
-                    expected_output="Quality writing",
-                    callback=self.create_callback(metadata, stream_token)
-                )
-                tasks.append(task)
-
-            # Execute workflow
-            crew = Crew(
-                agents=agents,
-                tasks=tasks,
-                process=Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL.value else Process.hierarchical,
-                verbose=True
-            )
-
-            result = await asyncio.to_thread(crew.kickoff)
-            
-            # Mark as completed
-            self._update_stream_data(stream_token, {
-                'status': 'completed'
-            })
-
-        except Exception as e:
-            logger.error(f"Error in workflow execution: {str(e)}")
-            self._update_stream_data(stream_token, {
-                'status': 'error',
-                'error': str(e)
-            })
-
-    def _update_stream_data(self, stream_token: str, data: Dict):
-        """Update stream data safely"""
-        if stream_token in self._stream_tokens:
-            self._stream_tokens[stream_token].update(data)
 
 crew_service = CrewAIService()
