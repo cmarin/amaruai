@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,8 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import TagSelector from '@/components/tag-selector';
 import { Tag } from '@/utils/tag-service';
 import { Category } from '@/utils/category-service';
-import { Persona, fetchPersonas } from '@/utils/persona-service';
-import { ChatModel, fetchChatModels } from '@/utils/chat-model-service';
+import { useData } from '@/components/data-context';
 
 interface PromptTemplateEditorProps {
   promptTemplate?: PromptTemplate;
@@ -25,40 +24,14 @@ interface PromptTemplateEditorProps {
 export default function PromptTemplateEditor({ promptTemplate, categories, onSave, onClose, mode = 'edit' }: PromptTemplateEditorProps) {
   const { getApiHeaders } = useSession();
   const { toast } = useToast();
+  const { personas, chatModels } = useData();
   const [title, setTitle] = useState(promptTemplate?.title || '');
   const [prompt, setPrompt] = useState<string>(typeof promptTemplate?.prompt === 'string' ? promptTemplate.prompt : '');
   const [selectedCategory, setSelectedCategory] = useState(promptTemplate?.categories[0]?.id || categories[0]?.id || '');
   const [tags, setTags] = useState<Tag[]>(promptTemplate?.tags || []);
   const [isSaving, setIsSaving] = useState(false);
-  const [personas, setPersonas] = useState<Persona[]>([]);
-  const [chatModels, setChatModels] = useState<ChatModel[]>([]);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(promptTemplate?.default_persona_id || null);
   const [selectedChatModelId, setSelectedChatModelId] = useState<string | null>(promptTemplate?.default_chat_model_id || null);
-
-  useEffect(() => {
-    const loadData = async () => {
-      const headers = getApiHeaders();
-      if (!headers) return;
-
-      try {
-        const [fetchedPersonas, fetchedChatModels] = await Promise.all([
-          fetchPersonas(headers),
-          fetchChatModels(headers)
-        ]);
-        setPersonas(fetchedPersonas);
-        setChatModels(fetchedChatModels);
-      } catch (error) {
-        console.error('Error loading personas and chat models:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load personas and chat models',
-          variant: 'destructive',
-        });
-      }
-    };
-
-    loadData();
-  }, []);
 
   const handleSave = async () => {
     try {
@@ -154,15 +127,15 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Select
-              value={selectedPersonaId || undefined}
-              onValueChange={(value) => setSelectedPersonaId(value || null)}
+              value={selectedPersonaId || "none"}
+              onValueChange={(value) => setSelectedPersonaId(value === "none" ? null : value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select Persona" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No Persona</SelectItem>
-                {personas.map((persona) => (
+                {personas?.map((persona) => (
                   <SelectItem key={persona.id} value={persona.id.toString()}>
                     {persona.role}
                   </SelectItem>
@@ -173,15 +146,15 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
 
           <div>
             <Select
-              value={selectedChatModelId || undefined}
-              onValueChange={(value) => setSelectedChatModelId(value || null)}
+              value={selectedChatModelId || "none"}
+              onValueChange={(value) => setSelectedChatModelId(value === "none" ? null : value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select Chat Model" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No Chat Model</SelectItem>
-                {chatModels.map((model) => (
+                {chatModels?.map((model) => (
                   <SelectItem key={model.id} value={model.id}>
                     {model.name}
                   </SelectItem>
