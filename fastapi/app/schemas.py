@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any, Union, ForwardRef
+from typing import List, Optional, Dict, Any, Union, ForwardRef, Annotated
 from enum import Enum
 from uuid import UUID
 from datetime import datetime
@@ -383,6 +383,8 @@ class Workflow(WorkflowBase):
     class Config:
         from_attributes = True
 
+Workflow.model_rebuild()
+
 class WorkflowStepResult(BaseModel):
     step: int
     prompt: str
@@ -456,5 +458,3 @@ class ChatMessage(BaseModel):
                 "asset_ids": ["uuid3"]
             }
         }
-
-Workflow.update_forward_refs(Asset=Asset, KnowledgeBase=KnowledgeBase)
