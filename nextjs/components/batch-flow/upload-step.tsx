@@ -104,7 +104,7 @@ export function UploadStep({
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="files">Files</TabsTrigger>
+          <TabsTrigger value="files">Uploads</TabsTrigger>
           <TabsTrigger value="knowledge-bases">Knowledge Bases</TabsTrigger>
           <TabsTrigger value="assets">Assets</TabsTrigger>
         </TabsList>
