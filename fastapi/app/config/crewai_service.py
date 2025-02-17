@@ -13,7 +13,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timedelta
 import json
-from app.utils import get_optimized_reference_content
+from app.config.rag_utils import get_optimized_reference_content
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
