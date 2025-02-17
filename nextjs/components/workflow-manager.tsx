@@ -346,7 +346,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
               className="w-full h-10"
               onClick={() => setIsKnowledgeBaseSelectorOpen(true)}
             >
-              Edit
+              Select
             </Button>
             <KnowledgeBaseSelector
               knowledgeBases={knowledgeBases}
