@@ -161,7 +161,7 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
 
     console.log('Creating workflow with payload:', workflowPayload);
 
-    const response = await fetch(`${getApiUrl()}/workflows`, {
+    const response = await fetch(`${getApiUrl()}/workflows/`, {
       method: 'POST',
       headers: {
         ...headers,

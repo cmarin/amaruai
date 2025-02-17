@@ -42,13 +42,49 @@ logger = logging.getLogger(__name__)
 
 @router.post("/", response_model=schemas.Workflow)
 def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_db)):
-    if workflow.process_type == models.ProcessType.HIERARCHICAL.value:
-        if not workflow.manager_chat_model_id or not workflow.manager_persona_id:
-            raise HTTPException(
-                status_code=400, 
-                detail="Manager chat model and persona IDs are required for hierarchical workflows."
-            )
-    return crud.create_workflow(db=db, workflow=workflow)
+    try:
+        # Validate hierarchical workflow requirements
+        if workflow.process_type == models.ProcessType.HIERARCHICAL.value:
+            if not workflow.manager_chat_model_id or not workflow.manager_persona_id:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Manager chat model and persona IDs are required for hierarchical workflows."
+                )
+
+        # Create the workflow
+        db_workflow = models.Workflow(
+            name=workflow.name,
+            description=workflow.description,
+            process_type=workflow.process_type,
+            manager_chat_model_id=workflow.manager_chat_model_id,
+            manager_persona_id=workflow.manager_persona_id,
+            max_iterations=workflow.max_iterations
+        )
+        db.add(db_workflow)
+        db.flush()  # Get the ID without committing
+
+        # Add assets if provided
+        if workflow.asset_ids:
+            assets = db.query(models.Asset).filter(
+                models.Asset.id.in_(workflow.asset_ids)
+            ).all()
+            db_workflow.assets.extend(assets)
+
+        # Add knowledge bases if provided
+        if workflow.knowledge_base_ids:
+            knowledge_bases = db.query(models.KnowledgeBase).filter(
+                models.KnowledgeBase.id.in_(workflow.knowledge_base_ids)
+            ).all()
+            db_workflow.knowledge_bases.extend(knowledge_bases)
+
+        db.commit()
+        db.refresh(db_workflow)
+        return db_workflow
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating workflow: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/", response_model=List[schemas.Workflow])

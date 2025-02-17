@@ -304,10 +304,18 @@ class WorkflowBase(BaseModel):
             return v
         return v
 
-class WorkflowCreate(WorkflowBase):
-    process_type: ProcessType
-    asset_ids: Optional[List[UUID]] = []
-    knowledge_base_ids: Optional[List[UUID]] = []
+class WorkflowCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    process_type: str
+    manager_chat_model_id: Optional[UUID] = None
+    manager_persona_id: Optional[UUID] = None
+    max_iterations: Optional[int] = None
+    asset_ids: Optional[List[UUID]] = None
+    knowledge_base_ids: Optional[List[UUID]] = None
+
+    class Config:
+        from_attributes = True
 
 class WorkflowUpdate(WorkflowBase):
     steps: Optional[List[WorkflowStepUpdate]] = None
