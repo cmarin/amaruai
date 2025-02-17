@@ -46,6 +46,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   const [managerChatModelId, setManagerChatModelId] = useState<string | undefined>(undefined);
   const [managerPersonaId, setManagerPersonaId] = useState<string | undefined>(undefined);
   const [maxIterations, setMaxIterations] = useState<number>(5);
+  const [isKnowledgeBaseSelectorOpen, setIsKnowledgeBaseSelectorOpen] = useState(false);
   const { getApiHeaders, loading: sessionLoading, initialized } = useSession();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -340,17 +341,13 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
 
           <div className="space-y-2">
             <Label htmlFor="knowledgeBases">Knowledge Bases & Assets</Label>
-            <div className="flex items-center justify-center h-10">
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => {
-                  // Keep existing click handler logic
-                }}
-              >
-                Edit
-              </Button>
-            </div>
+            <Button 
+              variant="outline" 
+              className="w-full h-10"
+              onClick={() => setIsKnowledgeBaseSelectorOpen(true)}
+            >
+              Edit
+            </Button>
             <KnowledgeBaseSelector
               knowledgeBases={knowledgeBases}
               isLoadingKnowledgeBases={isLoadingKnowledgeBases}
@@ -384,6 +381,8 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
                   asset_ids: (prev.asset_ids || []).filter(id => id !== asset.id)
                 }));
               }}
+              open={isKnowledgeBaseSelectorOpen}
+              onOpenChange={setIsKnowledgeBaseSelectorOpen}
             />
           </div>
         </CardContent>

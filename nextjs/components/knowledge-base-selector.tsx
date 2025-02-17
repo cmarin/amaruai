@@ -9,9 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { X, Database } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface KnowledgeBaseSelectorProps {
   knowledgeBases: KnowledgeBase[];
@@ -22,6 +27,9 @@ interface KnowledgeBaseSelectorProps {
   onDeselectKnowledgeBase: (knowledgeBase: KnowledgeBase) => void;
   onSelectAsset: (asset: Asset) => void;
   onDeselectAsset: (asset: Asset) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  className?: string;
 }
 
 export function KnowledgeBaseSelector({
@@ -33,9 +41,11 @@ export function KnowledgeBaseSelector({
   onDeselectKnowledgeBase,
   onSelectAsset,
   onDeselectAsset,
+  open,
+  onOpenChange,
+  className,
 }: KnowledgeBaseSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('knowledge-bases');
   const [localAssets, setLocalAssets] = useState<Asset[]>([]);
   const [isLoadingAssets, setIsLoadingAssets] = useState(false);
@@ -69,18 +79,13 @@ export function KnowledgeBaseSelector({
   );
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="icon"
-          className={(selectedKnowledgeBases.length > 0 || selectedAssets.length > 0) ? "text-green-500" : ""}
-        >
-          <Database className="h-5 w-5" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[400px] p-0">
-        <div className="p-2 space-y-2">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className={`sm:max-w-[425px] ${className}`}>
+        <DialogHeader>
+          <DialogTitle>Select Knowledge Bases & Assets</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-2">
           <Input
             type="text"
             placeholder="Search..."
@@ -166,6 +171,10 @@ export function KnowledgeBaseSelector({
                   <div className="flex items-center justify-center py-4">
                     <div className="text-sm text-muted-foreground">Loading assets...</div>
                   </div>
+                ) : filteredAssets.length === 0 ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="text-sm text-muted-foreground">No assets found</div>
+                  </div>
                 ) : (
                   filteredAssets.map(asset => (
                     <Button
@@ -184,7 +193,7 @@ export function KnowledgeBaseSelector({
             </ScrollArea>
           </TabsContent>
         </Tabs>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   );
 }
