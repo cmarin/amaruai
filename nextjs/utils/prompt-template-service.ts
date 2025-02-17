@@ -38,6 +38,7 @@ export interface PromptTemplate {
   tags: Tag[];
   category?: string;  // For form handling
   default_persona_id?: string | null;
+  default_chat_model_id?: string | null;
   is_favorite?: boolean;
 }
 
@@ -47,6 +48,8 @@ export interface CreatePromptTemplateRequest {
   is_complex: boolean;
   category_ids?: string[];
   tags?: string[];  // Array of tag names
+  default_persona_id?: string | null;
+  default_chat_model_id?: string | null;
 }
 
 export interface UpdatePromptTemplateRequest {
@@ -56,6 +59,7 @@ export interface UpdatePromptTemplateRequest {
   category_ids?: string[];
   tags?: string[];  // Array of tag names
   default_persona_id?: string | null;
+  default_chat_model_id?: string | null;
 }
 
 export async function createPromptTemplate(
@@ -165,6 +169,7 @@ export async function fetchPromptTemplates(headers: ApiHeaders | null): Promise<
       id: template.id?.toString() || '',
       category_id: template.category_id?.toString(),
       default_persona_id: template.default_persona_id?.toString(),
+      default_chat_model_id: template.default_chat_model_id?.toString(),
       tags: template.tags?.map((tag: any) => ({
         ...tag,
         id: tag.id?.toString() || ''
@@ -191,6 +196,7 @@ export async function fetchPromptTemplate(promptTemplateId: string, headers: Api
       id: data.id?.toString() || '',
       category_id: data.category_id?.toString(),
       default_persona_id: data.default_persona_id?.toString(),
+      default_chat_model_id: data.default_chat_model_id?.toString(),
       tags: data.tags?.map((tag: any) => ({
         ...tag,
         id: tag.id?.toString() || ''
@@ -247,6 +253,7 @@ export async function fetchFavoritePromptTemplates(headers: ApiHeaders): Promise
       id: template.id?.toString() || '',
       category_id: template.category_id?.toString(),
       default_persona_id: template.default_persona_id?.toString(),
+      default_chat_model_id: template.default_chat_model_id?.toString(),
       tags: template.tags?.map((tag: any) => ({
         ...tag,
         id: tag.id?.toString() || ''

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import TagSelector from '@/components/tag-selector';
 import { Tag } from '@/utils/tag-service';
 import { Category } from '@/utils/category-service';
+import { Persona, fetchPersonas } from '@/utils/persona-service';
+import { ChatModel, fetchChatModels } from '@/utils/chat-model-service';
 
 interface PromptTemplateEditorProps {
   promptTemplate?: PromptTemplate;
@@ -24,10 +26,39 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
   const { getApiHeaders } = useSession();
   const { toast } = useToast();
   const [title, setTitle] = useState(promptTemplate?.title || '');
-  const [prompt, setPrompt] = useState(promptTemplate?.prompt || '');
+  const [prompt, setPrompt] = useState<string>(typeof promptTemplate?.prompt === 'string' ? promptTemplate.prompt : '');
   const [selectedCategory, setSelectedCategory] = useState(promptTemplate?.categories[0]?.id || categories[0]?.id || '');
   const [tags, setTags] = useState<Tag[]>(promptTemplate?.tags || []);
   const [isSaving, setIsSaving] = useState(false);
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [chatModels, setChatModels] = useState<ChatModel[]>([]);
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(promptTemplate?.default_persona_id || null);
+  const [selectedChatModelId, setSelectedChatModelId] = useState<string | null>(promptTemplate?.default_chat_model_id || null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const headers = getApiHeaders();
+      if (!headers) return;
+
+      try {
+        const [fetchedPersonas, fetchedChatModels] = await Promise.all([
+          fetchPersonas(headers),
+          fetchChatModels(headers)
+        ]);
+        setPersonas(fetchedPersonas);
+        setChatModels(fetchedChatModels);
+      } catch (error) {
+        console.error('Error loading personas and chat models:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load personas and chat models',
+          variant: 'destructive',
+        });
+      }
+    };
+
+    loadData();
+  }, []);
 
   const handleSave = async () => {
     try {
@@ -49,6 +80,8 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
           is_complex: false,
           category_ids: [selectedCategory],
           tags: tags.map(t => t.name),
+          default_persona_id: selectedPersonaId,
+          default_chat_model_id: selectedChatModelId,
         }, headers);
       } else {
         if (!promptTemplate) return;
@@ -56,7 +89,8 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
           title,
           prompt,
           is_complex: false,
-          default_persona_id: promptTemplate.default_persona_id || null,
+          default_persona_id: selectedPersonaId,
+          default_chat_model_id: selectedChatModelId,
           category_ids: [selectedCategory],
           tags: tags.map(t => t.name),
         }, headers);
@@ -99,29 +133,68 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
         </div>
       </div>
 
-      <div className="grid gap-4">
-        <div className="space-y-2">
-          <label htmlFor="title" className="text-sm font-medium">
-            Title
-          </label>
+      <div className="space-y-4">
+        <div>
           <Input
-            id="title"
+            placeholder="Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter title"
           />
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="category" className="text-sm font-medium">
-            Category
-          </label>
-          <Select
-            value={selectedCategory}
-            onValueChange={setSelectedCategory}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a category" />
+        <div>
+          <Textarea
+            placeholder="Prompt"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            rows={10}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Select
+              value={selectedPersonaId || ''}
+              onValueChange={(value) => setSelectedPersonaId(value || null)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Persona" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No Persona</SelectItem>
+                {personas.map((persona) => (
+                  <SelectItem key={persona.id} value={persona.id.toString()}>
+                    {persona.role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Select
+              value={selectedChatModelId || ''}
+              onValueChange={(value) => setSelectedChatModelId(value || null)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Chat Model" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No Chat Model</SelectItem>
+                {chatModels.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
               {categories.map((category) => (
@@ -133,27 +206,11 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">
-            Tags
-          </label>
+        <div>
           <TagSelector
             tags={tags}
             setTags={setTags}
             placeholder="Add tags"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="prompt" className="text-sm font-medium">
-            Prompt
-          </label>
-          <Textarea
-            id="prompt"
-            value={typeof prompt === 'string' ? prompt : JSON.stringify(prompt, null, 2)}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Enter prompt"
-            className="min-h-[200px]"
           />
         </div>
       </div>
