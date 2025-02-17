@@ -337,76 +337,66 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
               </div>
             </div>
           )}
+
+          <div className="space-y-2">
+            <Label>Knowledge Bases & Assets</Label>
+            <KnowledgeBaseSelector
+              knowledgeBases={knowledgeBases}
+              isLoadingKnowledgeBases={isLoadingKnowledgeBases}
+              selectedKnowledgeBases={selectedKnowledgeBases}
+              selectedAssets={selectedAssets}
+              onSelectKnowledgeBase={(kb: KnowledgeBase) => {
+                setSelectedKnowledgeBases(prev => [...prev, kb]);
+                setWorkflow(prev => ({
+                  ...prev,
+                  knowledge_base_ids: [...(prev.knowledge_base_ids || []), kb.id]
+                }));
+              }}
+              onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
+                setSelectedKnowledgeBases(prev => prev.filter(k => k.id !== kb.id));
+                setWorkflow(prev => ({
+                  ...prev,
+                  knowledge_base_ids: (prev.knowledge_base_ids || []).filter(id => id !== kb.id)
+                }));
+              }}
+              onSelectAsset={(asset: Asset) => {
+                setSelectedAssets(prev => [...prev, asset]);
+                setWorkflow(prev => ({
+                  ...prev,
+                  asset_ids: [...(prev.asset_ids || []), asset.id]
+                }));
+              }}
+              onDeselectAsset={(asset: Asset) => {
+                setSelectedAssets(prev => prev.filter(a => a.id !== asset.id));
+                setWorkflow(prev => ({
+                  ...prev,
+                  asset_ids: (prev.asset_ids || []).filter(id => id !== asset.id)
+                }));
+              }}
+            />
+          </div>
         </CardContent>
       </Card>
 
-      <div className="space-y-4">
-        <div className="grid gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Knowledge Bases & Assets</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <KnowledgeBaseSelector
-                  knowledgeBases={knowledgeBases}
-                  isLoadingKnowledgeBases={isLoadingKnowledgeBases}
-                  selectedKnowledgeBases={selectedKnowledgeBases}
-                  selectedAssets={selectedAssets}
-                  onSelectKnowledgeBase={(kb: KnowledgeBase) => {
-                    setSelectedKnowledgeBases(prev => [...prev, kb]);
-                    setWorkflow(prev => ({
-                      ...prev,
-                      knowledge_base_ids: [...(prev.knowledge_base_ids || []), kb.id]
-                    }));
-                  }}
-                  onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
-                    setSelectedKnowledgeBases(prev => prev.filter(k => k.id !== kb.id));
-                    setWorkflow(prev => ({
-                      ...prev,
-                      knowledge_base_ids: (prev.knowledge_base_ids || []).filter(id => id !== kb.id)
-                    }));
-                  }}
-                  onSelectAsset={(asset: Asset) => {
-                    setSelectedAssets(prev => [...prev, asset]);
-                    setWorkflow(prev => ({
-                      ...prev,
-                      asset_ids: [...(prev.asset_ids || []), asset.id]
-                    }));
-                  }}
-                  onDeselectAsset={(asset: Asset) => {
-                    setSelectedAssets(prev => prev.filter(a => a.id !== asset.id));
-                    setWorkflow(prev => ({
-                      ...prev,
-                      asset_ids: (prev.asset_ids || []).filter(id => id !== asset.id)
-                    }));
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Steps</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <WorkflowSteps
-                steps={workflow.steps}
-                onUpdateStep={updateStep}
-                onRemoveStep={removeStep}
-                onAddStep={addStep}
-                promptTemplates={promptTemplates}
-                chatModels={chatModels}
-                personas={personas.map(p => ({
-                  id: String(p.id),
-                  role: p.role
-                }))}
-              />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Steps</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <WorkflowSteps
+            steps={workflow.steps}
+            onUpdateStep={updateStep}
+            onRemoveStep={removeStep}
+            onAddStep={addStep}
+            promptTemplates={promptTemplates}
+            chatModels={chatModels}
+            personas={personas.map(p => ({
+              id: String(p.id),
+              role: p.role
+            }))}
+          />
+        </CardContent>
+      </Card>
 
       <div className="flex justify-end space-x-4">
         <Button variant="outline" onClick={onCancel}>

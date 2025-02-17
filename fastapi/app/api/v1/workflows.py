@@ -110,6 +110,18 @@ async def execute_workflow(
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
 
+        # Log workflow's associated resources
+        logger.info(f"Workflow {workflow_id} resources:")
+        if workflow.assets:
+            logger.info(f"Associated assets: {[(asset.id, asset.title) for asset in workflow.assets]}")
+        else:
+            logger.info("No assets associated with this workflow")
+            
+        if workflow.knowledge_bases:
+            logger.info(f"Associated knowledge bases: {[(kb.id, kb.title) for kb in workflow.knowledge_bases]}")
+        else:
+            logger.info("No knowledge bases associated with this workflow")
+
         # Determine max_iterations only for hierarchical workflows
         max_iterations = workflow.max_iterations if workflow.process_type == models.ProcessType.HIERARCHICAL.value else None
 
@@ -181,15 +193,21 @@ async def execute_workflow(
                     else:
                         description = prompt_template.prompt
 
-                    # Get knowledge bases and assets from the workflow instead of user input
+                    # Get knowledge bases and assets from the workflow
                     if workflow.knowledge_bases or workflow.assets:
                         # Convert workflow relationships to IDs for the RAG function
                         kb_ids = [kb.id for kb in workflow.knowledge_bases] if workflow.knowledge_bases else None
                         asset_ids = [asset.id for asset in workflow.assets] if workflow.assets else None
                         
+                        logger.info(f"Step {i+1}: Retrieving content from:")
+                        if kb_ids:
+                            logger.info(f"- Knowledge Base IDs: {kb_ids}")
+                        if asset_ids:
+                            logger.info(f"- Asset IDs: {asset_ids}")
+                        
                         reference_content, content_tokens, used_rag = get_optimized_reference_content(
                             db=db,
-                            query_text=description,  # Use the current description as query
+                            query_text=description,
                             knowledge_base_ids=kb_ids,
                             asset_ids=asset_ids,
                             max_tokens=chat_model.max_tokens,
@@ -198,9 +216,15 @@ async def execute_workflow(
                         
                         if reference_content:
                             strategy = "RAG" if used_rag else "full content"
-                            logger.info(f"Added referenced content using {strategy} strategy with {content_tokens} tokens")
-                            description += "\n\nReferenced Content:" + reference_content
+                            logger.info(f"Step {i+1}: Added referenced content using {strategy} strategy")
+                            logger.info(f"- Token count: {content_tokens}")
+                            logger.info(f"- Content preview: {reference_content[:200]}...")
+                            description = f"{description}\n\nReferenced Content:\n{reference_content}"
+                        else:
+                            logger.warning(f"Step {i+1}: No reference content was retrieved")
 
+                    logger.info(f"Step {i+1} final prompt: {description[:200]}...")
+                    
                     task = Task(
                         description=description,
                         agent=agent,
