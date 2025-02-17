@@ -428,21 +428,19 @@ def get_workflows(db: Session, skip: int = 0, limit: int = 100):
 
 def get_workflow(db: Session, workflow_id: UUID):
     try:
-        # Query workflow with basic info first
-        workflow = db.query(models.Workflow).filter(
+        # Query workflow with eager loading of assets and knowledge bases
+        workflow = db.query(models.Workflow).options(
+            joinedload(models.Workflow.steps),
+            joinedload(models.Workflow.assets),
+            joinedload(models.Workflow.knowledge_bases)
+        ).filter(
             models.Workflow.id == workflow_id
         ).first()
         
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
         
-        # Load relationships separately to avoid type casting issues
-        db.query(models.Workflow).options(
-            joinedload(models.Workflow.steps)
-        ).filter(
-            models.Workflow.id == workflow_id
-        ).first()
-        
+        # Load relationships for each step
         for step in workflow.steps:
             db.query(models.PromptTemplate).filter(
                 models.PromptTemplate.id == step.prompt_template_id

@@ -110,15 +110,20 @@ async def execute_workflow(
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
 
-        # Log workflow's associated resources
+        # Detailed logging of workflow relationships
         logger.info(f"Workflow {workflow_id} resources:")
+        logger.info(f"Raw assets data: {workflow.assets}")
+        logger.info(f"Raw knowledge bases data: {workflow.knowledge_bases}")
+        
         if workflow.assets:
-            logger.info(f"Associated assets: {[(asset.id, asset.title) for asset in workflow.assets]}")
+            logger.info(f"Associated assets: {[(asset.id, asset.title, asset.content[:100] if asset.content else 'No content') for asset in workflow.assets]}")
         else:
             logger.info("No assets associated with this workflow")
             
         if workflow.knowledge_bases:
             logger.info(f"Associated knowledge bases: {[(kb.id, kb.title) for kb in workflow.knowledge_bases]}")
+            for kb in workflow.knowledge_bases:
+                logger.info(f"Knowledge base {kb.id} assets: {[(asset.id, asset.title) for asset in kb.assets]}")
         else:
             logger.info("No knowledge bases associated with this workflow")
 
@@ -195,7 +200,11 @@ async def execute_workflow(
 
                     # Get knowledge bases and assets from the workflow
                     if workflow.knowledge_bases or workflow.assets:
-                        # Convert workflow relationships to IDs for the RAG function
+                        # Verify the data is still available
+                        logger.info(f"Step {i+1} - Verifying data:")
+                        logger.info(f"Available assets: {[asset.id for asset in workflow.assets]}")
+                        logger.info(f"Available knowledge bases: {[kb.id for kb in workflow.knowledge_bases]}")
+                        
                         kb_ids = [kb.id for kb in workflow.knowledge_bases] if workflow.knowledge_bases else None
                         asset_ids = [asset.id for asset in workflow.assets] if workflow.assets else None
                         
@@ -204,6 +213,13 @@ async def execute_workflow(
                             logger.info(f"- Knowledge Base IDs: {kb_ids}")
                         if asset_ids:
                             logger.info(f"- Asset IDs: {asset_ids}")
+                        
+                        # Add debug logging for the RAG function call
+                        logger.info(f"Calling get_optimized_reference_content with:")
+                        logger.info(f"- query_text: {description[:100]}...")
+                        logger.info(f"- knowledge_base_ids: {kb_ids}")
+                        logger.info(f"- asset_ids: {asset_ids}")
+                        logger.info(f"- max_tokens: {chat_model.max_tokens}")
                         
                         reference_content, content_tokens, used_rag = get_optimized_reference_content(
                             db=db,
@@ -222,6 +238,7 @@ async def execute_workflow(
                             description = f"{description}\n\nReferenced Content:\n{reference_content}"
                         else:
                             logger.warning(f"Step {i+1}: No reference content was retrieved")
+                            logger.warning("This might indicate an issue with the RAG function or the content retrieval")
 
                     logger.info(f"Step {i+1} final prompt: {description[:200]}...")
                     
