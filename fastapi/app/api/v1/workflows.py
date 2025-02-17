@@ -406,9 +406,11 @@ async def stream_workflow(
     db: Session = Depends(get_db)
 ):
     try:
-        # Get the workflow with eager loading
+        # Get the workflow with eager loading of ALL needed relationships
         workflow = db.query(models.Workflow).options(
-            joinedload(models.Workflow.steps),
+            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.prompt_template),
+            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
+            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona),
             joinedload(models.Workflow.assets),
             joinedload(models.Workflow.knowledge_bases)
         ).filter(
@@ -430,13 +432,17 @@ async def stream_workflow(
                 logger.info(f"- Asset {asset.id}: {asset.title}")
                 logger.info(f"  Content preview: {asset.content[:100] if asset.content else 'No content'}")
 
+        # Pre-load all the data we'll need
+        steps = sorted(workflow.steps, key=lambda x: x.position)
+        assets = workflow.assets
+        knowledge_bases = workflow.knowledge_bases
+        
         # Generate stream token
         stream_token = str(uuid4())
         logger.info(f"Generated stream token: {stream_token}")
 
         async def event_generator():
             try:
-                # Initialize workflow execution
                 agents = []
                 tasks = []
                 manager = None
@@ -444,41 +450,30 @@ async def stream_workflow(
 
                 # Create manager agent if hierarchical
                 if workflow.process_type == models.ProcessType.HIERARCHICAL.value:
-                    logging.info(f"Manager Chat Model ID: {workflow.manager_chat_model_id}")
-                    logging.info(f"Manager Persona ID: {workflow.manager_persona_id}")
+                    if workflow.manager_chat_model_id and workflow.manager_persona_id:
+                        manager_persona = crud.get_persona(db, workflow.manager_persona_id)
+                        manager_chat_model = crud.get_chat_model(db, workflow.manager_chat_model_id)
+                        
+                        if manager_chat_model and manager_persona:
+                            manager_llm = LLM(
+                                model=f"openrouter/{manager_chat_model.model}",
+                                api_key=os.environ["OPENROUTER_API_KEY"],
+                                base_url=os.environ["OPENROUTER_API_BASE"]
+                            )
+                            manager = Agent(
+                                role=manager_persona.role,
+                                goal=manager_persona.goal,
+                                backstory=manager_persona.backstory,
+                                allow_delegation=manager_persona.allow_delegation,
+                                verbose=manager_persona.verbose,
+                                llm=manager_llm
+                            )
 
-                    manager_persona = crud.get_persona(db, workflow.manager_persona_id)
-                    manager_chat_model = crud.get_chat_model(db, workflow.manager_chat_model_id)
-
-                    if manager_chat_model:
-                        manager_llm = LLM(
-                            model=f"openrouter/{manager_chat_model.model}",
-                            api_key=os.environ["OPENROUTER_API_KEY"],
-                            base_url=os.environ["OPENROUTER_API_BASE"]
-                        )
-                        logging.info(f"Manager LLM configured with model: {manager_chat_model.model}")
-                    else:
-                        logging.error("Manager chat model not found or not configured.")
-
-                    if manager_persona:
-                        manager = Agent(
-                            role=manager_persona.role,
-                            goal=manager_persona.goal,
-                            backstory=manager_persona.backstory,
-                            allow_delegation=manager_persona.allow_delegation,
-                            verbose=manager_persona.verbose,
-                            llm=manager_llm
-                        )
-                        logging.info(f"Manager agent configured with role: {manager_persona.role}")
-                    else:
-                        logging.error("Manager persona not found or not configured.")
-
-                for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.position)):
+                for i, step in enumerate(steps):
                     prompt_template = step.prompt_template
                     chat_model = step.chat_model
                     persona = step.persona
 
-                    # Create LLM for step
                     llm = LLM(
                         model=f"openrouter/{chat_model.model}",
                         api_key=os.environ["OPENROUTER_API_KEY"],
@@ -498,9 +493,13 @@ async def stream_workflow(
                     # Build prompt with RAG content
                     description = user_input.get("message") if i == 0 and user_input else prompt_template.prompt
 
-                    if workflow.knowledge_bases or workflow.assets:
-                        kb_ids = [kb.id for kb in workflow.knowledge_bases] if workflow.knowledge_bases else None
-                        asset_ids = [asset.id for asset in workflow.assets] if workflow.assets else None
+                    if assets or knowledge_bases:
+                        kb_ids = [kb.id for kb in knowledge_bases] if knowledge_bases else None
+                        asset_ids = [asset.id for asset in assets] if assets else None
+                        
+                        logger.info(f"Step {i+1}: Processing content from:")
+                        logger.info(f"- Assets: {asset_ids}")
+                        logger.info(f"- Knowledge Bases: {kb_ids}")
                         
                         reference_content, content_tokens, used_rag = get_optimized_reference_content(
                             db=db,
@@ -512,6 +511,7 @@ async def stream_workflow(
                         )
                         
                         if reference_content:
+                            logger.info(f"Step {i+1}: Adding reference content ({content_tokens} tokens)")
                             description = f"{description}\n\nReferenced Content:\n{reference_content}"
 
                     task = Task(
@@ -521,7 +521,6 @@ async def stream_workflow(
                     )
                     tasks.append(task)
 
-                    # Stream the task setup
                     yield {
                         "event": "message",
                         "data": json.dumps({
@@ -541,7 +540,7 @@ async def stream_workflow(
                     manager_agent=manager
                 )
 
-                # Stream results as they come in
+                # Stream results
                 crew_result = crew.kickoff()
                 for i, task in enumerate(tasks):
                     result = task.output
@@ -554,7 +553,6 @@ async def stream_workflow(
                         })
                     }
 
-                # Signal completion
                 yield {
                     "event": "message",
                     "data": json.dumps({"completed": True})
