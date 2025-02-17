@@ -365,8 +365,6 @@ class AssetIds(BaseModel):
 
 class WorkflowExecuteInput(BaseModel):
     message: Optional[str] = None
-    knowledge_base_ids: Optional[List[UUID]] = None
-    asset_ids: Optional[List[UUID]] = None
 
 class Workflow(WorkflowBase):
     id: UUID

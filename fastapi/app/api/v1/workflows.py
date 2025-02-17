@@ -101,7 +101,7 @@ def delete_workflow(workflow_id: UUID, db: Session = Depends(get_db)):
 @router.post("/{workflow_id}/execute", response_model=Dict[str, str])
 async def execute_workflow(
     workflow_id: UUID, 
-    user_input: WorkflowExecuteInput,  # Update to use the new model
+    user_input: WorkflowExecuteInput,  
     background_tasks: BackgroundTasks, 
     db: Session = Depends(get_db)
 ):
@@ -176,18 +176,22 @@ async def execute_workflow(
                     agents.append(agent)
 
                     # Build the initial prompt
-                    if i == 0 and "message" in user_input.dict():
+                    if i == 0 and user_input.message:
                         description = user_input.message
                     else:
                         description = prompt_template.prompt
 
-                    # Process referenced knowledge bases and assets with optimization
-                    if user_input.knowledge_base_ids or user_input.asset_ids:
+                    # Get knowledge bases and assets from the workflow instead of user input
+                    if workflow.knowledge_bases or workflow.assets:
+                        # Convert workflow relationships to IDs for the RAG function
+                        kb_ids = [kb.id for kb in workflow.knowledge_bases] if workflow.knowledge_bases else None
+                        asset_ids = [asset.id for asset in workflow.assets] if workflow.assets else None
+                        
                         reference_content, content_tokens, used_rag = get_optimized_reference_content(
                             db=db,
                             query_text=description,  # Use the current description as query
-                            knowledge_base_ids=user_input.knowledge_base_ids,
-                            asset_ids=user_input.asset_ids,
+                            knowledge_base_ids=kb_ids,
+                            asset_ids=asset_ids,
                             max_tokens=chat_model.max_tokens,
                             token_threshold=0.75
                         )
