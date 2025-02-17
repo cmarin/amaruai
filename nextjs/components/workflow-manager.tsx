@@ -339,8 +339,8 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
           )}
 
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="knowledgeBases">Knowledge Bases & Assets</Label>
+            <Label htmlFor="knowledgeBases">Knowledge Bases & Assets</Label>
+            <div className="flex items-center justify-center h-10 border rounded-md">
               <Database className="h-4 w-4 text-muted-foreground" />
             </div>
             <KnowledgeBaseSelector

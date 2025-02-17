@@ -430,17 +430,20 @@ async def stream_workflow(
                 logger.info(f"- Asset {asset.id}: {asset.title}")
                 logger.info(f"  Content preview: {asset.content[:100] if asset.content else 'No content'}")
 
-        # Generate stream token and start workflow execution
-        stream_token = await crew_service.prepare_workflow_stream(workflow_id)
+        # Generate stream token
+        stream_token = str(uuid4())
         logger.info(f"Generated stream token: {stream_token}")
+
+        # Initialize workflow results for this stream
+        workflow_results[workflow_id] = []
 
         # Start workflow execution in background
         asyncio.create_task(
-            crew_service.execute_workflow(
+            execute_workflow(
                 workflow_id=workflow_id,
-                user_input=user_input or {},
+                user_input=WorkflowExecuteInput(message=user_input.get("message") if user_input else None),
                 db=db,
-                stream_token=stream_token
+                background_tasks=BackgroundTasks()
             )
         )
 
@@ -452,20 +455,23 @@ async def stream_workflow(
                         logger.info("Client disconnected, stopping stream")
                         break
 
-                    # Get current status
-                    status = crew_service.get_stream_status(stream_token)
-                    if status:
-                        yield {
-                            "event": "message",
-                            "data": json.dumps(status)
-                        }
+                    # Get current results
+                    current_results = workflow_results.get(workflow_id, [])
+                    if current_results:
+                        for result in current_results:
+                            yield {
+                                "event": "message",
+                                "data": json.dumps(result)
+                            }
+                            # Clear the results after sending
+                            workflow_results[workflow_id] = []
 
-                        # If workflow is complete or has error, stop streaming
-                        if status.get("completed") or status.get("error"):
-                            logger.info(f"Workflow complete or error detected: {status}")
+                        # If workflow is complete, stop streaming
+                        if any("completed" in result for result in current_results):
+                            logger.info("Workflow complete, stopping stream")
                             break
 
-                    await asyncio.sleep(0.1)  # Small delay to prevent CPU overload
+                    await asyncio.sleep(0.1)
 
             except Exception as e:
                 logger.error(f"Error in event generator: {str(e)}")
