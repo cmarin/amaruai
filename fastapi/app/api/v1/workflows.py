@@ -398,177 +398,52 @@ def delete_workflow_step(
     return db_step
 
 
-@router.post("/{workflow_id}/stream", response_class=EventSourceResponse)
-async def stream_workflow(
+@router.post("/{workflow_id}/stream", response_model=Dict[str, str])
+async def initiate_workflow_stream(
     workflow_id: UUID,
-    request: Request,
-    user_input: Optional[Dict[str, Any]] = None,
+    user_input: Dict[str, str],
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
+    """Initiate a workflow execution and return a stream token"""
     try:
-        # Get the workflow with eager loading of ALL needed relationships
+        # Log the request parameters
+        logger.info(f"Initiating workflow stream - Workflow ID: {workflow_id}")
+        logger.info(f"User input parameters: {json.dumps(user_input, indent=2)}")
+        
+        # Get workflow with relationships
         workflow = db.query(models.Workflow).options(
-            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.prompt_template),
-            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
-            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona),
+            joinedload(models.Workflow.steps),
             joinedload(models.Workflow.assets),
             joinedload(models.Workflow.knowledge_bases)
         ).filter(
             models.Workflow.id == workflow_id
         ).first()
 
-        if not workflow:
-            raise HTTPException(status_code=404, detail="Workflow not found")
-
-        # Log workflow details
-        logger.info(f"Workflow {workflow_id} loaded with:")
-        logger.info(f"- {len(workflow.steps)} steps")
-        logger.info(f"- {len(workflow.assets)} assets")
-        logger.info(f"- {len(workflow.knowledge_bases)} knowledge bases")
+        if workflow:
+            steps = sorted(workflow.steps, key=lambda x: x.position)
+            if steps:
+                first_step = steps[0]
+                logger.info(f"First step prompt template (ID: {first_step.prompt_template_id}): {first_step.prompt_template.prompt}")
+                logger.info(f"First step is_complex: {first_step.prompt_template.is_complex}")
         
-        if workflow.assets:
-            logger.info("Assets found:")
-            for asset in workflow.assets:
-                logger.info(f"- Asset {asset.id}: {asset.title}")
-                logger.info(f"  Content preview: {asset.content[:100] if asset.content else 'No content'}")
-
-        # Pre-load all the data we'll need
-        steps = sorted(workflow.steps, key=lambda x: x.position)
-        assets = workflow.assets
-        knowledge_bases = workflow.knowledge_bases
-        
-        # Generate stream token
-        stream_token = str(uuid4())
+        # Generate a stream token
+        stream_token = await crew_service.prepare_workflow_stream(workflow_id)
         logger.info(f"Generated stream token: {stream_token}")
-
-        async def event_generator():
-            try:
-                agents = []
-                tasks = []
-                manager = None
-                manager_llm = None
-
-                # Create manager agent if hierarchical
-                if workflow.process_type == models.ProcessType.HIERARCHICAL.value:
-                    if workflow.manager_chat_model_id and workflow.manager_persona_id:
-                        manager_persona = crud.get_persona(db, workflow.manager_persona_id)
-                        manager_chat_model = crud.get_chat_model(db, workflow.manager_chat_model_id)
-                        
-                        if manager_chat_model and manager_persona:
-                            manager_llm = LLM(
-                                model=f"openrouter/{manager_chat_model.model}",
-                                api_key=os.environ["OPENROUTER_API_KEY"],
-                                base_url=os.environ["OPENROUTER_API_BASE"]
-                            )
-                            manager = Agent(
-                                role=manager_persona.role,
-                                goal=manager_persona.goal,
-                                backstory=manager_persona.backstory,
-                                allow_delegation=manager_persona.allow_delegation,
-                                verbose=manager_persona.verbose,
-                                llm=manager_llm
-                            )
-
-                for i, step in enumerate(steps):
-                    prompt_template = step.prompt_template
-                    chat_model = step.chat_model
-                    persona = step.persona
-
-                    llm = LLM(
-                        model=f"openrouter/{chat_model.model}",
-                        api_key=os.environ["OPENROUTER_API_KEY"],
-                        base_url=os.environ["OPENROUTER_API_BASE"]
-                    )
-
-                    agent = Agent(
-                        role=persona.role,
-                        goal=persona.goal,
-                        backstory=persona.backstory,
-                        allow_delegation=persona.allow_delegation,
-                        verbose=persona.verbose,
-                        llm=llm
-                    )
-                    agents.append(agent)
-
-                    # Build prompt with RAG content
-                    description = user_input.get("message") if i == 0 and user_input else prompt_template.prompt
-
-                    if assets or knowledge_bases:
-                        kb_ids = [kb.id for kb in knowledge_bases] if knowledge_bases else None
-                        asset_ids = [asset.id for asset in assets] if assets else None
-                        
-                        logger.info(f"Step {i+1}: Processing content from:")
-                        logger.info(f"- Assets: {asset_ids}")
-                        logger.info(f"- Knowledge Bases: {kb_ids}")
-                        
-                        reference_content, content_tokens, used_rag = get_optimized_reference_content(
-                            db=db,
-                            query_text=description,
-                            knowledge_base_ids=kb_ids,
-                            asset_ids=asset_ids,
-                            max_tokens=chat_model.max_tokens,
-                            token_threshold=0.75
-                        )
-                        
-                        if reference_content:
-                            logger.info(f"Step {i+1}: Adding reference content ({content_tokens} tokens)")
-                            description = f"{description}\n\nReferenced Content:\n{reference_content}"
-
-                    task = Task(
-                        description=description,
-                        agent=agent,
-                        expected_output="Quality writing"
-                    )
-                    tasks.append(task)
-
-                    yield {
-                        "event": "message",
-                        "data": json.dumps({
-                            "step": str(i + 1),
-                            "prompt": description,
-                            "status": "starting"
-                        })
-                    }
-
-                # Execute workflow
-                process = Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL.value else Process.hierarchical
-                crew = Crew(
-                    agents=agents,
-                    tasks=tasks,
-                    process=process,
-                    verbose=True,
-                    manager_agent=manager
-                )
-
-                # Stream results
-                crew_result = crew.kickoff()
-                for i, task in enumerate(tasks):
-                    result = task.output
-                    yield {
-                        "event": "message",
-                        "data": json.dumps({
-                            "step": str(i + 1),
-                            "prompt": task.description,
-                            "response": str(result.raw if hasattr(result, 'raw') else result)
-                        })
-                    }
-
-                yield {
-                    "event": "message",
-                    "data": json.dumps({"completed": True})
-                }
-
-            except Exception as e:
-                logger.error(f"Error in workflow execution: {str(e)}")
-                yield {
-                    "event": "error",
-                    "data": json.dumps({"error": str(e)})
-                }
-
-        return EventSourceResponse(event_generator())
-
+        
+        # Start workflow execution in background
+        background_tasks.add_task(
+            crew_service.execute_workflow,
+            workflow_id=workflow_id,
+            user_input=user_input,
+            db=db,
+            stream_token=stream_token
+        )
+        
+        return {"stream_token": stream_token}
+    
     except Exception as e:
-        logger.error(f"Error in workflow stream: {str(e)}")
+        logger.error(f"Error initiating workflow stream: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @public_router.get("/{workflow_id}/stream")
