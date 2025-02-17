@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from "react"
-import { Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react"
+import { Plus, Trash2, ArrowUp, ArrowDown, Database } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -339,7 +339,10 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
           )}
 
           <div className="space-y-2">
-            <Label>Knowledge Bases & Assets</Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="knowledgeBases">Knowledge Bases & Assets</Label>
+              <Database className="h-4 w-4 text-muted-foreground" />
+            </div>
             <KnowledgeBaseSelector
               knowledgeBases={knowledgeBases}
               isLoadingKnowledgeBases={isLoadingKnowledgeBases}

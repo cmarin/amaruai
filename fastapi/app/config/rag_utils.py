@@ -6,6 +6,7 @@ from app import crud
 from app.embeddings import find_relevant_chunks
 from llama_index.core.utils import count_tokens
 from app.config.asset_utils import collect_reference_content
+from app.models import Asset
 
 logger = logging.getLogger(__name__)
 
@@ -45,80 +46,87 @@ def get_optimized_reference_content(
     query_text: str,
     knowledge_base_ids: Optional[List[UUID]] = None,
     asset_ids: Optional[List[UUID]] = None,
-    max_tokens: int = 4096,
+    max_tokens: int = 4000,
     token_threshold: float = 0.75
 ) -> Tuple[str, int, bool]:
-    """
-    Gets reference content, optimizing for token count by switching to RAG when needed.
-    
-    Args:
-        db: Database session
-        query_text: The user's query text
-        knowledge_base_ids: Optional list of knowledge base IDs
-        asset_ids: Optional list of asset IDs
-        max_tokens: Maximum tokens allowed for the model
-        token_threshold: Threshold as a percentage of max_tokens before switching to RAG
+    """Get optimized reference content from knowledge bases and assets."""
+    try:
+        total_tokens = 0
+        all_content = []
+
+        logger.info(f"Starting content retrieval with:")
+        logger.info(f"- Asset IDs: {asset_ids}")
+        logger.info(f"- Knowledge Base IDs: {knowledge_base_ids}")
+
+        # First, try to get direct content from assets
+        if asset_ids:
+            assets = db.query(Asset).filter(
+                Asset.id.in_(asset_ids)
+            ).all()
+            
+            logger.info(f"Found {len(assets)} direct assets")
+            for asset in assets:
+                logger.info(f"Processing asset {asset.id} - {asset.title}")
+                if asset.content:
+                    logger.info(f"- Content preview: {asset.content[:100]}...")
+                    all_content.append(asset.content)
+                    tokens = asset.token_count or count_tokens(asset.content)
+                    total_tokens += tokens
+                    logger.info(f"- Token count: {tokens}")
+                else:
+                    logger.warning(f"- No content found in asset {asset.id}")
+
+        # Then get content from knowledge bases
+        if knowledge_base_ids:
+            kb_assets = db.query(Asset).join(
+                Asset.knowledge_base_assets
+            ).filter(
+                Asset.knowledge_base_assets.c.knowledge_base_id.in_(knowledge_base_ids)
+            ).all()
+            
+            logger.info(f"Found {len(kb_assets)} knowledge base assets")
+            for asset in kb_assets:
+                logger.info(f"Processing KB asset {asset.id} - {asset.title}")
+                if asset.content:
+                    logger.info(f"- Content preview: {asset.content[:100]}...")
+                    all_content.append(asset.content)
+                    tokens = asset.token_count or count_tokens(asset.content)
+                    total_tokens += tokens
+                    logger.info(f"- Token count: {tokens}")
+                else:
+                    logger.warning(f"- No content found in KB asset {asset.id}")
+
+        if not all_content:
+            logger.warning("No content found in any assets or knowledge bases")
+            return "", 0, False
+
+        # If we're under the token threshold, return all content
+        max_allowed_tokens = int(max_tokens * token_threshold)
+        if total_tokens <= max_allowed_tokens:
+            combined_content = "\n\n".join(all_content)
+            logger.info(f"Using full content with {total_tokens} tokens")
+            return combined_content, total_tokens, False
+
+        # If we're over the threshold, use RAG to find relevant chunks
+        logger.info(f"Content exceeds token limit ({total_tokens} > {max_allowed_tokens}), using RAG")
+        chunks = find_relevant_chunks(
+            query_text=query_text,
+            knowledge_base_ids=knowledge_base_ids,
+            asset_ids=asset_ids,
+            max_tokens=max_allowed_tokens
+        )
         
-    Returns:
-        Tuple of (reference_content, total_tokens, used_rag)
-    """
-    # First collect reference content and get token count
-    reference_content, total_reference_tokens = collect_reference_content(
-        db,
-        knowledge_base_ids,
-        asset_ids
-    )
-    
-    # Calculate query tokens
-    query_tokens = count_tokens(query_text)
-    total_tokens = total_reference_tokens + query_tokens
-    token_limit = int(max_tokens * token_threshold)
-    
-    # If we're under the threshold, use the full content
-    if total_tokens <= token_limit:
-        logger.info(f"Using full reference content ({total_tokens} tokens)")
-        return reference_content, total_tokens, False
+        if not chunks:
+            logger.warning("No relevant chunks found")
+            return "", 0, True
+
+        chunk_texts = [chunk['text'] for chunk in chunks]
+        combined_content = "\n\n".join(chunk_texts)
+        final_tokens = count_tokens(combined_content)
         
-    # If we're over the threshold, switch to RAG
-    logger.info(f"Token count ({total_tokens}) exceeds {token_limit} threshold. Switching to RAG strategy.")
-    
-    # Get all asset IDs
-    all_asset_ids = get_all_asset_ids(db, knowledge_base_ids, asset_ids)
-    
-    # Use RAG to find relevant chunks
-    relevant_chunks = find_relevant_chunks(
-        query_text=query_text,
-        num_chunks=5,  # Adjust based on needs
-        asset_ids=list(all_asset_ids) if all_asset_ids else None
-    )
-    
-    # Log the retrieved chunks
-    logger.info("Retrieved the following chunks:")
-    if not relevant_chunks:
-        logger.warning("No relevant chunks found - this may indicate:")
-        logger.warning("1. No embeddings in the database")
-        logger.warning("2. Similarity threshold too high")
-        logger.warning("3. Asset IDs filter excluding relevant content")
-        logger.warning("4. Content not properly indexed")
-        return "", 0, True
-    
-    total_chunk_tokens = 0
-    for i, chunk in enumerate(relevant_chunks, 1):
-        chunk_text = chunk['text']
-        chunk_tokens = count_tokens(chunk_text)
-        total_chunk_tokens += chunk_tokens
-        
-        logger.info(f"\nChunk {i}:")
-        logger.info(f"Score: {chunk['score']:.3f}")
-        logger.info(f"Tokens: {chunk_tokens}")
-        logger.info(f"Source: {chunk['metadata'].get('document_name', 'Unknown')}")
-        logger.info(f"Content: {chunk_text[:500]}..." if len(chunk_text) > 500 else f"Content: {chunk_text}")
-        logger.info("-" * 80)
-    
-    logger.info(f"\nRAG optimization reduced tokens from {total_tokens} to {total_chunk_tokens}")
-    
-    # Combine chunks into reference content
-    rag_content = "\n\n".join([chunk['text'] for chunk in relevant_chunks])
-    final_token_count = count_tokens(rag_content)
-    
-    return rag_content, final_token_count, True
+        logger.info(f"Using RAG content with {final_tokens} tokens")
+        return combined_content, final_tokens, True
+
+    except Exception as e:
+        logger.error(f"Error in get_optimized_reference_content: {str(e)}")
+        return "", 0, False
