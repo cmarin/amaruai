@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException, BackgroundTasks, WebSocket, Request
-from sqlalchemy.orm import Session
-from typing import List, Dict, Optional
+from sqlalchemy.orm import Session, joinedload
+from typing import List, Dict, Optional, Any
 from app import crud, schemas, models
 from app.database import get_db
 from app.api.v1.router import create_protected_router, create_public_router
@@ -106,9 +106,32 @@ async def execute_workflow(
     db: Session = Depends(get_db)
 ):
     try:
-        workflow = crud.get_workflow(db, workflow_id=workflow_id)
+        # Use the same eager loading as the GET endpoint
+        workflow = db.query(models.Workflow).options(
+            joinedload(models.Workflow.steps),
+            joinedload(models.Workflow.assets),
+            joinedload(models.Workflow.knowledge_bases),
+            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.prompt_template),
+            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.chat_model),
+            joinedload(models.Workflow.steps).joinedload(models.WorkflowStep.persona)
+        ).filter(
+            models.Workflow.id == workflow_id
+        ).first()
+
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
+
+        # Debug logging
+        logger.info(f"Workflow {workflow_id} loaded for execution with:")
+        logger.info(f"- {len(workflow.steps)} steps")
+        logger.info(f"- {len(workflow.assets)} assets")
+        logger.info(f"- {len(workflow.knowledge_bases)} knowledge bases")
+
+        if workflow.assets:
+            logger.info("Assets found:")
+            for asset in workflow.assets:
+                logger.info(f"- Asset {asset.id}: {asset.title}")
+                logger.info(f"  Content preview: {asset.content[:100] if asset.content else 'No content'}")
 
         # Detailed logging of workflow relationships
         logger.info(f"Workflow {workflow_id} resources:")
@@ -375,51 +398,42 @@ def delete_workflow_step(
     return db_step
 
 
-@router.post("/{workflow_id}/stream", response_model=Dict[str, str])
-async def initiate_workflow_stream(
+@router.post("/{workflow_id}/stream", response_class=EventSourceResponse)
+async def stream_workflow(
     workflow_id: UUID,
-    user_input: Dict[str, str],
-    background_tasks: BackgroundTasks,
+    request: Request,
+    user_input: Optional[Dict[str, Any]] = None,
     db: Session = Depends(get_db)
 ):
-    """Initiate a workflow execution and return a stream token"""
     try:
-        # Log the request parameters
-        logger.info(f"Initiating workflow stream - Workflow ID: {workflow_id}")
-        logger.info(f"User input parameters: {json.dumps(user_input, indent=2)}")
+        # Get the workflow with eager loading of all relationships
+        workflow = db.query(models.Workflow).options(
+            joinedload(models.Workflow.steps),
+            joinedload(models.Workflow.assets),
+            joinedload(models.Workflow.knowledge_bases)
+        ).filter(
+            models.Workflow.id == workflow_id
+        ).first()
+
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        # Add debug logging to verify relationships are loaded
+        logger.info(f"Workflow {workflow_id} loaded with:")
+        logger.info(f"- {len(workflow.steps)} steps")
+        logger.info(f"- {len(workflow.assets)} assets")
+        logger.info(f"- {len(workflow.knowledge_bases)} knowledge bases")
         
-        # Log the workflow details
-        workflow = crud.get_workflow(db, workflow_id=workflow_id)
-        if workflow:
-            steps = sorted(workflow.steps, key=lambda x: x.position)
-            if steps:
-                first_step = steps[0]
-                logger.info(f"First step prompt template (ID: {first_step.prompt_template_id}): {first_step.prompt_template.prompt}")
-                logger.info(f"First step is_complex: {first_step.prompt_template.is_complex}")
-                if first_step.prompt_template.is_complex:
-                    logger.info("Complex prompt detected for first step")
-                    if "message" in user_input:
-                        logger.info(f"Using message from user input: {user_input['message']}")
-                    else:
-                        logger.info("No message found in user input for complex prompt")
-        
-        # Generate a stream token
-        stream_token = await crew_service.prepare_workflow_stream(workflow_id)
-        logger.info(f"Generated stream token: {stream_token}")
-        
-        # Start workflow execution in background
-        background_tasks.add_task(
-            crew_service.execute_workflow,
-            workflow_id=workflow_id,
-            user_input=user_input,
-            db=db,
-            stream_token=stream_token
-        )
-        
-        return {"stream_token": stream_token}
-    
+        if workflow.assets:
+            logger.info("Assets found:")
+            for asset in workflow.assets:
+                logger.info(f"- Asset {asset.id}: {asset.title}")
+                logger.info(f"  Content preview: {asset.content[:100] if asset.content else 'No content'}")
+
+        # ... rest of the function ...
+
     except Exception as e:
-        logger.error(f"Error initiating workflow stream: {str(e)}")
+        logger.error(f"Error in workflow stream: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @public_router.get("/{workflow_id}/stream")
