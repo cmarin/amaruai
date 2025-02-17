@@ -157,6 +157,17 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
       name: workflow.name,
       description: workflow.description,
       process_type: workflow.process_type,
+      manager_chat_model_id: workflow.manager_chat_model_id,
+      manager_persona_id: workflow.manager_persona_id,
+      max_iterations: workflow.max_iterations,
+      knowledge_base_ids: workflow.knowledge_base_ids,
+      asset_ids: workflow.asset_ids,
+      steps: workflow.steps?.map((step, index) => ({
+        prompt_template_id: step.prompt_template_id,
+        chat_model_id: step.chat_model_id,
+        persona_id: step.persona_id,
+        position: index
+      }))
     };
 
     console.log('Creating workflow with payload:', workflowPayload);

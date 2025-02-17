@@ -55,14 +55,26 @@ def read_prompt_template(prompt_template_id: UUID, db: Session = Depends(get_db)
 
 @router.put("/{prompt_template_id}", response_model=schemas.PromptTemplate)
 def update_prompt_template(
-    prompt_template_id: UUID, 
-    prompt_template: schemas.PromptTemplateUpdate, 
-    db: Session = Depends(get_db)
+    prompt_template_id: UUID,
+    prompt_template: schemas.PromptTemplateUpdate,
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user_id),
 ):
-    db_prompt_template = crud.update_prompt_template(db, prompt_template_id=prompt_template_id, prompt_template=prompt_template)
-    if db_prompt_template is None:
+    """Update a prompt template."""
+    db_prompt_template = crud.get_prompt_template(db, prompt_template_id=prompt_template_id)
+    if not db_prompt_template:
         raise HTTPException(status_code=404, detail="Prompt template not found")
-    return db_prompt_template
+        
+    # Check if user is the creator of the template
+    if db_prompt_template.created_by != current_user:
+        raise HTTPException(status_code=403, detail="Not authorized to modify this template")
+        
+    updated_template = crud.update_prompt_template(
+        db=db, 
+        prompt_template_id=prompt_template_id, 
+        prompt_template=prompt_template
+    )
+    return updated_template
 
 @router.delete("/{prompt_template_id}", response_model=schemas.PromptTemplate)
 def delete_prompt_template(prompt_template_id: UUID, db: Session = Depends(get_db)):

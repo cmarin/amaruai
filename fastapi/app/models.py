@@ -122,14 +122,16 @@ class PromptTemplate(Base):
     prompt = Column(String, nullable=False)
     is_complex = Column(Boolean, default=False)
     default_persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"), nullable=True)
+    default_chat_model_id = Column(PGUUID(as_uuid=True), ForeignKey("chat_model.id"), nullable=True)
     created_by = Column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('CURRENT_TIMESTAMP'))
 
     workflow_steps = relationship("WorkflowStep", back_populates="prompt_template")
     categories = relationship("Category", secondary=prompt_template_category, back_populates="prompt_templates")
     tags = relationship("Tag", secondary=prompt_template_tag, back_populates="prompt_templates")
     default_persona = relationship("Persona", back_populates="prompt_templates")
-
-    # Add relationship to users who favorited this template
+    default_chat_model = relationship("ChatModel", backref="prompt_templates")
     favorited_by = relationship("User", secondary=prompt_template_favorites, back_populates="favorite_templates")
 
 class Category(Base):

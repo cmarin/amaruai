@@ -52,6 +52,7 @@ class PromptTemplateCreate(BaseModel):
     prompt: str
     is_complex: bool = False
     default_persona_id: Optional[UUID] = None
+    default_chat_model_id: Optional[UUID] = None
     category_ids: List[Optional[UUID]] = []
     tags: List[str] = []
     created_by: Optional[UUID] = None
@@ -65,10 +66,13 @@ class PromptTemplateCreate(BaseModel):
 class PromptTemplate(PromptTemplateBase):
     id: UUID
     default_persona_id: Optional[UUID] = None
+    default_chat_model_id: Optional[UUID] = None
     categories: List[Category] = []
     tags: List[Tag] = []
     created_by: UUID
-    is_favorited: bool = False  # Will be computed based on current user
+    created_at: datetime
+    updated_at: datetime
+    is_favorited: bool = False
 
     class Config:
         from_attributes = True
@@ -78,6 +82,7 @@ class PromptTemplateUpdate(BaseModel):
     prompt: Optional[str] = None
     is_complex: Optional[bool] = None
     default_persona_id: Optional[UUID] = None
+    default_chat_model_id: Optional[UUID] = None
     category_ids: Optional[List[Optional[UUID]]] = None
     tags: Optional[List[str]] = None
 
