@@ -469,29 +469,17 @@ const ComplexPromptEditor = ({
                   value={currentCategory}
                   onValueChange={handleCategoryChange}
                 >
-                  <SelectTrigger className="flex-grow">
-                    <SelectValue placeholder="Select a category" />
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id.toString()}>
-                        {cat.name}
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="flex items-center gap-4">
-                <Label htmlFor="tags" className="w-24">
-                  Tags
-                </Label>
-                <div className="flex-grow">
-                  <TagSelector
-                    tags={tags}
-                    setTags={setTags}
-                    placeholder="Add a prompt tag"
-                  />
-                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -501,7 +489,7 @@ const ComplexPromptEditor = ({
                     onValueChange={(value) => setSelectedPersonaId(value === "none" ? null : value)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Persona" />
+                      <SelectValue placeholder="Select persona" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">No Persona</SelectItem>
@@ -521,10 +509,10 @@ const ComplexPromptEditor = ({
                     onValueChange={(value) => setSelectedChatModelId(value === "none" ? null : value)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Chat Model" />
+                      <SelectValue placeholder="Select model" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">No Chat Model</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {chatModels?.map((model: ChatModel) => (
                         <SelectItem key={model.id} value={model.id}>
                           {model.name}
@@ -533,6 +521,15 @@ const ComplexPromptEditor = ({
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div>
+                <Label>Tags</Label>
+                <TagSelector
+                  tags={tags}
+                  setTags={setTags}
+                  placeholder="Add tags"
+                />
               </div>
             </div>
           </div>
