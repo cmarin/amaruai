@@ -154,14 +154,14 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Select
-              value={selectedPersonaId || ''}
+              value={selectedPersonaId || undefined}
               onValueChange={(value) => setSelectedPersonaId(value || null)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select Persona" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No Persona</SelectItem>
+                <SelectItem value="none">No Persona</SelectItem>
                 {personas.map((persona) => (
                   <SelectItem key={persona.id} value={persona.id.toString()}>
                     {persona.role}
@@ -173,14 +173,14 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
 
           <div>
             <Select
-              value={selectedChatModelId || ''}
+              value={selectedChatModelId || undefined}
               onValueChange={(value) => setSelectedChatModelId(value || null)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select Chat Model" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No Chat Model</SelectItem>
+                <SelectItem value="none">No Chat Model</SelectItem>
                 {chatModels.map((model) => (
                   <SelectItem key={model.id} value={model.id}>
                     {model.name}
