@@ -492,7 +492,7 @@ const ComplexPromptEditor = ({
                       <SelectValue placeholder="Select persona" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">No Persona</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {personas?.map((persona: Persona) => (
                         <SelectItem key={persona.id} value={persona.id.toString()}>
                           {persona.role}
