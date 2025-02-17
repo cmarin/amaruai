@@ -131,10 +131,10 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
               onValueChange={(value) => setSelectedPersonaId(value === "none" ? null : value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select Persona" />
+                <SelectValue placeholder="Select persona" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No Persona</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {personas?.map((persona) => (
                   <SelectItem key={persona.id} value={persona.id.toString()}>
                     {persona.role}
