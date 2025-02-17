@@ -406,7 +406,7 @@ async def stream_workflow(
     db: Session = Depends(get_db)
 ):
     try:
-        # Get the workflow with eager loading of all relationships
+        # Get the workflow with eager loading
         workflow = db.query(models.Workflow).options(
             joinedload(models.Workflow.steps),
             joinedload(models.Workflow.assets),
@@ -434,47 +434,134 @@ async def stream_workflow(
         stream_token = str(uuid4())
         logger.info(f"Generated stream token: {stream_token}")
 
-        # Initialize workflow results for this stream
-        workflow_results[workflow_id] = []
-
-        # Start workflow execution in background
-        asyncio.create_task(
-            execute_workflow(
-                workflow_id=workflow_id,
-                user_input=WorkflowExecuteInput(message=user_input.get("message") if user_input else None),
-                db=db,
-                background_tasks=BackgroundTasks()
-            )
-        )
-
         async def event_generator():
             try:
-                while True:
-                    # Check if client is still connected
-                    if await request.is_disconnected():
-                        logger.info("Client disconnected, stopping stream")
-                        break
+                # Initialize workflow execution
+                agents = []
+                tasks = []
+                manager = None
+                manager_llm = None
 
-                    # Get current results
-                    current_results = workflow_results.get(workflow_id, [])
-                    if current_results:
-                        for result in current_results:
-                            yield {
-                                "event": "message",
-                                "data": json.dumps(result)
-                            }
-                            # Clear the results after sending
-                            workflow_results[workflow_id] = []
+                # Create manager agent if hierarchical
+                if workflow.process_type == models.ProcessType.HIERARCHICAL.value:
+                    logging.info(f"Manager Chat Model ID: {workflow.manager_chat_model_id}")
+                    logging.info(f"Manager Persona ID: {workflow.manager_persona_id}")
 
-                        # If workflow is complete, stop streaming
-                        if any("completed" in result for result in current_results):
-                            logger.info("Workflow complete, stopping stream")
-                            break
+                    manager_persona = crud.get_persona(db, workflow.manager_persona_id)
+                    manager_chat_model = crud.get_chat_model(db, workflow.manager_chat_model_id)
 
-                    await asyncio.sleep(0.1)
+                    if manager_chat_model:
+                        manager_llm = LLM(
+                            model=f"openrouter/{manager_chat_model.model}",
+                            api_key=os.environ["OPENROUTER_API_KEY"],
+                            base_url=os.environ["OPENROUTER_API_BASE"]
+                        )
+                        logging.info(f"Manager LLM configured with model: {manager_chat_model.model}")
+                    else:
+                        logging.error("Manager chat model not found or not configured.")
+
+                    if manager_persona:
+                        manager = Agent(
+                            role=manager_persona.role,
+                            goal=manager_persona.goal,
+                            backstory=manager_persona.backstory,
+                            allow_delegation=manager_persona.allow_delegation,
+                            verbose=manager_persona.verbose,
+                            llm=manager_llm
+                        )
+                        logging.info(f"Manager agent configured with role: {manager_persona.role}")
+                    else:
+                        logging.error("Manager persona not found or not configured.")
+
+                for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.position)):
+                    prompt_template = step.prompt_template
+                    chat_model = step.chat_model
+                    persona = step.persona
+
+                    # Create LLM for step
+                    llm = LLM(
+                        model=f"openrouter/{chat_model.model}",
+                        api_key=os.environ["OPENROUTER_API_KEY"],
+                        base_url=os.environ["OPENROUTER_API_BASE"]
+                    )
+
+                    agent = Agent(
+                        role=persona.role,
+                        goal=persona.goal,
+                        backstory=persona.backstory,
+                        allow_delegation=persona.allow_delegation,
+                        verbose=persona.verbose,
+                        llm=llm
+                    )
+                    agents.append(agent)
+
+                    # Build prompt with RAG content
+                    description = user_input.get("message") if i == 0 and user_input else prompt_template.prompt
+
+                    if workflow.knowledge_bases or workflow.assets:
+                        kb_ids = [kb.id for kb in workflow.knowledge_bases] if workflow.knowledge_bases else None
+                        asset_ids = [asset.id for asset in workflow.assets] if workflow.assets else None
+                        
+                        reference_content, content_tokens, used_rag = get_optimized_reference_content(
+                            db=db,
+                            query_text=description,
+                            knowledge_base_ids=kb_ids,
+                            asset_ids=asset_ids,
+                            max_tokens=chat_model.max_tokens,
+                            token_threshold=0.75
+                        )
+                        
+                        if reference_content:
+                            description = f"{description}\n\nReferenced Content:\n{reference_content}"
+
+                    task = Task(
+                        description=description,
+                        agent=agent,
+                        expected_output="Quality writing"
+                    )
+                    tasks.append(task)
+
+                    # Stream the task setup
+                    yield {
+                        "event": "message",
+                        "data": json.dumps({
+                            "step": str(i + 1),
+                            "prompt": description,
+                            "status": "starting"
+                        })
+                    }
+
+                # Execute workflow
+                process = Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL.value else Process.hierarchical
+                crew = Crew(
+                    agents=agents,
+                    tasks=tasks,
+                    process=process,
+                    verbose=True,
+                    manager_agent=manager
+                )
+
+                # Stream results as they come in
+                crew_result = crew.kickoff()
+                for i, task in enumerate(tasks):
+                    result = task.output
+                    yield {
+                        "event": "message",
+                        "data": json.dumps({
+                            "step": str(i + 1),
+                            "prompt": task.description,
+                            "response": str(result.raw if hasattr(result, 'raw') else result)
+                        })
+                    }
+
+                # Signal completion
+                yield {
+                    "event": "message",
+                    "data": json.dumps({"completed": True})
+                }
 
             except Exception as e:
-                logger.error(f"Error in event generator: {str(e)}")
+                logger.error(f"Error in workflow execution: {str(e)}")
                 yield {
                     "event": "error",
                     "data": json.dumps({"error": str(e)})
