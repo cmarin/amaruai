@@ -418,7 +418,7 @@ async def stream_workflow(
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
 
-        # Add debug logging to verify relationships are loaded
+        # Log workflow details
         logger.info(f"Workflow {workflow_id} loaded with:")
         logger.info(f"- {len(workflow.steps)} steps")
         logger.info(f"- {len(workflow.assets)} assets")
@@ -430,7 +430,51 @@ async def stream_workflow(
                 logger.info(f"- Asset {asset.id}: {asset.title}")
                 logger.info(f"  Content preview: {asset.content[:100] if asset.content else 'No content'}")
 
-        # ... rest of the function ...
+        # Generate stream token and start workflow execution
+        stream_token = await crew_service.prepare_workflow_stream(workflow_id)
+        logger.info(f"Generated stream token: {stream_token}")
+
+        # Start workflow execution in background
+        asyncio.create_task(
+            crew_service.execute_workflow(
+                workflow_id=workflow_id,
+                user_input=user_input or {},
+                db=db,
+                stream_token=stream_token
+            )
+        )
+
+        async def event_generator():
+            try:
+                while True:
+                    # Check if client is still connected
+                    if await request.is_disconnected():
+                        logger.info("Client disconnected, stopping stream")
+                        break
+
+                    # Get current status
+                    status = crew_service.get_stream_status(stream_token)
+                    if status:
+                        yield {
+                            "event": "message",
+                            "data": json.dumps(status)
+                        }
+
+                        # If workflow is complete or has error, stop streaming
+                        if status.get("completed") or status.get("error"):
+                            logger.info(f"Workflow complete or error detected: {status}")
+                            break
+
+                    await asyncio.sleep(0.1)  # Small delay to prevent CPU overload
+
+            except Exception as e:
+                logger.error(f"Error in event generator: {str(e)}")
+                yield {
+                    "event": "error",
+                    "data": json.dumps({"error": str(e)})
+                }
+
+        return EventSourceResponse(event_generator())
 
     except Exception as e:
         logger.error(f"Error in workflow stream: {str(e)}")
