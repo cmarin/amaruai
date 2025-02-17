@@ -25,7 +25,7 @@ export default function ComplexPromptTemplateEditor({ promptTemplate, categories
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = async (title: string, category: string, tags: Tag[], data: PromptContent) => {
+  const handleSave = async (title: string, category: string, tags: Tag[], data: PromptContent, defaultPersonaId: string | null, defaultChatModelId: string | null) => {
     try {
       setIsSaving(true);
       const headers = getApiHeaders();
@@ -45,6 +45,8 @@ export default function ComplexPromptTemplateEditor({ promptTemplate, categories
           is_complex: true,
           category_ids: [category],
           tags: tags.map(t => t.name),
+          default_persona_id: defaultPersonaId,
+          default_chat_model_id: defaultChatModelId,
         }, headers);
       } else {
         if (!promptTemplate) return;
@@ -52,7 +54,8 @@ export default function ComplexPromptTemplateEditor({ promptTemplate, categories
           title,
           prompt: JSON.stringify(data),
           is_complex: true,
-          default_persona_id: promptTemplate.default_persona_id || null,
+          default_persona_id: defaultPersonaId,
+          default_chat_model_id: defaultChatModelId,
           category_ids: [category],
           tags: tags.map(t => t.name),
         }, headers);
@@ -84,11 +87,12 @@ export default function ComplexPromptTemplateEditor({ promptTemplate, categories
         categories={categories}
         selectedCategory={promptTemplate?.categories[0]?.id}
         selectedTags={promptTemplate?.tags || []}
+        defaultPersonaId={promptTemplate?.default_persona_id}
+        defaultChatModelId={promptTemplate?.default_chat_model_id}
         onSave={handleSave}
         onCancel={onClose}
         isSaving={isSaving}
         mode={mode}
-        // Add new props here
       />
     </div>
   );

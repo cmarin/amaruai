@@ -18,6 +18,9 @@ import { Category } from '../utils/category-service'
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import TagSelector from './tag-selector'
 import { Tag } from '../utils/tag-service'
+import { useData } from '@/components/data-context'
+import { Persona } from '@/utils/persona-service'
+import { ChatModel } from '@/utils/chat-model-service';
 
 type NumberValidation = {
   min?: number;
@@ -66,7 +69,9 @@ export interface ComplexPromptEditorProps {
   categories: Category[];
   selectedCategory?: string;
   selectedTags?: Tag[];
-  onSave: (title: string, category: string, tags: Tag[], data: PromptContent) => void;
+  defaultPersonaId?: string | null;
+  defaultChatModelId?: string | null;
+  onSave: (title: string, category: string, tags: Tag[], data: PromptContent, defaultPersonaId: string | null, defaultChatModelId: string | null) => void;
   onCancel: () => void;
   isSaving?: boolean;
   mode?: 'create' | 'edit';
@@ -78,6 +83,8 @@ const ComplexPromptEditor = ({
   categories,
   selectedCategory = '',
   selectedTags = [],
+  defaultPersonaId = null,
+  defaultChatModelId = null,
   onSave,
   onCancel,
   isSaving = false,
@@ -90,10 +97,13 @@ const ComplexPromptEditor = ({
   const [currentTitle, setCurrentTitle] = useState(title)
   const [currentCategory, setCurrentCategory] = useState(selectedCategory)
   const [tags, setTags] = useState<Tag[]>(selectedTags || [])
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(defaultPersonaId);
+  const [selectedChatModelId, setSelectedChatModelId] = useState<string | null>(defaultChatModelId);
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>("visual")
   const [currentStep, setCurrentStep] = useState(1)
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const { personas, chatModels } = useData();
 
   useEffect(() => {
     if (initialContent) {
@@ -402,7 +412,7 @@ const ComplexPromptEditor = ({
   }
 
   const handleSave = () => {
-    onSave(currentTitle, currentCategory, tags, promptContent)
+    onSave(currentTitle, currentCategory, tags, promptContent, selectedPersonaId, selectedChatModelId);
   }
 
   const renderStepIndicator = () => {
@@ -481,6 +491,47 @@ const ComplexPromptEditor = ({
                     setTags={setTags}
                     placeholder="Add a prompt tag"
                   />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Default Persona</Label>
+                  <Select
+                    value={selectedPersonaId || "none"}
+                    onValueChange={(value) => setSelectedPersonaId(value === "none" ? null : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Persona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Persona</SelectItem>
+                      {personas?.map((persona: Persona) => (
+                        <SelectItem key={persona.id} value={persona.id.toString()}>
+                          {persona.role}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Default Chat Model</Label>
+                  <Select
+                    value={selectedChatModelId || "none"}
+                    onValueChange={(value) => setSelectedChatModelId(value === "none" ? null : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Chat Model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Chat Model</SelectItem>
+                      {chatModels?.map((model: ChatModel) => (
+                        <SelectItem key={model.id} value={model.id}>
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
