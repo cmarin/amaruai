@@ -73,12 +73,9 @@ function ChatContent() {
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<any | null>(null)
   const [selectedModels, setSelectedModels] = useState<{ [key: string]: string }>({})
-  const [selectedPersonas, setSelectedPersonas] = useState<{ [key: string]: string }>({
-    chat1: 'default',
-    chat2: 'default',
-    chat3: 'default',
-    chat4: 'default'
-  })
+  const [selectedPersonas, setSelectedPersonas] = useState<{ [key: string]: string }>({})
+  const [hasUserChangedModel, setHasUserChangedModel] = useState(false)
+  const [hasUserChangedPersona, setHasUserChangedPersona] = useState(false)
 
   useEffect(() => {
     console.log('Personas changed:', personas);
@@ -225,12 +222,14 @@ function ChatContent() {
 
   const handleModelChange = (chatWindowId: string, modelId: string) => {
     setSelectedModels(prev => ({ ...prev, [chatWindowId]: modelId }))
+    setHasUserChangedModel(true)
     // Reset retry attempts when manually changing model
     setRetryAttempts(prev => ({ ...prev, [chatWindowId]: 0 }))
   }
 
   const handlePersonaChange = (chatWindowId: string, personaId: string) => {
     setSelectedPersonas(prev => ({ ...prev, [chatWindowId]: personaId }))
+    setHasUserChangedPersona(true)
   }
 
   const getModelName = (chatWindowId: string) => {
@@ -552,14 +551,18 @@ function ChatContent() {
 
   // Handles prompt selection
   const handlePromptSelect = (prompt: any) => {
+    // Only update model/persona for first chat window if user hasn't changed them
+    if (!hasUserChangedModel && prompt.default_chat_model_id) {
+      setSelectedModels(prev => ({ ...prev, chat1: prompt.default_chat_model_id! }))
+    }
+    if (!hasUserChangedPersona && prompt.default_persona_id) {
+      setSelectedPersonas(prev => ({ ...prev, chat1: prompt.default_persona_id! }))
+    }
+
+    // Set the prompt content
+    setInput(prompt.prompt)
     if (prompt.is_complex) {
       setSelectedComplexPrompt(prompt)
-    } else {
-      setInput(prevInput => {
-        const prefix = prevInput ? prevInput + ' ' : ''
-        const promptText = typeof prompt.prompt === 'string' ? prompt.prompt : ''
-        return prefix + promptText
-      })
     }
   }
 

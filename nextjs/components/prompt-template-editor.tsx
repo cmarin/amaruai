@@ -153,7 +153,7 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
                 <SelectValue placeholder="Select Chat Model" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No Chat Model</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {chatModels?.map((model) => (
                   <SelectItem key={model.id} value={model.id}>
                     {model.name}
