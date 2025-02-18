@@ -65,7 +65,7 @@ export function WorkflowSteps({
   };
 
   const handleModelChange = (index: number, modelId: string) => {
-    onUpdateStep(index, 'chat_model_id', modelId);
+    onUpdateStep(index, 'chat_model_id', modelId === 'none' ? '' : modelId);
     setUserChangedValues(prev => ({
       ...prev,
       [index]: { ...prev[index], model: true }
@@ -73,7 +73,7 @@ export function WorkflowSteps({
   };
 
   const handlePersonaChange = (index: number, personaId: string) => {
-    onUpdateStep(index, 'persona_id', personaId);
+    onUpdateStep(index, 'persona_id', personaId === 'none' ? '' : personaId);
     setUserChangedValues(prev => ({
       ...prev,
       [index]: { ...prev[index], persona: true }
@@ -146,7 +146,7 @@ export function WorkflowSteps({
                       <SelectValue placeholder="Select persona" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {personas.map((persona) => (
                         <SelectItem key={persona.id} value={persona.id}>
                           {persona.role}
@@ -187,7 +187,7 @@ export function WorkflowSteps({
                       <SelectValue placeholder="Select model" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {chatModels.map((model) => (
                         <SelectItem key={model.id} value={model.id}>
                           {model.name}
