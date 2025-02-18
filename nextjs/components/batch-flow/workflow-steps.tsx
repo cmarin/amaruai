@@ -17,6 +17,7 @@ import {
 import { EyeIcon, Trash2 } from "lucide-react";
 import type { BatchFlowStep } from "@/types";
 import type { PromptTemplateOption, ChatModelOption, PersonaOption } from "@/types";
+import { useState } from 'react';
 
 interface WorkflowStepsProps {
   steps: BatchFlowStep[];
@@ -37,6 +38,48 @@ export function WorkflowSteps({
   chatModels,
   personas,
 }: WorkflowStepsProps) {
+  // Track whether each step's model/persona has been manually changed
+  const [userChangedValues, setUserChangedValues] = useState<{[key: number]: {model: boolean, persona: boolean}}>({});
+
+  const handlePromptChange = (index: number, promptId: string) => {
+    onUpdateStep(index, 'prompt_template_id', promptId);
+    
+    // Find the selected prompt template
+    const template = promptTemplates.find(t => t.id === promptId);
+    
+    // Only update if template exists and has defaults
+    if (template) {
+      // Check if user has changed values for this step
+      const stepChanges = userChangedValues[index] || { model: false, persona: false };
+      
+      // Update model if it has a default and user hasn't changed it
+      if (template.default_chat_model_id && !stepChanges.model) {
+        onUpdateStep(index, 'chat_model_id', template.default_chat_model_id);
+      }
+      
+      // Update persona if it has a default and user hasn't changed it
+      if (template.default_persona_id && !stepChanges.persona) {
+        onUpdateStep(index, 'persona_id', template.default_persona_id);
+      }
+    }
+  };
+
+  const handleModelChange = (index: number, modelId: string) => {
+    onUpdateStep(index, 'chat_model_id', modelId);
+    setUserChangedValues(prev => ({
+      ...prev,
+      [index]: { ...prev[index], model: true }
+    }));
+  };
+
+  const handlePersonaChange = (index: number, personaId: string) => {
+    onUpdateStep(index, 'persona_id', personaId);
+    setUserChangedValues(prev => ({
+      ...prev,
+      [index]: { ...prev[index], persona: true }
+    }));
+  };
+
   return (
     <div className="space-y-6">
       {steps.map((step, index) => (
@@ -48,7 +91,7 @@ export function WorkflowSteps({
                 <div className="flex items-center gap-2">
                   <Select
                     value={step.prompt_template_id}
-                    onValueChange={(value) => onUpdateStep(index, 'prompt_template_id', value)}
+                    onValueChange={(value) => handlePromptChange(index, value)}
                   >
                     <SelectTrigger className="flex-1">
                       <SelectValue placeholder="Select prompt" />
@@ -81,49 +124,8 @@ export function WorkflowSteps({
                                   return template.prompt;
                                 }
                                 
-                                // If it's a PromptContent object, show the prompt field
                                 return template.prompt.prompt;
                               })()}
-                            </p>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Chat Model</label>
-                <div className="flex items-center gap-2">
-                  <Select
-                    value={step.chat_model_id}
-                    onValueChange={(value) => onUpdateStep(index, 'chat_model_id', value)}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select model" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {chatModels.map((model) => (
-                        <SelectItem key={model.id} value={model.id}>
-                          {model.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {step.chat_model_id && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-9 w-9">
-                            <EyeIcon className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" align="center" className="max-w-sm">
-                          <div className="space-y-2">
-                            <p className="font-medium">Chat Model</p>
-                            <p className="text-sm whitespace-pre-wrap">
-                              {chatModels.find(m => m.id === step.chat_model_id)?.description || 'No description available'}
                             </p>
                           </div>
                         </TooltipContent>
@@ -138,12 +140,13 @@ export function WorkflowSteps({
                 <div className="flex items-center gap-2">
                   <Select
                     value={step.persona_id}
-                    onValueChange={(value) => onUpdateStep(index, 'persona_id', value)}
+                    onValueChange={(value) => handlePersonaChange(index, value)}
                   >
                     <SelectTrigger className="flex-1">
                       <SelectValue placeholder="Select persona" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="">None</SelectItem>
                       {personas.map((persona) => (
                         <SelectItem key={persona.id} value={persona.id}>
                           {persona.role}
@@ -164,6 +167,47 @@ export function WorkflowSteps({
                             <p className="font-medium">Persona</p>
                             <p className="text-sm whitespace-pre-wrap">
                               {personas.find(p => p.id === step.persona_id)?.role || 'No role defined'}
+                            </p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Chat Model</label>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={step.chat_model_id}
+                    onValueChange={(value) => handleModelChange(index, value)}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {chatModels.map((model) => (
+                        <SelectItem key={model.id} value={model.id}>
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {step.chat_model_id && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-9 w-9">
+                            <EyeIcon className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" align="center" className="max-w-sm">
+                          <div className="space-y-2">
+                            <p className="font-medium">Chat Model</p>
+                            <p className="text-sm whitespace-pre-wrap">
+                              {chatModels.find(m => m.id === step.chat_model_id)?.description || 'No description available'}
                             </p>
                           </div>
                         </TooltipContent>

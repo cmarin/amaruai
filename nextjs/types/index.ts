@@ -42,7 +42,7 @@ export interface BatchFlowStep {
   persona_id: string;
 }
 
-export interface PromptTemplateOption extends Pick<PromptTemplate, 'id' | 'title' | 'prompt'> {}
+export interface PromptTemplateOption extends Pick<PromptTemplate, 'id' | 'title' | 'prompt' | 'default_persona_id' | 'default_chat_model_id'> {}
 
 export interface ChatModelOption extends Pick<ChatModel, 'id' | 'name' | 'description'> {}
 
