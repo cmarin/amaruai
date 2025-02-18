@@ -42,32 +42,34 @@ export function WorkflowSteps({
   const [userChangedValues, setUserChangedValues] = useState<{[key: number]: {model: boolean, persona: boolean}}>({});
 
   const handlePromptChange = (index: number, promptId: string) => {
+    console.log('Prompt template changed:', promptId);
     onUpdateStep(index, 'prompt_template_id', promptId);
+    
+    // Reset user changes for this step when prompt template changes
+    setUserChangedValues(prev => ({
+      ...prev,
+      [index]: { model: false, persona: false }
+    }));
     
     // Find the selected prompt template
     const template = promptTemplates.find(t => t.id === promptId);
+    console.log('Found template:', template);
     
     // Only update if template exists and has defaults
     if (template) {
-      // Check if user has changed values for this step
-      const stepChanges = userChangedValues[index] || { model: false, persona: false };
+      // Update model if it has a default
+      onUpdateStep(index, 'chat_model_id', template.default_chat_model_id || '');
       
-      // Update model if it has a default and user hasn't changed it
-      if (!stepChanges.model) {
-        const modelId = template.default_chat_model_id || 'none';
-        onUpdateStep(index, 'chat_model_id', modelId === 'none' ? '' : modelId);
-      }
-      
-      // Update persona if it has a default and user hasn't changed it
-      if (!stepChanges.persona) {
-        const personaId = template.default_persona_id || 'none';
-        onUpdateStep(index, 'persona_id', personaId === 'none' ? '' : personaId);
-      }
+      // Update persona if it has a default
+      onUpdateStep(index, 'persona_id', template.default_persona_id || '');
     }
   };
 
   const handleModelChange = (index: number, modelId: string) => {
-    onUpdateStep(index, 'chat_model_id', modelId === 'none' ? '' : modelId);
+    console.log('Model changed:', modelId);
+    const finalValue = modelId === 'none' ? '' : modelId;
+    console.log('Setting model to:', finalValue);
+    onUpdateStep(index, 'chat_model_id', finalValue);
     setUserChangedValues(prev => ({
       ...prev,
       [index]: { ...prev[index], model: true }
@@ -75,7 +77,10 @@ export function WorkflowSteps({
   };
 
   const handlePersonaChange = (index: number, personaId: string) => {
-    onUpdateStep(index, 'persona_id', personaId === 'none' ? '' : personaId);
+    console.log('Persona changed:', personaId);
+    const finalValue = personaId === 'none' ? '' : personaId;
+    console.log('Setting persona to:', finalValue);
+    onUpdateStep(index, 'persona_id', finalValue);
     setUserChangedValues(prev => ({
       ...prev,
       [index]: { ...prev[index], persona: true }
