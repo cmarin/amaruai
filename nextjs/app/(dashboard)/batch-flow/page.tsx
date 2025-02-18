@@ -235,6 +235,8 @@ export default function BatchFlow() {
     id: String(t.id),
     title: t.title,
     prompt: t.prompt,
+    default_persona_id: t.default_persona_id,
+    default_chat_model_id: t.default_chat_model_id,
     // Include the full prompt template for preview
     _template: t
   }));
