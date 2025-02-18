@@ -53,13 +53,15 @@ export function WorkflowSteps({
       const stepChanges = userChangedValues[index] || { model: false, persona: false };
       
       // Update model if it has a default and user hasn't changed it
-      if (template.default_chat_model_id && !stepChanges.model) {
-        onUpdateStep(index, 'chat_model_id', template.default_chat_model_id);
+      if (!stepChanges.model) {
+        const modelId = template.default_chat_model_id || 'none';
+        onUpdateStep(index, 'chat_model_id', modelId === 'none' ? '' : modelId);
       }
       
       // Update persona if it has a default and user hasn't changed it
-      if (template.default_persona_id && !stepChanges.persona) {
-        onUpdateStep(index, 'persona_id', template.default_persona_id);
+      if (!stepChanges.persona) {
+        const personaId = template.default_persona_id || 'none';
+        onUpdateStep(index, 'persona_id', personaId === 'none' ? '' : personaId);
       }
     }
   };
@@ -139,7 +141,7 @@ export function WorkflowSteps({
                 <label className="block text-sm font-medium mb-2">Persona</label>
                 <div className="flex items-center gap-2">
                   <Select
-                    value={step.persona_id}
+                    value={step.persona_id || 'none'}
                     onValueChange={(value) => handlePersonaChange(index, value)}
                   >
                     <SelectTrigger className="flex-1">
@@ -180,7 +182,7 @@ export function WorkflowSteps({
                 <label className="block text-sm font-medium mb-2">Chat Model</label>
                 <div className="flex items-center gap-2">
                   <Select
-                    value={step.chat_model_id}
+                    value={step.chat_model_id || 'none'}
                     onValueChange={(value) => handleModelChange(index, value)}
                   >
                     <SelectTrigger className="flex-1">
