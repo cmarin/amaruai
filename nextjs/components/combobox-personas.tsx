@@ -18,24 +18,7 @@ export function ComboboxPersonas({ personas, value, onSelect }: ComboboxPersonas
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
 
-  // Filter out personas with invalid roles and clean the data
-  const cleanedPersonas = React.useMemo(() => {
-    return personas
-      .filter(persona => {
-        // Filter out personas with lorem ipsum or invalid roles
-        const role = persona.role?.trim()
-        return role && 
-               !role.toLowerCase().includes('lorem') && 
-               !role.toLowerCase().includes('lorel') &&
-               !role.startsWith('ipsum')
-      })
-      .map(persona => ({
-        ...persona,
-        role: persona.role.trim() // Clean any extra whitespace
-      }))
-  }, [personas])
-
-  const selectedPersona = cleanedPersonas.find(p => p.id.toString() === value?.toString())
+  const selectedPersona = personas.find(p => p.id.toString() === value?.toString())
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -46,19 +29,7 @@ export function ComboboxPersonas({ personas, value, onSelect }: ComboboxPersonas
           aria-expanded={open} 
           className="w-full justify-between"
         >
-          {selectedPersona ? (
-            <div className="flex items-center gap-2">
-              {selectedPersona.avatar && (
-                <div 
-                  className="w-5 h-5 flex-shrink-0" 
-                  dangerouslySetInnerHTML={{ __html: selectedPersona.avatar }} 
-                />
-              )}
-              <span>{selectedPersona.role}</span>
-            </div>
-          ) : (
-            <span>Select persona...</span>
-          )}
+          <span>{selectedPersona ? selectedPersona.role : "Select persona..."}</span>
           <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -73,7 +44,7 @@ export function ComboboxPersonas({ personas, value, onSelect }: ComboboxPersonas
           <CommandList>
             <CommandEmpty>No persona found.</CommandEmpty>
             <CommandGroup>
-              {cleanedPersonas
+              {personas
                 .filter(persona => 
                   persona.role.toLowerCase().includes(searchQuery.toLowerCase())
                 )
@@ -87,12 +58,6 @@ export function ComboboxPersonas({ personas, value, onSelect }: ComboboxPersonas
                     }}
                     className="flex items-center gap-2"
                   >
-                    {persona.avatar && (
-                      <div 
-                        className="w-5 h-5 flex-shrink-0" 
-                        dangerouslySetInnerHTML={{ __html: persona.avatar }} 
-                      />
-                    )}
                     <span>{persona.role}</span>
                     <CheckIcon 
                       className={cn(
