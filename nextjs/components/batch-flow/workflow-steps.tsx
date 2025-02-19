@@ -97,13 +97,14 @@ export function WorkflowSteps({
                 <label className="block text-sm font-medium mb-2">Prompt Template</label>
                 <div className="flex items-center gap-2">
                   <Select
-                    value={step.prompt_template_id}
-                    onValueChange={(value) => handlePromptChange(index, value)}
+                    value={step.prompt_template_id || 'none'}
+                    onValueChange={(value) => onUpdateStep(index, 'prompt_template_id', value === 'none' ? '' : value)}
                   >
                     <SelectTrigger className="flex-1">
                       <SelectValue placeholder="Select prompt" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
                       {promptTemplates.map((template) => (
                         <SelectItem key={template.id} value={template.id}>
                           {template.title}
@@ -147,7 +148,7 @@ export function WorkflowSteps({
                 <div className="flex items-center gap-2">
                   <Select
                     value={step.persona_id || 'none'}
-                    onValueChange={(value) => handlePersonaChange(index, value)}
+                    onValueChange={(value) => onUpdateStep(index, 'persona_id', value === 'none' ? '' : value)}
                   >
                     <SelectTrigger className="flex-1">
                       <SelectValue placeholder="Select persona" />
@@ -188,7 +189,7 @@ export function WorkflowSteps({
                 <div className="flex items-center gap-2">
                   <Select
                     value={step.chat_model_id || 'none'}
-                    onValueChange={(value) => handleModelChange(index, value)}
+                    onValueChange={(value) => onUpdateStep(index, 'chat_model_id', value === 'none' ? '' : value)}
                   >
                     <SelectTrigger className="flex-1">
                       <SelectValue placeholder="Select model" />

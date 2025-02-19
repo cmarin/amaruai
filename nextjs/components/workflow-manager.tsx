@@ -51,6 +51,9 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Track which steps have had their values manually changed
+  const [userChangedValues, setUserChangedValues] = useState<{[key: number]: {model: boolean, persona: boolean}}>({});
+
   // Load initial data
   const loadData = useCallback(async () => {
     try {
@@ -138,26 +141,12 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   };
 
   const addStep = () => {
-    if (!promptTemplates.length || !chatModels.length || !personas.length) {
-      console.error('Missing required data for creating step');
-      return;
-    }
-
-    const defaultTemplate = promptTemplates[0];
-    const defaultModel = chatModels[0];
-    const defaultPersona = personas[0];
-
-    if (!defaultTemplate?.id || !defaultModel?.id || !defaultPersona?.id) {
-      console.error('Missing required IDs for step creation');
-      return;
-    }
-
     const newStep: WorkflowStep = {
       id: crypto.randomUUID(),
       workflow_id: workflow.id || crypto.randomUUID(),
-      prompt_template_id: defaultTemplate.id,
-      chat_model_id: defaultModel.id.toString(),
-      persona_id: defaultPersona.id.toString(),
+      prompt_template_id: '',
+      chat_model_id: '',
+      persona_id: '',
       position: workflow.steps.length,
     };
     setWorkflow({ ...workflow, steps: [...workflow.steps, newStep] });
@@ -166,6 +155,38 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   const updateStep = (index: number, field: keyof WorkflowStep, value: string) => {
     const updatedSteps = [...workflow.steps];
     updatedSteps[index] = { ...updatedSteps[index], [field]: value };
+
+    // If updating prompt template, check for defaults
+    if (field === 'prompt_template_id') {
+      const template = promptTemplates.find(t => t.id === value);
+      const stepChanges = userChangedValues[index] || { model: false, persona: false };
+
+      if (template) {
+        // Update model if it has a default and user hasn't changed it
+        if (!stepChanges.model && template.default_chat_model_id) {
+          updatedSteps[index].chat_model_id = template.default_chat_model_id;
+        }
+        
+        // Update persona if it has a default and user hasn't changed it
+        if (!stepChanges.persona && template.default_persona_id) {
+          updatedSteps[index].persona_id = template.default_persona_id;
+        }
+      }
+    } else {
+      // Track when user manually changes model or persona
+      if (field === 'chat_model_id') {
+        setUserChangedValues(prev => ({
+          ...prev,
+          [index]: { ...prev[index], model: true }
+        }));
+      } else if (field === 'persona_id') {
+        setUserChangedValues(prev => ({
+          ...prev,
+          [index]: { ...prev[index], persona: true }
+        }));
+      }
+    }
+
     setWorkflow({ ...workflow, steps: updatedSteps });
   };
 
@@ -176,6 +197,11 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
       ...step,
       position: i
     }));
+    // Clean up user changes tracking for removed step
+    const newUserChangedValues = { ...userChangedValues };
+    delete newUserChangedValues[index];
+    setUserChangedValues(newUserChangedValues);
+    
     setWorkflow({ ...workflow, steps: reorderedSteps });
   };
 
