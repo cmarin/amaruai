@@ -44,6 +44,7 @@ import { ChatModel } from '@/components/data-context'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import ChatMessage from '@/components/chat-message'
+import { ComboboxPersonas } from '@/components/combobox-personas'
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css'
@@ -659,19 +660,13 @@ function ChatContent() {
                 <span className="font-medium">{getModelName(chatWindowId)}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Select value={selectedPersonas[chatWindowId]} onValueChange={(value) => handlePersonaChange(chatWindowId, value)}>
-                  <SelectTrigger className="w-[120px]">
-                    <SelectValue placeholder="Default" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Default</SelectItem>
-                    {personas?.map((persona) => (
-                      <SelectItem key={persona.id} value={persona.id.toString()}>
-                        {persona.role || "Default"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="w-[120px]">
+                  <ComboboxPersonas
+                    personas={personas || []}
+                    value={selectedPersonas[chatWindowId]}
+                    onSelect={(persona) => handlePersonaChange(chatWindowId, persona.id.toString())}
+                  />
+                </div>
                 <Select value={selectedModels[chatWindowId]} onValueChange={(value) => handleModelChange(chatWindowId, value)}>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder={title} />
