@@ -1,19 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Input } from "@/components/ui/input";
-import { motion, AnimatePresence } from "motion/react";
-import {
-    BarChart2,
-    Globe,
-    Video,
-    PlaneTakeoff,
-    AudioLines,
-    Layout,
-    LayoutGrid,
-} from "lucide-react";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import useDebounce from "@/hooks/use-debounce";
-import { MagnifyingGlassIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
 import { Persona } from "@/utils/persona-service";
 
 interface Action {
@@ -34,7 +23,7 @@ const allActionsSample: Action[] = [
     {
         id: "1",
         label: "Book tickets",
-        icon: <PlaneTakeoff className="h-4 w-4 text-blue-500" />,
+        icon: <div className="w-5 h-5" />,
         description: "Operator",
         short: "⌘K",
         end: "Agent",
@@ -42,7 +31,7 @@ const allActionsSample: Action[] = [
     {
         id: "2",
         label: "Summarize",
-        icon: <BarChart2 className="h-4 w-4 text-orange-500" />,
+        icon: <div className="w-5 h-5" />,
         description: "gpt-4o",
         short: "⌘cmd+p",
         end: "Command",
@@ -50,7 +39,7 @@ const allActionsSample: Action[] = [
     {
         id: "3",
         label: "Screen Studio",
-        icon: <Video className="h-4 w-4 text-purple-500" />,
+        icon: <div className="w-5 h-5" />,
         description: "gpt-4o",
         short: "",
         end: "Application",
@@ -58,7 +47,7 @@ const allActionsSample: Action[] = [
     {
         id: "4",
         label: "Talk to Jarvis",
-        icon: <AudioLines className="h-4 w-4 text-green-500" />,
+        icon: <div className="w-5 h-5" />,
         description: "gpt-4o voice",
         short: "",
         end: "Active",
@@ -66,7 +55,7 @@ const allActionsSample: Action[] = [
     {
         id: "5",
         label: "Kokonut UI - Pro",
-        icon: <LayoutGrid className="h-4 w-4 text-blue-500" />,
+        icon: <div className="w-5 h-5" />,
         description: "Components",
         short: "",
         end: "Link",
@@ -89,9 +78,6 @@ export default function ActionSearchBar({
     const [query, setQuery] = useState("");
     const [result, setResult] = useState<SearchResult | null>(null);
     const [isFocused, setIsFocused] = useState(defaultOpen);
-    const [isTyping, setIsTyping] = useState(false);
-    const [selectedAction, setSelectedAction] = useState<Action | null>(null);
-    const debouncedQuery = useDebounce(query, 200);
 
     useEffect(() => {
         if (!isFocused) {
@@ -99,222 +85,53 @@ export default function ActionSearchBar({
             return;
         }
 
-        if (!debouncedQuery) {
-            const personaActions: Action[] = personas.map((persona) => ({
-                id: persona.id,
-                label: persona.role,
-                icon: persona.avatar ? (
-                    <div
-                        className="w-4 h-4"
-                        dangerouslySetInnerHTML={{ __html: persona.avatar }}
-                    />
-                ) : (
-                    <Globe className="h-4 w-4 text-blue-500" />
-                ),
-                description: persona.goal,
-                persona: persona,
-            }));
-            setResult({ actions: [...personaActions, ...actions] });
-            return;
-        }
-
-        const normalizedQuery = debouncedQuery.toLowerCase().trim();
-        const filteredPersonas: Action[] = personas
+        const normalizedQuery = query.toLowerCase().trim();
+        const filteredPersonas = personas
+            .filter((persona) => {
+                return persona.role.toLowerCase().includes(normalizedQuery);
+            })
             .map((persona) => ({
                 id: persona.id,
                 label: persona.role,
                 icon: persona.avatar ? (
-                    <div
-                        className="w-4 h-4"
-                        dangerouslySetInnerHTML={{ __html: persona.avatar }}
-                    />
-                ) : (
-                    <Globe className="h-4 w-4 text-blue-500" />
-                ),
-                description: persona.goal,
+                    <div className="w-5 h-5" dangerouslySetInnerHTML={{ __html: persona.avatar }} />
+                ) : null,
                 persona: persona,
-            }))
-            .filter((action) => {
-                const searchableText = `${action.label} ${action.description}`.toLowerCase();
-                return searchableText.includes(normalizedQuery);
-            });
+            }));
 
-        const filteredActions = actions.filter((action) => {
-            const searchableText = `${action.label} ${action.description || ""}`.toLowerCase();
-            return searchableText.includes(normalizedQuery);
-        });
-
-        setResult({ actions: [...filteredPersonas, ...filteredActions] });
-    }, [debouncedQuery, isFocused, actions, personas]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setQuery(e.target.value);
-        setIsTyping(true);
-    };
-
-    const container = {
-        hidden: { opacity: 0, height: 0 },
-        show: {
-            opacity: 1,
-            height: "auto",
-            transition: {
-                height: {
-                    duration: 0.4,
-                },
-                staggerChildren: 0.1,
-            },
-        },
-        exit: {
-            opacity: 0,
-            height: 0,
-            transition: {
-                height: {
-                    duration: 0.3,
-                },
-                opacity: {
-                    duration: 0.2,
-                },
-            },
-        },
-    };
-
-    const item = {
-        hidden: { opacity: 0, y: 20 },
-        show: {
-            opacity: 1,
-            y: 0,
-            transition: {
-                duration: 0.3,
-            },
-        },
-        exit: {
-            opacity: 0,
-            y: -10,
-            transition: {
-                duration: 0.2,
-            },
-        },
-    };
-
-    const handleFocus = () => {
-        setSelectedAction(null);
-        setIsFocused(true);
-    };
-
-    const handleActionClick = (action: Action) => {
-        if (action.persona && onPersonaSelect) {
-            onPersonaSelect(action.persona);
-            setQuery("");
-            setIsFocused(false);
-        }
-    };
+        setResult({ actions: filteredPersonas });
+    }, [query, isFocused, personas]);
 
     return (
-        <div className="w-full max-w-2xl mx-auto">
-            <div className="relative flex flex-col justify-start items-center min-h-[300px]">
-                <div className="w-full max-w-sm sticky top-0 bg-background z-10 pt-4 pb-1">
-                    <label
-                        className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block"
-                        htmlFor="search"
-                    >
-                        Search Personas & Commands
-                    </label>
-                    <div className="relative">
-                        <Input
-                            type="text"
-                            placeholder="What's up?"
-                            value={query}
-                            onChange={handleInputChange}
-                            onFocus={handleFocus}
-                            onBlur={() =>
-                                setTimeout(() => setIsFocused(false), 200)
-                            }
-                            className="pl-3 pr-9 py-1.5 h-9 text-sm rounded-lg focus-visible:ring-offset-0"
-                        />
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4">
-                            <AnimatePresence mode="popLayout">
-                                {query.length > 0 ? (
-                                    <motion.div
-                                        key="send"
-                                        initial={{ y: -20, opacity: 0 }}
-                                        animate={{ y: 0, opacity: 1 }}
-                                        exit={{ y: 20, opacity: 0 }}
-                                        transition={{ duration: 0.2 }}
-                                    >
-                                        <PaperPlaneIcon className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                                    </motion.div>
-                                ) : (
-                                    <motion.div
-                                        key="search"
-                                        initial={{ y: -20, opacity: 0 }}
-                                        animate={{ y: 0, opacity: 1 }}
-                                        exit={{ y: 20, opacity: 0 }}
-                                        transition={{ duration: 0.2 }}
-                                    >
-                                        <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="w-full max-w-sm">
-                    <AnimatePresence>
-                        {isFocused && result && !selectedAction && (
-                            <motion.div
-                                className="w-full border rounded-md shadow-xs overflow-hidden dark:border-gray-800 bg-white dark:bg-black mt-1"
-                                variants={container}
-                                initial="hidden"
-                                animate="show"
-                                exit="exit"
+        <div className="w-full">
+            <Command className="rounded-lg border shadow-md">
+                <CommandInput
+                    placeholder="Search personas..."
+                    value={query}
+                    onValueChange={setQuery}
+                    className="h-9"
+                />
+                <CommandList className="max-h-[300px] overflow-auto">
+                    <CommandEmpty>No personas found.</CommandEmpty>
+                    <CommandGroup>
+                        {result?.actions.map((action) => (
+                            <CommandItem
+                                key={action.id}
+                                value={action.label}
+                                className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-accent cursor-pointer"
+                                onSelect={() => {
+                                    if (action.persona && onPersonaSelect) {
+                                        onPersonaSelect(action.persona);
+                                    }
+                                }}
                             >
-                                <motion.ul>
-                                    {result.actions.map((action) => (
-                                        <motion.li
-                                            key={action.id}
-                                            className={`flex items-center justify-between px-3 py-2 cursor-pointer rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 ${
-                                                action.persona ? 'border-l-2 border-blue-500' : ''
-                                            }`}
-                                            variants={item}
-                                            layout
-                                            onClick={() => handleActionClick(action)}
-                                        >
-                                            <div className="flex items-center gap-2 justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-gray-500">
-                                                        {action.icon}
-                                                    </span>
-                                                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                        {action.label}
-                                                    </span>
-                                                    <span className="text-xs text-gray-400">
-                                                        {action.description}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-gray-400">
-                                                    {action.short}
-                                                </span>
-                                                <span className="text-xs text-gray-400 text-right">
-                                                    {action.end}
-                                                </span>
-                                            </div>
-                                        </motion.li>
-                                    ))}
-                                </motion.ul>
-                                <div className="mt-2 px-3 py-2 border-t border-gray-100 dark:border-gray-800">
-                                    <div className="flex items-center justify-between text-xs text-gray-500">
-                                        <span>Press ⌘K to open commands</span>
-                                        <span>ESC to cancel</span>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-            </div>
+                                {action.icon}
+                                <span className="font-medium">{action.label}</span>
+                            </CommandItem>
+                        ))}
+                    </CommandGroup>
+                </CommandList>
+            </Command>
         </div>
     );
 }
