@@ -1,21 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { CheckIcon, CaretSortIcon } from "@radix-ui/react-icons"
 import { ChatModel } from "@/components/data-context"
 
 interface ComboboxChatModelsProps {
@@ -24,69 +14,62 @@ interface ComboboxChatModelsProps {
   onSelect: (model: ChatModel) => void
 }
 
-export function ComboboxChatModels({
-  models = [],
-  value = null,
-  onSelect,
-}: ComboboxChatModelsProps) {
+export function ComboboxChatModels({ models, value, onSelect }: ComboboxChatModelsProps) {
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
 
-  const selectedModel = React.useMemo(() => 
-    models.find(model => model?.id === value) || null
-  , [models, value])
-
-  const filteredModels = React.useMemo(() => {
-    if (!searchQuery) return models
-    const searchLower = searchQuery.toLowerCase()
-    return models.filter(model => 
-      (model?.name || '').toLowerCase().includes(searchLower) || 
-      (model?.provider || '').toLowerCase().includes(searchLower)
-    )
-  }, [models, searchQuery])
+  const selectedModel = models.find(m => m.id === value)
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
+        <Button 
+          variant="outline" 
+          role="combobox" 
           aria-expanded={open} 
           className="w-full justify-between"
         >
-          <span>{selectedModel?.name || "Select model..."}</span>
+          <span>{selectedModel ? selectedModel.name : "Select model..."}</span>
           <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0">
-        <Command shouldFilter={false}>
+        <Command>
           <CommandInput 
             placeholder="Search models..." 
             value={searchQuery}
             onValueChange={setSearchQuery}
+            className="h-9" 
           />
-          <CommandEmpty>No model found.</CommandEmpty>
-          <CommandGroup>
-            {filteredModels.map((model) => (
-              <CommandItem
-                key={model.id}
-                value={model.id}
-                onSelect={() => {
-                  onSelect(model)
-                  setOpen(false)
-                }}
-                className="flex items-center gap-2"
-              >
-                <span>{model.name}</span>
-                <CheckIcon 
-                  className={cn(
-                    "ml-auto h-4 w-4",
-                    value === model.id ? "opacity-100" : "opacity-0"
-                  )}
-                />
-              </CommandItem>
-            ))}
-          </CommandGroup>
+          <CommandList>
+            <CommandEmpty>No model found.</CommandEmpty>
+            <CommandGroup>
+              {models
+                .filter(model => 
+                  model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  model.provider.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+                .map((model) => (
+                  <CommandItem
+                    key={model.id}
+                    value={model.name}
+                    onSelect={() => {
+                      onSelect(model)
+                      setOpen(false)
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <span>{model.name}</span>
+                    <CheckIcon 
+                      className={cn(
+                        "ml-auto h-4 w-4",
+                        value === model.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                  </CommandItem>
+                ))}
+            </CommandGroup>
+          </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
