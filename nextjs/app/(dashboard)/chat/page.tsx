@@ -554,16 +554,17 @@ function ChatContent() {
       setSelectedPersonas(prev => ({ ...prev, chat1: prompt.default_persona_id! }))
     }
 
-    // Set the prompt content
-    setInput(prompt.prompt)
-    if (prompt.is_complex) {
+    // Only set input immediately for simple prompts
+    if (!prompt.is_complex) {
+      setInput(prompt.prompt)
+    } else {
       setSelectedComplexPrompt(prompt)
     }
   }
 
   // For complex prompts
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
-    setInput(prevInput => (prevInput ? prevInput + ' ' : '') + generatedPrompt)
+    setInput(generatedPrompt)
     setSelectedComplexPrompt(null)
   }
 
