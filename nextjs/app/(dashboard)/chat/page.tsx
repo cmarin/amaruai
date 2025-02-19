@@ -660,7 +660,7 @@ function ChatContent() {
                 <span className="font-medium">{getModelName(chatWindowId)}</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-[120px]">
+                <div className="w-[200px]">
                   <ComboboxPersonas
                     personas={personas || []}
                     value={selectedPersonas[chatWindowId]}

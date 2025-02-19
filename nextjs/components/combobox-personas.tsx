@@ -29,19 +29,23 @@ export function ComboboxPersonas({ personas, value, onSelect }: ComboboxPersonas
           aria-expanded={open} 
           className="w-full justify-between"
         >
-          <div className="flex items-center gap-2">
-            {selectedPersona?.avatar && (
-              <div 
-                className="w-5 h-5 flex-shrink-0" 
-                dangerouslySetInnerHTML={{ __html: selectedPersona.avatar }} 
-              />
-            )}
-            <span>{selectedPersona ? selectedPersona.role : "Select persona..."}</span>
-          </div>
+          {selectedPersona ? (
+            <div className="flex items-center gap-2">
+              {selectedPersona.avatar && (
+                <div 
+                  className="w-5 h-5 flex-shrink-0" 
+                  dangerouslySetInnerHTML={{ __html: selectedPersona.avatar }} 
+                />
+              )}
+              <span>{selectedPersona.role}</span>
+            </div>
+          ) : (
+            <span>Select persona...</span>
+          )}
           <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0">
+      <PopoverContent className="w-[200px] p-0">
         <Command>
           <CommandInput 
             placeholder="Search personas..." 
@@ -64,16 +68,15 @@ export function ComboboxPersonas({ personas, value, onSelect }: ComboboxPersonas
                       onSelect(persona)
                       setOpen(false)
                     }}
+                    className="flex items-center gap-2"
                   >
-                    <div className="flex items-center gap-2 flex-1">
-                      {persona.avatar && (
-                        <div 
-                          className="w-5 h-5 flex-shrink-0" 
-                          dangerouslySetInnerHTML={{ __html: persona.avatar }} 
-                        />
-                      )}
-                      <span>{persona.role}</span>
-                    </div>
+                    {persona.avatar && (
+                      <div 
+                        className="w-5 h-5 flex-shrink-0" 
+                        dangerouslySetInnerHTML={{ __html: persona.avatar }} 
+                      />
+                    )}
+                    <span>{persona.role}</span>
                     <CheckIcon 
                       className={cn(
                         "ml-auto h-4 w-4", 
