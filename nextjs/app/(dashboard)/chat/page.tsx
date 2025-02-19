@@ -704,27 +704,25 @@ function ChatContent() {
                 {React.createElement(getModelIcon(chatWindowId), { className: "w-5 h-5" })}
                 <span className="font-medium">{getModelName(chatWindowId)}</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="flex-1">
-                  <div className="relative" ref={personaSearchRef}>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-between"
-                      onClick={() => setActivePersonaSearchIndex(chatWindowId)}
-                    >
-                      <span>{getPersonaName(chatWindowId)}</span>
-                      <ChevronDown className="h-4 w-4 opacity-50" />
-                    </Button>
-                    {activePersonaSearchIndex === chatWindowId && (
-                      <div className="absolute z-50 w-full mt-1 bg-background">
-                        <ActionSearchBar
-                          personas={personas}
-                          onPersonaSelect={handlePersonaSelect(chatWindowId)}
-                          defaultOpen={true}
-                        />
-                      </div>
-                    )}
-                  </div>
+              <div className="flex items-center gap-2 flex-1">
+                <div className="relative flex-1 min-w-[300px]" ref={personaSearchRef}>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                    onClick={() => setActivePersonaSearchIndex(chatWindowId)}
+                  >
+                    <span>{getPersonaName(chatWindowId)}</span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                  {activePersonaSearchIndex === chatWindowId && (
+                    <div className="absolute z-50 w-[500px] mt-1 bg-background shadow-lg rounded-md border">
+                      <ActionSearchBar
+                        personas={personas}
+                        onPersonaSelect={handlePersonaSelect(chatWindowId)}
+                        defaultOpen={true}
+                      />
+                    </div>
+                  )}
                 </div>
                 <Select
                   value={selectedModels[chatWindowId] || ''}
