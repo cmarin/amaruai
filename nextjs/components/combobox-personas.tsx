@@ -18,7 +18,24 @@ export function ComboboxPersonas({ personas, value, onSelect }: ComboboxPersonas
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
 
-  const selectedPersona = personas.find(p => p.id.toString() === value?.toString())
+  // Filter out personas with invalid roles and clean the data
+  const cleanedPersonas = React.useMemo(() => {
+    return personas
+      .filter(persona => {
+        // Filter out personas with lorem ipsum or invalid roles
+        const role = persona.role?.trim()
+        return role && 
+               !role.toLowerCase().includes('lorem') && 
+               !role.toLowerCase().includes('lorel') &&
+               !role.startsWith('ipsum')
+      })
+      .map(persona => ({
+        ...persona,
+        role: persona.role.trim() // Clean any extra whitespace
+      }))
+  }, [personas])
+
+  const selectedPersona = cleanedPersonas.find(p => p.id.toString() === value?.toString())
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -56,7 +73,7 @@ export function ComboboxPersonas({ personas, value, onSelect }: ComboboxPersonas
           <CommandList>
             <CommandEmpty>No persona found.</CommandEmpty>
             <CommandGroup>
-              {personas
+              {cleanedPersonas
                 .filter(persona => 
                   persona.role.toLowerCase().includes(searchQuery.toLowerCase())
                 )
