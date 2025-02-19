@@ -127,7 +127,7 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div>
+          <div className="w-full">
             <ComboboxPersonas
               personas={personas || []}
               value={selectedPersonaId || undefined}
@@ -135,7 +135,7 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
             />
           </div>
 
-          <div>
+          <div className="w-full">
             <ComboboxChatModels
               models={chatModels || []}
               value={selectedChatModelId}
