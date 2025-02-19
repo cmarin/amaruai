@@ -248,7 +248,7 @@ export default function PromptTemplatesPage() {
 
           {/* New Simple Prompt Dialog */}
           <Dialog open={isNewSimplePromptDialogOpen} onOpenChange={setIsNewSimplePromptDialogOpen}>
-            <DialogContent className="bg-white">
+            <DialogContent className="bg-white" style={{ zIndex: 50 }}>
               <DialogHeader>
                 <DialogTitle className="text-gray-900">New Simple Prompt</DialogTitle>
                 <DialogDescription className="text-gray-600">Create a new simple prompt</DialogDescription>
@@ -284,19 +284,23 @@ export default function PromptTemplatesPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="mb-2 block">Default Persona</Label>
-                    <ComboboxPersonas
-                      personas={personas || []}
-                      value={newSimplePrompt.defaultPersonaId || undefined}
-                      onSelect={handlePersonaSelect}
-                    />
+                    <div className="relative">
+                      <ComboboxPersonas
+                        personas={personas || []}
+                        value={newSimplePrompt.defaultPersonaId || undefined}
+                        onSelect={handlePersonaSelect}
+                      />
+                    </div>
                   </div>
                   <div>
                     <Label className="mb-2 block">Default Chat Model</Label>
-                    <ComboboxChatModels
-                      models={chatModels || []}
-                      value={newSimplePrompt.defaultChatModelId}
-                      onSelect={handleChatModelSelect}
-                    />
+                    <div className="relative">
+                      <ComboboxChatModels
+                        models={chatModels || []}
+                        value={newSimplePrompt.defaultChatModelId}
+                        onSelect={handleChatModelSelect}
+                      />
+                    </div>
                   </div>
                 </div>
                 <TagSelector
