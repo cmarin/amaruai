@@ -705,7 +705,7 @@ function ChatContent() {
                 <span className="font-medium">{getModelName(chatWindowId)}</span>
               </div>
               <div className="flex items-center gap-2 flex-1">
-                <div className="relative flex-1 min-w-[300px]" ref={personaSearchRef}>
+                <div className="relative flex-1 min-w-[200px] max-w-[300px]" ref={personaSearchRef}>
                   <Button
                     variant="outline"
                     className="w-full justify-between"
@@ -715,7 +715,7 @@ function ChatContent() {
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                   {activePersonaSearchIndex === chatWindowId && (
-                    <div className="absolute z-50 w-[500px] mt-1 bg-background shadow-lg rounded-md border">
+                    <div className="absolute z-50 w-[300px] mt-1 bg-background shadow-lg rounded-md border">
                       <ActionSearchBar
                         personas={personas}
                         onPersonaSelect={handlePersonaSelect(chatWindowId)}
