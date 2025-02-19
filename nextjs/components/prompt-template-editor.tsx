@@ -12,6 +12,8 @@ import TagSelector from '@/components/tag-selector';
 import { Tag } from '@/utils/tag-service';
 import { Category } from '@/utils/category-service';
 import { useData } from '@/components/data-context';
+import { ComboboxPersonas } from '@/components/combobox-personas';
+import { ComboboxChatModels } from '@/components/combobox-chat-models';
 
 interface PromptTemplateEditorProps {
   promptTemplate?: PromptTemplate;
@@ -30,7 +32,7 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
   const [selectedCategory, setSelectedCategory] = useState(promptTemplate?.categories[0]?.id || categories[0]?.id || '');
   const [tags, setTags] = useState<Tag[]>(promptTemplate?.tags || []);
   const [isSaving, setIsSaving] = useState(false);
-  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(promptTemplate?.default_persona_id || null);
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string>(promptTemplate?.default_persona_id || '');
   const [selectedChatModelId, setSelectedChatModelId] = useState<string | null>(promptTemplate?.default_chat_model_id || null);
 
   const handleSave = async () => {
@@ -53,7 +55,7 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
           is_complex: false,
           category_ids: [selectedCategory],
           tags: tags.map(t => t.name),
-          default_persona_id: selectedPersonaId,
+          default_persona_id: selectedPersonaId || null,
           default_chat_model_id: selectedChatModelId,
         }, headers);
       } else {
@@ -62,7 +64,7 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
           title,
           prompt,
           is_complex: false,
-          default_persona_id: selectedPersonaId,
+          default_persona_id: selectedPersonaId || null,
           default_chat_model_id: selectedChatModelId,
           category_ids: [selectedCategory],
           tags: tags.map(t => t.name),
@@ -126,41 +128,19 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Select
-              value={selectedPersonaId || "none"}
-              onValueChange={(value) => setSelectedPersonaId(value === "none" ? null : value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select persona" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {personas?.map((persona) => (
-                  <SelectItem key={persona.id} value={persona.id.toString()}>
-                    {persona.role}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ComboboxPersonas
+              personas={personas || []}
+              value={selectedPersonaId || undefined}
+              onSelect={(persona) => setSelectedPersonaId(persona.id.toString())}
+            />
           </div>
 
           <div>
-            <Select
-              value={selectedChatModelId || "none"}
-              onValueChange={(value) => setSelectedChatModelId(value === "none" ? null : value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select Chat Model" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {chatModels?.map((model) => (
-                  <SelectItem key={model.id} value={model.id}>
-                    {model.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ComboboxChatModels
+              models={chatModels || []}
+              value={selectedChatModelId}
+              onSelect={(model) => setSelectedChatModelId(model.id)}
+            />
           </div>
         </div>
 
