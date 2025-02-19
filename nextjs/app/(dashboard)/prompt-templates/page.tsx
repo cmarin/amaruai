@@ -210,6 +210,20 @@ export default function PromptTemplatesPage() {
     }
   };
 
+  const handlePersonaSelect = (persona: any) => {
+    setNewSimplePrompt(prev => ({
+      ...prev,
+      defaultPersonaId: persona?.id?.toString() || null
+    }));
+  };
+
+  const handleChatModelSelect = (model: any) => {
+    setNewSimplePrompt(prev => ({
+      ...prev,
+      defaultChatModelId: model?.id || null
+    }));
+  };
+
   if (sessionLoading || isLoading) return <div>Loading prompts...</div>
   if (error) return <div>Error: {error}</div>
 
@@ -273,7 +287,7 @@ export default function PromptTemplatesPage() {
                     <ComboboxPersonas
                       personas={personas || []}
                       value={newSimplePrompt.defaultPersonaId || undefined}
-                      onSelect={(persona) => setNewSimplePrompt({ ...newSimplePrompt, defaultPersonaId: persona.id.toString() })}
+                      onSelect={handlePersonaSelect}
                     />
                   </div>
                   <div>
@@ -281,7 +295,7 @@ export default function PromptTemplatesPage() {
                     <ComboboxChatModels
                       models={chatModels || []}
                       value={newSimplePrompt.defaultChatModelId}
-                      onSelect={(model) => setNewSimplePrompt({ ...newSimplePrompt, defaultChatModelId: model.id })}
+                      onSelect={handleChatModelSelect}
                     />
                   </div>
                 </div>
