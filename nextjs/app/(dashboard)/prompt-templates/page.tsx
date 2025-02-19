@@ -33,6 +33,10 @@ import {
 import { useSidebar } from '@/components/sidebar-context'
 import { useSession } from '@/app/utils/session/session';
 import PromptTemplateLibrary from '@/components/prompt-template-library';
+import { ComboboxPersonas } from '@/components/combobox-personas';
+import { ComboboxChatModels } from '@/components/combobox-chat-models';
+import { useData } from '@/components/data-context';
+import { Label } from "@/components/ui/label";
 
 export default function PromptTemplatesPage() {
   const router = useRouter();
@@ -46,6 +50,8 @@ export default function PromptTemplatesPage() {
     prompt: '',
     category: '',
     tags: [] as Tag[],
+    defaultPersonaId: null as string | null,
+    defaultChatModelId: null as string | null,
   });
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -54,6 +60,7 @@ export default function PromptTemplatesPage() {
   const { getApiHeaders, loading: sessionLoading, initialized } = useSession();
   const [isDeletePromptDialogOpen, setIsDeletePromptDialogOpen] = useState(false);
   const [promptToDelete, setPromptToDelete] = useState<PromptTemplate | null>(null);
+  const { personas, chatModels } = useData();
 
   useEffect(() => {
     if (!sessionLoading && initialized) {
@@ -121,26 +128,35 @@ export default function PromptTemplatesPage() {
 
   const handleSaveNewSimplePrompt = async () => {
     const headers = getApiHeaders();
-    if (!headers) {
-      console.error('No valid headers available');
-      return;
-    }
+    if (!headers) return;
 
     try {
       await createPromptTemplate({
         title: newSimplePrompt.title,
         prompt: newSimplePrompt.prompt,
         is_complex: false,
-        category_ids: newSimplePrompt.category ? [newSimplePrompt.category] : [],
-        tags: newSimplePrompt.tags.map(tag => tag.name),
+        category_ids: [newSimplePrompt.category],
+        tags: newSimplePrompt.tags.map(t => t.name),
+        default_persona_id: newSimplePrompt.defaultPersonaId,
+        default_chat_model_id: newSimplePrompt.defaultChatModelId,
       }, headers);
-      
+
+      // Reset form and close dialog
+      setNewSimplePrompt({
+        title: '',
+        prompt: '',
+        category: '',
+        tags: [],
+        defaultPersonaId: null,
+        defaultChatModelId: null,
+      });
       setIsNewSimplePromptDialogOpen(false);
+
+      // Refresh the prompts list
       const updatedPrompts = await fetchPromptTemplates(headers);
       setPrompts(updatedPrompts);
     } catch (error) {
-      console.error('Error saving new prompt:', error);
-      setError('Failed to save prompt');
+      console.error('Error creating prompt template:', error);
     }
   };
 
@@ -251,6 +267,24 @@ export default function PromptTemplatesPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="mb-2 block">Default Persona</Label>
+                    <ComboboxPersonas
+                      personas={personas || []}
+                      value={newSimplePrompt.defaultPersonaId || undefined}
+                      onSelect={(persona) => setNewSimplePrompt({ ...newSimplePrompt, defaultPersonaId: persona.id.toString() })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block">Default Chat Model</Label>
+                    <ComboboxChatModels
+                      models={chatModels || []}
+                      value={newSimplePrompt.defaultChatModelId}
+                      onSelect={(model) => setNewSimplePrompt({ ...newSimplePrompt, defaultChatModelId: model.id })}
+                    />
+                  </div>
+                </div>
                 <TagSelector
                   tags={newSimplePrompt.tags}
                   setTags={(tags) => setNewSimplePrompt({ ...newSimplePrompt, tags })}
