@@ -30,20 +30,20 @@ export function ComboboxChatModels({
   onSelect,
 }: ComboboxChatModelsProps) {
   const [open, setOpen] = React.useState(false)
-  const [search, setSearch] = React.useState("")
+  const [searchQuery, setSearchQuery] = React.useState("")
 
   const selectedModel = React.useMemo(() => 
     models.find(model => model?.id === value) || null
   , [models, value])
 
   const filteredModels = React.useMemo(() => {
-    if (!search) return models
-    const searchLower = search.toLowerCase()
+    if (!searchQuery) return models
+    const searchLower = searchQuery.toLowerCase()
     return models.filter(model => 
       (model?.name || '').toLowerCase().includes(searchLower) || 
       (model?.provider || '').toLowerCase().includes(searchLower)
     )
-  }, [models, search])
+  }, [models, searchQuery])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -59,18 +59,18 @@ export function ComboboxChatModels({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0">
-        <Command>
+        <Command shouldFilter={false}>
           <CommandInput 
             placeholder="Search models..." 
-            value={search}
-            onValueChange={setSearch}
+            value={searchQuery}
+            onValueChange={setSearchQuery}
           />
           <CommandEmpty>No model found.</CommandEmpty>
           <CommandGroup>
             {filteredModels.map((model) => (
               <CommandItem
                 key={model.id}
-                value={model.name || ''}
+                value={model.id}
                 onSelect={() => {
                   onSelect(model)
                   setOpen(false)
