@@ -10,13 +10,6 @@ import {
   Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Database, ChevronDown, Globe2
 } from 'lucide-react'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -45,6 +38,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import ChatMessage from '@/components/chat-message'
 import { ComboboxPersonas } from '@/components/combobox-personas'
+import { ComboboxChatModels } from '@/components/combobox-chat-models'
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css'
@@ -667,18 +661,13 @@ function ChatContent() {
                     onSelect={(persona) => handlePersonaChange(chatWindowId, persona.id.toString())}
                   />
                 </div>
-                <Select value={selectedModels[chatWindowId]} onValueChange={(value) => handleModelChange(chatWindowId, value)}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder={title} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allChatModels?.map((model: ChatModel) => (
-                      <SelectItem key={model.id} value={model.id}>
-                        {model.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="w-[200px]">
+                  <ComboboxChatModels
+                    models={allChatModels || []}
+                    value={selectedModels[chatWindowId]}
+                    onSelect={(model) => handleModelChange(chatWindowId, model.id)}
+                  />
+                </div>
               </div>
             </div>
             {/* Copy, add to scratch pad, clear */}
