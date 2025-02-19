@@ -20,26 +20,28 @@ import { ChatModel } from "@/components/data-context"
 
 interface ComboboxChatModelsProps {
   models: ChatModel[]
-  value?: string
+  value?: string | null
   onSelect: (model: ChatModel) => void
 }
 
 export function ComboboxChatModels({
-  models,
-  value,
+  models = [],
+  value = null,
   onSelect,
 }: ComboboxChatModelsProps) {
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
 
-  const selectedModel = models.find(model => model.id === value)
+  const selectedModel = React.useMemo(() => 
+    models.find(model => model?.id === value) || null
+  , [models, value])
 
   const filteredModels = React.useMemo(() => {
     if (!search) return models
     const searchLower = search.toLowerCase()
     return models.filter(model => 
-      model.name.toLowerCase().includes(searchLower) || 
-      model.provider.toLowerCase().includes(searchLower)
+      (model?.name || '').toLowerCase().includes(searchLower) || 
+      (model?.provider || '').toLowerCase().includes(searchLower)
     )
   }, [models, search])
 
@@ -52,7 +54,7 @@ export function ComboboxChatModels({
           aria-expanded={open} 
           className="w-full justify-between"
         >
-          <span>{selectedModel ? selectedModel.name : "Select model..."}</span>
+          <span>{selectedModel?.name || "Select model..."}</span>
           <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -68,7 +70,7 @@ export function ComboboxChatModels({
             {filteredModels.map((model) => (
               <CommandItem
                 key={model.id}
-                value={model.name}
+                value={model.name || ''}
                 onSelect={() => {
                   onSelect(model)
                   setOpen(false)

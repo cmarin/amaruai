@@ -229,13 +229,13 @@ function ChatContent() {
 
   const getModelName = (chatWindowId: string) => {
     const modelId = selectedModels[chatWindowId]
-    const model = allChatModels?.find(m => m.id === modelId)
-    return model?.name || "Default Model"
+    const model = allChatModels?.find(m => m?.id === modelId)
+    return model?.name || "Select model..."
   }
 
   const getModelIcon = (chatWindowId: string) => {
     const modelId = selectedModels[chatWindowId]
-    const model = allChatModels?.find(m => m.id === modelId)
+    const model = allChatModels?.find(m => m?.id === modelId)
     return model ? getProviderIcon(model.id, model.name) : Timer
   }
 
@@ -664,7 +664,7 @@ function ChatContent() {
                 <div className="w-[200px]">
                   <ComboboxChatModels
                     models={allChatModels || []}
-                    value={selectedModels[chatWindowId]}
+                    value={selectedModels[chatWindowId] || null}
                     onSelect={(model) => handleModelChange(chatWindowId, model.id)}
                   />
                 </div>
