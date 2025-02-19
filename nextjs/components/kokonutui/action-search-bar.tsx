@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "cmdk";
 import useDebounce from "@/hooks/use-debounce";
 import { Persona } from "@/utils/persona-service";
 
@@ -104,21 +104,23 @@ export default function ActionSearchBar({
 
     return (
         <div className="w-full">
-            <Command className="rounded-lg border shadow-md">
+            <Command className="rounded-lg border shadow-md bg-background">
                 <CommandInput
                     placeholder="Search personas..."
                     value={query}
                     onValueChange={setQuery}
-                    className="h-9"
+                    className="h-9 border-none focus:ring-0 focus-visible:ring-0"
                 />
                 <CommandList className="max-h-[300px] overflow-auto">
-                    <CommandEmpty>No personas found.</CommandEmpty>
+                    <CommandEmpty className="py-6 text-sm text-muted-foreground">
+                        No personas found.
+                    </CommandEmpty>
                     <CommandGroup>
                         {result?.actions.map((action) => (
                             <CommandItem
                                 key={action.id}
                                 value={action.label}
-                                className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-accent cursor-pointer"
+                                className="flex items-center gap-3 px-4 py-3 text-sm cursor-pointer aria-selected:bg-accent"
                                 onSelect={() => {
                                     if (action.persona && onPersonaSelect) {
                                         onPersonaSelect(action.persona);
