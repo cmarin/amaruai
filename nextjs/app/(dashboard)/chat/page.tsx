@@ -44,6 +44,8 @@ import { ChatModel } from '@/components/data-context'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import ChatMessage from '@/components/chat-message'
+import ActionSearchBar from "@/components/kokonutui/action-search-bar"
+import { Persona } from "@/utils/persona-service"
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css'
@@ -52,6 +54,17 @@ import '@uppy/dashboard/dist/style.min.css'
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+}
+
+interface ChatWindowProps {
+  messages: Message[];
+  chatWindowId: number;
+  onSendMessage: (message: string) => void;
+  onClear: () => void;
+  onCopy: () => void;
+  onAddToScratchPad: () => void;
+  isLoading: boolean;
+  error: Error | null;
 }
 
 function ChatContent() {
@@ -72,16 +85,31 @@ function ChatContent() {
   const [mode, setMode] = useState<'single' | 'dual' | 'quad'>('single')
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<any | null>(null)
-  const [selectedModels, setSelectedModels] = useState<{ [key: string]: string }>({})
-  const [selectedPersonas, setSelectedPersonas] = useState<{ [key: string]: string }>({})
+  const [selectedModels, setSelectedModels] = useState<{ [key: number]: string }>({})
+  const [selectedPersonas, setSelectedPersonas] = useState<{ [key: number]: string | number }>({})
   const [hasUserChangedModel, setHasUserChangedModel] = useState(false)
   const [hasUserChangedPersona, setHasUserChangedPersona] = useState(false)
+  const [activePersonaSearchIndex, setActivePersonaSearchIndex] = useState<number | null>(null);
+  const personaSearchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     console.log('Personas changed:', personas);
   }, [personas]);
 
-  const [conversationIds, setConversationIds] = useState<{ [key: string]: string }>({})
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (personaSearchRef.current && !personaSearchRef.current.contains(event.target as Node)) {
+        setActivePersonaSearchIndex(null);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const [conversationIds, setConversationIds] = useState<{ [key: number]: string }>({})
   const [multiConversationId, setMultiConversationId] = useState<string | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [showUploadModal, setShowUploadModal] = useState(false)
@@ -90,7 +118,7 @@ function ChatContent() {
   const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([])
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>([])
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(true)
-  const [retryAttempts, setRetryAttempts] = useState<{ [key: string]: number }>({})
+  const [retryAttempts, setRetryAttempts] = useState<{ [key: number]: number }>({})
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
   const [showKnowledgeBaseModal, setShowKnowledgeBaseModal] = useState(false);
 
@@ -148,33 +176,34 @@ function ChatContent() {
   }, [getApiHeaders])
 
   useEffect(() => {
-    if (allChatModels?.length > 0) {
-      // Find the default model
-      const defaultModel = allChatModels.find(model => model.default)
-      if (!defaultModel) return
+    const defaultModel = allChatModels?.find(model => model.default) || allChatModels?.[0]
+    const otherModels = allChatModels?.filter(model => !model.default && model.id !== defaultModel?.id) || []
 
-      // Get non-default models for other chat windows
-      const otherModels = allChatModels
-        .filter(model => !model.default && model.id !== defaultModel.id)
-        .slice(0, 3) // We need at most 3 other models for chat2, chat3, chat4
+    if (defaultModel) {
+      const newModelSelections: { [key: number]: string } = { 1: defaultModel.id }
 
-      setSelectedModels(prev => ({
-        ...prev,
-        chat1: defaultModel.id,
-        ...(mode !== 'single' && otherModels[0] && { chat2: otherModels[0].id }),
-        ...(mode === 'quad' && otherModels[1] && { chat3: otherModels[1].id }),
-        ...(mode === 'quad' && otherModels[2] && { chat4: otherModels[2].id })
-      }))
+      // Only add other models if they exist
+      if (mode !== 'single' && otherModels[0]) {
+        newModelSelections[2] = otherModels[0].id
+      }
+      
+      if (mode === 'quad') {
+        if (otherModels[1]) {
+          newModelSelections[3] = otherModels[1].id
+        }
+        if (otherModels[2]) {
+          newModelSelections[4] = otherModels[2].id
+        }
+      }
+
+      setSelectedModels(newModelSelections)
     }
   }, [allChatModels, mode])
 
   useEffect(() => {
     const modelId = searchParams.get('model')
     if (modelId && allChatModels?.some(model => model.id === modelId)) {
-      setSelectedModels(prev => ({
-        ...prev,
-        chat1: modelId
-      }))
+      setSelectedModels(prev => ({ ...prev, 1: modelId }))
     }
   }, [searchParams, allChatModels])
 
@@ -220,25 +249,31 @@ function ChatContent() {
     return MessageSquare as React.ComponentType<any>
   }
 
-  const handleModelChange = (chatWindowId: string, modelId: string) => {
-    setSelectedModels(prev => ({ ...prev, [chatWindowId]: modelId }))
-    setHasUserChangedModel(true)
+  const handleModelChange = (chatWindowId: number, modelId: string) => {
+    setSelectedModels(prev => ({
+      ...prev,
+      [chatWindowId]: modelId
+    }));
+    setHasUserChangedModel(true);
     // Reset retry attempts when manually changing model
     setRetryAttempts(prev => ({ ...prev, [chatWindowId]: 0 }))
   }
 
-  const handlePersonaChange = (chatWindowId: string, personaId: string) => {
-    setSelectedPersonas(prev => ({ ...prev, [chatWindowId]: personaId }))
-    setHasUserChangedPersona(true)
+  const handlePersonaChange = (chatWindowId: number, value: string | number) => {
+    setSelectedPersonas((prev) => ({
+      ...prev,
+      [chatWindowId]: value
+    }));
+    setHasUserChangedPersona(true);
   }
 
-  const getModelName = (chatWindowId: string) => {
+  const getModelName = (chatWindowId: number) => {
     const modelId = selectedModels[chatWindowId]
     const model = allChatModels?.find(m => m.id === modelId)
     return model?.name || "Default Model"
   }
 
-  const getModelIcon = (chatWindowId: string) => {
+  const getModelIcon = (chatWindowId: number) => {
     const modelId = selectedModels[chatWindowId]
     const model = allChatModels?.find(m => m.id === modelId)
     return model ? getProviderIcon(model.id, model.name) : Timer
@@ -297,7 +332,7 @@ function ChatContent() {
     const makeApiCall = async (
       prevMessagesLocal: Message[],
       setMessagesFunction: React.Dispatch<React.SetStateAction<Message[]>>,
-      chatId: string,
+      chatId: number,
       isRetry: boolean = false // Add isRetry parameter
     ) => {
       // Don't allow more than one retry per chat window
@@ -330,7 +365,7 @@ function ChatContent() {
         const modelId = isRetry ? undefined : (selectedModels[chatId] || allChatModels?.[0]?.id)
         const personaId = selectedPersonas[chatId]
         const selectedModel = modelId ? allChatModels?.find(model => model.id === modelId) : undefined
-        const selectedPersona = personas?.find(p => p.id.toString() === personaId)
+        const selectedPersona = personas?.find(p => p.id.toString() === personaId.toString())
 
         let streamStartTime: number | null = null
         let receivedFirstChunk = false
@@ -475,10 +510,10 @@ function ChatContent() {
     }
 
     const apiCalls = [
-      makeApiCall(messages, setMessages, 'chat1'),
-      mode !== 'single' && makeApiCall(messages2, setMessages2, 'chat2'),
-      mode === 'quad' && makeApiCall(messages3, setMessages3, 'chat3'),
-      mode === 'quad' && makeApiCall(messages4, setMessages4, 'chat4'),
+      makeApiCall(messages, setMessages, 1),
+      mode !== 'single' && makeApiCall(messages2, setMessages2, 2),
+      mode === 'quad' && makeApiCall(messages3, setMessages3, 3),
+      mode === 'quad' && makeApiCall(messages4, setMessages4, 4),
     ].filter(Boolean)
 
     try {
@@ -488,7 +523,7 @@ function ChatContent() {
       // Log any failures for debugging
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
-          const chatId = ['chat1', 'chat2', 'chat3', 'chat4'][index]
+          const chatId = [1, 2, 3, 4][index]
           console.error(`Chat ${chatId} failed:`, result.reason)
           
           // Set error message for failed chats
@@ -553,10 +588,10 @@ function ChatContent() {
   const handlePromptSelect = (prompt: any) => {
     // Only update model/persona for first chat window if user hasn't changed them
     if (!hasUserChangedModel && prompt.default_chat_model_id) {
-      setSelectedModels(prev => ({ ...prev, chat1: prompt.default_chat_model_id! }))
+      setSelectedModels(prev => ({ ...prev, 1: prompt.default_chat_model_id! }))
     }
     if (!hasUserChangedPersona && prompt.default_persona_id) {
-      setSelectedPersonas(prev => ({ ...prev, chat1: prompt.default_persona_id! }))
+      setSelectedPersonas(prev => ({ ...prev, 1: prompt.default_persona_id! }))
     }
 
     // Set the prompt content
@@ -581,33 +616,39 @@ function ChatContent() {
   const handleModeChange = (newMode: 'single' | 'dual' | 'quad') => {
     setMode(newMode)
     
-    // Find default and other models
-    const defaultModel = allChatModels?.find(model => model.default)
-    const otherModels = allChatModels
-      ?.filter(model => !model.default && model.id !== defaultModel?.id)
-      .slice(0, 3)
+    // Clear all conversations
+    clearConversation(messages)
+    clearConversation(messages2)
+    clearConversation(messages3)
+    clearConversation(messages4)
+
+    // Reset retry attempts and conversation tracking
+    setRetryAttempts({})
+    setConversationIds({})
+    setMultiConversationId(null)
+
+    const defaultModel = allChatModels?.find(model => model.default) || allChatModels?.[0]
+    const otherModels = allChatModels?.filter(model => !model.default && model.id !== defaultModel?.id) || []
 
     if (defaultModel) {
-      // Always keep chat1 as default model
-      const newModelSelections: { [key: string]: string } = {
-        chat1: defaultModel.id,
-      }
+      const newModelSelections: { [key: number]: string } = { 1: defaultModel.id }
 
-      // Add other models based on mode
-      if (newMode !== 'single' && otherModels?.[0]) {
-        newModelSelections.chat2 = otherModels[0].id
+      // Only add other models if they exist
+      if (newMode !== 'single' && otherModels[0]) {
+        newModelSelections[2] = otherModels[0].id
       }
+      
       if (newMode === 'quad') {
-        if (otherModels?.[1]) newModelSelections.chat3 = otherModels[1].id
-        if (otherModels?.[2]) newModelSelections.chat4 = otherModels[2].id
+        if (otherModels[1]) {
+          newModelSelections[3] = otherModels[1].id
+        }
+        if (otherModels[2]) {
+          newModelSelections[4] = otherModels[2].id
+        }
       }
 
       setSelectedModels(newModelSelections)
     }
-
-    // Reset retry attempts and multi-conversation tracking
-    resetRetryAttempts()
-    setMultiConversationId(null)
   }
 
   // Add toggleChatbot handler
@@ -617,69 +658,94 @@ function ChatContent() {
     // Update the selected model
     setSelectedModels(prev => ({
       ...prev,
-      chat1: modelId
+      1: modelId
     }))
   }
 
-  // ChatWindow sub-component
-  interface ChatWindowProps {
-    messages: Message[]
-    messagesEndRef: React.RefObject<HTMLDivElement>
-    title: string
-    Icon: React.ComponentType<any>
-    onCopy: () => void
-    onAddToScratchPad: () => void
-    onClearConversation: () => void
-    isCopied: boolean
-    chatWindowId: string
-  }
+  // Handle persona selection for a specific chat
+  const handlePersonaSelect = (chatIndex: number) => (persona: Persona) => {
+    setSelectedPersonas(prev => ({
+      ...prev,
+      [chatIndex]: persona.id
+    }));
+    setHasUserChangedPersona(true);
+    setActivePersonaSearchIndex(null);
+  };
 
-  const ChatWindow = ({
+  // Get persona name for display
+  const getPersonaName = (chatIndex: number) => {
+    const personaId = selectedPersonas[chatIndex];
+    if (!personaId) return 'Select Persona';
+    const persona = personas.find(p => p.id.toString() === personaId.toString());
+    return persona ? persona.role : 'Select Persona';
+  };
+
+  const ChatWindow: React.FC<ChatWindowProps> = ({
     messages,
-    messagesEndRef,
-    title,
-    Icon,
+    chatWindowId,
+    onSendMessage,
+    onClear,
     onCopy,
     onAddToScratchPad,
-    onClearConversation,
-    isCopied,
-    chatWindowId
-  }: ChatWindowProps) => {
-    const isStreaming = isStreamingRef.current;
-    const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
+    isLoading,
+    error
+  }) => {
+    const selectedPersona = personas?.find(p => 
+      p.id.toString() === selectedPersonas[chatWindowId]?.toString()
+    );
     
     return (
       <TooltipProvider>
-        <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
+        <div className="flex flex-col h-full">
           {/* Top header (title, copy, clear) */}
-          <div className="flex items-center justify-between p-3 border-b">
+          <div className="flex justify-between items-center p-4 border-b">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 {React.createElement(getModelIcon(chatWindowId), { className: "w-5 h-5" })}
                 <span className="font-medium">{getModelName(chatWindowId)}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Select value={selectedPersonas[chatWindowId]} onValueChange={(value) => handlePersonaChange(chatWindowId, value)}>
-                  <SelectTrigger className="w-[120px]">
-                    <SelectValue placeholder="Default" />
+              <div className="flex items-center space-x-2">
+                <div className="flex-1">
+                  <div className="relative" ref={personaSearchRef}>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between"
+                      onClick={() => setActivePersonaSearchIndex(chatWindowId)}
+                    >
+                      <span>{getPersonaName(chatWindowId)}</span>
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                    {activePersonaSearchIndex === chatWindowId && (
+                      <div className="absolute z-50 w-full mt-1 bg-background">
+                        <ActionSearchBar
+                          personas={personas}
+                          onPersonaSelect={handlePersonaSelect(chatWindowId)}
+                          defaultOpen={true}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Select
+                  value={selectedModels[chatWindowId] || ''}
+                  onValueChange={(value) => handleModelChange(chatWindowId, value)}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select Model" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="default">Default</SelectItem>
-                    {personas?.map((persona) => (
-                      <SelectItem key={persona.id} value={persona.id.toString()}>
-                        {persona.role || "Default"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={selectedModels[chatWindowId]} onValueChange={(value) => handleModelChange(chatWindowId, value)}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder={title} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allChatModels?.map((model: ChatModel) => (
+                    {allChatModels.map((model) => (
                       <SelectItem key={model.id} value={model.id}>
-                        {model.name}
+                        <div className="flex items-center">
+                          {model.provider === 'openai' && <OpenAIIcon className="w-4 h-4 mr-2" />}
+                          {model.provider === 'anthropic' && <AnthropicIcon className="w-4 h-4 mr-2" />}
+                          {model.provider === 'google' && <GeminiIcon className="w-4 h-4 mr-2" />}
+                          {model.provider === 'perplexity' && <PerplexityIcon className="w-4 h-4 mr-2" />}
+                          {model.provider === 'mistral' && <MistralIcon className="w-4 h-4 mr-2" />}
+                          {model.provider === 'meta' && <MetaIcon className="w-4 h-4 mr-2" />}
+                          {model.provider === 'zephyr' && <ZephyrIcon className="w-4 h-4 mr-2" />}
+                          {model.name}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -691,15 +757,11 @@ function ChatContent() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onCopy}>
-                    {isCopied ? (
-                      <Check className="w-4 h-4" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
+                    <Copy className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {isCopied ? "Copied!" : "Copy chat content"}
+                  Copy chat content
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
@@ -712,7 +774,7 @@ function ChatContent() {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onClearConversation}>
+                  <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onClear}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
@@ -738,7 +800,7 @@ function ChatContent() {
               ))}
               <div ref={messagesEndRef} className="h-4" />
             </div>
-            {isStreaming && (
+            {isLoading && (
               <div className="sticky bottom-4 w-full flex justify-center">
                 <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -783,14 +845,13 @@ function ChatContent() {
             <div className="grid h-full gap-4" style={{ gridTemplateColumns: '1fr' }}>
               <ChatWindow
                 messages={messages}
-                messagesEndRef={messagesEndRef}
-                title="Perplexity Llama"
-                Icon={Timer}
+                chatWindowId={1}
+                onSendMessage={() => handleSubmit}
+                onClear={() => clearConversation(messages)}
                 onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onClearConversation={() => clearConversation(messages)}
-                isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                chatWindowId="chat1"
+                isLoading={isLoading}
+                error={error}
               />
             </div>
           ) : (
@@ -803,49 +864,45 @@ function ChatContent() {
             >
               <ChatWindow
                 messages={messages}
-                messagesEndRef={messagesEndRef}
-                title="Perplexity Llama"
-                Icon={Timer}
+                chatWindowId={1}
+                onSendMessage={() => handleSubmit}
+                onClear={() => clearConversation(messages)}
                 onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onClearConversation={() => clearConversation(messages)}
-                isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                chatWindowId="chat1"
+                isLoading={isLoading}
+                error={error}
               />
               <ChatWindow
                 messages={messages2}
-                messagesEndRef={messagesEndRef2}
-                title="GPT-4o"
-                Icon={Sparkles}
+                chatWindowId={2}
+                onSendMessage={() => handleSubmit}
+                onClear={() => clearConversation(messages2)}
                 onCopy={() => copyToClipboard(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onAddToScratchPad={() => addToScratchPad(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onClearConversation={() => clearConversation(messages2)}
-                isCopied={copiedStates[messages2.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                chatWindowId="chat2"
+                isLoading={isLoading}
+                error={error}
               />
               {mode === 'quad' && (
                 <>
                   <ChatWindow
                     messages={messages3}
-                    messagesEndRef={messagesEndRef3}
-                    title="Gemini 1.5 Pro"
-                    Icon={Bot}
+                    chatWindowId={3}
+                    onSendMessage={() => handleSubmit}
+                    onClear={() => clearConversation(messages3)}
                     onCopy={() => copyToClipboard(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
                     onAddToScratchPad={() => addToScratchPad(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                    onClearConversation={() => clearConversation(messages3)}
-                    isCopied={copiedStates[messages3.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                    chatWindowId="chat3"
+                    isLoading={isLoading}
+                    error={error}
                   />
                   <ChatWindow
                     messages={messages4}
-                    messagesEndRef={messagesEndRef4}
-                    title="Meta Llama 3.1"
-                    Icon={SmilePlus}
+                    chatWindowId={4}
+                    onSendMessage={() => handleSubmit}
+                    onClear={() => clearConversation(messages4)}
                     onCopy={() => copyToClipboard(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
                     onAddToScratchPad={() => addToScratchPad(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                    onClearConversation={() => clearConversation(messages4)}
-                    isCopied={copiedStates[messages4.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                    chatWindowId="chat4"
+                    isLoading={isLoading}
+                    error={error}
                   />
                 </>
               )}

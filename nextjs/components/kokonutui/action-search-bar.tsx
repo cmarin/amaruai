@@ -14,21 +14,23 @@ import {
 } from "lucide-react";
 import useDebounce from "@/hooks/use-debounce";
 import { MagnifyingGlassIcon, PaperPlaneIcon } from "@radix-ui/react-icons";
+import { Persona } from "@/utils/persona-service";
 
 interface Action {
-    id: string;
+    id: string | number;
     label: string;
     icon: React.ReactNode;
     description?: string;
     short?: string;
     end?: string;
+    persona?: Persona;
 }
 
 interface SearchResult {
     actions: Action[];
 }
 
-const allActionsSample = [
+const allActionsSample: Action[] = [
     {
         id: "1",
         label: "Book tickets",
@@ -71,13 +73,19 @@ const allActionsSample = [
     },
 ];
 
-function ActionSearchBar({
-    actions = allActionsSample,
-    defaultOpen = false,
-}: {
+interface Props {
     actions?: Action[];
     defaultOpen?: boolean;
-}) {
+    onPersonaSelect?: (persona: Persona) => void;
+    personas?: Persona[];
+}
+
+export default function ActionSearchBar({
+    actions = allActionsSample,
+    defaultOpen = false,
+    onPersonaSelect,
+    personas = [],
+}: Props) {
     const [query, setQuery] = useState("");
     const [result, setResult] = useState<SearchResult | null>(null);
     const [isFocused, setIsFocused] = useState(defaultOpen);
@@ -92,18 +100,52 @@ function ActionSearchBar({
         }
 
         if (!debouncedQuery) {
-            setResult({ actions: actions });
+            const personaActions: Action[] = personas.map((persona) => ({
+                id: persona.id,
+                label: persona.role,
+                icon: persona.avatar ? (
+                    <div
+                        className="w-4 h-4"
+                        dangerouslySetInnerHTML={{ __html: persona.avatar }}
+                    />
+                ) : (
+                    <Globe className="h-4 w-4 text-blue-500" />
+                ),
+                description: persona.goal,
+                persona: persona,
+            }));
+            setResult({ actions: [...personaActions, ...actions] });
             return;
         }
 
         const normalizedQuery = debouncedQuery.toLowerCase().trim();
+        const filteredPersonas: Action[] = personas
+            .map((persona) => ({
+                id: persona.id,
+                label: persona.role,
+                icon: persona.avatar ? (
+                    <div
+                        className="w-4 h-4"
+                        dangerouslySetInnerHTML={{ __html: persona.avatar }}
+                    />
+                ) : (
+                    <Globe className="h-4 w-4 text-blue-500" />
+                ),
+                description: persona.goal,
+                persona: persona,
+            }))
+            .filter((action) => {
+                const searchableText = `${action.label} ${action.description}`.toLowerCase();
+                return searchableText.includes(normalizedQuery);
+            });
+
         const filteredActions = actions.filter((action) => {
-            const searchableText = action.label.toLowerCase();
+            const searchableText = `${action.label} ${action.description || ""}`.toLowerCase();
             return searchableText.includes(normalizedQuery);
         });
 
-        setResult({ actions: filteredActions });
-    }, [debouncedQuery, isFocused, actions]);
+        setResult({ actions: [...filteredPersonas, ...filteredActions] });
+    }, [debouncedQuery, isFocused, actions, personas]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setQuery(e.target.value);
@@ -159,6 +201,14 @@ function ActionSearchBar({
         setIsFocused(true);
     };
 
+    const handleActionClick = (action: Action) => {
+        if (action.persona && onPersonaSelect) {
+            onPersonaSelect(action.persona);
+            setQuery("");
+            setIsFocused(false);
+        }
+    };
+
     return (
         <div className="w-full max-w-xl mx-auto">
             <div className="relative flex flex-col justify-start items-center min-h-[300px]">
@@ -167,7 +217,7 @@ function ActionSearchBar({
                         className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block"
                         htmlFor="search"
                     >
-                        Search Commands
+                        Search Personas & Commands
                     </label>
                     <div className="relative">
                         <Input
@@ -223,12 +273,12 @@ function ActionSearchBar({
                                     {result.actions.map((action) => (
                                         <motion.li
                                             key={action.id}
-                                            className="px-3 py-2 flex items-center justify-between hover:bg-gray-200 dark:hover:bg-zinc-900  cursor-pointer rounded-md"
+                                            className={`flex items-center justify-between px-3 py-2 cursor-pointer rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 ${
+                                                action.persona ? 'border-l-2 border-blue-500' : ''
+                                            }`}
                                             variants={item}
                                             layout
-                                            onClick={() =>
-                                                setSelectedAction(action)
-                                            }
+                                            onClick={() => handleActionClick(action)}
                                         >
                                             <div className="flex items-center gap-2 justify-between">
                                                 <div className="flex items-center gap-2">
@@ -268,5 +318,3 @@ function ActionSearchBar({
         </div>
     );
 }
-
-export default ActionSearchBar;
