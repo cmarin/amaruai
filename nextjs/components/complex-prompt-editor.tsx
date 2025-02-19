@@ -16,11 +16,13 @@ import { json } from '@codemirror/lang-json'
 import { vscodeDark } from '@uiw/codemirror-theme-vscode'
 import { Category } from '../utils/category-service'
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
-import TagSelector from './tag-selector'
+import TagSelector from './tag-selector';
 import { Tag } from '../utils/tag-service'
 import { useData } from '@/components/data-context'
 import { Persona } from '@/utils/persona-service'
 import { ChatModel } from '@/utils/chat-model-service';
+import { ComboboxPersonas } from './combobox-personas';
+import { ComboboxChatModels } from './combobox-chat-models';
 
 type NumberValidation = {
   min?: number;
@@ -484,42 +486,20 @@ const ComplexPromptEditor = ({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Default Persona</Label>
-                  <Select
-                    value={selectedPersonaId || "none"}
-                    onValueChange={(value) => setSelectedPersonaId(value === "none" ? null : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select persona" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {personas?.map((persona: Persona) => (
-                        <SelectItem key={persona.id} value={persona.id.toString()}>
-                          {persona.role}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <ComboboxPersonas
+                    personas={personas || []}
+                    value={selectedPersonaId || undefined}
+                    onSelect={(persona: Persona) => setSelectedPersonaId(persona.id.toString())}
+                  />
                 </div>
 
                 <div>
                   <Label>Default Chat Model</Label>
-                  <Select
-                    value={selectedChatModelId || "none"}
-                    onValueChange={(value) => setSelectedChatModelId(value === "none" ? null : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select model" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {chatModels?.map((model: ChatModel) => (
-                        <SelectItem key={model.id} value={model.id}>
-                          {model.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <ComboboxChatModels
+                    models={chatModels || []}
+                    value={selectedChatModelId}
+                    onSelect={(model: ChatModel) => setSelectedChatModelId(model.id)}
+                  />
                 </div>
               </div>
 
