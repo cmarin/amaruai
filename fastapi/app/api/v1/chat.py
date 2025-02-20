@@ -1,3 +1,5 @@
+# chat.py
+
 import os
 import json
 import uuid
@@ -28,7 +30,9 @@ from app.config.chat_utils import (
     active_connections,
     UUIDEncoder,
     process_attached_files,
-    process_referenced_knowledge
+    process_referenced_knowledge,
+    store_user_system_messages_in_memory,
+    store_assistant_message_in_memory
 )
 
 # Set up logging
@@ -52,6 +56,7 @@ load_dotenv()
 
 # Instantiate a single conversation manager
 conversation_manager = ConversationManager()
+
 
 @router.post("")
 async def chat_endpoint(
@@ -146,38 +151,16 @@ async def chat_endpoint(
             if system_message:
                 local_messages.insert(0, {"role": "system", "content": system_message})
 
-            # --- Refactored: file processing ---
+            # --- File processing ---
             process_attached_files(db, chat_data, local_messages)
 
-            # --- Refactored: knowledge referencing (RAG or full content) ---
+            # --- Knowledge referencing (RAG or full content) ---
             process_referenced_knowledge(db, chat_data, local_messages, chat_model)
 
-            # Put user/system messages into memory
-            if memory:
-                from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
-                try:
-                    for msg in local_messages:
-                        if msg["role"] == "user":
-                            user_message = LlamaChatMessage(
-                                role=MessageRole.USER,
-                                content=msg["content"],
-                                additional_kwargs={
-                                    "user_id": str(chat_data.user_id) if chat_data.user_id else "unknown_user",
-                                    "multi_conversation_id": str(multi_conversation_id)
-                                }
-                            )
-                            memory.put(user_message)
-                        elif msg["role"] == "system":
-                            system_msg = LlamaChatMessage(
-                                role=MessageRole.SYSTEM,
-                                content=msg["content"],
-                                additional_kwargs={
-                                    "multi_conversation_id": str(multi_conversation_id)
-                                }
-                            )
-                            memory.put(system_msg)
-                except Exception as e:
-                    logger.error(f"Failed to store messages in memory: {str(e)}")
+            # Store user/system messages into memory (refactored to chat_utils)
+            store_user_system_messages_in_memory(
+                memory, local_messages, chat_data, multi_conversation_id
+            )
 
             assistant_response_accumulator = []
 
@@ -273,21 +256,11 @@ async def chat_endpoint(
                     f"Total chunks: {chunks_received}, Total tokens: {total_tokens}"
                 )
 
-            # Put assistant message into memory
-            if memory:
-                final_assistant_content = "".join(assistant_response_accumulator)
-                assistant_message = LlamaChatMessage(
-                    role=MessageRole.ASSISTANT,
-                    content=final_assistant_content,
-                    additional_kwargs={
-                        "user_id": str(chat_data.user_id) if chat_data.user_id else "unknown_user",
-                        "multi_conversation_id": str(multi_conversation_id)
-                    }
-                )
-                try:
-                    memory.put(assistant_message)
-                except Exception as e:
-                    logger.error(f"Failed to store assistant message in memory: {str(e)}")
+            # Store the final assistant message into memory (refactored to chat_utils)
+            final_assistant_content = "".join(assistant_response_accumulator)
+            store_assistant_message_in_memory(
+                memory, final_assistant_content, chat_data, multi_conversation_id
+            )
 
             end_time = time.time()
             logger.info(

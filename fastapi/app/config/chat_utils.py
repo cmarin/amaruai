@@ -1,3 +1,5 @@
+# chat_utils.py
+
 import json
 import logging
 import os
@@ -166,3 +168,56 @@ def process_referenced_knowledge(db, chat_data, local_messages, chat_model=None)
                     f"with {content_tokens} tokens"
                 )
                 break
+
+
+def store_user_system_messages_in_memory(memory, local_messages, chat_data, multi_conversation_id):
+    """
+    Stores user and system messages into the memory buffer (LLama Index).
+    """
+    if not memory:
+        return
+
+    try:
+        for msg in local_messages:
+            if msg["role"] == "user":
+                user_message = LlamaChatMessage(
+                    role=MessageRole.USER,
+                    content=msg["content"],
+                    additional_kwargs={
+                        "user_id": str(chat_data.user_id) if chat_data.user_id else "unknown_user",
+                        "multi_conversation_id": str(multi_conversation_id)
+                    }
+                )
+                memory.put(user_message)
+            elif msg["role"] == "system":
+                system_msg = LlamaChatMessage(
+                    role=MessageRole.SYSTEM,
+                    content=msg["content"],
+                    additional_kwargs={
+                        "multi_conversation_id": str(multi_conversation_id)
+                    }
+                )
+                memory.put(system_msg)
+    except Exception as e:
+        logger.error(f"Failed to store user/system messages in memory: {str(e)}")
+
+
+def store_assistant_message_in_memory(memory, final_assistant_content, chat_data, multi_conversation_id):
+    """
+    Stores the assistant's response into the memory buffer (LLama Index).
+    """
+    if not memory:
+        return
+
+    try:
+        assistant_message = LlamaChatMessage(
+            role=MessageRole.ASSISTANT,
+            content=final_assistant_content,
+            additional_kwargs={
+                "user_id": str(chat_data.user_id) if chat_data.user_id else "unknown_user",
+                "multi_conversation_id": str(multi_conversation_id)
+            }
+        )
+        memory.put(assistant_message)
+    except Exception as e:
+        logger.error(f"Failed to store assistant message in memory: {str(e)}")
