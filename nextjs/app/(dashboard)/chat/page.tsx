@@ -628,6 +628,7 @@ function ChatContent() {
     onClearConversation: () => void
     isCopied: boolean
     chatWindowId: string
+    mode: 'single' | 'dual' | 'quad'
   }
 
   const ChatWindow = ({
@@ -639,7 +640,8 @@ function ChatContent() {
     onAddToScratchPad,
     onClearConversation,
     isCopied,
-    chatWindowId
+    chatWindowId,
+    mode
   }: ChatWindowProps) => {
     const isStreaming = isStreamingRef.current;
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
@@ -650,10 +652,12 @@ function ChatContent() {
           {/* Top header (title, copy, clear) */}
           <div className="flex items-center justify-between p-3 border-b">
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                {React.createElement(getModelIcon(chatWindowId), { className: "w-5 h-5" })}
-                <span className="font-medium">{getModelName(chatWindowId)}</span>
-              </div>
+              {mode === 'single' && (
+                <div className="flex items-center gap-2">
+                  {React.createElement(getModelIcon(chatWindowId), { className: "w-5 h-5" })}
+                  <span className="font-medium">{getModelName(chatWindowId)}</span>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <div className="w-[200px]">
                   <ComboboxPersonas
@@ -776,6 +780,7 @@ function ChatContent() {
                 onClearConversation={() => clearConversation(messages)}
                 isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
                 chatWindowId="chat1"
+                mode={mode}
               />
             </div>
           ) : (
@@ -796,6 +801,7 @@ function ChatContent() {
                 onClearConversation={() => clearConversation(messages)}
                 isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
                 chatWindowId="chat1"
+                mode={mode}
               />
               <ChatWindow
                 messages={messages2}
@@ -807,6 +813,7 @@ function ChatContent() {
                 onClearConversation={() => clearConversation(messages2)}
                 isCopied={copiedStates[messages2.map(m => `${m.role}: ${m.content}`).join('\n')]}
                 chatWindowId="chat2"
+                mode={mode}
               />
               {mode === 'quad' && (
                 <>
@@ -820,6 +827,7 @@ function ChatContent() {
                     onClearConversation={() => clearConversation(messages3)}
                     isCopied={copiedStates[messages3.map(m => `${m.role}: ${m.content}`).join('\n')]}
                     chatWindowId="chat3"
+                    mode={mode}
                   />
                   <ChatWindow
                     messages={messages4}
@@ -831,6 +839,7 @@ function ChatContent() {
                     onClearConversation={() => clearConversation(messages4)}
                     isCopied={copiedStates[messages4.map(m => `${m.role}: ${m.content}`).join('\n')]}
                     chatWindowId="chat4"
+                    mode={mode}
                   />
                 </>
               )}
