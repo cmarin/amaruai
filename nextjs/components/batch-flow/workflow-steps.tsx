@@ -1,22 +1,14 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { EyeIcon, Trash2 } from "lucide-react";
-import type { BatchFlowStep } from "@/types";
-import type { PromptTemplateOption, ChatModelOption, PersonaOption } from "@/types";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { EyeIcon, Trash2Icon } from "lucide-react";
+import { ComboboxPersonas } from "@/components/combobox-personas";
+import { ComboboxChatModels } from "@/components/combobox-chat-models";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { BatchFlowStep, PromptTemplateOption, ChatModelOption, PersonaOption } from "@/types";
+import type { Persona } from "@/utils/persona-service";
+import type { ChatModel } from "@/components/data-context";
 import { useState } from 'react';
 
 interface WorkflowStepsProps {
@@ -98,10 +90,10 @@ export function WorkflowSteps({
                 <div className="flex items-center gap-2">
                   <Select
                     value={step.prompt_template_id || 'none'}
-                    onValueChange={(value) => onUpdateStep(index, 'prompt_template_id', value === 'none' ? '' : value)}
+                    onValueChange={(value: string) => onUpdateStep(index, 'prompt_template_id', value === 'none' ? '' : value)}
                   >
                     <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select prompt" />
+                      <SelectValue placeholder="Select template" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
@@ -122,18 +114,11 @@ export function WorkflowSteps({
                         </TooltipTrigger>
                         <TooltipContent side="right" align="center" className="max-w-sm">
                           <div className="space-y-2">
-                            <p className="font-medium">Prompt Template</p>
+                            <p className="font-medium">Template</p>
                             <p className="text-sm whitespace-pre-wrap">
-                              {(() => {
-                                const template = promptTemplates.find(t => t.id === step.prompt_template_id);
-                                if (!template?.prompt) return 'No prompt available';
-                                
-                                if (typeof template.prompt === 'string') {
-                                  return template.prompt;
-                                }
-                                
-                                return template.prompt.prompt;
-                              })()}
+                              {typeof promptTemplates.find(t => t.id === step.prompt_template_id)?.prompt === 'string' 
+                                ? promptTemplates.find(t => t.id === step.prompt_template_id)?.prompt as string 
+                                : 'No prompt defined'}
                             </p>
                           </div>
                         </TooltipContent>
@@ -146,22 +131,13 @@ export function WorkflowSteps({
               <div>
                 <label className="block text-sm font-medium mb-2">Persona</label>
                 <div className="flex items-center gap-2">
-                  <Select
-                    value={step.persona_id || 'none'}
-                    onValueChange={(value) => onUpdateStep(index, 'persona_id', value === 'none' ? '' : value)}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select persona" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {personas.map((persona) => (
-                        <SelectItem key={persona.id} value={persona.id}>
-                          {persona.role}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex-1">
+                    <ComboboxPersonas
+                      personas={personas as unknown as Persona[]}
+                      value={step.persona_id || null}
+                      onSelect={(persona) => onUpdateStep(index, 'persona_id', persona ? persona.id.toString() : '')}
+                    />
+                  </div>
                   {step.persona_id && (
                     <TooltipProvider>
                       <Tooltip>
@@ -187,22 +163,25 @@ export function WorkflowSteps({
               <div>
                 <label className="block text-sm font-medium mb-2">Chat Model</label>
                 <div className="flex items-center gap-2">
-                  <Select
-                    value={step.chat_model_id || 'none'}
-                    onValueChange={(value) => onUpdateStep(index, 'chat_model_id', value === 'none' ? '' : value)}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select model" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {chatModels.map((model) => (
-                        <SelectItem key={model.id} value={model.id}>
-                          {model.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex-1">
+                    <ComboboxChatModels
+                      models={chatModels.map(model => ({
+                        ...model,
+                        model_id: model.id,
+                        default: false,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        is_favorite: false,
+                        model: model.name,
+                        provider: 'unknown',
+                        api_key: '',
+                        max_tokens: 2048,
+                        temperature: 0.7
+                      }))}
+                      value={step.chat_model_id || null}
+                      onSelect={(model) => onUpdateStep(index, 'chat_model_id', model ? model.id.toString() : '')}
+                    />
+                  </div>
                   {step.chat_model_id && (
                     <TooltipProvider>
                       <Tooltip>
@@ -215,7 +194,7 @@ export function WorkflowSteps({
                           <div className="space-y-2">
                             <p className="font-medium">Chat Model</p>
                             <p className="text-sm whitespace-pre-wrap">
-                              {chatModels.find(m => m.id === step.chat_model_id)?.description || 'No description available'}
+                              {chatModels.find(m => m.id === step.chat_model_id)?.name || 'No model defined'}
                             </p>
                           </div>
                         </TooltipContent>
@@ -234,7 +213,7 @@ export function WorkflowSteps({
             disabled={steps.length === 1}
             className="text-red-500 hover:text-red-600 hover:bg-red-50"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2Icon className="h-4 w-4" />
           </Button>
         </div>
       ))}
