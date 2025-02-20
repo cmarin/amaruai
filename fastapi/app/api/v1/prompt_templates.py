@@ -11,8 +11,8 @@ from app.api.v1.dependencies import get_current_user_id
 router = create_protected_router(prefix="prompt_templates", tags=["prompt_templates"])
 
 @router.post("/", response_model=schemas.PromptTemplate)
-def create_prompt_template(
-    prompt_template: schemas.PromptTemplateCreate,
+async def create_prompt_template(
+    prompt_template: dict,  # Change to dict to handle raw data
     db: Session = Depends(get_db),
     current_user: UUID = Depends(get_current_user_id),
 ):
@@ -20,25 +20,26 @@ def create_prompt_template(
     Create a new prompt template.
     The current user's UUID will be assigned as the creator.
     """
-    # Create a new instance to avoid modifying the input model
-    template_data = prompt_template.dict()
-    template_data["created_by"] = current_user
+    # Clean the input data before validation
+    if "category_ids" in prompt_template:
+        prompt_template["category_ids"] = [] if not prompt_template["category_ids"] else [
+            cat_id for cat_id in prompt_template["category_ids"] if cat_id and cat_id.strip()
+        ]
     
-    # Set empty lists for category_ids and tags if they're None or contain only empty strings
-    if not template_data.get("category_ids") or all(not cat_id for cat_id in template_data["category_ids"]):
-        template_data["category_ids"] = []
+    if "tags" in prompt_template:
+        prompt_template["tags"] = [] if not prompt_template["tags"] else [
+            tag for tag in prompt_template["tags"] if tag and tag.strip()
+        ]
     
-    if not template_data.get("tags"):
-        template_data["tags"] = []
+    prompt_template["created_by"] = current_user
     
-    # Create a new PromptTemplateCreate instance with the user ID
-    prompt_template_with_user = schemas.PromptTemplateCreate(**template_data)
-
     try:
-        new_template = crud.create_prompt_template(db=db, prompt_template=prompt_template_with_user)
+        # Now validate with Pydantic model
+        prompt_template_data = schemas.PromptTemplateCreate(**prompt_template)
+        new_template = crud.create_prompt_template(db=db, prompt_template=prompt_template_data)
+        return new_template
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    return new_template
 
 @router.get("/", response_model=List[schemas.PromptTemplate])
 def read_prompt_templates(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
