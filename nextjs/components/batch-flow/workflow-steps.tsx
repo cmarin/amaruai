@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { EyeIcon, Trash2Icon } from "lucide-react";
 import { ComboboxPersonas } from "@/components/combobox-personas";
 import { ComboboxChatModels } from "@/components/combobox-chat-models";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ComboboxPromptTemplates } from "@/components/combobox-prompt-templates";
 import type { BatchFlowStep, PromptTemplateOption, ChatModelOption, PersonaOption } from "@/types";
 import type { Persona } from "@/utils/persona-service";
 import type { ChatModel } from "@/components/data-context";
@@ -88,22 +88,23 @@ export function WorkflowSteps({
               <div>
                 <label className="block text-sm font-medium mb-2">Prompt Template</label>
                 <div className="flex items-center gap-2">
-                  <Select
-                    value={step.prompt_template_id || 'none'}
-                    onValueChange={(value: string) => onUpdateStep(index, 'prompt_template_id', value === 'none' ? '' : value)}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select template" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {promptTemplates.map((template) => (
-                        <SelectItem key={template.id} value={template.id}>
-                          {template.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex-1">
+                    <ComboboxPromptTemplates
+                      templates={promptTemplates}
+                      value={step.prompt_template_id || null}
+                      onSelect={(template) => {
+                        onUpdateStep(index, 'prompt_template_id', template.id);
+                        
+                        // Set default persona and chat model if available
+                        if (template.default_persona_id && !step.persona_id) {
+                          onUpdateStep(index, 'persona_id', template.default_persona_id);
+                        }
+                        if (template.default_chat_model_id && !step.chat_model_id) {
+                          onUpdateStep(index, 'chat_model_id', template.default_chat_model_id);
+                        }
+                      }}
+                    />
+                  </div>
                   {step.prompt_template_id && (
                     <TooltipProvider>
                       <Tooltip>
