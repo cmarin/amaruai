@@ -3,6 +3,7 @@ import json
 import time
 import logging
 import openai
+import asyncio
 from typing import Any, Dict, List, Optional, AsyncGenerator
 from fastapi import HTTPException
 from typing_extensions import override
@@ -12,6 +13,7 @@ logger = logging.getLogger(__name__)
 class AssistantEventHandler(openai.AssistantEventHandler):
     def __init__(self):
         super().__init__()
+        self.queue = asyncio.Queue()
         
     @override
     def on_text_created(self, text) -> None:
@@ -22,10 +24,10 @@ class AssistantEventHandler(openai.AssistantEventHandler):
                 "finish_reason": None
             }]
         }
-        yield {
+        self.queue.put_nowait({
             "sse_chunk": f"data: {json.dumps(data)}\n\n",
             "content": ""
-        }
+        })
       
     @override
     def on_text_delta(self, delta, snapshot) -> None:
@@ -37,10 +39,10 @@ class AssistantEventHandler(openai.AssistantEventHandler):
                     "finish_reason": None
                 }]
             }
-            yield {
+            self.queue.put_nowait({
                 "sse_chunk": f"data: {json.dumps(data)}\n\n",
                 "content": delta.value
-            }
+            })
       
     @override
     def on_tool_call_created(self, tool_call) -> None:
@@ -93,12 +95,26 @@ async def stream_openai_assistant_completions(
         # Create event handler and start streaming
         event_handler = AssistantEventHandler()
         
-        with client.beta.threads.runs.stream(
-            thread_id=thread_id,
-            assistant_id=assistant_id,
-            event_handler=event_handler,
-        ) as stream:
-            stream.until_done()
+        async def process_stream():
+            with client.beta.threads.runs.stream(
+                thread_id=thread_id,
+                assistant_id=assistant_id,
+                event_handler=event_handler,
+            ) as stream:
+                stream.until_done()
+            
+            # Signal completion
+            await event_handler.queue.put(None)
+
+        # Start processing stream in background
+        asyncio.create_task(process_stream())
+
+        # Yield chunks as they become available
+        while True:
+            chunk = await event_handler.queue.get()
+            if chunk is None:  # End of stream
+                break
+            yield chunk
 
         # Send final chunk
         final_data = {
