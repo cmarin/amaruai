@@ -43,39 +43,48 @@ logger = logging.getLogger(__name__)
 @router.post("/", response_model=schemas.Workflow)
 def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_db)):
     try:
-        # Validate hierarchical workflow requirements
-        if workflow.process_type == models.ProcessType.HIERARCHICAL.value:
-            if not workflow.manager_chat_model_id or not workflow.manager_persona_id:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="Manager chat model and persona IDs are required for hierarchical workflows."
-                )
-
-        # Create the workflow
+        # Set default values for empty lists
+        workflow_dict = workflow.dict()
+        workflow_dict["asset_ids"] = workflow_dict.get("asset_ids", []) or []
+        workflow_dict["knowledge_base_ids"] = workflow_dict.get("knowledge_base_ids", []) or []
+        
+        # Create the workflow with basic info first
         db_workflow = models.Workflow(
-            name=workflow.name,
-            description=workflow.description,
-            process_type=workflow.process_type,
-            manager_chat_model_id=workflow.manager_chat_model_id,
-            manager_persona_id=workflow.manager_persona_id,
-            max_iterations=workflow.max_iterations
+            name=workflow_dict.get("name", "New Workflow"),
+            description=workflow_dict.get("description", ""),
+            process_type=workflow_dict.get("process_type", models.ProcessType.SEQUENTIAL.value),
+            manager_chat_model_id=workflow_dict.get("manager_chat_model_id"),
+            manager_persona_id=workflow_dict.get("manager_persona_id"),
+            max_iterations=workflow_dict.get("max_iterations", 1)
         )
         db.add(db_workflow)
         db.flush()  # Get the ID without committing
 
         # Add assets if provided
-        if workflow.asset_ids:
+        if workflow_dict["asset_ids"]:
             assets = db.query(models.Asset).filter(
-                models.Asset.id.in_(workflow.asset_ids)
+                models.Asset.id.in_(workflow_dict["asset_ids"])
             ).all()
             db_workflow.assets.extend(assets)
 
         # Add knowledge bases if provided
-        if workflow.knowledge_base_ids:
+        if workflow_dict["knowledge_base_ids"]:
             knowledge_bases = db.query(models.KnowledgeBase).filter(
-                models.KnowledgeBase.id.in_(workflow.knowledge_base_ids)
+                models.KnowledgeBase.id.in_(workflow_dict["knowledge_base_ids"])
             ).all()
             db_workflow.knowledge_bases.extend(knowledge_bases)
+
+        # Add steps if provided
+        if workflow_dict.get("steps"):
+            for step_data in workflow_dict["steps"]:
+                step = models.WorkflowStep(
+                    workflow_id=db_workflow.id,
+                    prompt_template_id=step_data["prompt_template_id"],
+                    chat_model_id=step_data["chat_model_id"],
+                    persona_id=step_data["persona_id"],
+                    position=len(db_workflow.steps) + 1
+                )
+                db.add(step)
 
         db.commit()
         db.refresh(db_workflow)
@@ -84,7 +93,10 @@ def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_
     except Exception as e:
         db.rollback()
         logger.error(f"Error creating workflow: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Failed to create workflow: {str(e)}"
+        )
 
 
 @router.get("/", response_model=List[schemas.Workflow])
