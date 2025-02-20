@@ -20,15 +20,15 @@ from app.api.v1.router import create_protected_router
 from app.database import get_db
 from app import crud
 from app.utils import format_openai_message, log_chat_request
-from app.config.asset_utils import collect_reference_content
-from app.config.rag_utils import get_optimized_reference_content
 
-# Import what we moved to chat_utils
+# Import the refactored helpers and classes
 from app.config.chat_utils import (
     ConversationManager,
     cleanup_connection,
     active_connections,
-    UUIDEncoder
+    UUIDEncoder,
+    process_attached_files,
+    process_referenced_knowledge
 )
 
 # Set up logging
@@ -50,7 +50,7 @@ router = create_protected_router(prefix="chat", tags=["chat"])
 # Load env vars from .env
 load_dotenv()
 
-# We instantiate a single conversation manager instance
+# Instantiate a single conversation manager
 conversation_manager = ConversationManager()
 
 @router.post("")
@@ -69,17 +69,16 @@ async def chat_endpoint(
 
         # Setup conversation IDs
         conversation_id = str(chat_data.conversation_id or uuid.uuid4())
-        # Use conversation_id as multi_conversation_id if not provided
         multi_conversation_id = str(getattr(chat_data, 'multi_conversation_id', None) or conversation_id)
 
-        # Get a memory buffer for this conversation
+        # Attempt to get a memory buffer for this conversation
         try:
             memory = conversation_manager.get_memory_buffer(conversation_id=conversation_id)
         except Exception as e:
             logger.error(f"Failed to initialize memory buffer: {str(e)}")
             memory = None
 
-        # Handle nested data structure from the frontend
+        # Determine message list
         if hasattr(chat_data, 'data') and chat_data.data:
             if hasattr(chat_data.data, 'messages'):
                 messages_list = [m.dict() for m in chat_data.data.messages]
@@ -87,7 +86,6 @@ async def chat_endpoint(
                 messages_list = [{"role": "user", "content": chat_data.data.message}]
             else:
                 messages_list = [{"role": "user", "content": chat_data.message}]
-        # Handle direct message/messages
         elif chat_data.messages and len(chat_data.messages) > 0:
             messages_list = [m.dict() for m in chat_data.messages]
         elif chat_data.message:
@@ -97,12 +95,11 @@ async def chat_endpoint(
 
         global active_connections
         start_time = time.time()
-
         active_connections += 1
         background_tasks.add_task(cleanup_connection)
         logger.info(f"New chat connection. Active connections: {active_connections}")
 
-        # Get system message from persona if specified
+        # Persona system message
         system_message = ""
         if chat_data.persona_id:
             persona = crud.get_persona(db, chat_data.persona_id)
@@ -112,7 +109,7 @@ async def chat_endpoint(
                     f"Goal: {persona.goal}\n"
                 )
 
-        # Default model name
+        # Determine model
         model_name = "openai/chatgpt-4o-latest"
         chat_model = None
         if chat_data.model_id:
@@ -145,110 +142,20 @@ async def chat_endpoint(
             total_tokens = 0
             stream_start_time = time.time()
 
-            # Optionally prepend system message
             local_messages = messages_list.copy()
             if system_message:
                 local_messages.insert(0, {"role": "system", "content": system_message})
 
-            # Process any attached files
-            if chat_data.files:
-                logger.info(f"Processing {len(chat_data.files)} files")
-                for file in chat_data.files:
-                    file_url = file.url.strip(';')
-                    try:
-                        # Find the index of "chats/" and take everything after it
-                        chats_index = file_url.find("chats/")
-                        if chats_index == -1:
-                            logger.error(
-                                f"Invalid file URL format for {file.name}: "
-                                f"'chats/' not found in {file_url}"
-                            )
-                            continue
+            # --- Refactored: file processing ---
+            process_attached_files(db, chat_data, local_messages)
 
-                        relative_url = file_url[chats_index:]
-                        logger.info(f"Processing file: {file.name}")
-                        logger.info(f"Full URL: {file_url}")
-                        logger.info(f"Relative URL: {relative_url}")
+            # --- Refactored: knowledge referencing (RAG or full content) ---
+            process_referenced_knowledge(db, chat_data, local_messages, chat_model)
 
-                        asset = crud.get_asset_by_file_url(db, relative_url)
-                        if asset:
-                            logger.info(f"Found asset in database: {asset.id}")
-                            if asset.content:
-                                logger.info(
-                                    f"Added content from file {file.name} "
-                                    f"({len(asset.content)} characters)"
-                                )
-                            else:
-                                logger.warning(
-                                    f"No content found in asset {asset.id} "
-                                    f"for file {file.name}"
-                                )
-                        else:
-                            logger.warning(
-                                f"No asset found for file {file.name} "
-                                f"with relative URL {relative_url}"
-                            )
-                    except Exception as e:
-                        logger.error(
-                            f"Error processing file {file.name}: {str(e)}",
-                            exc_info=True
-                        )
-                        continue
-
-                # Append image attachments to the last user message by adding structured image parts
-                for file in chat_data.files:
-                    filename = file.name.lower()
-                    # Check if file is an image based on extension
-                    if any(ext in filename for ext in [".png", ".jpg", ".jpeg", ".webp"]):
-                        # Locate the last user message
-                        for i in range(len(local_messages) - 1, -1, -1):
-                            if local_messages[i]["role"] == "user":
-                                # If the content is a string, convert to list with existing text
-                                if isinstance(local_messages[i]["content"], str):
-                                    original_text = local_messages[i]["content"]
-                                    local_messages[i]["content"] = [
-                                        {"type": "text", "text": original_text}
-                                    ]
-                                # Append the image content part following the OpenRouter schema
-                                local_messages[i]["content"].append({
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": file.url,
-                                        "detail": "auto"
-                                    }
-                                })
-                                logger.info(f"Appended image {file.name} to last user message")
-                                break
-
-            # Process referenced knowledge bases and assets with optimization
-            if chat_data.knowledge_base_ids or chat_data.asset_ids:
-                reference_content, content_tokens, used_rag = get_optimized_reference_content(
-                    db=db,
-                    query_text=chat_data.message,
-                    knowledge_base_ids=chat_data.knowledge_base_ids,
-                    asset_ids=chat_data.asset_ids,
-                    max_tokens=chat_model.max_tokens if chat_model else None,
-                    token_threshold=0.75
-                )
-
-                if reference_content:
-                    # Append reference content to the last user message
-                    for i in range(len(local_messages) - 1, -1, -1):
-                        if local_messages[i]["role"] == "user":
-                            local_messages[i]["content"] += (
-                                "\n\nReferenced Content:" + reference_content
-                            )
-                            strategy = "RAG" if used_rag else "full content"
-                            logger.info(
-                                f"Added referenced content using {strategy} strategy "
-                                f"with {content_tokens} tokens"
-                            )
-                            break
-
-            # Put user messages into memory
+            # Put user/system messages into memory
             if memory:
+                from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
                 try:
-                    from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
                     for msg in local_messages:
                         if msg["role"] == "user":
                             user_message = LlamaChatMessage(
@@ -274,7 +181,6 @@ async def chat_endpoint(
 
             assistant_response_accumulator = []
 
-            # Make request to OpenRouter
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     "https://openrouter.ai/api/v1/chat/completions",
@@ -292,14 +198,14 @@ async def chat_endpoint(
                         f"- Status: {resp.status}"
                     )
 
-                    # Log the final message structure being sent
+                    # Log the final message structure
                     logger.info("=" * 50)
                     logger.info("Final message structure sent to OpenRouter:")
                     logger.info(f"Model: {model_name}")
                     logger.info("Messages:")
                     for msg in local_messages:
                         logger.info(f"Role: {msg['role']}")
-                        logger.info(f"Content length: {len(msg['content'])} characters")
+                        logger.info(f"Content length: {len(str(msg['content']))} characters")
                         logger.info("-" * 30)
                     logger.info("=" * 50)
 
@@ -322,19 +228,19 @@ async def chat_endpoint(
                                 # End of stream
                                 break
                             else:
-                                # Parse JSON and forward the content as SSE
+                                # Parse JSON and forward content as SSE
                                 try:
                                     data = json.loads(data_str)
                                     if "choices" in data and data["choices"]:
                                         delta = data["choices"][0].get("delta", {})
                                         content = delta.get("content", "")
-                                        # Accumulate for final memory storage
+                                        # Accumulate
                                         assistant_response_accumulator.append(content)
 
                                         total_tokens += len(content.split())
                                         yield f"data: {json.dumps(data)}\n\n"
                                     else:
-                                        # If the data is not in the expected format, wrap it:
+                                        # Fallback
                                         content = data.get("content", "")
                                         assistant_response_accumulator.append(content)
 
@@ -359,7 +265,6 @@ async def chat_endpoint(
                                     )
                                 except Exception as e:
                                     logger.error("Error processing event", exc_info=True)
-                                    # Optionally send an error message down the stream
                                     error_data = format_openai_message(f"Error: {str(e)}")
                                     yield f"data: {json.dumps(error_data)}\n\n"
 

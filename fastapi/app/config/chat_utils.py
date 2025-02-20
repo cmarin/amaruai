@@ -7,18 +7,21 @@ from llama_index.storage.chat_store.postgres import PostgresChatStore
 from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
 from llama_index.llms.openai import OpenAI
 from llama_index.core.memory import ChatSummaryMemoryBuffer
+from app import crud
+from app.config.rag_utils import get_optimized_reference_content
 
 logger = logging.getLogger(__name__)
 
-# Read environment variables (ensure .env is loaded in your main entrypoint, e.g. main.py or chat.py)
 ASYNC_DATABASE_URL = os.environ.get("ASYNC_DATABASE_URL")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
 
 class UUIDEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, UUID):
             return str(obj)
         return super().default(obj)
+
 
 class ConversationManager:
     """
@@ -42,14 +45,16 @@ class ConversationManager:
             return ChatSummaryMemoryBuffer.from_defaults(
                 token_limit=self.token_limit,
                 chat_store=chat_store,
-                chat_store_key=conversation_id,  # the unique key for this conversation
+                chat_store_key=conversation_id,  # unique key for this conversation
                 llm=self.llm
             )
         except Exception as e:
             logger.error(f"Error creating memory buffer: {str(e)}", exc_info=True)
             raise
 
+
 active_connections = 0
+
 
 async def cleanup_connection():
     """
@@ -58,3 +63,106 @@ async def cleanup_connection():
     global active_connections
     active_connections -= 1
     logger.info(f"Connection cleanup completed. Remaining connections: {active_connections}")
+
+
+def process_attached_files(db, chat_data, local_messages):
+    """
+    Process any attached files in the chat data, log relevant info, and
+    append images to the last user message following the OpenRouter format.
+    """
+    if not chat_data.files:
+        return
+
+    logger.info(f"Processing {len(chat_data.files)} files")
+
+    # First pass: Log and fetch any corresponding assets from the database
+    for file in chat_data.files:
+        file_url = file.url.strip(';')
+        try:
+            # Find the index of "chats/" and take everything after it
+            chats_index = file_url.find("chats/")
+            if chats_index == -1:
+                logger.error(
+                    f"Invalid file URL format for {file.name}: 'chats/' not found in {file_url}"
+                )
+                continue
+
+            relative_url = file_url[chats_index:]
+            logger.info(f"Processing file: {file.name}")
+            logger.info(f"Full URL: {file_url}")
+            logger.info(f"Relative URL: {relative_url}")
+
+            asset = crud.get_asset_by_file_url(db, relative_url)
+            if asset:
+                logger.info(f"Found asset in database: {asset.id}")
+                if asset.content:
+                    logger.info(
+                        f"Added content from file {file.name} "
+                        f"({len(asset.content)} characters)"
+                    )
+                else:
+                    logger.warning(
+                        f"No content found in asset {asset.id} for file {file.name}"
+                    )
+            else:
+                logger.warning(
+                    f"No asset found for file {file.name} with relative URL {relative_url}"
+                )
+        except Exception as e:
+            logger.error(f"Error processing file {file.name}: {str(e)}", exc_info=True)
+            continue
+
+    # Second pass: Append image attachments to the last user message
+    for file in chat_data.files:
+        filename = file.name.lower()
+        # Check if file is an image based on extension
+        if any(ext in filename for ext in [".png", ".jpg", ".jpeg", ".webp"]):
+            # Locate the last user message
+            for i in range(len(local_messages) - 1, -1, -1):
+                if local_messages[i]["role"] == "user":
+                    # If the content is a string, convert it to a list with existing text
+                    if isinstance(local_messages[i]["content"], str):
+                        original_text = local_messages[i]["content"]
+                        local_messages[i]["content"] = [
+                            {"type": "text", "text": original_text}
+                        ]
+                    # Append the image content part using OpenRouter's schema
+                    local_messages[i]["content"].append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": file.url,
+                            "detail": "auto"
+                        }
+                    })
+                    logger.info(f"Appended image {file.name} to last user message")
+                    break
+
+
+def process_referenced_knowledge(db, chat_data, local_messages, chat_model=None):
+    """
+    Process referenced knowledge bases and assets with RAG or full content retrieval,
+    and append the retrieved content to the last user message.
+    """
+    if not (chat_data.knowledge_base_ids or chat_data.asset_ids):
+        return
+
+    reference_content, content_tokens, used_rag = get_optimized_reference_content(
+        db=db,
+        query_text=chat_data.message,
+        knowledge_base_ids=chat_data.knowledge_base_ids,
+        asset_ids=chat_data.asset_ids,
+        max_tokens=chat_model.max_tokens if chat_model else None,
+        token_threshold=0.75
+    )
+
+    if reference_content:
+        # Append reference content to the last user message
+        for i in range(len(local_messages) - 1, -1, -1):
+            if local_messages[i]["role"] == "user":
+                local_messages[i]["content"] += "\n\nReferenced Content:" + reference_content
+                strategy = "RAG" if used_rag else "full content"
+                logger.info(
+                    f"Added referenced content using {strategy} strategy "
+                    f"with {content_tokens} tokens"
+                )
+                break
