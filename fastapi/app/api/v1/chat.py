@@ -117,8 +117,8 @@ async def chat_endpoint(
         if chat_data.model_id:
             chat_model = crud.get_chat_model(db, chat_data.model_id)
             if chat_model:
-                provider = chat_model.provider  # e.g. "openai_assistant" or "openrouter"
-                model_name = chat_model.model   # e.g. "asst-123abc" if openai_assistant
+                provider = chat_model.provider  # e.g. "openai-assistant" or "openrouter"
+                model_name = chat_model.model   # e.g. "asst-123abc" if openai-assistant
 
         # Potential thread_id if stored in chat_data or DB
         # (Adjust to how you track thread_id for an Assistant.)
@@ -158,7 +158,7 @@ async def chat_endpoint(
                     start_time=start_time,
                     web_search=chat_data.web
                 )
-            elif provider == "openai_assistant":
+            elif provider == "openai-assistant":
                 # The model_name here is actually the assistant_id
                 assistant_id = model_name
                 stream_func = stream_openai_assistant_completions(

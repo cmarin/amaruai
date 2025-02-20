@@ -3,6 +3,7 @@ import json
 import time
 import logging
 import openai
+import asyncio
 from typing import Any, Dict, List, Optional, AsyncGenerator
 from fastapi import HTTPException
 from typing_extensions import override
@@ -13,6 +14,7 @@ class AssistantEventHandler(openai.AssistantEventHandler):
     def __init__(self):
         super().__init__()
         self.content_buffer = []
+        self.new_content_event = asyncio.Event()
         
     @override
     def on_text_created(self, text) -> None:
@@ -27,6 +29,7 @@ class AssistantEventHandler(openai.AssistantEventHandler):
             "sse_chunk": f"data: {json.dumps(data)}\n\n",
             "content": ""
         })
+        self.new_content_event.set()
       
     @override
     def on_text_delta(self, delta, snapshot) -> None:
@@ -42,6 +45,7 @@ class AssistantEventHandler(openai.AssistantEventHandler):
                 "sse_chunk": f"data: {json.dumps(data)}\n\n",
                 "content": delta.value
             })
+            self.new_content_event.set()
       
     @override
     def on_tool_call_created(self, tool_call) -> None:
@@ -118,11 +122,25 @@ async def stream_openai_assistant_completions(
             assistant_id=assistant_id,
             event_handler=event_handler,
         ) as stream:
-            stream.until_done()
+            last_yielded = 0
+            
+            while not stream.done:
+                # Wait for new content or completion
+                await event_handler.new_content_event.wait()
+                event_handler.new_content_event.clear()
+                
+                # Yield any new chunks
+                while last_yielded < len(event_handler.content_buffer):
+                    yield event_handler.content_buffer[last_yielded]
+                    last_yielded += 1
+                
+                # Process the stream
+                await stream.until_done()
 
-            # Yield all accumulated chunks
-            for chunk in event_handler.content_buffer:
-                yield chunk
+            # Yield any remaining chunks
+            while last_yielded < len(event_handler.content_buffer):
+                yield event_handler.content_buffer[last_yielded]
+                last_yielded += 1
 
             # Send final chunk
             final_data = {
