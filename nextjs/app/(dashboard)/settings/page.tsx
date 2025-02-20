@@ -28,6 +28,13 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { AppSidebar } from '@/components/app-sidebar';
 import { useSidebar } from '@/components/sidebar-context';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export default function SettingsPage() {
   const { getApiHeaders, loading: sessionLoading, initialized } = useSession();
@@ -42,6 +49,7 @@ export default function SettingsPage() {
   const [newChatModel, setNewChatModel] = useState({ 
     name: '', 
     model: '',
+    provider: 'openrouter',
     max_tokens: 1,
     description: '' 
   });
@@ -197,7 +205,7 @@ export default function SettingsPage() {
     try {
       await createChatModel(newChatModel, headers);
       setIsNewChatModelDialogOpen(false);
-      setNewChatModel({ name: '', model: '', max_tokens: 1, description: '' });
+      setNewChatModel({ name: '', model: '', provider: '', max_tokens: 1, description: '' });
       loadData();
       toast({
         title: "Success",
@@ -396,6 +404,27 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div>
+                        <Label>Provider</Label>
+                        <Select
+                          value={newChatModel.provider}
+                          onValueChange={(value) =>
+                            setNewChatModel({
+                              ...newChatModel,
+                              provider: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a provider" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="openrouter">OpenRouter</SelectItem>
+                            <SelectItem value="openai">OpenAI</SelectItem>
+                            <SelectItem value="openai-assistant">OpenAI Assistant</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
                         <Label>Max Tokens</Label>
                         <Input
                           type="number"
@@ -471,6 +500,9 @@ export default function SettingsPage() {
                           <p className="text-sm text-muted-foreground">
                             {model.description || 'No description'}
                           </p>
+                        </div>
+                        <div>
+                          <Label>Provider: {model.provider || 'openrouter'}</Label>
                         </div>
                         <div>
                           <Label>Max Tokens: {(model.max_tokens ?? 0).toLocaleString('en-US')}</Label>
@@ -555,6 +587,24 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
+                    <Label>Provider</Label>
+                    <Select
+                      value={selectedChatModel.provider}
+                      onValueChange={(value) =>
+                        setSelectedChatModel({ ...selectedChatModel, provider: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a provider" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="openrouter">OpenRouter</SelectItem>
+                        <SelectItem value="openai">OpenAI</SelectItem>
+                        <SelectItem value="openai-assistant">OpenAI Assistant</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <Label>Max Tokens</Label>
                     <Input
                       type="number"
@@ -585,6 +635,7 @@ export default function SettingsPage() {
                       handleUpdateChatModel(selectedChatModel.id, {
                         name: selectedChatModel.name,
                         model: selectedChatModel.model,
+                        provider: selectedChatModel.provider,
                         max_tokens: selectedChatModel.max_tokens,
                         description: selectedChatModel.description,
                       });

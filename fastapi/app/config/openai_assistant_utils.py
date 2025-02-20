@@ -11,37 +11,47 @@ logger = logging.getLogger(__name__)
 
 class AssistantEventHandler(openai.AssistantEventHandler):
     def __init__(self):
+        super().__init__()
         self.content_buffer = []
-        self.current_chunk = ""
         
     @override
     def on_text_created(self, text) -> None:
         """Called when the assistant starts generating a text response."""
-        logger.debug("Assistant started generating text")
-        
+        data = {
+            "choices": [{
+                "delta": {"content": ""},
+                "finish_reason": None
+            }]
+        }
+        self.content_buffer.append({
+            "sse_chunk": f"data: {json.dumps(data)}\n\n",
+            "content": ""
+        })
+      
     @override
     def on_text_delta(self, delta, snapshot) -> None:
         """Called when a chunk of text is received from the assistant."""
         if delta.value:
-            self.current_chunk = delta.value
-            self.content_buffer.append(delta.value)
-            
+            data = {
+                "choices": [{
+                    "delta": {"content": delta.value},
+                    "finish_reason": None
+                }]
+            }
+            self.content_buffer.append({
+                "sse_chunk": f"data: {json.dumps(data)}\n\n",
+                "content": delta.value
+            })
+      
     @override
     def on_tool_call_created(self, tool_call) -> None:
         """Called when the assistant starts a tool call."""
         logger.debug(f"Assistant started tool call: {tool_call.type}")
-        
+  
     @override
     def on_tool_call_delta(self, delta, snapshot) -> None:
         """Called when there's an update to a tool call."""
-        # For future tool call handling
         pass
-
-    def get_current_chunk(self) -> str:
-        """Returns and clears the current chunk."""
-        chunk = self.current_chunk
-        self.current_chunk = ""
-        return chunk
 
 async def stream_openai_assistant_completions(
     assistant_id: str,
@@ -82,9 +92,7 @@ async def stream_openai_assistant_completions(
 
         # Create a new thread if needed
         if not thread_id and create_new_thread_if_missing:
-            thread = client.beta.threads.create(
-                metadata={"title": title} if title else None
-            )
+            thread = client.beta.threads.create()
             thread_id = thread.id
             logger.info(f"Created new thread with ID: {thread_id}")
 
@@ -96,42 +104,27 @@ async def stream_openai_assistant_completions(
                 content=message["content"]
             )
 
-        # Create run with parameters
-        run_params = {
-            "assistant_id": assistant_id,
-            "thread_id": thread_id,
-        }
-        if temperature is not None:
-            run_params["temperature"] = temperature
-
-        # Create event handler for streaming
+        # Create event handler
         event_handler = AssistantEventHandler()
 
-        # Start streaming run
+        # Log start time if provided
         if start_time:
             api_response_time = time.time() - start_time
             logger.info(f"OpenAI Assistant stream starting in {api_response_time:.2f}s")
 
+        # Start streaming run
         with client.beta.threads.runs.stream(
-            **run_params,
+            thread_id=thread_id,
+            assistant_id=assistant_id,
             event_handler=event_handler,
         ) as stream:
-            while not stream.done:
-                await stream.until_done()
-                chunk = event_handler.get_current_chunk()
-                if chunk:
-                    data = {
-                        "choices": [{
-                            "delta": {"content": chunk},
-                            "finish_reason": None
-                        }]
-                    }
-                    yield {
-                        "sse_chunk": f"data: {json.dumps(data)}\n\n",
-                        "content": chunk
-                    }
+            stream.until_done()
 
-            # Send final chunk with finish_reason="stop"
+            # Yield all accumulated chunks
+            for chunk in event_handler.content_buffer:
+                yield chunk
+
+            # Send final chunk
             final_data = {
                 "choices": [{
                     "delta": {"content": ""},
@@ -142,13 +135,6 @@ async def stream_openai_assistant_completions(
                 "sse_chunk": f"data: {json.dumps(final_data)}\n\n",
                 "content": ""
             }
-
-        # Log completion
-        total_content = "".join(event_handler.content_buffer)
-        logger.info(
-            f"OpenAI Assistant stream completed - "
-            f"Total tokens: {len(total_content.split())}"
-        )
 
     except openai.APIError as e:
         logger.error(f"OpenAI API error: {str(e)}")
