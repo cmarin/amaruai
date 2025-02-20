@@ -53,49 +53,66 @@ async def stream_openai_assistant_completions(
         "Content-Type": "application/json",
     }
 
-    # If we have no thread_id and we want to auto-create a new thread,
-    # we'll use the "create a new thread" endpoint:
-    #   POST /v1/assistants/{assistant_id}/threads
-    #
-    # Otherwise, to continue an existing thread:
-    #   POST /v1/assistants/{assistant_id}/threads/{thread_id}/messages
-    #
-    # In both cases, we can request streaming responses.
+    # First create a thread if needed
     if not thread_id and create_new_thread_if_missing:
-        endpoint_url = f"https://api.openai.com/v1/assistants/{assistant_id}/threads"
-        request_body = {
-            "messages": messages,
-            "stream": True,
-        }
-        # You may also supply a thread title if you want:
+        # Updated endpoint for creating a thread
+        thread_endpoint = "https://api.openai.com/v1/threads"
+        thread_body = {}
         if title:
-            request_body["title"] = title
-    else:
-        if not thread_id:
-            # If thread_id is missing but we are not allowed to create a new one,
-            # raise an error or handle as you prefer:
-            error_msg = "No thread_id provided and auto-creation disabled."
-            logger.error(error_msg)
-            raise HTTPException(status_code=400, detail=error_msg)
+            thread_body["metadata"] = {"title": title}
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                thread_endpoint, 
+                headers=headers,
+                json=thread_body
+            ) as thread_resp:
+                if thread_resp.status != 200:
+                    error_text = await thread_resp.text()
+                    raise HTTPException(
+                        status_code=thread_resp.status,
+                        detail=f"Failed to create thread: {error_text}"
+                    )
+                thread_data = await thread_resp.json()
+                thread_id = thread_data["id"]
 
-        endpoint_url = f"https://api.openai.com/v1/assistants/{assistant_id}/threads/{thread_id}/messages"
-        request_body = {
-            "messages": messages,
-            "stream": True,
+    # Add message to thread
+    message_endpoint = f"https://api.openai.com/v1/threads/{thread_id}/messages"
+    for message in messages:
+        message_body = {
+            "role": message["role"],
+            "content": message["content"]
         }
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                message_endpoint,
+                headers=headers,
+                json=message_body
+            ) as msg_resp:
+                if msg_resp.status != 200:
+                    error_text = await msg_resp.text()
+                    raise HTTPException(
+                        status_code=msg_resp.status,
+                        detail=f"Failed to add message: {error_text}"
+                    )
 
-    # Add optional params
-    if max_tokens is not None:
-        request_body["max_tokens"] = max_tokens
-    if temperature is not None:
-        request_body["temperature"] = temperature
+    # Run the assistant
+    run_endpoint = f"https://api.openai.com/v1/threads/{thread_id}/runs"
+    run_body = {
+        "assistant_id": assistant_id,
+        "stream": True
+    }
+    if max_tokens:
+        run_body["max_tokens"] = max_tokens
+    if temperature:
+        run_body["temperature"] = temperature
 
     chunks_received = 0
     total_tokens = 0
     stream_start_time = time.time()
 
     async with aiohttp.ClientSession() as session:
-        async with session.post(endpoint_url, headers=headers, json=request_body) as resp:
+        async with session.post(run_endpoint, headers=headers, json=run_body) as resp:
             if start_time:
                 api_response_time = time.time() - start_time
                 logger.info(
