@@ -23,8 +23,15 @@ export async function POST(req: NextRequest) {
     const body: BatchFlowRequestBody = await req.json()
     const { file_ids, knowledge_base_ids, asset_ids, steps, customInstructions } = body
 
-    if (!file_ids || !Array.isArray(file_ids) || file_ids.length === 0) {
-      return new Response(JSON.stringify({ error: 'Invalid file_ids' }), {
+    // Validate that at least one source of data is provided
+    const hasValidFileIds = file_ids && Array.isArray(file_ids) && file_ids.length > 0;
+    const hasValidAssetIds = asset_ids && Array.isArray(asset_ids) && asset_ids.length > 0;
+    const hasValidKnowledgeBaseIds = knowledge_base_ids && Array.isArray(knowledge_base_ids) && knowledge_base_ids.length > 0;
+    
+    if (!hasValidFileIds && !hasValidAssetIds && !hasValidKnowledgeBaseIds) {
+      return new Response(JSON.stringify({ 
+        error: 'Must provide at least one non-empty array of file_ids, asset_ids, or knowledge_base_ids' 
+      }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       })
