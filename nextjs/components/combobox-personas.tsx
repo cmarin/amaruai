@@ -4,13 +4,13 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CheckIcon, CaretSortIcon } from "@radix-ui/react-icons"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons"
 import { Persona } from "@/utils/persona-service"
 
 interface ComboboxPersonasProps {
   personas: Persona[]
-  value?: string | number
+  value?: string | number | null
   onSelect: (persona: Persona) => void
 }
 
@@ -21,19 +21,18 @@ export function ComboboxPersonas({ personas, value, onSelect }: ComboboxPersonas
   const selectedPersona = personas.find(p => p.id.toString() === value?.toString())
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button 
-          variant="outline" 
-          role="combobox" 
-          aria-expanded={open} 
-          className="w-full justify-between"
-        >
-          <span>{selectedPersona ? selectedPersona.role : "Select persona..."}</span>
-          <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-full min-w-[var(--radix-popover-trigger-width)] p-0" align="start" style={{ zIndex: 100 }}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button 
+        variant="outline" 
+        role="combobox" 
+        aria-expanded={open}
+        onClick={() => setOpen(true)}
+        className="w-full justify-between"
+      >
+        <span>{selectedPersona ? selectedPersona.role : "Select persona..."}</span>
+        <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      </Button>
+      <DialogContent className="p-0">
         <Command>
           <CommandInput 
             placeholder="Search personas..." 
@@ -56,21 +55,20 @@ export function ComboboxPersonas({ personas, value, onSelect }: ComboboxPersonas
                       onSelect(persona)
                       setOpen(false)
                     }}
-                    className="flex items-center gap-2"
                   >
-                    <span>{persona.role}</span>
-                    <CheckIcon 
+                    <CheckIcon
                       className={cn(
-                        "ml-auto h-4 w-4", 
-                        value?.toString() === persona.id.toString() ? "opacity-100" : "opacity-0"
-                      )} 
+                        "mr-2 h-4 w-4",
+                        selectedPersona?.id === persona.id ? "opacity-100" : "opacity-0"
+                      )}
                     />
+                    {persona.role}
                   </CommandItem>
                 ))}
             </CommandGroup>
           </CommandList>
         </Command>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   )
 }
