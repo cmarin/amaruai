@@ -3,6 +3,7 @@ import json
 import time
 import logging
 import aiohttp
+import asyncio
 from typing import Any, Dict, List, Optional, AsyncGenerator
 from fastapi import HTTPException
 
@@ -97,94 +98,91 @@ async def stream_openai_assistant_completions(
                         detail=f"Failed to add message: {error_text}"
                     )
 
-    # Run the assistant
+    # Create run
     run_endpoint = f"https://api.openai.com/v1/threads/{thread_id}/runs"
     run_body = {
-        "assistant_id": assistant_id,
-        "stream": True
+        "assistant_id": assistant_id
     }
     if temperature:
         run_body["temperature"] = temperature
 
-    chunks_received = 0
-    total_tokens = 0
-    stream_start_time = time.time()
-
     async with aiohttp.ClientSession() as session:
+        # Create the run
         async with session.post(run_endpoint, headers=headers, json=run_body) as resp:
-            if start_time:
-                api_response_time = time.time() - start_time
-                logger.info(
-                    f"OpenAI Assistant beta response started in {api_response_time:.2f}s "
-                    f"- Status: {resp.status}"
-                )
-            else:
-                logger.info(f"OpenAI Assistant beta response status: {resp.status}")
-
-            if resp.status not in (200, 201):
+            if resp.status != 200:
                 error_text = await resp.text()
-                error_detail = (
-                    f"Error from OpenAI Assistant endpoint: "
-                    f"HTTP {resp.status} - {error_text}"
+                raise HTTPException(
+                    status_code=resp.status,
+                    detail=f"Failed to create run: {error_text}"
                 )
-                logger.error(error_detail)
-                raise HTTPException(status_code=resp.status, detail=error_detail)
+            run_data = await resp.json()
+            run_id = run_data["id"]
 
-            # Stream the SSE response line by line
-            async for line_bytes in resp.content:
-                line = line_bytes.decode("utf-8", errors="replace").strip()
-                if not line:
-                    continue
+        # Poll the run status until complete
+        while True:
+            status_endpoint = f"https://api.openai.com/v1/threads/{thread_id}/runs/{run_id}"
+            async with session.get(status_endpoint, headers=headers) as status_resp:
+                if status_resp.status != 200:
+                    error_text = await status_resp.text()
+                    raise HTTPException(
+                        status_code=status_resp.status,
+                        detail=f"Failed to check run status: {error_text}"
+                    )
+                status_data = await status_resp.json()
+                status = status_data["status"]
 
-                # SSE lines typically start with "data:"
-                if line.startswith("data: "):
-                    data_str = line[len("data: "):].strip()
-                    if data_str == "[DONE]":
-                        # End of stream
-                        break
+                if status == "completed":
+                    break
+                elif status in ["failed", "cancelled", "expired"]:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Run failed with status: {status}"
+                    )
+                
+                # Wait before polling again
+                await asyncio.sleep(1)
 
-                    try:
-                        data = json.loads(data_str)
-                    except json.JSONDecodeError:
-                        logger.error(f"Failed to parse SSE data: {data_str}", exc_info=True)
-                        # yield an error SSE chunk or continue
-                        yield {
-                            "sse_chunk": f"data: {json.dumps({'error': 'Invalid JSON chunk'})}\n\n",
-                            "content": ""
-                        }
-                        continue
+        # Get the messages
+        messages_endpoint = f"https://api.openai.com/v1/threads/{thread_id}/messages"
+        async with session.get(messages_endpoint, headers=headers) as msg_resp:
+            if msg_resp.status != 200:
+                error_text = await msg_resp.text()
+                raise HTTPException(
+                    status_code=msg_resp.status,
+                    detail=f"Failed to retrieve messages: {error_text}"
+                )
+            messages_data = await msg_resp.json()
+            
+            # Get the latest assistant message
+            assistant_message = next(
+                (msg for msg in messages_data["data"] if msg["role"] == "assistant"),
+                None
+            )
+            
+            if not assistant_message:
+                raise HTTPException(
+                    status_code=500,
+                    detail="No assistant response found"
+                )
 
-                    # The typical shape from the Assistants SSE might differ slightly,
-                    # but let's assume it's close to the ChatCompletion style:
-                    # {"choices": [{"delta": {"content": "partial text..."}}]}
-                    content_piece = ""
-                    if "choices" in data and data["choices"]:
-                        delta = data["choices"][0].get("delta", {})
-                        content_piece = delta.get("content", "")
-                        total_tokens += len(content_piece.split())
-                        # Forward the SSE chunk unchanged
-                        sse_chunk = f"data: {json.dumps(data)}\n\n"
-                    else:
-                        # Fallback if no "choices" found
-                        content_piece = data.get("content", "")
-                        total_tokens += len(content_piece.split())
-                        formatted_data = format_openai_message(content_piece)
-                        sse_chunk = f"data: {json.dumps(formatted_data)}\n\n"
-
-                    chunks_received += 1
-                    if chunks_received % 10 == 0:
-                        elapsed = time.time() - stream_start_time
-                        logger.debug(
-                            f"OpenAI Assistant SSE progress - Chunks: {chunks_received}, "
-                            f"Tokens: {total_tokens}, Elapsed: {elapsed:.2f}s"
-                        )
-
-                    yield {
-                        "sse_chunk": sse_chunk,
-                        "content": content_piece
-                    }
+            # Stream the response content in chunks
+            content = assistant_message["content"][0]["text"]["value"]
+            chunk_size = 100
+            for i in range(0, len(content), chunk_size):
+                chunk = content[i:i + chunk_size]
+                data = {
+                    "choices": [{
+                        "delta": {"content": chunk},
+                        "finish_reason": None if i + chunk_size < len(content) else "stop"
+                    }]
+                }
+                yield {
+                    "sse_chunk": f"data: {json.dumps(data)}\n\n",
+                    "content": chunk
+                }
+                await asyncio.sleep(0.02)  # Small delay to simulate streaming
 
     logger.info(
         f"OpenAI Assistant SSE stream completed - "
-        f"Total chunks: {chunks_received}, Total tokens: {total_tokens}"
+        f"Total chunks: {len(content) // chunk_size}, Total tokens: {len(content.split()) if content else 0}"
     )
