@@ -118,17 +118,30 @@ def get_optimized_reference_content(
                           for asset in crud.get_knowledge_base(db, kb_id).assets]
             asset_id_strings.extend(kb_asset_ids)
 
+        # Get chunks without max_tokens parameter
         chunks = find_relevant_chunks(
             query_text=query_text,
-            asset_ids=asset_id_strings,  # Pass only asset_ids as strings
-            max_tokens=max_allowed_tokens
+            asset_ids=asset_id_strings  # Pass only asset_ids as strings
         )
         
         if not chunks:
             logger.warning("No relevant chunks found")
             return "", 0, True
 
-        chunk_texts = [chunk['text'] for chunk in chunks]
+        # Post-process chunks to respect token limit
+        chunk_texts = []
+        current_tokens = 0
+        
+        for chunk in chunks:
+            chunk_text = chunk['text']
+            chunk_token_count = count_tokens(chunk_text)
+            
+            if current_tokens + chunk_token_count > max_allowed_tokens:
+                break
+                
+            chunk_texts.append(chunk_text)
+            current_tokens += chunk_token_count
+
         combined_content = "\n\n".join(chunk_texts)
         final_tokens = count_tokens(combined_content)
         
