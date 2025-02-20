@@ -24,6 +24,10 @@ def create_prompt_template(
     template_data = prompt_template.dict()
     template_data["created_by"] = current_user
     
+    # Clean up category_ids - remove empty strings
+    if "category_ids" in template_data:
+        template_data["category_ids"] = [cat_id for cat_id in template_data["category_ids"] if cat_id]
+    
     # Create a new PromptTemplateCreate instance with the user ID
     prompt_template_with_user = schemas.PromptTemplateCreate(**template_data)
 
