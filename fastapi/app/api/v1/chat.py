@@ -104,8 +104,9 @@ async def chat_endpoint(
         background_tasks.add_task(cleanup_connection)
         logger.info(f"New chat connection. Active connections: {active_connections}")
 
-        # Persona system message
+        # Persona system message and settings
         system_message = ""
+        temperature = None
         if chat_data.persona_id:
             persona = crud.get_persona(db, chat_data.persona_id)
             if persona:
@@ -113,6 +114,7 @@ async def chat_endpoint(
                     f"Role: {persona.role}\n"
                     f"Goal: {persona.goal}\n"
                 )
+                temperature = persona.temperature  # Get temperature from persona
 
         # Determine model
         model_name = "openai/chatgpt-4o-latest"
@@ -172,7 +174,8 @@ async def chat_endpoint(
                         "model": model_name,
                         "stream": True,
                         "messages": local_messages,
-                        "max_tokens": chat_model.max_tokens if chat_model else None
+                        "max_tokens": chat_model.max_tokens if chat_model else None,
+                        "temperature": temperature if temperature is not None else None
                     },
                 ) as resp:
                     api_response_time = time.time() - start_time
