@@ -8,91 +8,50 @@ from datetime import datetime
 from typing import AsyncGenerator, List, Optional, Dict, Any
 from dotenv import load_dotenv
 from uuid import UUID
-from llama_index.storage.chat_store.postgres import PostgresChatStore
-from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
-from llama_index.llms.openai import OpenAI
-from llama_index.core.memory import ChatSummaryMemoryBuffer, ChatMemoryBuffer
+
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+
 from app.schemas import ChatMessage, Message, FileInfo
 from app.api.v1.router import create_protected_router
-from app import crud
 from app.database import get_db
-from app.utils import format_openai_message, log_chat_request, UUIDEncoder
+from app import crud
+from app.utils import format_openai_message, log_chat_request
 from app.config.asset_utils import collect_reference_content
 from app.config.rag_utils import get_optimized_reference_content
 
+# Import what we moved to chat_utils
+from app.config.chat_utils import (
+    ConversationManager,
+    cleanup_connection,
+    active_connections,
+    UUIDEncoder
+)
+
+# Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-formatter = logging.Formatter(
-    '%(asctime)s - %(levelname)s - %(message)s'
-)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 logger.handlers = [handler]
 
-active_connections = 0
-
 # Create a protected router specifically for chat endpoints
 router = create_protected_router(prefix="chat", tags=["chat"])
 
-#  Load env vars for memory
+# Load env vars from .env
 load_dotenv()
-ASYNC_DATABASE_URL = os.environ.get("ASYNC_DATABASE_URL")
-if not ASYNC_DATABASE_URL:
-    raise ValueError("ASYNC_DATABASE_URL environment variable is not set")
 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY environment variable is not set")
-
-# LLamaIndex ConversationManage
-class ConversationManager:
-    """
-    Manages retrieval/storage of conversation messages using
-    LLamaIndex + PostgresChatStore.
-    """
-    def __init__(self, token_limit: int = 3000):
-        self.llm = OpenAI(api_key=OPENAI_API_KEY)
-        self.token_limit = token_limit
-        self.db_uri = ASYNC_DATABASE_URL
-
-    def get_memory_buffer(self, conversation_id: str) -> ChatSummaryMemoryBuffer:
-        try:
-            # Create a new chat store for each request to avoid prepared statement issues
-            chat_store = PostgresChatStore.from_uri(uri=self.db_uri)
-            return ChatSummaryMemoryBuffer.from_defaults(
-                token_limit=self.token_limit,
-                chat_store=chat_store,
-                chat_store_key=conversation_id,  # the unique key for this conversation
-                llm=self.llm
-            )
-        except Exception as e:
-            logger.error(f"Error creating memory buffer: {str(e)}", exc_info=True)
-            raise
-
-async def cleanup_connection():
-    global active_connections
-    active_connections -= 1
-    logger.info(f"Connection cleanup completed. Remaining connections: {active_connections}")
-
-# We instantiate one conversation manager (can be re-instantiated each time if needed
+# We instantiate a single conversation manager instance
 conversation_manager = ConversationManager()
-
-class UUIDEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, UUID):
-            return str(obj)
-        return super().default(obj)
 
 @router.post("")
 async def chat_endpoint(
@@ -153,8 +112,8 @@ async def chat_endpoint(
                     f"Goal: {persona.goal}\n"
                 )
 
-        # Get the model name and chat model details
-        model_name = "openai/chatgpt-4o-latest"  # default
+        # Default model name
+        model_name = "openai/chatgpt-4o-latest"
         chat_model = None
         if chat_data.model_id:
             chat_model = crud.get_chat_model(db, chat_data.model_id)
@@ -166,6 +125,7 @@ async def chat_endpoint(
             model_name = f"{model_name}:online"
             logger.info(f"Web search enabled. Using model: {model_name}")
 
+        # Load your OpenRouter API Key from ENV
         api_key = os.getenv("OPENROUTER_API_KEY")
         if not api_key:
             logger.error("OpenRouter API key not configured")
@@ -199,36 +159,51 @@ async def chat_endpoint(
                         # Find the index of "chats/" and take everything after it
                         chats_index = file_url.find("chats/")
                         if chats_index == -1:
-                            logger.error(f"Invalid file URL format for {file.name}: 'chats/' not found in {file_url}")
+                            logger.error(
+                                f"Invalid file URL format for {file.name}: "
+                                f"'chats/' not found in {file_url}"
+                            )
                             continue
-                            
+
                         relative_url = file_url[chats_index:]
                         logger.info(f"Processing file: {file.name}")
                         logger.info(f"Full URL: {file_url}")
                         logger.info(f"Relative URL: {relative_url}")
-                        
+
                         asset = crud.get_asset_by_file_url(db, relative_url)
                         if asset:
                             logger.info(f"Found asset in database: {asset.id}")
                             if asset.content:
-                                logger.info(f"Added content from file {file.name} ({len(asset.content)} characters)")
+                                logger.info(
+                                    f"Added content from file {file.name} "
+                                    f"({len(asset.content)} characters)"
+                                )
                             else:
-                                logger.warning(f"No content found in asset {asset.id} for file {file.name}")
+                                logger.warning(
+                                    f"No content found in asset {asset.id} "
+                                    f"for file {file.name}"
+                                )
                         else:
-                            logger.warning(f"No asset found for file {file.name} with relative URL {relative_url}")
+                            logger.warning(
+                                f"No asset found for file {file.name} "
+                                f"with relative URL {relative_url}"
+                            )
                     except Exception as e:
-                        logger.error(f"Error processing file {file.name}: {str(e)}", exc_info=True)
+                        logger.error(
+                            f"Error processing file {file.name}: {str(e)}",
+                            exc_info=True
+                        )
                         continue
-                
+
                 # Append image attachments to the last user message by adding structured image parts
                 for file in chat_data.files:
-                    filename = file.name.lower()  # FileInfo has direct attribute access
+                    filename = file.name.lower()
                     # Check if file is an image based on extension
                     if any(ext in filename for ext in [".png", ".jpg", ".jpeg", ".webp"]):
                         # Locate the last user message
                         for i in range(len(local_messages) - 1, -1, -1):
                             if local_messages[i]["role"] == "user":
-                                # If the content is a string, convert it to a list containing a text part
+                                # If the content is a string, convert to list with existing text
                                 if isinstance(local_messages[i]["content"], str):
                                     original_text = local_messages[i]["content"]
                                     local_messages[i]["content"] = [
@@ -238,7 +213,7 @@ async def chat_endpoint(
                                 local_messages[i]["content"].append({
                                     "type": "image_url",
                                     "image_url": {
-                                        "url": file.url,  # FileInfo has direct attribute access
+                                        "url": file.url,
                                         "detail": "auto"
                                     }
                                 })
@@ -252,22 +227,28 @@ async def chat_endpoint(
                     query_text=chat_data.message,
                     knowledge_base_ids=chat_data.knowledge_base_ids,
                     asset_ids=chat_data.asset_ids,
-                    max_tokens=chat_model.max_tokens,
+                    max_tokens=chat_model.max_tokens if chat_model else None,
                     token_threshold=0.75
                 )
-                
+
                 if reference_content:
                     # Append reference content to the last user message
                     for i in range(len(local_messages) - 1, -1, -1):
                         if local_messages[i]["role"] == "user":
-                            local_messages[i]["content"] += "\n\nReferenced Content:" + reference_content
+                            local_messages[i]["content"] += (
+                                "\n\nReferenced Content:" + reference_content
+                            )
                             strategy = "RAG" if used_rag else "full content"
-                            logger.info(f"Added referenced content using {strategy} strategy with {content_tokens} tokens")
+                            logger.info(
+                                f"Added referenced content using {strategy} strategy "
+                                f"with {content_tokens} tokens"
+                            )
                             break
 
             # Put user messages into memory
             if memory:
                 try:
+                    from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
                     for msg in local_messages:
                         if msg["role"] == "user":
                             user_message = LlamaChatMessage(
@@ -280,7 +261,6 @@ async def chat_endpoint(
                             )
                             memory.put(user_message)
                         elif msg["role"] == "system":
-                            # Put system messages in memory
                             system_msg = LlamaChatMessage(
                                 role=MessageRole.SYSTEM,
                                 content=msg["content"],
@@ -291,10 +271,10 @@ async def chat_endpoint(
                             memory.put(system_msg)
                 except Exception as e:
                     logger.error(f"Failed to store messages in memory: {str(e)}")
-                    # Continue without memory storage
 
             assistant_response_accumulator = []
 
+            # Make request to OpenRouter
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     "https://openrouter.ai/api/v1/chat/completions",
@@ -303,12 +283,15 @@ async def chat_endpoint(
                         "model": model_name,
                         "stream": True,
                         "messages": local_messages,
-                        "max_tokens": chat_model.max_tokens if chat_model is not None else None
+                        "max_tokens": chat_model.max_tokens if chat_model else None
                     },
                 ) as resp:
                     api_response_time = time.time() - start_time
-                    logger.info(f"OpenRouter API response received in {api_response_time:.2f}s - Status: {resp.status}")
-                    
+                    logger.info(
+                        f"OpenRouter API response received in {api_response_time:.2f}s "
+                        f"- Status: {resp.status}"
+                    )
+
                     # Log the final message structure being sent
                     logger.info("=" * 50)
                     logger.info("Final message structure sent to OpenRouter:")
@@ -334,7 +317,7 @@ async def chat_endpoint(
                             continue
 
                         if line.startswith("data: "):
-                            data_str = line[len("data: ") :].strip()
+                            data_str = line[len("data: "):].strip()
                             if data_str == "[DONE]":
                                 # End of stream
                                 break
@@ -369,15 +352,21 @@ async def chat_endpoint(
                                             f"Duration: {stream_duration:.2f}s"
                                         )
 
-                                except json.JSONDecodeError as e:
-                                    logger.error(f"Failed to parse SSE data: {data_str}", exc_info=True)
+                                except json.JSONDecodeError:
+                                    logger.error(
+                                        f"Failed to parse SSE data: {data_str}",
+                                        exc_info=True
+                                    )
                                 except Exception as e:
                                     logger.error("Error processing event", exc_info=True)
                                     # Optionally send an error message down the stream
                                     error_data = format_openai_message(f"Error: {str(e)}")
                                     yield f"data: {json.dumps(error_data)}\n\n"
 
-                logger.info(f"Stream completed - Total chunks: {chunks_received}, Total tokens: {total_tokens}")
+                logger.info(
+                    f"Stream completed - "
+                    f"Total chunks: {chunks_received}, Total tokens: {total_tokens}"
+                )
 
             # Put assistant message into memory
             if memory:
