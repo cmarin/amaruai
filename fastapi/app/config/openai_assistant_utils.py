@@ -103,8 +103,6 @@ async def stream_openai_assistant_completions(
         "assistant_id": assistant_id,
         "stream": True
     }
-    if max_tokens:
-        run_body["max_tokens"] = max_tokens
     if temperature:
         run_body["temperature"] = temperature
 
