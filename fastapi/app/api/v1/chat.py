@@ -1,5 +1,3 @@
-# chat.py
-
 import os
 import json
 import uuid
@@ -7,30 +5,32 @@ import time
 import logging
 import aiohttp
 from datetime import datetime
-from typing import AsyncGenerator, List, Optional, Dict, Any
+from typing import AsyncGenerator
 from dotenv import load_dotenv
 from uuid import UUID
-
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-
 from app.schemas import ChatMessage, Message, FileInfo
 from app.api.v1.router import create_protected_router
 from app.database import get_db
 from app import crud
 from app.utils import format_openai_message, log_chat_request
 
-# Import the refactored helpers and classes
+# Import refactored modules
 from app.config.chat_utils import (
-    ConversationManager,
     cleanup_connection,
     active_connections,
     UUIDEncoder,
     process_attached_files,
-    process_referenced_knowledge,
+    process_referenced_knowledge
+)
+
+# Import memory-specific classes/functions from memory_utils
+from app.config.memory_utils import (
+    ConversationManager,
     store_user_system_messages_in_memory,
     store_assistant_message_in_memory
 )
@@ -157,7 +157,7 @@ async def chat_endpoint(
             # --- Knowledge referencing (RAG or full content) ---
             process_referenced_knowledge(db, chat_data, local_messages, chat_model)
 
-            # Store user/system messages into memory (refactored to chat_utils)
+            # Store user/system messages into memory (via memory_utils)
             store_user_system_messages_in_memory(
                 memory, local_messages, chat_data, multi_conversation_id
             )
@@ -256,7 +256,7 @@ async def chat_endpoint(
                     f"Total chunks: {chunks_received}, Total tokens: {total_tokens}"
                 )
 
-            # Store the final assistant message into memory (refactored to chat_utils)
+            # Store the final assistant message into memory (via memory_utils)
             final_assistant_content = "".join(assistant_response_accumulator)
             store_assistant_message_in_memory(
                 memory, final_assistant_content, chat_data, multi_conversation_id
