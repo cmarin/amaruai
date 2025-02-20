@@ -51,6 +51,7 @@ async def stream_openai_assistant_completions(
     headers = {
         "Authorization": f"Bearer {openai_api_key}",
         "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
     }
 
     # First create a thread if needed
