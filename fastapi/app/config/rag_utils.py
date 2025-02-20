@@ -109,10 +109,18 @@ def get_optimized_reference_content(
 
         # If we're over the threshold, use RAG to find relevant chunks
         logger.info(f"Content exceeds token limit ({total_tokens} > {max_allowed_tokens}), using RAG")
+        
+        # Convert UUIDs to strings for the chunks query
+        asset_id_strings = [str(aid) for aid in (asset_ids or [])]
+        if knowledge_base_ids:
+            # Add asset IDs from knowledge bases
+            kb_asset_ids = [str(asset.id) for kb_id in knowledge_base_ids
+                          for asset in crud.get_knowledge_base(db, kb_id).assets]
+            asset_id_strings.extend(kb_asset_ids)
+
         chunks = find_relevant_chunks(
             query_text=query_text,
-            knowledge_base_ids=knowledge_base_ids,
-            asset_ids=asset_ids,
+            asset_ids=asset_id_strings,  # Pass only asset_ids as strings
             max_tokens=max_allowed_tokens
         )
         

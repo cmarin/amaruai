@@ -874,7 +874,7 @@ function ChatContent() {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="h-8 w-8"
+                  className={`h-8 w-8 ${selectedKnowledgeBases.length > 0 || selectedAssets.length > 0 ? "text-green-500" : ""}`}
                   onClick={() => setShowKnowledgeBaseModal(true)}
                 >
                   <Database className="h-4 w-4" />
