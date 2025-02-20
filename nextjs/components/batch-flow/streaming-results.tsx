@@ -80,7 +80,14 @@ export function StreamingResults({
         });
 
         if (!response.ok) {
-          throw new Error('Failed to execute batch flow');
+          const errorData = await response.json();
+          console.error('Batch flow error:', errorData);
+          throw new Error(
+            errorData.details?.message || 
+            errorData.details || 
+            errorData.error || 
+            'Failed to execute batch flow'
+          );
         }
 
         const reader = response.body?.getReader();

@@ -70,10 +70,21 @@ export async function POST(req: NextRequest) {
       const errorBody = await response.text()
       console.error('External API error:', response.statusText)
       console.error('External API error body:', errorBody)
+      
+      // Try to parse error body as JSON
+      let errorDetails;
+      try {
+        errorDetails = JSON.parse(errorBody);
+      } catch {
+        errorDetails = errorBody;
+      }
+      
       return new Response(
         JSON.stringify({
           error: 'Failed to fetch from the batch flow API',
-          details: errorBody,
+          details: errorDetails,
+          status: response.status,
+          statusText: response.statusText
         }),
         {
           status: response.status,
