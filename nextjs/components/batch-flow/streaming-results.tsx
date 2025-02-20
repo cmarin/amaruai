@@ -62,77 +62,103 @@ export function StreamingResults({
     
     // Clear results when starting a new batch
     setResults([]);
+    
+    // Create a map to store content for each step
+    const stepContents = new Map<number, string>();
+    
     const processStream = async () => {
       try {
-        const response = await fetch('/api/batch-flow', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            file_ids: uploadedFiles.map(file => file.status.id),
-            knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
-            asset_ids: selectedAssets.map(asset => asset.id),
-            steps,
-            customInstructions
-          }),
-        });
+        // Create a request for each step
+        const stepRequests = steps.map((step, stepIndex) => 
+          fetch('/api/batch-flow', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              file_ids: uploadedFiles.map(file => file.status.id),
+              knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
+              asset_ids: selectedAssets.map(asset => asset.id),
+              steps: [step], // Send one step at a time
+              customInstructions
+            }),
+          })
+        );
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Batch flow error:', errorData);
-          throw new Error(
-            errorData.details?.message || 
-            errorData.details || 
-            errorData.error || 
-            'Failed to execute batch flow'
-          );
-        }
+        // Execute all requests in parallel
+        const responses = await Promise.all(stepRequests);
+        
+        // Process each response stream
+        const readers = responses.map(async (response, stepIndex) => {
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error(`Batch flow error for step ${stepIndex}:`, errorData);
+            throw new Error(
+              errorData.details?.message || 
+              errorData.details || 
+              errorData.error || 
+              'Failed to execute batch flow'
+            );
+          }
 
-        const reader = response.body?.getReader();
-        if (!reader) throw new Error('No response body');
+          const reader = response.body?.getReader();
+          if (!reader) throw new Error('No response body');
 
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let content = '';
+          const decoder = new TextDecoder();
+          let buffer = '';
+          stepContents.set(stepIndex, '');
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
 
-          for (const line of lines) {
-            if (line.trim() === '' || !line.startsWith('data: ')) continue;
+            for (const line of lines) {
+              if (line.trim() === '' || !line.startsWith('data: ')) continue;
 
-            const jsonData = line.slice(5).trim();
-            if (jsonData === '[DONE]') continue;
+              const jsonData = line.slice(5).trim();
+              if (jsonData === '[DONE]') continue;
 
-            try {
-              const parsed = JSON.parse(jsonData);
-              if (parsed.choices?.[0]?.delta) {
-                if (parsed.choices[0].delta.content) {
-                  content += parsed.choices[0].delta.content;
-                  setResults([{
-                    stepIndex: 0,
-                    content
-                  }]);
+              try {
+                const parsed = JSON.parse(jsonData);
+                if (parsed.choices?.[0]?.delta) {
+                  if (parsed.choices[0].delta.content) {
+                    const currentContent = stepContents.get(stepIndex) || '';
+                    const newContent = currentContent + parsed.choices[0].delta.content;
+                    stepContents.set(stepIndex, newContent);
+                    
+                    // Update results with all current step contents
+                    const newResults = Array.from(stepContents.entries()).map(([index, content]) => ({
+                      stepIndex: index,
+                      content
+                    }));
+                    setResults(newResults);
+                  }
+                  if (parsed.choices[0].finish_reason === 'stop') {
+                    // Only set processing to false when all steps are complete
+                    const allComplete = Array.from(stepContents.values()).every(content => content.length > 0);
+                    if (allComplete) {
+                      onProcessingChange(false);
+                    }
+                  }
                 }
-                if (parsed.choices[0].finish_reason === 'stop') {
-                  onProcessingChange(false);
-                }
+              } catch (err) {
+                console.error('Error parsing SSE message:', err);
               }
-            } catch (err) {
-              console.error('Error parsing SSE message:', err);
             }
           }
-        }
+        });
+
+        // Wait for all streams to complete
+        await Promise.all(readers);
       } catch (error) {
         console.error('Error processing stream:', error);
         setError(error instanceof Error ? error.message : 'Unknown error occurred');
+        onProcessingChange(false);
       }
     };
 
