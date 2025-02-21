@@ -55,8 +55,7 @@ async def stream_openai_completions(
         "messages": messages,
         "stream": True,
     }
-    if max_tokens is not None:
-        request_json["max_tokens"] = max_tokens
+    # Skip max_tokens for OpenAI chat completions - let OpenAI handle the defaults
     if temperature is not None:
         request_json["temperature"] = temperature
 
