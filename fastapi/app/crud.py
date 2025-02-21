@@ -1018,20 +1018,33 @@ def get_favorite_chat_models(db: Session, user_id: UUID) -> List[models.ChatMode
         .all()
     )
 
-def get_assets_by_ids(db: Session, asset_ids: List[UUID]) -> List[models.Asset]:
+def get_assets_by_ids(db: Session, asset_ids: List[UUID], context: str = "chat") -> List[models.Asset]:
     """
     Get multiple assets by their IDs.
     
     Args:
         db: Database session
         asset_ids: List of asset UUIDs to retrieve
+        context: Either "chat" or "batch-flow" to determine file path structure
         
     Returns:
         List of Asset objects
     """
     if not asset_ids:
         return []
-        
-    return db.query(models.Asset).filter(
+    
+    assets = db.query(models.Asset).filter(
         models.Asset.id.in_(asset_ids)
     ).all()
+    
+    # Update file URLs based on context
+    for asset in assets:
+        if context == "batch-flow" and asset.file_url:
+            # Convert chat URL to batch-flow URL if needed
+            if "chats/" in asset.file_url:
+                parts = asset.file_url.split("chats/")
+                if len(parts) > 1:
+                    user_path = parts[1].split("/")[0]  # Get user ID
+                    asset.file_url = f"batch-flow/{user_path}/{asset.id}/{asset.file_name}"
+                    
+    return assets

@@ -160,7 +160,7 @@ async def batch_flow_endpoint(
                     name=asset.file_name,
                     url=asset.file_url
                 )
-                for asset in crud.get_assets_by_ids(db, batch_flow_data.file_ids)
+                for asset in crud.get_assets_by_ids(db, batch_flow_data.file_ids, context="batch-flow")
                 if asset
             ]
             chat_data = ChatMessage(
