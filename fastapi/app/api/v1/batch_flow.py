@@ -152,8 +152,24 @@ async def batch_flow_endpoint(
 
         # Create a messages list in the format expected by process_* functions
         local_messages = []
+        
+        # Determine provider and model early since we need it for message formatting
+        provider = "openrouter"  # default
+        model_name = chat_model.model
+        if chat_model:
+            provider = chat_model.provider
+            model_name = chat_model.model
+
+        # Handle system message based on provider
         if system_message:
-            local_messages.append({"role": "system", "content": system_message})
+            if provider == "openai-assistant":
+                # For OpenAI Assistants, prepend system message to user message
+                initial_prompt = f"{system_message}\n\n{initial_prompt}"
+            else:
+                # For other providers, use proper system message
+                local_messages.append({"role": "system", "content": system_message})
+        
+        # Add user message
         local_messages.append({"role": "user", "content": initial_prompt})
 
         # Process files and knowledge using existing utilities
@@ -183,13 +199,6 @@ async def batch_flow_endpoint(
 
         # Get the final prompt with all content included
         final_user_prompt = local_messages[-1]["content"]
-
-        # Determine provider and model
-        provider = "openrouter"  # default
-        model_name = chat_model.model
-        if chat_model:
-            provider = chat_model.provider  # e.g. "openai" or "openai-assistant" or "openrouter"
-            model_name = chat_model.model   # e.g. "gpt-4" if openai, "asst-123abc" if openai-assistant
 
         # -------------------------------------------------------
         # SSE streaming generator
