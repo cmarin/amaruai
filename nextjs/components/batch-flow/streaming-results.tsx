@@ -254,7 +254,7 @@ export function StreamingResults({
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Copy transcript</p>
+                          <p>Copy</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
