@@ -18,6 +18,9 @@ from app import crud
 from app.config.rag_utils import get_optimized_reference_content
 from app.schemas import BatchFlowStep, BatchFlowPayload, FileInfo, ChatMessage
 from app.config.chat_utils import process_attached_files, process_referenced_knowledge, UUIDEncoder
+from app.config.openrouter_utils import stream_openrouter_completions
+from app.config.openai_assistant_utils import stream_openai_assistant_completions
+from app.config.openai_utils import stream_openai_completions
 
 logging.basicConfig(
     level=logging.INFO,
@@ -112,7 +115,6 @@ async def batch_flow_endpoint(
                 status_code=404,
                 detail=f"ChatModel with ID {step.chat_model_id} not found."
             )
-        model_name = chat_model.model
 
         # Retrieve persona (optional)
         system_message = ""
@@ -157,6 +159,13 @@ async def batch_flow_endpoint(
         # Get the final prompt with all content included
         final_user_prompt = local_messages[-1]["content"]
 
+        # Determine provider and model
+        provider = "openrouter"  # default
+        model_name = chat_model.model
+        if chat_model:
+            provider = chat_model.provider  # e.g. "openai" or "openai-assistant" or "openrouter"
+            model_name = chat_model.model   # e.g. "gpt-4" if openai, "asst-123abc" if openai-assistant
+
         # -------------------------------------------------------
         # SSE streaming generator
         # -------------------------------------------------------
@@ -165,95 +174,50 @@ async def batch_flow_endpoint(
             total_tokens = 0
             stream_start_time = time.time()
 
-            # Build the request headers
-            headers = {
-                "Accept": "text/event-stream",
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "HTTP-Referer": "https://chat.example.com",
-                "Content-Type": "application/json",
-            }
-
             # We'll accumulate the full assistant response in case you want it later
             assistant_response_accumulator = []
 
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    headers=headers,
-                    json={
-                        "model": model_name,
-                        "stream": True,
-                        "messages": local_messages,
-                    },
-                ) as resp:
-                    api_response_time = time.time() - start_time
-                    logger.info(
-                        f"OpenRouter API response status: {resp.status}, time: {api_response_time:.2f}s"
-                    )
+            # Select the appropriate streaming function based on provider
+            if provider == "openrouter":
+                stream_func = stream_openrouter_completions(
+                    model_name=model_name,
+                    messages=local_messages,
+                    max_tokens=chat_model.max_tokens if chat_model else None,
+                    temperature=0.7,
+                    start_time=start_time,
+                    web_search=False  # batch flow doesn't support web search currently
+                )
+            elif provider == "openai-assistant":
+                assistant_id = model_name
+                stream_func = stream_openai_assistant_completions(
+                    assistant_id=assistant_id,
+                    messages=local_messages,
+                    thread_id=None,  # batch flow doesn't maintain threads currently
+                    max_tokens=chat_model.max_tokens if chat_model else None,
+                    temperature=0.7,
+                    start_time=start_time,
+                    create_new_thread_if_missing=True,
+                    title=None
+                )
+            elif provider == "openai":
+                stream_func = stream_openai_completions(
+                    model_name=model_name,
+                    messages=local_messages,
+                    max_tokens=chat_model.max_tokens if chat_model else None,
+                    temperature=0.7,
+                    start_time=start_time
+                )
+            else:
+                logger.error(f"Unsupported provider: {provider}")
+                raise HTTPException(
+                    status_code=400, detail=f"Unsupported provider: {provider}"
+                )
 
-                    # Log the final message structure
-                    logger.info("=" * 50)
-                    logger.info(f"Using model: {model_name}")
-                    logger.info("Messages sent to LLM:")
-                    for m in local_messages:
-                        logger.info(f"  - Role: {m['role']}, Content length: {len(m['content'])}")
-                    logger.info("=" * 50)
-
-                    if resp.status != 200:
-                        error_detail = f"Error from OpenRouter API: {resp.status}"
-                        logger.error(error_detail)
-                        logger.error(f"Response text: {await resp.text()}")
-                        raise HTTPException(status_code=resp.status, detail=error_detail)
-
-                    # Read the response line by line (SSE)
-                    async for line_bytes in resp.content:
-                        line = line_bytes.decode("utf-8", errors="replace").strip()
-
-                        if not line:
-                            continue
-
-                        if line.startswith("data: "):
-                            data_str = line[len("data: ") :].strip()
-                            if data_str == "[DONE]":
-                                # End of stream
-                                break
-                            else:
-                                # Parse JSON and forward the content as SSE
-                                try:
-                                    data = json.loads(data_str)
-                                    if "choices" in data and data["choices"]:
-                                        delta = data["choices"][0].get("delta", {})
-                                        content = delta.get("content", "")
-                                        assistant_response_accumulator.append(content)
-                                        total_tokens += len(content.split())
-
-                                        # Forward the raw JSON chunk
-                                        yield f"data: {json.dumps(data)}\n\n"
-                                    else:
-                                        # If the data is not in the expected format, wrap it
-                                        content = data.get("content", "")
-                                        assistant_response_accumulator.append(content)
-                                        total_tokens += len(content.split())
-                                        formatted_data = format_openai_message(content)
-                                        yield f"data: {json.dumps(formatted_data)}\n\n"
-
-                                    chunks_received += 1
-                                    if chunks_received % 10 == 0:
-                                        stream_duration = time.time() - stream_start_time
-                                        logger.debug(
-                                            f"Stream progress - Chunks: {chunks_received}, "
-                                            f"Tokens: {total_tokens}, "
-                                            f"Duration: {stream_duration:.2f}s"
-                                        )
-
-                                except json.JSONDecodeError as e:
-                                    logger.error(f"Failed to parse SSE data: {data_str}", exc_info=True)
-                                except Exception as e:
-                                    logger.error("Error processing event", exc_info=True)
-                                    error_data = format_openai_message(f"Error: {str(e)}")
-                                    yield f"data: {json.dumps(error_data)}\n\n"
-
-                    logger.info(f"Stream completed - Total chunks: {chunks_received}, Total tokens: {total_tokens}")
+            # Stream SSE chunks
+            async for data_dict in stream_func:
+                yield data_dict["sse_chunk"]
+                if data_dict["content"]:
+                    assistant_response_accumulator.append(data_dict["content"])
 
             end_time = time.time()
             logger.info(
