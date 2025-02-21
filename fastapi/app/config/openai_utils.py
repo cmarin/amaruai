@@ -10,7 +10,7 @@ from app.utils import format_openai_message
 
 logger = logging.getLogger(__name__)
 
-async def stream_openai_assistant_completions(
+async def stream_openai_completions(
     model_name: str,
     messages: List[Dict[str, Any]],
     max_tokens: Optional[int] = None,
@@ -23,7 +23,7 @@ async def stream_openai_assistant_completions(
     used by openrouter_utils.
 
     Args:
-        model_name: Unique ID for the OpenAI Assistant (e.g., "gpt-4", "gpt-3.5-turbo-0613", etc.).
+        model_name: Name of the OpenAI model (e.g., "gpt-4", "gpt-3.5-turbo", etc.).
         messages: List of message dicts in OpenAI-compatible format.
         max_tokens: Optional max token limit for the request.
         temperature: Optional float for temperature.
@@ -33,7 +33,7 @@ async def stream_openai_assistant_completions(
         A dictionary with two keys:
         {
             "sse_chunk": str,  # The raw SSE line to forward to the client ("data: {...}\n\n")
-            "content": str      # The partial content extracted from the chunk (for memory accumulation)
+            "content": str     # The partial content extracted from the chunk (for memory accumulation)
         }
         If no partial content is extracted from a particular line, "content" will be empty.
     """
