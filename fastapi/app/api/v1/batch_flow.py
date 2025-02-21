@@ -1,5 +1,3 @@
-# batch_flow.py
-
 import os
 import json
 import uuid
@@ -18,6 +16,8 @@ from app.utils import format_openai_message, log_chat_request
 from app.database import get_db
 from app import crud
 from app.config.rag_utils import get_optimized_reference_content
+from app.schemas import BatchFlowStep, BatchFlowPayload, FileInfo, ChatMessage
+from app.config.chat_utils import process_attached_files, process_referenced_knowledge
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,23 +41,6 @@ if not OPENROUTER_API_KEY:
 active_connections = 0
 
 router = create_protected_router(prefix="batch-flow", tags=["batch-flow"])
-
-
-# ----------------------------------------------------
-# Pydantic models for the Batch Flow request
-# ----------------------------------------------------
-class Step(BaseModel):
-    prompt_template_id: str
-    chat_model_id: str
-    persona_id: Optional[str] = None
-
-
-class BatchFlowPayload(BaseModel):
-    file_ids: List[str]
-    steps: List[Step]
-    customInstructions: Optional[str] = None
-    knowledge_base_ids: Optional[List[str]] = None
-    asset_ids: Optional[List[str]] = None
 
 
 # ----------------------------------------------------
@@ -147,39 +130,32 @@ async def batch_flow_endpoint(
             prompt_parts.append(batch_flow_data.customInstructions)
         initial_prompt = "\n\n".join(prompt_parts)
 
-        # Process referenced knowledge bases and assets with optimization
-        reference_content = ""
-        if batch_flow_data.knowledge_base_ids or batch_flow_data.asset_ids:
-            reference_content, content_tokens, used_rag = get_optimized_reference_content(
-                db=db,
-                query_text=initial_prompt,  # Use the prompt as the query text
+        # Create a messages list in the format expected by process_* functions
+        local_messages = [{"role": "user", "content": initial_prompt}]
+
+        # Process files and knowledge using existing utilities
+        if batch_flow_data.file_ids:
+            files = [
+                FileInfo(
+                    name=asset.file_name,
+                    url=asset.file_url
+                )
+                for asset in crud.get_assets_by_ids(db, batch_flow_data.file_ids)
+                if asset
+            ]
+            chat_data = ChatMessage(
+                message=initial_prompt,
+                files=files,
                 knowledge_base_ids=batch_flow_data.knowledge_base_ids,
-                asset_ids=batch_flow_data.asset_ids,
-                max_tokens=chat_model.max_tokens,
-                token_threshold=0.75
+                asset_ids=batch_flow_data.asset_ids
             )
             
-            if reference_content:
-                strategy = "RAG" if used_rag else "full content"
-                logger.info(f"Added referenced content using {strategy} strategy with {content_tokens} tokens")
-                prompt_parts.append("Referenced Content:" + reference_content)
+            # Use existing utilities to process files and knowledge
+            process_attached_files(db, chat_data, local_messages)
+            process_referenced_knowledge(db, chat_data, local_messages, chat_model)
 
-        # Add content from file_ids
-        if batch_flow_data.file_ids:
-            for file_id in batch_flow_data.file_ids:
-                asset = crud.get_asset(db, file_id)
-                if asset and asset.content:
-                    prompt_parts.append(asset.content)
-                    logger.info(f"Added content from asset {file_id} ({len(asset.content)} characters)")
-
-        # Combine all parts into final prompt
-        final_user_prompt = "\n\n".join(prompt_parts)
-
-        # Build messages list
-        local_messages = []
-        if system_message:
-            local_messages.append({"role": "system", "content": system_message})
-        local_messages.append({"role": "user", "content": final_user_prompt})
+        # Get the final prompt with all content included
+        final_user_prompt = local_messages[-1]["content"]
 
         # -------------------------------------------------------
         # SSE streaming generator

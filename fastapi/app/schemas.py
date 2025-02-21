@@ -469,3 +469,50 @@ class ChatMessage(BaseModel):
                 "asset_ids": ["uuid3"]
             }
         }
+
+class BatchFlowStep(BaseModel):
+    prompt_template_id: UUID
+    chat_model_id: UUID
+    persona_id: Optional[UUID] = None
+
+    @validator('prompt_template_id', 'chat_model_id', 'persona_id', pre=True)
+    def convert_to_uuid(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            return UUID(v)
+        elif isinstance(v, UUID):
+            return v
+        return v
+
+class BatchFlowPayload(BaseModel):
+    file_ids: List[UUID]
+    steps: List[BatchFlowStep]
+    customInstructions: Optional[str] = None
+    knowledge_base_ids: Optional[List[UUID]] = []
+    asset_ids: Optional[List[UUID]] = []
+
+    @validator('file_ids', 'knowledge_base_ids', 'asset_ids', pre=True)
+    def convert_list_to_uuids(cls, v):
+        if v is None:
+            return []
+        return [
+            UUID(x) if isinstance(x, str) else x 
+            for x in v 
+            if x is not None
+        ]
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "file_ids": ["123e4567-e89b-12d3-a456-426614174000"],
+                "steps": [{
+                    "prompt_template_id": "123e4567-e89b-12d3-a456-426614174001",
+                    "chat_model_id": "123e4567-e89b-12d3-a456-426614174002",
+                    "persona_id": "123e4567-e89b-12d3-a456-426614174003"
+                }],
+                "customInstructions": "Optional custom instructions",
+                "knowledge_base_ids": ["123e4567-e89b-12d3-a456-426614174004"],
+                "asset_ids": ["123e4567-e89b-12d3-a456-426614174005"]
+            }
+        }
