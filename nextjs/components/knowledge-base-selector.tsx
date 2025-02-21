@@ -147,14 +147,14 @@ export function KnowledgeBaseSelector({
                   filteredKnowledgeBases.map(kb => (
                     <Button
                       key={kb.id}
-                      variant="ghost"
-                      className="w-full justify-start text-left h-auto py-2"
+                      variant="outline"
+                      className="w-full justify-start text-left h-auto py-3 px-4 border-muted hover:bg-muted/5 transition-colors mb-2"
                       onClick={() => onSelectKnowledgeBase(kb)}
                     >
                       <div>
                         <div className="font-medium">{kb.title}</div>
                         {kb.description && (
-                          <div className="text-sm text-muted-foreground line-clamp-2">{kb.description}</div>
+                          <div className="text-sm text-muted-foreground line-clamp-2 mt-1">{kb.description}</div>
                         )}
                       </div>
                     </Button>
@@ -179,12 +179,15 @@ export function KnowledgeBaseSelector({
                   filteredAssets.map(asset => (
                     <Button
                       key={asset.id}
-                      variant="ghost"
-                      className="w-full justify-start text-left h-auto py-2"
+                      variant="outline"
+                      className="w-full justify-start text-left h-auto py-3 px-4 border-muted hover:bg-muted/5 transition-colors mb-2"
                       onClick={() => onSelectAsset(asset)}
                     >
                       <div>
                         <div className="font-medium">{asset.title}</div>
+                        {asset.description && (
+                          <div className="text-sm text-muted-foreground line-clamp-2 mt-1">{asset.description}</div>
+                        )}
                       </div>
                     </Button>
                   ))
