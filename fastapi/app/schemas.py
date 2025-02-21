@@ -479,28 +479,36 @@ class BatchFlowStep(BaseModel):
     def convert_to_uuid(cls, v):
         if v is None:
             return None
-        if isinstance(v, str):
-            return UUID(v)
-        elif isinstance(v, UUID):
-            return v
-        return v
+        try:
+            if isinstance(v, str):
+                return UUID(v)
+            elif isinstance(v, UUID):
+                return v
+            raise ValueError(f"Invalid UUID format: {v}")
+        except ValueError as e:
+            raise ValueError(f"Invalid UUID format: {v}")
 
 class BatchFlowPayload(BaseModel):
-    file_ids: List[UUID]
+    file_ids: List[UUID] = []
     steps: List[BatchFlowStep]
-    customInstructions: Optional[str] = None
+    customInstructions: Optional[str] = ""
     knowledge_base_ids: Optional[List[UUID]] = []
     asset_ids: Optional[List[UUID]] = []
+
+    @validator('steps')
+    def validate_steps(cls, v):
+        if not v:
+            raise ValueError("At least one step is required")
+        return v
 
     @validator('file_ids', 'knowledge_base_ids', 'asset_ids', pre=True)
     def convert_list_to_uuids(cls, v):
         if v is None:
             return []
-        return [
-            UUID(x) if isinstance(x, str) else x 
-            for x in v 
-            if x is not None
-        ]
+        try:
+            return [UUID(x) if isinstance(x, str) else x for x in v if x is not None]
+        except ValueError as e:
+            raise ValueError(f"Invalid UUID in list: {str(e)}")
 
     class Config:
         json_schema_extra = {

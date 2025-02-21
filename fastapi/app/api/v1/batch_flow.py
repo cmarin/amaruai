@@ -75,9 +75,27 @@ async def batch_flow_endpoint(
       - We send that prompt to the LLM (via OpenRouter) and stream back the response
     """
     try:
-        # Log request details
+        # Log raw request first
         raw_body = await request.body()
-        log_chat_request(request, raw_body, batch_flow_data.dict())
+        try:
+            raw_json = json.loads(raw_body)
+            logger.info("Raw request JSON:")
+            logger.info(json.dumps(raw_json, indent=2, cls=UUIDEncoder))
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse raw request JSON: {str(e)}")
+            logger.error(f"Raw body: {raw_body.decode()}")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid JSON in request body"
+            )
+
+        # Log validated data
+        try:
+            validated_data = batch_flow_data.dict()
+            logger.info("Validated request data:")
+            logger.info(json.dumps(validated_data, indent=2, cls=UUIDEncoder))
+        except Exception as e:
+            logger.error(f"Error serializing validated data: {str(e)}")
 
         global active_connections
         start_time = time.time()
@@ -232,9 +250,15 @@ async def batch_flow_endpoint(
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
 
+    except ValidationError as e:
+        logger.error(f"Validation error: {str(e)}")
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid request format: {str(e)}"
+        )
     except Exception as e:
         logger.error(f"Batch flow error: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=400,
+            status_code=500,
             detail=f"Error processing batch flow request: {str(e)}"
         )

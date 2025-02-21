@@ -1017,3 +1017,21 @@ def get_favorite_chat_models(db: Session, user_id: UUID) -> List[models.ChatMode
         .filter(models.chat_model_favorites.c.user_id == user_id)
         .all()
     )
+
+def get_assets_by_ids(db: Session, asset_ids: List[UUID]) -> List[models.Asset]:
+    """
+    Get multiple assets by their IDs.
+    
+    Args:
+        db: Database session
+        asset_ids: List of asset UUIDs to retrieve
+        
+    Returns:
+        List of Asset objects
+    """
+    if not asset_ids:
+        return []
+        
+    return db.query(models.Asset).filter(
+        models.Asset.id.in_(asset_ids)
+    ).all()
