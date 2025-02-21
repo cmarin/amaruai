@@ -8,7 +8,7 @@ from typing import AsyncGenerator, List, Optional
 from dotenv import load_dotenv
 from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 from app.api.v1.router import create_protected_router
@@ -151,9 +151,19 @@ async def batch_flow_endpoint(
         initial_prompt = "\n\n".join(prompt_parts)
 
         # Create a messages list in the format expected by process_* functions
-        local_messages = [{"role": "user", "content": initial_prompt}]
+        local_messages = []
+        if system_message:
+            local_messages.append({"role": "system", "content": system_message})
+        local_messages.append({"role": "user", "content": initial_prompt})
 
         # Process files and knowledge using existing utilities
+        chat_data = ChatMessage(
+            message=initial_prompt,
+            knowledge_base_ids=batch_flow_data.knowledge_base_ids,
+            asset_ids=batch_flow_data.asset_ids
+        )
+
+        # Add files if any
         if batch_flow_data.file_ids:
             files = [
                 FileInfo(
@@ -163,15 +173,12 @@ async def batch_flow_endpoint(
                 for asset in crud.get_assets_by_ids(db, batch_flow_data.file_ids, context="batch-flow")
                 if asset
             ]
-            chat_data = ChatMessage(
-                message=initial_prompt,
-                files=files,
-                knowledge_base_ids=batch_flow_data.knowledge_base_ids,
-                asset_ids=batch_flow_data.asset_ids
-            )
+            chat_data.files = files
             
-            # Use existing utilities to process files and knowledge
+        # Use existing utilities to process files and knowledge
+        if batch_flow_data.file_ids:
             process_attached_files(db, chat_data, local_messages)
+        if batch_flow_data.knowledge_base_ids or batch_flow_data.asset_ids:
             process_referenced_knowledge(db, chat_data, local_messages, chat_model)
 
         # Get the final prompt with all content included
