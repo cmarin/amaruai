@@ -6,7 +6,7 @@ from app import crud
 from app.embeddings import find_relevant_chunks
 from llama_index.core.utils import count_tokens
 from app.config.asset_utils import collect_reference_content
-from app.models import Asset
+from app.models import Asset, knowledge_base_assets
 
 logger = logging.getLogger(__name__)
 
