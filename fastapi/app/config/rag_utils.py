@@ -52,47 +52,51 @@ def get_optimized_reference_content(
     """
     Get optimized reference content from knowledge bases and assets.
     """
-    logger.info("Starting content retrieval with:")
-    logger.info(f"- Asset IDs: {asset_ids}")
-    logger.info(f"- Knowledge Base IDs: {knowledge_base_ids}")
-
     try:
-        all_content = []
         total_tokens = 0
+        all_content = []
 
-        # Process direct assets first
+        logger.info(f"Starting content retrieval with:")
+        logger.info(f"- Asset IDs: {asset_ids}")
+        logger.info(f"- Knowledge Base IDs: {knowledge_base_ids}")
+
+        # First, try to get direct content from assets
         if asset_ids:
-            direct_assets = db.query(Asset).filter(
+            assets = db.query(Asset).filter(
                 Asset.id.in_(asset_ids)
             ).all()
-            logger.info(f"Found {len(direct_assets)} direct assets")
             
-            for asset in direct_assets:
+            logger.info(f"Found {len(assets)} direct assets")
+            for asset in assets:
+                logger.info(f"Processing asset {asset.id} - {asset.title}")
                 if asset.content:
-                    logger.info(f"Processing asset {asset.id} - {asset.title}")
                     logger.info(f"- Content preview: {asset.content[:100]}...")
                     all_content.append(asset.content)
-                    total_tokens += asset.token_count or 0
+                    tokens = asset.token_count or count_tokens(asset.content)
+                    total_tokens += tokens
+                    logger.info(f"- Token count: {tokens}")
+                else:
+                    logger.warning(f"- No content found in asset {asset.id}")
 
-        # Process knowledge base assets
+        # Then get content from knowledge bases
         if knowledge_base_ids:
-            for kb_id in knowledge_base_ids:
-                kb = db.query(Asset).join(
-                    Asset.knowledge_base_assets
-                ).filter(
-                    Asset.knowledge_base_assets.c.knowledge_base_id == kb_id
-                ).first()
-                
-                if kb and kb.assets:  # Use the relationship we defined
-                    logger.info(f"Processing knowledge base {kb.id} - {kb.title}")
-                    logger.info(f"Found {len(kb.assets)} assets in knowledge base")
-                    
-                    for asset in kb.assets:
-                        if asset.content:
-                            logger.info(f"Processing KB asset {asset.id} - {asset.title}")
-                            logger.info(f"- Content preview: {asset.content[:100]}...")
-                            all_content.append(asset.content)
-                            total_tokens += asset.token_count or 0
+            kb_assets = db.query(Asset).join(
+                knowledge_base_assets
+            ).filter(
+                knowledge_base_assets.c.knowledge_base_id.in_(knowledge_base_ids)
+            ).all()
+            
+            logger.info(f"Found {len(kb_assets)} knowledge base assets")
+            for asset in kb_assets:
+                logger.info(f"Processing KB asset {asset.id} - {asset.title}")
+                if asset.content:
+                    logger.info(f"- Content preview: {asset.content[:100]}...")
+                    all_content.append(asset.content)
+                    tokens = asset.token_count or count_tokens(asset.content)
+                    total_tokens += tokens
+                    logger.info(f"- Token count: {tokens}")
+                else:
+                    logger.warning(f"- No content found in KB asset {asset.id}")
 
         if not all_content:
             logger.warning("No content found in any assets or knowledge bases")
