@@ -38,6 +38,9 @@ from app.config.openrouter_utils import stream_openrouter_completions
 # New utility import for the Assistants Beta
 from app.config.openai_assistant_utils import stream_openai_assistant_completions
 
+# New utility import for OpenAI's vanilla chat completions
+from app.config.openai_utils import stream_openai_completions
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -117,8 +120,8 @@ async def chat_endpoint(
         if chat_data.model_id:
             chat_model = crud.get_chat_model(db, chat_data.model_id)
             if chat_model:
-                provider = chat_model.provider  # e.g. "openai-assistant" or "openrouter"
-                model_name = chat_model.model   # e.g. "asst-123abc" if openai-assistant
+                provider = chat_model.provider  # e.g. "openai" or "openai-assistant" or "openrouter"
+                model_name = chat_model.model   # e.g. "gpt-4" if openai, "asst-123abc" if openai-assistant
 
         # Potential thread_id if stored in chat_data or DB
         # (Adjust to how you track thread_id for an Assistant.)
@@ -149,7 +152,6 @@ async def chat_endpoint(
             logger.info("=" * 50)
 
             if provider == "openrouter":
-                # Possibly use the :online if chat_data.web is set
                 stream_func = stream_openrouter_completions(
                     model_name=model_name,
                     messages=local_messages,
@@ -159,7 +161,6 @@ async def chat_endpoint(
                     web_search=chat_data.web
                 )
             elif provider == "openai-assistant":
-                # The model_name here is actually the assistant_id
                 assistant_id = model_name
                 stream_func = stream_openai_assistant_completions(
                     assistant_id=assistant_id,
@@ -169,7 +170,15 @@ async def chat_endpoint(
                     temperature=temperature,
                     start_time=start_time,
                     create_new_thread_if_missing=True,
-                    title=None  # optional thread title
+                    title=None
+                )
+            elif provider == "openai":
+                stream_func = stream_openai_completions(
+                    model_name=model_name,  # e.g. "gpt-4", "gpt-3.5-turbo", etc.
+                    messages=local_messages,
+                    max_tokens=chat_model.max_tokens if chat_model else None,
+                    temperature=temperature,
+                    start_time=start_time
                 )
             else:
                 logger.error(f"Unsupported provider: {provider}")
