@@ -38,9 +38,8 @@ tool_persona = Table('tool_persona', Base.metadata,
 knowledge_base_assets = Table(
     'knowledge_base_assets',
     Base.metadata,
-    Column('knowledge_base_id', PGUUID(as_uuid=True), ForeignKey('knowledge_bases.id', ondelete='CASCADE'), primary_key=True),
-    Column('asset_id', PGUUID(as_uuid=True), ForeignKey('assets.id', ondelete='CASCADE'), primary_key=True),
-    Column('created_at', TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+    Column('knowledge_base_id', UUID(as_uuid=True), ForeignKey('knowledge_bases.id')),
+    Column('asset_id', UUID(as_uuid=True), ForeignKey('assets.id'))
 )
 
 # Add the favorites association table
@@ -211,7 +210,7 @@ class WorkflowStep(Base):
 class Asset(Base):
     __tablename__ = "assets"
 
-    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String)
     file_name = Column(String)
     file_url = Column(String)
@@ -227,7 +226,7 @@ class Asset(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
+    # Add this relationship
     knowledge_bases = relationship(
         "KnowledgeBase",
         secondary=knowledge_base_assets,
@@ -237,15 +236,19 @@ class Asset(Base):
 class KnowledgeBase(Base):
     __tablename__ = "knowledge_bases"
 
-    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(Text, nullable=False)
     description = Column(Text, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
     token_count = Column(Integer, nullable=True, default=0)
     
-    # Relationship with assets through the association table
-    assets = relationship("Asset", secondary=knowledge_base_assets, back_populates="knowledge_bases")
+    # Add this relationship if not already present
+    assets = relationship(
+        "Asset",
+        secondary=knowledge_base_assets,
+        back_populates="knowledge_bases"
+    )
 
 class User(Base):
     __tablename__ = "users"
