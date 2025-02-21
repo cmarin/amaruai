@@ -17,7 +17,7 @@ from app.database import get_db
 from app import crud
 from app.config.rag_utils import get_optimized_reference_content
 from app.schemas import BatchFlowStep, BatchFlowPayload, FileInfo, ChatMessage
-from app.config.chat_utils import process_attached_files, process_referenced_knowledge
+from app.config.chat_utils import process_attached_files, process_referenced_knowledge, UUIDEncoder
 
 logging.basicConfig(
     level=logging.INFO,
@@ -85,7 +85,7 @@ async def batch_flow_endpoint(
         logger.info("=" * 50)
         logger.info(f"REQUEST HEADERS:\n{json.dumps(dict(request.headers), indent=2)}")
         logger.info(f"URL PARAMETERS:\n{json.dumps(dict(request.query_params), indent=2)}")
-        logger.info(f"REQUEST BODY:\n{json.dumps(batch_flow_data.dict(), indent=2)}")
+        logger.info(f"REQUEST BODY:\n{json.dumps(batch_flow_data.dict(), indent=2, cls=UUIDEncoder)}")
         logger.info("=" * 50)
 
         # ----------------------------------------------------------------
