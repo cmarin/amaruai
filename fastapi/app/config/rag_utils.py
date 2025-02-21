@@ -46,69 +46,68 @@ def get_optimized_reference_content(
     query_text: str,
     knowledge_base_ids: Optional[List[UUID]] = None,
     asset_ids: Optional[List[UUID]] = None,
-    max_tokens: int = 4000,
+    max_tokens: Optional[int] = None,
     token_threshold: float = 0.75
 ) -> Tuple[str, int, bool]:
-    """Get optimized reference content from knowledge bases and assets."""
+    """
+    Get optimized reference content from knowledge bases and assets.
+    """
+    logger.info("Starting content retrieval with:")
+    logger.info(f"- Asset IDs: {asset_ids}")
+    logger.info(f"- Knowledge Base IDs: {knowledge_base_ids}")
+
     try:
-        total_tokens = 0
         all_content = []
+        total_tokens = 0
 
-        logger.info(f"Starting content retrieval with:")
-        logger.info(f"- Asset IDs: {asset_ids}")
-        logger.info(f"- Knowledge Base IDs: {knowledge_base_ids}")
-
-        # First, try to get direct content from assets
+        # Process direct assets first
         if asset_ids:
-            assets = db.query(Asset).filter(
+            direct_assets = db.query(Asset).filter(
                 Asset.id.in_(asset_ids)
             ).all()
+            logger.info(f"Found {len(direct_assets)} direct assets")
             
-            logger.info(f"Found {len(assets)} direct assets")
-            for asset in assets:
-                logger.info(f"Processing asset {asset.id} - {asset.title}")
+            for asset in direct_assets:
                 if asset.content:
+                    logger.info(f"Processing asset {asset.id} - {asset.title}")
                     logger.info(f"- Content preview: {asset.content[:100]}...")
                     all_content.append(asset.content)
-                    tokens = asset.token_count or count_tokens(asset.content)
-                    total_tokens += tokens
-                    logger.info(f"- Token count: {tokens}")
-                else:
-                    logger.warning(f"- No content found in asset {asset.id}")
+                    total_tokens += asset.token_count or 0
 
-        # Then get content from knowledge bases
+        # Process knowledge base assets
         if knowledge_base_ids:
-            kb_assets = db.query(Asset).join(
-                Asset.knowledge_base_assets
-            ).filter(
-                Asset.knowledge_base_assets.c.knowledge_base_id.in_(knowledge_base_ids)
-            ).all()
-            
-            logger.info(f"Found {len(kb_assets)} knowledge base assets")
-            for asset in kb_assets:
-                logger.info(f"Processing KB asset {asset.id} - {asset.title}")
-                if asset.content:
-                    logger.info(f"- Content preview: {asset.content[:100]}...")
-                    all_content.append(asset.content)
-                    tokens = asset.token_count or count_tokens(asset.content)
-                    total_tokens += tokens
-                    logger.info(f"- Token count: {tokens}")
-                else:
-                    logger.warning(f"- No content found in KB asset {asset.id}")
+            for kb_id in knowledge_base_ids:
+                kb = db.query(Asset).join(
+                    Asset.knowledge_base_assets
+                ).filter(
+                    Asset.knowledge_base_assets.c.knowledge_base_id == kb_id
+                ).first()
+                
+                if kb and kb.assets:  # Use the relationship we defined
+                    logger.info(f"Processing knowledge base {kb.id} - {kb.title}")
+                    logger.info(f"Found {len(kb.assets)} assets in knowledge base")
+                    
+                    for asset in kb.assets:
+                        if asset.content:
+                            logger.info(f"Processing KB asset {asset.id} - {asset.title}")
+                            logger.info(f"- Content preview: {asset.content[:100]}...")
+                            all_content.append(asset.content)
+                            total_tokens += asset.token_count or 0
 
         if not all_content:
             logger.warning("No content found in any assets or knowledge bases")
             return "", 0, False
 
-        # If we're under the token threshold, return all content
-        max_allowed_tokens = int(max_tokens * token_threshold)
-        if total_tokens <= max_allowed_tokens:
-            combined_content = "\n\n".join(all_content)
+        combined_content = "\n\n".join(all_content)
+        logger.info(f"- Token count: {total_tokens}")
+
+        # If we're under the token threshold or no max_tokens specified, return full content
+        if not max_tokens or total_tokens <= (max_tokens * token_threshold):
             logger.info(f"Using full content with {total_tokens} tokens")
             return combined_content, total_tokens, False
 
-        # If we're over the threshold, use RAG to find relevant chunks
-        logger.info(f"Content exceeds token limit ({total_tokens} > {max_allowed_tokens}), using RAG")
+        # Otherwise, use RAG to get relevant content
+        logger.info("Content exceeds threshold, using RAG optimization")
         
         # Convert UUIDs to strings for the chunks query
         asset_id_strings = [str(aid) for aid in (asset_ids or [])]
@@ -136,7 +135,7 @@ def get_optimized_reference_content(
             chunk_text = chunk['text']
             chunk_token_count = count_tokens(chunk_text)
             
-            if current_tokens + chunk_token_count > max_allowed_tokens:
+            if current_tokens + chunk_token_count > max_tokens:
                 break
                 
             chunk_texts.append(chunk_text)
