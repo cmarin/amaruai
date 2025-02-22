@@ -380,14 +380,14 @@ Please synthesize these responses into a comprehensive answer that combines the 
       // Get non-default models for other chat windows
       const otherModels = allChatModels
         .filter(model => !model.default && model.id !== defaultModel.id)
-        .slice(0, 3) // We need 3 other models for chat1, chat2, chat3, synthesis
+        .slice(0, 2) // We only need 2 other models now (for chat2 and chat3)
 
       setSelectedModels(prev => ({
         ...prev,
         chat1: defaultModel.id,
         chat2: otherModels[0]?.id || defaultModel.id,
         chat3: otherModels[1]?.id || defaultModel.id,
-        synthesis: otherModels[2]?.id || defaultModel.id
+        synthesis: defaultModel.id // Set synthesis to use the same model as chat1
       }))
     }
   }, [allChatModels])
@@ -451,6 +451,28 @@ Please synthesize these responses into a comprehensive answer that combines the 
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
     setInput(generatedPrompt)
     setSelectedComplexPrompt(null)
+  }
+
+  // Add this function near the other handlers
+  const copyToClipboard = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopiedStates(prev => ({ ...prev, [content]: true }))
+      setTimeout(() => {
+        setCopiedStates(prev => ({ ...prev, [content]: false }))
+      }, 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
+  // Add this function near the other handlers
+  const addToScratchPad = async (content: string) => {
+    try {
+      await addToScratchPadService(content)
+    } catch (err) {
+      console.error('Failed to add to scratch pad:', err)
+    }
   }
 
   return (
@@ -526,6 +548,47 @@ Please synthesize these responses into a comprehensive answer that combines the 
                     />
                   </div>
                 </div>
+              </div>
+              {/* Add copy and scratch pad buttons */}
+              <div className="flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="w-8 h-8" 
+                        onClick={() => copyToClipboard(synthesizedMessages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                      >
+                        {copiedStates[synthesizedMessages.map(m => `${m.role}: ${m.content}`).join('\n')] ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {copiedStates[synthesizedMessages.map(m => `${m.role}: ${m.content}`).join('\n')] 
+                        ? "Copied!" 
+                        : "Copy chat content"}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="w-8 h-8" 
+                        onClick={() => addToScratchPad(synthesizedMessages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                      >
+                        <FileText className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Add to Scratch Pad</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
             <ScrollArea className="h-[calc(100%-60px)] p-4">
