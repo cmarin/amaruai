@@ -463,8 +463,8 @@ Please synthesize these responses into a comprehensive answer that combines the 
       {/* RIGHT COLUMN (main content) */}
       <div className="flex-1 flex flex-col h-full relative">
         {/* Top row with three chat windows */}
-        <div className="flex-1 overflow-auto p-4">
-          <div className="grid grid-cols-3 gap-4 h-[45%] mb-4">
+        <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
+          <div className="grid grid-cols-3 gap-4 h-[300px]">
             {[
               { messages: messages1, chatId: 'chat1' },
               { messages: messages2, chatId: 'chat2' },
@@ -506,7 +506,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
           </div>
 
           {/* Bottom synthesized response window */}
-          <div className="h-[45%] border rounded-lg bg-white overflow-hidden relative">
+          <div className="flex-1 border rounded-lg bg-white overflow-hidden relative">
             <div className="flex items-center justify-between p-3 border-b">
               <div className="flex items-center gap-2">
                 <span className="font-medium">Synthesized Response</span>
