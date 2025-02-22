@@ -524,7 +524,7 @@ function ContentRemixContent() {
                         key={msgIndex}
                         role={message.role}
                         content={message.content}
-                        avatar={selectedPersona?.avatar_url || null}
+                        avatar={selectedPersona?.avatar || null}
                       />
                     )
                   })}
