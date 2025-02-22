@@ -628,7 +628,7 @@ function ContentRemixContent() {
                 handleSubmit(e)
               }
             }}
-            placeholder="Type a message..."
+            placeholder="Create content variations..."
             className="flex-1"
           />
 
