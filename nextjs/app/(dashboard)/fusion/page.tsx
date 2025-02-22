@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
-  Copy, Trash2, Send, BookOpen, Loader2, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Database, Globe2
+  Copy, Trash2, Send, BookOpen, Loader2, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Database, Globe2, Settings
 } from 'lucide-react'
 import {
   Tooltip,
@@ -34,6 +34,15 @@ import { Suspense } from 'react'
 import ChatMessage from '@/components/chat-message'
 import { ComboboxPersonas } from '@/components/combobox-personas'
 import { ComboboxChatModels } from '@/components/combobox-chat-models'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css'
@@ -69,21 +78,32 @@ function FusionContent() {
   const [hasUserChangedPersona, setHasUserChangedPersona] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
 
+  // Add new state for synthesis loading and prompt
+  const [isSynthesizing, setIsSynthesizing] = useState(false)
+  const [synthesisPrompt, setSynthesisPrompt] = useState<string>(
+    `Given this prompt: "{prompt}" and these results from different AI models:
+
+Model 1: {response1}
+
+Model 2: {response2}
+
+Model 3: {response3}
+
+Please synthesize these responses into a comprehensive answer that combines the best insights from all three models while maintaining clarity and coherence.`
+  )
+
   // ... (keep other state and refs from chat/page.tsx)
 
   // Function to synthesize responses
   const synthesizeResponses = async (originalPrompt: string, responses: string[]) => {
-    const synthesisPrompt = `Given this prompt: "${originalPrompt}" and these results from different AI models:
-
-Model 1: ${responses[0]}
-
-Model 2: ${responses[1]}
-
-Model 3: ${responses[2]}
-
-Please synthesize these responses into a comprehensive answer that combines the best insights from all three models while maintaining clarity and coherence.`
-
+    setIsSynthesizing(true)
     try {
+      const processedPrompt = synthesisPrompt
+        .replace('{prompt}', originalPrompt)
+        .replace('{response1}', responses[0])
+        .replace('{response2}', responses[1])
+        .replace('{response3}', responses[2])
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -91,7 +111,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
           ...getApiHeaders(),
         },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: synthesisPrompt }],
+          messages: [{ role: 'user', content: processedPrompt }],
           user_id: session?.user?.id,
           model_id: selectedModels['synthesis'],
           conversation_id: crypto.randomUUID(),
@@ -143,6 +163,8 @@ Please synthesize these responses into a comprehensive answer that combines the 
     } catch (error) {
       console.error('Error in synthesis:', error)
       setError(error instanceof Error ? error : new Error('Unknown error during synthesis'))
+    } finally {
+      setIsSynthesizing(false)
     }
   }
 
@@ -290,6 +312,50 @@ Please synthesize these responses into a comprehensive answer that combines the 
 
   // ... (keep other utility functions from chat/page.tsx)
 
+  // Add a prompt editor modal component
+  const SynthesisPromptModal = ({ 
+    isOpen, 
+    onClose, 
+    prompt, 
+    onSave 
+  }: { 
+    isOpen: boolean
+    onClose: () => void
+    prompt: string
+    onSave: (prompt: string) => void 
+  }) => {
+    const [editedPrompt, setEditedPrompt] = useState(prompt)
+
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-1-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Synthesis Prompt</DialogTitle>
+            <DialogDescription>
+              Use {'{prompt}'}, {'{response1}'}, {'{response2}'}, and {'{response3}'} as variables.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Textarea
+              value={editedPrompt}
+              onChange={(e) => setEditedPrompt(e.target.value)}
+              className="min-h-[200px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={() => {
+              onSave(editedPrompt)
+              onClose()
+            }}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  // Add state for the modal
+  const [showSynthesisPromptModal, setShowSynthesisPromptModal] = useState(false)
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       {/* LEFT COLUMN (sidebar) */}
@@ -343,7 +409,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
           </div>
 
           {/* Bottom synthesized response window */}
-          <div className="h-[45%] border rounded-lg bg-white overflow-hidden">
+          <div className="h-[45%] border rounded-lg bg-white overflow-hidden relative">
             <div className="flex items-center justify-between p-3 border-b">
               <div className="flex items-center gap-2">
                 <span className="font-medium">Synthesized Response</span>
@@ -366,6 +432,14 @@ Please synthesize these responses into a comprehensive answer that combines the 
               </div>
             </div>
             <ScrollArea className="h-[calc(100%-60px)] p-4">
+              {isSynthesizing && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <span className="text-sm text-muted-foreground">Generating synthesis...</span>
+                  </div>
+                </div>
+              )}
               {synthesizedMessages.map((message, index) => (
                 <ChatMessage
                   key={index}
@@ -380,6 +454,24 @@ Please synthesize these responses into a comprehensive answer that combines the 
 
         {/* Footer (input) */}
         <div className="border-t p-4 flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  onClick={() => setShowSynthesisPromptModal(true)}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit Synthesis Prompt</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <Input
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -400,6 +492,13 @@ Please synthesize these responses into a comprehensive answer that combines the 
               <Send className="w-4 h-4" />
             )}
           </Button>
+
+          <SynthesisPromptModal
+            isOpen={showSynthesisPromptModal}
+            onClose={() => setShowSynthesisPromptModal(false)}
+            prompt={synthesisPrompt}
+            onSave={setSynthesisPrompt}
+          />
         </div>
       </div>
     </div>
