@@ -624,7 +624,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
                 </PromptSelector>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Prompts</p>
+                <p>Select Prompt</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -687,6 +687,16 @@ Please synthesize these responses into a comprehensive answer that combines the 
             onClick={() => setShowSynthesisPromptModal(true)}
           >
             <Settings className="h-4 w-4" />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>Edit Synthesis Prompt</span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Edit Synthesis Prompt</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </Button>
 
           <Input

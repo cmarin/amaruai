@@ -859,7 +859,7 @@ function ChatContent() {
                 </PromptSelector>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Prompts</p>
+                <p>Select Prompt</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -929,7 +929,7 @@ function ChatContent() {
                     <Globe2 className="h-5 w-5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent className="bg-white">
+                <TooltipContent>
                   <p>Enable Web Search</p>
                 </TooltipContent>
               </Tooltip>
