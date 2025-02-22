@@ -41,6 +41,18 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Suspense } from 'react'
+import { UploadedFile, KnowledgeBase, Asset } from '@/types'
+import { UploadService } from '@/services/UploadService'
+import { Dashboard } from '@uppy/react'
+import { FileUploadPills } from '@/components/file-upload-pills'
+import { KnowledgeBaseSelector } from '@/components/knowledge-base-selector'
+import { UploadService as UploadServiceUtils, type UploadedFile as UploadServiceUploadedFile } from '@/utils/upload-service'
+import { KnowledgeBase, fetchKnowledgeBases } from '@/utils/knowledge-base-service'
+import { fetchAssets } from '@/utils/asset-service'
+import Uppy from '@uppy/core'
+import Dashboard from '@uppy/react/lib/Dashboard'
+import '@uppy/core/dist/style.min.css'
+import '@uppy/dashboard/dist/style.min.css'
 
 interface Message {
   role: 'user' | 'assistant';
@@ -173,6 +185,16 @@ function ContentRemixContent() {
     customInstructions: ""
   })
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<any | null>(null)
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
+  const [showKnowledgeBaseModal, setShowKnowledgeBaseModal] = useState(false)
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([])
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([])
+  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([])
+  const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(true)
+  const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false)
+  const uppyRef = useRef<Uppy | null>(null)
 
   // Initialize models
   useEffect(() => {
@@ -193,6 +215,57 @@ function ContentRemixContent() {
       }))
     }
   }, [allChatModels])
+
+  useEffect(() => {
+    if (!uppyRef.current) {
+      const uppyInstance = UploadServiceUtils.createUppy(
+        'remix-uploader',
+        {
+          maxFiles: 1,
+          storageFolder: 'remixes',
+          storageBucket: 'amaruai-dev'
+        },
+        (file) => {
+          setUploadedFiles(prev => [...prev, {
+            id: file.id,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            uploadURL: file.uploadURL
+          }]);
+        },
+        () => {
+          setShowUploadModal(false)
+        },
+        supabase
+      )
+      uppyRef.current = uppyInstance
+    }
+
+    return () => {
+      if (uppyRef.current) {
+        uppyRef.current.cancelAll()
+      }
+    }
+  }, [supabase])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const headers = await getApiHeaders()
+        if (!headers) return
+
+        setIsLoadingKnowledgeBases(true)
+        const fetchedKnowledgeBases = await fetchKnowledgeBases(headers)
+        setKnowledgeBases(fetchedKnowledgeBases)
+      } catch (error) {
+        console.error('Error fetching knowledge bases:', error)
+      } finally {
+        setIsLoadingKnowledgeBases(false)
+      }
+    }
+    fetchData()
+  }, [getApiHeaders])
 
   const buildPrompt = (originalContent: string) => {
     let prompt = `Generate ${remixSettings.numVariations} variations of the following text.`
@@ -259,6 +332,10 @@ function ContentRemixContent() {
           user_id: session?.user?.id,
           model_id: selectedModels[chatId],
           conversation_id: crypto.randomUUID(),
+          knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
+          asset_ids: selectedAssets.map(asset => asset.id),
+          web: isWebSearchEnabled,
+          files: uploadedFiles.map(f => ({ name: f.name, url: f.uploadURL }))
         }),
       })
 
@@ -331,6 +408,17 @@ function ContentRemixContent() {
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
     setInput(generatedPrompt)
     setSelectedComplexPrompt(null)
+  }
+
+  const handleCloseUploadModal = () => {
+    setShowUploadModal(false)
+    if (uppyRef.current) {
+      uppyRef.current.cancelAll()
+    }
+  }
+
+  const handleRemoveFile = (file: UploadedFile) => {
+    setUploadedFiles(prev => prev.filter(f => f.name !== file.name))
   }
 
   return (
@@ -506,6 +594,47 @@ function ContentRemixContent() {
             onSubmit={handleComplexPromptSubmit}
           />
         )}
+
+        {showUploadModal && uppyRef.current && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white p-4 rounded-lg max-w-2xl w-full">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Upload Files</h2>
+                <Button variant="ghost" size="icon" onClick={handleCloseUploadModal}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <Dashboard uppy={uppyRef.current} plugins={[]} />
+            </div>
+          </div>
+        )}
+
+        {uploadedFiles.length > 0 && (
+          <div className="absolute bottom-[72px] left-0 right-0 p-2 bg-background border-t">
+            <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
+          </div>
+        )}
+
+        <KnowledgeBaseSelector
+          knowledgeBases={knowledgeBases}
+          isLoadingKnowledgeBases={isLoadingKnowledgeBases}
+          selectedKnowledgeBases={selectedKnowledgeBases}
+          selectedAssets={selectedAssets}
+          onSelectKnowledgeBase={(kb: KnowledgeBase) => {
+            setSelectedKnowledgeBases([...selectedKnowledgeBases, kb]);
+          }}
+          onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
+            setSelectedKnowledgeBases(selectedKnowledgeBases.filter(k => k.id !== kb.id));
+          }}
+          onSelectAsset={(asset: Asset) => {
+            setSelectedAssets([...selectedAssets, asset]);
+          }}
+          onDeselectAsset={(asset: Asset) => {
+            setSelectedAssets(selectedAssets.filter(a => a.id !== asset.id));
+          }}
+          open={showKnowledgeBaseModal}
+          onOpenChange={setShowKnowledgeBaseModal}
+        />
       </div>
     </div>
   )
