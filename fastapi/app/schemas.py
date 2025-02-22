@@ -472,12 +472,12 @@ class ChatMessage(BaseModel):
 
 class BatchFlowStep(BaseModel):
     prompt_template_id: UUID
-    chat_model_id: UUID
+    chat_model_id: Optional[UUID] = None
     persona_id: Optional[UUID] = None
 
     @validator('prompt_template_id', 'chat_model_id', 'persona_id', pre=True)
     def convert_to_uuid(cls, v):
-        if v is None:
+        if v is None or v == "":
             return None
         try:
             if isinstance(v, str):
@@ -486,6 +486,8 @@ class BatchFlowStep(BaseModel):
                 return v
             raise ValueError(f"Invalid UUID format: {v}")
         except ValueError as e:
+            if v == "":
+                return None
             raise ValueError(f"Invalid UUID format: {v}")
 
 class BatchFlowPayload(BaseModel):
@@ -506,7 +508,11 @@ class BatchFlowPayload(BaseModel):
         if v is None:
             return []
         try:
-            return [UUID(x) if isinstance(x, str) else x for x in v if x is not None]
+            return [
+                UUID(x) if isinstance(x, str) and x 
+                else x for x in v 
+                if x is not None and x != ""
+            ]
         except ValueError as e:
             raise ValueError(f"Invalid UUID in list: {str(e)}")
 

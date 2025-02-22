@@ -6,6 +6,8 @@ from app import crud, schemas
 from app.database import get_db
 from app.api.v1.router import create_protected_router
 from app.api.v1.dependencies import get_current_user
+from pydantic import ValidationError
+import logging
 
 # Create a protected router for personas
 router = create_protected_router(prefix="personas", tags=["personas"])
@@ -44,17 +46,31 @@ def read_persona(
         raise HTTPException(status_code=404, detail="Persona not found")
     return db_persona
 
-@router.put("/{persona_id}", response_model=schemas.Persona)
+@router.put("/{persona_id}")
 def update_persona(
-    persona_id: UUID = Path(...),
-    persona: schemas.PersonaUpdate = None,
-    db: Session = Depends(get_db),
-    current_user: str = Depends(get_current_user)
+    persona_id: UUID,
+    persona: schemas.PersonaUpdate,
+    db: Session = Depends(get_db)
 ):
-    db_persona = crud.update_persona(db, persona_id=persona_id, persona=persona)
-    if db_persona is None:
-        raise HTTPException(status_code=404, detail="Persona not found")
-    return db_persona
+    try:
+        db_persona = crud.get_persona(db, persona_id)
+        if not db_persona:
+            raise HTTPException(status_code=404, detail="Persona not found")
+        
+        updated_persona = crud.update_persona(db, persona_id, persona)
+        return updated_persona
+    except ValidationError as e:
+        logger.error(f"Validation error: {str(e)}")
+        raise HTTPException(
+            status_code=422,
+            detail={"message": "Validation error", "errors": e.errors()}
+        )
+    except Exception as e:
+        logger.error(f"Error updating persona: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 @router.delete("/{persona_id}", response_model=schemas.Persona)
 def delete_persona(
