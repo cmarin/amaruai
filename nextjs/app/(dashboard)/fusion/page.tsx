@@ -96,7 +96,6 @@ Please synthesize these responses into a comprehensive answer that combines the 
 
   // Function to synthesize responses
   const synthesizeResponses = async (originalPrompt: string, responses: string[]) => {
-    setIsSynthesizing(true)
     try {
       const processedPrompt = synthesisPrompt
         .replace('{prompt}', originalPrompt)
@@ -125,6 +124,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let assistantMessage = ''
+      let firstChunkReceived = false
 
       while (true) {
         const { value, done } = await reader.read()
@@ -141,6 +141,10 @@ Please synthesize these responses into a comprehensive answer that combines the 
             try {
               const parsed = JSON.parse(jsonData)
               if (parsed.choices?.[0]?.delta?.content) {
+                if (!firstChunkReceived) {
+                  setIsSynthesizing(false)
+                  firstChunkReceived = true
+                }
                 assistantMessage += parsed.choices[0].delta.content
                 setSynthesizedMessages(prev => {
                   const updated = [...prev]
@@ -163,7 +167,6 @@ Please synthesize these responses into a comprehensive answer that combines the 
     } catch (error) {
       console.error('Error in synthesis:', error)
       setError(error instanceof Error ? error : new Error('Unknown error during synthesis'))
-    } finally {
       setIsSynthesizing(false)
     }
   }
@@ -174,6 +177,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
     if (!input.trim() && uploadedFiles.length === 0) return
 
     setIsLoading(true)
+    setIsSynthesizing(true)
     setError(null)
 
     const newMessage: Message = { role: 'user', content: input.trim() }
