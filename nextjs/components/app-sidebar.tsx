@@ -54,6 +54,11 @@ const aiTools = [
     href: "/batch-flow",
     icon: Files,
   },
+  {
+    title: "Content Fusion",
+    href: "/fusion",
+    icon: Brain,
+  },
 ]
 
 interface AppSidebarProps {

@@ -262,6 +262,11 @@ Please synthesize these responses into a comprehensive answer that combines the 
     setHasUserChangedModel(true)
   }
 
+  const handlePersonaChange = (chatWindowId: string, personaId: string) => {
+    setSelectedPersonas(prev => ({ ...prev, [chatWindowId]: personaId }))
+    setHasUserChangedPersona(true)
+  }
+
   useEffect(() => {
     if (allChatModels?.length > 0) {
       // Find the default model
@@ -305,12 +310,21 @@ Please synthesize these responses into a comprehensive answer that combines the 
               <div key={index} className="h-full border rounded-lg bg-white overflow-hidden">
                 <div className="flex items-center justify-between p-3 border-b">
                   <div className="flex items-center gap-2">
-                    <div className="w-[200px]">
-                      <ComboboxChatModels
-                        models={allChatModels || []}
-                        value={selectedModels[chat.chatId]}
-                        onSelect={(model) => handleModelChange(chat.chatId, model.id)}
-                      />
+                    <div className="flex gap-2">
+                      <div className="w-[150px]">
+                        <ComboboxPersonas
+                          personas={personas || []}
+                          value={selectedPersonas[chat.chatId]}
+                          onSelect={(persona) => handlePersonaChange(chat.chatId, persona.id.toString())}
+                        />
+                      </div>
+                      <div className="w-[150px]">
+                        <ComboboxChatModels
+                          models={allChatModels || []}
+                          value={selectedModels[chat.chatId]}
+                          onSelect={(model) => handleModelChange(chat.chatId, model.id)}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -333,12 +347,21 @@ Please synthesize these responses into a comprehensive answer that combines the 
             <div className="flex items-center justify-between p-3 border-b">
               <div className="flex items-center gap-2">
                 <span className="font-medium">Synthesized Response</span>
-                <div className="w-[200px]">
-                  <ComboboxChatModels
-                    models={allChatModels || []}
-                    value={selectedModels['synthesis']}
-                    onSelect={(model) => handleModelChange('synthesis', model.id)}
-                  />
+                <div className="flex gap-2">
+                  <div className="w-[150px]">
+                    <ComboboxPersonas
+                      personas={personas || []}
+                      value={selectedPersonas['synthesis']}
+                      onSelect={(persona) => handlePersonaChange('synthesis', persona.id.toString())}
+                    />
+                  </div>
+                  <div className="w-[150px]">
+                    <ComboboxChatModels
+                      models={allChatModels || []}
+                      value={selectedModels['synthesis']}
+                      onSelect={(model) => handleModelChange('synthesis', model.id)}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
