@@ -92,7 +92,81 @@ Model 3: {response3}
 Please synthesize these responses into a comprehensive answer that combines the best insights from all three models while maintaining clarity and coherence.`
   )
 
-  // ... (keep other state and refs from chat/page.tsx)
+  // Add these states near the other state declarations
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([])
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([])
+  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([])
+  const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(true)
+  const [showKnowledgeBaseModal, setShowKnowledgeBaseModal] = useState(false)
+  const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false)
+  const uppyRef = useRef<Uppy | null>(null)
+
+  // Add the Uppy initialization useEffect
+  useEffect(() => {
+    if (!uppyRef.current) {
+      const uppyInstance = UploadService.createUppy(
+        'fusion-uploader',
+        {
+          maxFiles: 1,
+          storageFolder: 'fusions',
+          storageBucket: 'amaruai-dev'
+        },
+        (file) => {
+          setUploadedFiles(prev => [...prev, {
+            id: file.id,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            uploadURL: file.uploadURL
+          }]);
+        },
+        () => {
+          setShowUploadModal(false)
+        },
+        supabase
+      )
+      uppyRef.current = uppyInstance
+    }
+
+    return () => {
+      if (uppyRef.current) {
+        uppyRef.current.cancelAll()
+      }
+    }
+  }, [supabase])
+
+  // Add the knowledge base loading useEffect
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const headers = await getApiHeaders()
+        if (!headers) return
+
+        setIsLoadingKnowledgeBases(true)
+        const fetchedKnowledgeBases = await fetchKnowledgeBases(headers)
+        setKnowledgeBases(fetchedKnowledgeBases)
+      } catch (error) {
+        console.error('Error fetching knowledge bases:', error)
+      } finally {
+        setIsLoadingKnowledgeBases(false)
+      }
+    }
+    fetchData()
+  }, [getApiHeaders])
+
+  // Add handlers
+  const handleCloseUploadModal = () => {
+    setShowUploadModal(false)
+    if (uppyRef.current) {
+      uppyRef.current.cancelAll()
+    }
+  }
+
+  const handleRemoveFile = (file: UploadedFile) => {
+    setUploadedFiles(prev => prev.filter(f => f.name !== file.name))
+  }
 
   // Function to synthesize responses
   const synthesizeResponses = async (originalPrompt: string, responses: string[]) => {
@@ -230,6 +304,10 @@ Please synthesize these responses into a comprehensive answer that combines the 
           user_id: session?.user?.id,
           model_id: selectedModels[chatId],
           conversation_id: crypto.randomUUID(),
+          knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
+          asset_ids: selectedAssets.map(asset => asset.id),
+          web: isWebSearchEnabled,
+          files: uploadedFiles.map(f => ({ name: f.name, url: f.uploadURL }))
         }),
       })
 
@@ -360,6 +438,21 @@ Please synthesize these responses into a comprehensive answer that combines the 
   // Add state for the modal
   const [showSynthesisPromptModal, setShowSynthesisPromptModal] = useState(false)
 
+  // Add this function near the other handlers
+  const handlePromptSelect = (prompt: any) => {
+    if (prompt.variables && prompt.variables.length > 0) {
+      setSelectedComplexPrompt(prompt)
+    } else {
+      setInput(prompt.content)
+    }
+  }
+
+  // Add this handler for complex prompts
+  const handleComplexPromptSubmit = (generatedPrompt: string) => {
+    setInput(generatedPrompt)
+    setSelectedComplexPrompt(null)
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       {/* LEFT COLUMN (sidebar) */}
@@ -381,14 +474,14 @@ Please synthesize these responses into a comprehensive answer that combines the 
                 <div className="flex items-center justify-between p-3 border-b">
                   <div className="flex items-center gap-2">
                     <div className="flex gap-2">
-                      <div className="w-[150px]">
+                      <div className="w-[180px]">
                         <ComboboxPersonas
                           personas={personas || []}
                           value={selectedPersonas[chat.chatId]}
                           onSelect={(persona) => handlePersonaChange(chat.chatId, persona.id.toString())}
                         />
                       </div>
-                      <div className="w-[150px]">
+                      <div className="w-[180px]">
                         <ComboboxChatModels
                           models={allChatModels || []}
                           value={selectedModels[chat.chatId]}
@@ -418,14 +511,14 @@ Please synthesize these responses into a comprehensive answer that combines the 
               <div className="flex items-center gap-2">
                 <span className="font-medium">Synthesized Response</span>
                 <div className="flex gap-2">
-                  <div className="w-[150px]">
+                  <div className="w-[180px]">
                     <ComboboxPersonas
                       personas={personas || []}
                       value={selectedPersonas['synthesis']}
                       onSelect={(persona) => handlePersonaChange('synthesis', persona.id.toString())}
                     />
                   </div>
-                  <div className="w-[150px]">
+                  <div className="w-[180px]">
                     <ComboboxChatModels
                       models={allChatModels || []}
                       value={selectedModels['synthesis']}
@@ -461,20 +554,77 @@ Please synthesize these responses into a comprehensive answer that combines the 
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8"
-                  onClick={() => setShowSynthesisPromptModal(true)}
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
+                <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <BookOpen className="h-4 w-4" />
+                  </Button>
+                </PromptSelector>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Edit Synthesis Prompt</p>
+                <p>Prompts</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowUploadModal(true)}>
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Add Attachment</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={`h-8 w-8 ${selectedKnowledgeBases.length > 0 || selectedAssets.length > 0 ? "text-green-500" : ""}`}
+                  onClick={() => setShowKnowledgeBaseModal(true)}
+                >
+                  <Database className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Knowledge Base</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+                    className={isWebSearchEnabled ? "text-green-500" : ""}
+                  >
+                    <Globe2 className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Enable Web Search</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8"
+            onClick={() => setShowSynthesisPromptModal(true)}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
 
           <Input
             value={input}
@@ -505,6 +655,60 @@ Please synthesize these responses into a comprehensive answer that combines the 
           />
         </div>
       </div>
+
+      {/* Add the modals */}
+      <KnowledgeBaseSelector
+        knowledgeBases={knowledgeBases}
+        isLoadingKnowledgeBases={isLoadingKnowledgeBases}
+        selectedKnowledgeBases={selectedKnowledgeBases}
+        selectedAssets={selectedAssets}
+        onSelectKnowledgeBase={(kb: KnowledgeBase) => {
+          setSelectedKnowledgeBases([...selectedKnowledgeBases, kb]);
+        }}
+        onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
+          setSelectedKnowledgeBases(selectedKnowledgeBases.filter(k => k.id !== kb.id));
+        }}
+        onSelectAsset={(asset: Asset) => {
+          setSelectedAssets([...selectedAssets, asset]);
+        }}
+        onDeselectAsset={(asset: Asset) => {
+          setSelectedAssets(selectedAssets.filter(a => a.id !== asset.id));
+        }}
+        open={showKnowledgeBaseModal}
+        onOpenChange={setShowKnowledgeBaseModal}
+      />
+
+      {/* File upload modal */}
+      {showUploadModal && uppyRef.current && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg max-w-2xl w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Upload Files</h2>
+              <Button variant="ghost" size="icon" onClick={handleCloseUploadModal}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <Dashboard uppy={uppyRef.current} plugins={[]} />
+          </div>
+        </div>
+      )}
+
+      {/* File upload pills */}
+      {uploadedFiles.length > 0 && (
+        <div className="absolute bottom-[72px] left-0 right-0 p-2 bg-background border-t">
+          <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
+        </div>
+      )}
+
+      {/* Complex Prompt Modal */}
+      {selectedComplexPrompt && (
+        <ComplexPromptModal
+          prompt={selectedComplexPrompt}
+          isOpen={!!selectedComplexPrompt}
+          onClose={() => setSelectedComplexPrompt(null)}
+          onSubmit={handleComplexPromptSubmit}
+        />
+      )}
     </div>
   )
 }
