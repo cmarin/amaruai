@@ -13,6 +13,7 @@ import { Tag } from '../utils/tag-service'
 import { useSession } from '@/app/utils/session/session'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Category, fetchCategories } from '../utils/category-service'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 type PersonaManagerProps = {
   persona: Persona | null
@@ -164,16 +165,14 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
             </Button>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex flex-col items-center gap-4 pb-4 border-b">
-              <Label>Avatar</Label>
-              <AvatarSelector
-                value={currentPersona.avatar}
-                onChange={handleAvatarChange}
-                size={96}
-              />
-            </div>
-            <div className="space-y-4">
+          <Tabs defaultValue="basic" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="basic">Basic Info</TabsTrigger>
+              <TabsTrigger value="appearance">Appearance</TabsTrigger>
+              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="basic" className="space-y-4">
               <div>
                 <Label htmlFor="role">Role</Label>
                 <Input id="role" name="role" value={currentPersona.role || ''} onChange={handleInputChange} placeholder="Senior Software Engineer" />
@@ -192,9 +191,54 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
                   value={currentPersona.backstory || ''} 
                   onChange={handleInputChange}
                   placeholder="You are a seasoned software engineer with 10 years of experience in various programming languages and frameworks. You specialize in backend development and system architecture."
+                  className="min-h-[200px]"
                 />
               </div>
 
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Select
+                  value={currentPersona.category_ids[0] || ''}
+                  onValueChange={handleCategoryChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Tags</Label>
+                <TagSelector
+                  tags={currentPersona.tags.map(name => ({ id: `temp_${name}`, name }))}
+                  setTags={(tags: Tag[]) => handleTagsChange(tags)}
+                  placeholder="Add tags"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="appearance" className="space-y-4">
+              <div className="flex flex-col items-center gap-4">
+                <div className="text-center">
+                  <Label className="text-lg mb-2">Avatar Style</Label>
+                  <p className="text-sm text-gray-600 mb-4">Choose a Lorelei style for your persona's avatar</p>
+                </div>
+                <AvatarSelector
+                  value={currentPersona.avatar}
+                  onChange={handleAvatarChange}
+                  size={128}
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="advanced" className="space-y-6">
               <div>
                 <Label htmlFor="temperature">Temperature (0-1)</Label>
                 <Input
@@ -238,34 +282,6 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="category">Category</Label>
-                <Select
-                  value={currentPersona.category_ids[0] || ''}
-                  onValueChange={handleCategoryChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id.toString()}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Tags</Label>
-                <TagSelector
-                  tags={currentPersona.tags.map(name => ({ id: `temp_${name}`, name }))}
-                  setTags={(tags: Tag[]) => handleTagsChange(tags)}
-                  placeholder="Add tags"
-                />
-              </div>
-
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
                   <Switch
@@ -294,12 +310,12 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
                   <Label htmlFor="memory">Memory</Label>
                 </div>
               </div>
+            </TabsContent>
+          </Tabs>
 
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={onClose}>Cancel</Button>
-                <Button onClick={handleSave}>Save</Button>
-              </div>
-            </div>
+          <div className="flex justify-end space-x-2 mt-6">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={handleSave}>Save</Button>
           </div>
         </div>
       </div>
