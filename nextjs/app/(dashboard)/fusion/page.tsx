@@ -67,6 +67,7 @@ function FusionContent() {
   const [selectedPersonas, setSelectedPersonas] = useState<{ [key: string]: string }>({})
   const [hasUserChangedModel, setHasUserChangedModel] = useState(false)
   const [hasUserChangedPersona, setHasUserChangedPersona] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
 
   // ... (keep other state and refs from chat/page.tsx)
 
@@ -255,6 +256,32 @@ Please synthesize these responses into a comprehensive answer that combines the 
       throw error
     }
   }
+
+  const handleModelChange = (chatWindowId: string, modelId: string) => {
+    setSelectedModels(prev => ({ ...prev, [chatWindowId]: modelId }))
+    setHasUserChangedModel(true)
+  }
+
+  useEffect(() => {
+    if (allChatModels?.length > 0) {
+      // Find the default model
+      const defaultModel = allChatModels.find(model => model.default)
+      if (!defaultModel) return
+
+      // Get non-default models for other chat windows
+      const otherModels = allChatModels
+        .filter(model => !model.default && model.id !== defaultModel.id)
+        .slice(0, 3) // We need 3 other models for chat1, chat2, chat3, synthesis
+
+      setSelectedModels(prev => ({
+        ...prev,
+        chat1: defaultModel.id,
+        chat2: otherModels[0]?.id || defaultModel.id,
+        chat3: otherModels[1]?.id || defaultModel.id,
+        synthesis: otherModels[2]?.id || defaultModel.id
+      }))
+    }
+  }, [allChatModels])
 
   // ... (keep other utility functions from chat/page.tsx)
 
