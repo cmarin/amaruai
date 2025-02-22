@@ -41,14 +41,12 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Suspense } from 'react'
-import { UploadedFile, KnowledgeBase, Asset } from '@/types'
-import { UploadService } from '@/services/UploadService'
-import { Dashboard } from '@uppy/react'
 import { FileUploadPills } from '@/components/file-upload-pills'
 import { KnowledgeBaseSelector } from '@/components/knowledge-base-selector'
-import { UploadService as UploadServiceUtils, type UploadedFile as UploadServiceUploadedFile } from '@/utils/upload-service'
+import { UploadService, type UploadedFile } from '@/utils/upload-service'
 import { KnowledgeBase, fetchKnowledgeBases } from '@/utils/knowledge-base-service'
 import { fetchAssets } from '@/utils/asset-service'
+import { Asset } from '@/types/knowledge-base'
 import Uppy from '@uppy/core'
 import Dashboard from '@uppy/react/lib/Dashboard'
 import '@uppy/core/dist/style.min.css'
@@ -218,7 +216,7 @@ function ContentRemixContent() {
 
   useEffect(() => {
     if (!uppyRef.current) {
-      const uppyInstance = UploadServiceUtils.createUppy(
+      const uppyInstance = UploadService.createUppy(
         'remix-uploader',
         {
           maxFiles: 1,
