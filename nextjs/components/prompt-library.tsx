@@ -294,7 +294,7 @@ export function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdatePrompts
           </Button>
           <Button onClick={handleNewComplexPrompt} className="bg-green-600 hover:bg-green-700 text-white">
             <Plus className="mr-2 h-4 w-4" />
-            Complex Prompt
+            Form Template
           </Button>
         </div>
       </div>
@@ -369,7 +369,7 @@ export function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdatePrompts
                     className="flex items-center"
                   >
                     <Code className="h-4 w-4 mr-2" />
-                    <span>View Complex Prompt</span>
+                    <span>View Form Template</span>
                   </Button>
                 ) : (
                   <p>{prompt.prompt as string}</p>
