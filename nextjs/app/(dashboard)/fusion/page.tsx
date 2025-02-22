@@ -614,20 +614,20 @@ Please synthesize these responses into a comprehensive answer that combines the 
 
         {/* Footer (input) */}
         <div className="border-t p-4 flex items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
+          <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     <BookOpen className="h-4 w-4" />
                   </Button>
-                </PromptSelector>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Select Prompt</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Select Prompt</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </PromptSelector>
 
           <TooltipProvider>
             <Tooltip>
@@ -668,9 +668,9 @@ Please synthesize these responses into a comprehensive answer that combines the 
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
-                    className={isWebSearchEnabled ? "text-green-500" : ""}
+                    className={`h-8 w-8 ${isWebSearchEnabled ? "text-green-500" : ""}`}
                   >
-                    <Globe2 className="h-5 w-5" />
+                    <Globe2 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -680,24 +680,23 @@ Please synthesize these responses into a comprehensive answer that combines the 
             </TooltipProvider>
           </div>
 
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8"
-            onClick={() => setShowSynthesisPromptModal(true)}
-          >
-            <Settings className="h-4 w-4" />
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>Edit Synthesis Prompt</span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Edit Synthesis Prompt</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  onClick={() => setShowSynthesisPromptModal(true)}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit Synthesis Prompt</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <Input
             value={input}
@@ -714,9 +713,9 @@ Please synthesize these responses into a comprehensive answer that combines the 
 
           <Button onClick={e => handleSubmit(e)} disabled={isLoading || (!input.trim() && !uploadedFiles.length)}>
             {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="w-4 h-4" />
+              <Send className="h-4 w-4" />
             )}
           </Button>
 

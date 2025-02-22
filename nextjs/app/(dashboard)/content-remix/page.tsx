@@ -535,20 +535,20 @@ function ContentRemixContent() {
         </div>
 
         <div className="border-t p-4 flex items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
+          <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     <BookOpen className="h-4 w-4" />
                   </Button>
-                </PromptSelector>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Select Prompt</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Select Prompt</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </PromptSelector>
 
           <TooltipProvider>
             <Tooltip>
