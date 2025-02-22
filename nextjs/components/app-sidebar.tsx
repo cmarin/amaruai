@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { FileText, BookOpen, Brain, Workflow, MessageSquare, ChevronLeft, ChevronRight, User2, Files, Database, Users, Settings, Menu } from "lucide-react"
+import { FileText, BookOpen, Brain, Workflow, MessageSquare, ChevronLeft, ChevronRight, User2, Files, Database, Users, Settings, Menu, Sparkles } from "lucide-react"
 import { useRouter } from 'next/navigation'
 import { useData } from '@/components/data-context'
 import { useSidebar } from '@/components/sidebar-context'
@@ -58,6 +58,11 @@ const aiTools = [
     title: "Content Fusion",
     href: "/fusion",
     icon: Brain,
+  },
+  {
+    title: "Content Remix",
+    href: "/content-remix",
+    icon: Sparkles,
   },
 ]
 

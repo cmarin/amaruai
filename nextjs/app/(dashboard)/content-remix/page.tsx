@@ -172,6 +172,7 @@ function ContentRemixContent() {
     enhancement: "None",
     customInstructions: ""
   })
+  const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<any | null>(null)
 
   // Initialize models
   useEffect(() => {
@@ -319,6 +320,19 @@ function ContentRemixContent() {
     setHasUserChangedPersona(true)
   }
 
+  const handlePromptSelect = (prompt: any) => {
+    if (prompt.variables && prompt.variables.length > 0) {
+      setSelectedComplexPrompt(prompt)
+    } else {
+      setInput(prompt.content)
+    }
+  }
+
+  const handleComplexPromptSubmit = (generatedPrompt: string) => {
+    setInput(generatedPrompt)
+    setSelectedComplexPrompt(null)
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <div className="w-64 h-full border-r border-gray-200">
@@ -371,24 +385,89 @@ function ContentRemixContent() {
         </div>
 
         <div className="border-t p-4 flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8"
-            onClick={() => setShowSettingsModal(true)}
-          >
-            <Settings className="h-4 w-4" />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <BookOpen className="h-4 w-4" />
+                  </Button>
+                </PromptSelector>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Select Prompt</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowUploadModal(true)}>
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Add Attachment</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={`h-8 w-8 ${selectedKnowledgeBases.length > 0 || selectedAssets.length > 0 ? "text-green-500" : ""}`}
+                  onClick={() => setShowKnowledgeBaseModal(true)}
+                >
+                  <Database className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Knowledge Base</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <div className="flex items-center gap-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span>Edit Remix Settings</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+                    className={`h-8 w-8 ${isWebSearchEnabled ? "text-green-500" : ""}`}
+                  >
+                    <Globe2 className="h-4 w-4" />
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Edit Remix Settings</p>
+                  <p>Enable Web Search</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          </Button>
+          </div>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  onClick={() => setShowSettingsModal(true)}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit Remix Settings</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <Input
             value={input}
@@ -405,9 +484,9 @@ function ContentRemixContent() {
 
           <Button onClick={e => handleSubmit(e)} disabled={isLoading || !input.trim()}>
             {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="w-4 h-4" />
+              <Send className="h-4 w-4" />
             )}
           </Button>
         </div>
@@ -418,6 +497,15 @@ function ContentRemixContent() {
           settings={remixSettings}
           onSave={setRemixSettings}
         />
+
+        {selectedComplexPrompt && (
+          <ComplexPromptModal
+            prompt={selectedComplexPrompt}
+            isOpen={!!selectedComplexPrompt}
+            onClose={() => setSelectedComplexPrompt(null)}
+            onSubmit={handleComplexPromptSubmit}
+          />
+        )}
       </div>
     </div>
   )
