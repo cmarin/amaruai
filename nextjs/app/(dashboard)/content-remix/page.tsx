@@ -192,6 +192,7 @@ function ContentRemixContent() {
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>([])
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(true)
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false)
+  const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
   const uppyRef = useRef<Uppy | null>(null)
 
   // Initialize models
@@ -419,6 +420,26 @@ function ContentRemixContent() {
     setUploadedFiles(prev => prev.filter(f => f.name !== file.name))
   }
 
+  const copyToClipboard = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopiedStates(prev => ({ ...prev, [content]: true }))
+      setTimeout(() => {
+        setCopiedStates(prev => ({ ...prev, [content]: false }))
+      }, 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
+  const addToScratchPad = async (content: string) => {
+    try {
+      await addToScratchPadService(content)
+    } catch (err) {
+      console.error('Failed to add to scratch pad:', err)
+    }
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <div className="w-64 h-full border-r border-gray-200">
@@ -454,16 +475,59 @@ function ContentRemixContent() {
                       </div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="w-8 h-8" 
+                            onClick={() => copyToClipboard(chat.messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                          >
+                            {copiedStates[chat.messages.map(m => `${m.role}: ${m.content}`).join('\n')] ? (
+                              <Check className="w-4 h-4" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {copiedStates[chat.messages.map(m => `${m.role}: ${m.content}`).join('\n')] 
+                            ? "Copied!" 
+                            : "Copy chat content"}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="w-8 h-8" 
+                            onClick={() => addToScratchPad(chat.messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Add to Scratch Pad</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </div>
                 <ScrollArea className="h-[calc(100%-60px)] p-4">
-                  {chat.messages.map((message, msgIndex) => (
-                    <ChatMessage
-                      key={msgIndex}
-                      role={message.role}
-                      content={message.content}
-                      avatar={null}
-                    />
-                  ))}
+                  {chat.messages.map((message, msgIndex) => {
+                    const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chat.chatId])
+                    return (
+                      <ChatMessage
+                        key={msgIndex}
+                        role={message.role}
+                        content={message.content}
+                        avatar={selectedPersona?.avatar_url || null}
+                      />
+                    )
+                  })}
                 </ScrollArea>
               </div>
             ))}
