@@ -33,32 +33,6 @@ export function WorkflowSteps({
   // Track whether each step's model/persona has been manually changed
   const [userChangedValues, setUserChangedValues] = useState<{[key: number]: {model: boolean, persona: boolean}}>({});
 
-  const handlePromptChange = (index: number, promptId: string) => {
-    console.log('Prompt template changed:', promptId);
-    
-    // Find the selected prompt template
-    const template = promptTemplates.find(t => t.id === promptId);
-    console.log('Found template:', template);
-    
-    // Reset user changes for this step when prompt template changes
-    setUserChangedValues(prev => ({
-      ...prev,
-      [index]: { model: false, persona: false }
-    }));
-    
-    // Update all fields at once to avoid race conditions
-    const updatedStep = {
-      prompt_template_id: promptId,
-      chat_model_id: template?.default_chat_model_id || '',
-      persona_id: template?.default_persona_id || ''
-    };
-    
-    // Update each field in the step
-    Object.entries(updatedStep).forEach(([field, value]) => {
-      onUpdateStep(index, field as keyof BatchFlowStep, value);
-    });
-  };
-
   const handleModelChange = (index: number, modelId: string) => {
     console.log('Model changed:', modelId);
     const finalValue = modelId === 'none' ? '' : modelId;
@@ -93,8 +67,28 @@ export function WorkflowSteps({
                   <div className="flex-1">
                     <ComboboxPromptTemplates
                       templates={promptTemplates}
-                      value={step.prompt_template_id}
-                      onSelect={(template) => handlePromptChange(index, template.id)}
+                      value={step.prompt_template_id || null}
+                      onSelect={(template) => {
+                        // Update the prompt template
+                        onUpdateStep(index, 'prompt_template_id', template.id);
+                        
+                        // Set default persona and chat model if available and not manually changed
+                        const stepChanges = userChangedValues[index] || { model: false, persona: false };
+                        
+                        if (!stepChanges.persona && template.default_persona_id) {
+                          onUpdateStep(index, 'persona_id', template.default_persona_id);
+                        }
+                        
+                        if (!stepChanges.model && template.default_chat_model_id) {
+                          onUpdateStep(index, 'chat_model_id', template.default_chat_model_id);
+                        }
+                        
+                        // Reset user changes for model/persona when template changes
+                        setUserChangedValues(prev => ({
+                          ...prev,
+                          [index]: { model: false, persona: false }
+                        }));
+                      }}
                     />
                   </div>
                   {step.prompt_template_id && (
