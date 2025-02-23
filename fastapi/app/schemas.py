@@ -270,6 +270,19 @@ class WorkflowStepUpdate(BaseModel):
             return v
         return v
 
+class PromptTemplateSimple(PromptTemplateBase):
+    """A simplified PromptTemplate model without nested relationships"""
+    id: UUID
+    created_by: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+    default_persona_id: Optional[UUID] = None
+    default_chat_model_id: Optional[UUID] = None
+    is_favorited: Optional[bool] = False
+    favorite_count: Optional[int] = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
 class WorkflowStep(BaseModel):
     id: UUID
     workflow_id: UUID
@@ -277,7 +290,7 @@ class WorkflowStep(BaseModel):
     chat_model_id: Optional[UUID] = None
     persona_id: Optional[UUID] = None
     position: int
-    prompt_template: Optional[PromptTemplateSimple] = None  # Use simplified version
+    prompt_template: Optional[PromptTemplateSimple] = None  # Now PromptTemplateSimple is defined
     persona: Optional[PersonaBase] = None  # Use base model
     chat_model: Optional[ChatModel] = None
 
@@ -524,19 +537,6 @@ class BatchFlowPayload(BaseModel):
         }
 
 # Add these new response models
-class PromptTemplateSimple(PromptTemplateBase):
-    """A simplified PromptTemplate model without nested relationships"""
-    id: UUID
-    created_by: Optional[UUID] = None
-    created_at: datetime
-    updated_at: datetime
-    default_persona_id: Optional[UUID] = None
-    default_chat_model_id: Optional[UUID] = None
-    is_favorited: Optional[bool] = False
-    favorite_count: Optional[int] = 0
-
-    model_config = ConfigDict(from_attributes=True)
-
 class PersonaResponse(PersonaBase):
     """Response model for Persona with simplified PromptTemplate references"""
     id: UUID
