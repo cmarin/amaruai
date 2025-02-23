@@ -113,7 +113,7 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                 ))}
                 {prompt.is_complex && (
                   <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                    Complex Prompt
+                    Form Template
                   </Badge>
                 )}
               </div>
@@ -148,7 +148,7 @@ const TableView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                 <span className="font-medium">{prompt.title}</span>
                 {prompt.is_complex && (
                   <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                    Complex
+                    Form Template
                   </Badge>
                 )}
               </div>
@@ -251,11 +251,11 @@ export default function PromptTemplateLibrary({
           <div className="flex items-center gap-2 min-w-[300px] justify-end">
             <Button onClick={onNewSimple} className="bg-blue-600 hover:bg-blue-700 text-white">
               <Plus className="mr-2 h-4 w-4" />
-              New Simple
+              Prompt
             </Button>
             <Button onClick={onNewComplex} className="bg-blue-600 hover:bg-blue-700 text-white">
               <Code className="mr-2 h-4 w-4" />
-              New Complex
+              Form Template
             </Button>
           </div>
         </div>
