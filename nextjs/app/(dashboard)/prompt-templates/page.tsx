@@ -250,8 +250,8 @@ export default function PromptTemplatesPage() {
           <Dialog open={isNewSimplePromptDialogOpen} onOpenChange={setIsNewSimplePromptDialogOpen}>
             <DialogContent className="bg-white" style={{ zIndex: 50 }}>
               <DialogHeader>
-                <DialogTitle className="text-gray-900">New Simple Prompt</DialogTitle>
-                <DialogDescription className="text-gray-600">Create a new simple prompt</DialogDescription>
+                <DialogTitle className="text-gray-900">New Prompt Template</DialogTitle>
+                <DialogDescription className="text-gray-600">Create a new prompt template</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <Input

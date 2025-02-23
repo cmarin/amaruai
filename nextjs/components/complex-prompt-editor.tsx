@@ -420,7 +420,7 @@ const ComplexPromptEditor = ({
   const renderStepIndicator = () => {
     return (
       <div className="flex items-center justify-between mb-8 pt-4">
-        {[1, 2, 3].map((step) => (
+        {[1, 2, 3, 4].map((step) => (
           <div
             key={step}
             className="flex items-center"
@@ -435,9 +435,11 @@ const ComplexPromptEditor = ({
               {step}
             </div>
             <div className={`ml-2 ${currentStep === step ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>
-              {step === 1 ? 'Metadata' : step === 2 ? 'Variables' : 'Prompt'}
+              {step === 1 ? 'Metadata' : 
+               step === 2 ? 'Persona & Model' : 
+               step === 3 ? 'Form' : 'Prompt'}
             </div>
-            {step < 3 && (
+            {step < 4 && (
               <div className="mx-4 flex-grow border-t border-gray-300 w-20" />
             )}
           </div>
@@ -483,26 +485,6 @@ const ComplexPromptEditor = ({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Default Persona</Label>
-                  <ComboboxPersonas
-                    personas={personas || []}
-                    value={selectedPersonaId || undefined}
-                    onSelect={(persona: Persona) => setSelectedPersonaId(persona.id.toString())}
-                  />
-                </div>
-
-                <div>
-                  <Label>Default Chat Model</Label>
-                  <ComboboxChatModels
-                    models={chatModels || []}
-                    value={selectedChatModelId}
-                    onSelect={(model: ChatModel) => setSelectedChatModelId(model.id)}
-                  />
-                </div>
-              </div>
-
               <div>
                 <Label>Tags</Label>
                 <TagSelector
@@ -517,16 +499,39 @@ const ComplexPromptEditor = ({
       case 2:
         return (
           <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Default Persona</Label>
+                <ComboboxPersonas
+                  personas={personas || []}
+                  value={selectedPersonaId || undefined}
+                  onSelect={(persona: Persona) => setSelectedPersonaId(persona.id.toString())}
+                />
+              </div>
+              <div>
+                <Label>Default Chat Model</Label>
+                <ComboboxChatModels
+                  models={chatModels || []}
+                  value={selectedChatModelId}
+                  onSelect={(model: ChatModel) => setSelectedChatModelId(model.id)}
+                />
+              </div>
+            </div>
+          </div>
+        )
+      case 3:
+        return (
+          <div className="space-y-6">
             <div>
               <div className="flex justify-between items-center mb-4">
-                <Label>Variables</Label>
-                <Button onClick={handleAddVariable} className="bg-blue-500 hover:bg-blue-600 text-white">Add Variable</Button>
+                <Label>Form Fields</Label>
+                <Button onClick={handleAddVariable} className="bg-blue-500 hover:bg-blue-600 text-white">Add Field</Button>
               </div>
               {(promptContent.variables || []).map((variable, index) => renderVariable(variable, index))}
             </div>
           </div>
         )
-      case 3:
+      case 4:
         return (
           <div className="space-y-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -595,7 +600,7 @@ const ComplexPromptEditor = ({
           </Button>
         )}
         <div className="flex-grow" />
-        {currentStep < 3 && (
+        {currentStep < 4 && (
           <Button
             onClick={() => setCurrentStep(prev => prev + 1)}
             variant="outline"
@@ -612,7 +617,7 @@ const ComplexPromptEditor = ({
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col h-screen">
       <div className="flex items-center justify-between p-4 border-b">
-        <h1 className="text-2xl font-bold">Complex Prompt Editor</h1>
+        <h1 className="text-2xl font-bold">Prompt Template Editor</h1>
         <div className="flex gap-2">
         <Button onClick={onCancel} variant="outline">Close</Button>
           <Button 
