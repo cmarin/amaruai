@@ -25,6 +25,7 @@ import { ComboboxPersonas } from './combobox-personas';
 import { ComboboxChatModels } from './combobox-chat-models';
 import { AppSidebar } from '@/components/app-sidebar';
 import { useSidebar } from '@/components/sidebar-context';
+import { VariableButtonBar, VariableType } from './form-builder/variable-button-bar'
 
 type NumberValidation = {
   min?: number;
@@ -135,13 +136,13 @@ const ComplexPromptEditor = ({
     setTags(selectedTags || [])
   }, [initialContent, title, selectedCategory, selectedTags])
 
-  const handleAddVariable = () => {
+  const handleAddVariable = (type: VariableType) => {
     setPromptContent(prev => ({
       ...prev,
       variables: [...prev.variables, {
         fieldName: "",
         required: false,
-        controlType: "text"
+        controlType: type
       }]
     }))
   }
@@ -529,12 +530,7 @@ const ComplexPromptEditor = ({
           <div className="space-y-6">
             <div>
               <div className="flex justify-center mb-8">
-                <Button 
-                  onClick={handleAddVariable} 
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
-                >
-                  Add Field
-                </Button>
+                <VariableButtonBar onAddVariable={handleAddVariable} />
               </div>
               {(promptContent.variables || []).map((variable, index) => renderVariable(variable, index))}
             </div>
