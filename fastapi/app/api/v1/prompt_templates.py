@@ -1,9 +1,7 @@
-from fastapi import Depends, HTTPException, Path, Query
+from fastapi import Depends, HTTPException, Path
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, asc
-from typing import List, Optional
+from typing import List
 from uuid import UUID
-from enum import Enum
 from app import crud, schemas, models
 from app.database import get_db
 from app.api.v1.router import create_protected_router
@@ -11,15 +9,6 @@ from app.api.v1.dependencies import get_current_user_id
 
 # Create a protected router for prompt templates
 router = create_protected_router(prefix="prompt_templates", tags=["prompt_templates"])
-
-class SortField(str, Enum):
-    CREATED_AT = "created_at"
-    UPDATED_AT = "updated_at"
-    TITLE = "title"
-
-class SortOrder(str, Enum):
-    ASC = "asc"
-    DESC = "desc"
 
 @router.post("/", response_model=schemas.PromptTemplate)
 async def create_prompt_template(
@@ -52,94 +41,10 @@ async def create_prompt_template(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/", response_model=List[schemas.PromptTemplateResponse])
-def read_prompt_templates(
-    skip: int = 0,
-    limit: int = 100,
-    sort_by: Optional[SortField] = Query(None, description="Field to sort by"),
-    sort_order: Optional[SortOrder] = Query(SortOrder.DESC, description="Sort order"),
-    created_by: Optional[UUID] = Query(None, description="Filter by creator's user ID"),
-    favorited_by: Optional[UUID] = Query(None, description="Filter by user who favorited"),
-    has_favorites: Optional[bool] = Query(None, description="Filter prompts that have been favorited by any user"),
-    db: Session = Depends(get_db),
-    current_user: UUID = Depends(get_current_user_id)
-):
-    """
-    Get prompt templates with sorting and filtering options.
-    
-    Parameters:
-    - skip: Number of records to skip (pagination)
-    - limit: Maximum number of records to return
-    - sort_by: Field to sort by (created_at, updated_at, or title)
-    - sort_order: Sort order (asc or desc)
-    - created_by: Filter by creator's user ID
-    - favorited_by: Filter by user who favorited
-    - has_favorites: Filter prompts that have been favorited by any user
-    """
-    try:
-        # Start with base query
-        query = db.query(models.PromptTemplate)
-
-        # Apply filters
-        if created_by:
-            query = query.filter(models.PromptTemplate.created_by == created_by)
-
-        if favorited_by:
-            query = query.join(
-                models.prompt_template_favorites
-            ).filter(
-                models.prompt_template_favorites.c.user_id == favorited_by
-            )
-
-        if has_favorites is not None:
-            if has_favorites:
-                query = query.join(
-                    models.prompt_template_favorites
-                ).group_by(
-                    models.PromptTemplate.id
-                ).having(
-                    func.count(models.prompt_template_favorites.c.user_id) > 0
-                )
-            else:
-                # Subquery to find templates with favorites
-                favorited = db.query(
-                    models.prompt_template_favorites.c.prompt_template_id
-                ).distinct().subquery()
-                
-                # Filter for templates not in the favorited subquery
-                query = query.filter(
-                    models.PromptTemplate.id.notin_(favorited)
-                )
-
-        # Apply sorting
-        if sort_by:
-            sort_column = getattr(models.PromptTemplate, sort_by.value)
-            if sort_order == SortOrder.DESC:
-                query = query.order_by(desc(sort_column))
-            else:
-                query = query.order_by(asc(sort_column))
-        else:
-            # Default sort by created_at desc
-            query = query.order_by(desc(models.PromptTemplate.created_at))
-
-        # Apply pagination
-        prompt_templates = query.offset(skip).limit(limit).all()
-
-        # Add is_favorited flag for current user
-        for template in prompt_templates:
-            is_favorited = db.query(models.prompt_template_favorites).filter(
-                models.prompt_template_favorites.c.prompt_template_id == template.id,
-                models.prompt_template_favorites.c.user_id == current_user
-            ).first() is not None
-            setattr(template, 'is_favorited', is_favorited)
-
-        return prompt_templates
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error retrieving prompt templates: {str(e)}"
-        )
+@router.get("/", response_model=List[schemas.PromptTemplate])
+def read_prompt_templates(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    prompt_templates = crud.get_prompt_templates(db, skip=skip, limit=limit)
+    return prompt_templates
 
 @router.get("/favorites", response_model=List[schemas.PromptTemplate])
 def get_favorite_prompt_templates(
@@ -149,7 +54,7 @@ def get_favorite_prompt_templates(
     """Get all prompt templates favorited by the current user."""
     return crud.get_favorite_prompt_templates(db=db, user_id=current_user)
 
-@router.get("/{prompt_template_id}", response_model=schemas.PromptTemplateResponse)
+@router.get("/{prompt_template_id}", response_model=schemas.PromptTemplate)
 def read_prompt_template(prompt_template_id: UUID, db: Session = Depends(get_db)):
     db_prompt_template = crud.get_prompt_template(db, prompt_template_id=prompt_template_id)
     if db_prompt_template is None:

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, Text, Enum, UUID, BigInteger, TIMESTAMP, DateTime, Float, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, Text, Enum, UUID, BigInteger, TIMESTAMP, DateTime, Float
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import text, func
@@ -64,17 +64,17 @@ chat_model_favorites = Table(
 workflow_assets = Table(
     'workflow_assets',
     Base.metadata,
-    Column('workflow_id', UUID(as_uuid=True), ForeignKey('workflows.id', ondelete='CASCADE')),
-    Column('asset_id', UUID(as_uuid=True), ForeignKey('assets.id', ondelete='CASCADE')),
-    UniqueConstraint('workflow_id', 'asset_id', name='uq_workflow_asset')
+    Column('workflow_id', PGUUID(as_uuid=True), ForeignKey('workflow.id', ondelete='CASCADE'), primary_key=True),
+    Column('asset_id', PGUUID(as_uuid=True), ForeignKey('assets.id', ondelete='CASCADE'), primary_key=True),
+    Column('created_at', TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 )
 
 workflow_knowledge_bases = Table(
     'workflow_knowledge_bases',
     Base.metadata,
-    Column('workflow_id', UUID(as_uuid=True), ForeignKey('workflows.id', ondelete='CASCADE')),
-    Column('knowledge_base_id', UUID(as_uuid=True), ForeignKey('knowledge_bases.id', ondelete='CASCADE')),
-    UniqueConstraint('workflow_id', 'knowledge_base_id', name='uq_workflow_knowledge_base')
+    Column('workflow_id', PGUUID(as_uuid=True), ForeignKey('workflow.id', ondelete='CASCADE'), primary_key=True),
+    Column('knowledge_base_id', PGUUID(as_uuid=True), ForeignKey('knowledge_bases.id', ondelete='CASCADE'), primary_key=True),
+    Column('created_at', TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 )
 
 class ProcessType(enum.Enum):
@@ -162,19 +162,17 @@ class ChatModel(Base):
     favorited_by = relationship("User", secondary=chat_model_favorites, back_populates="favorite_chat_models")
 
 class Workflow(Base):
-    __tablename__ = "workflows"
+    __tablename__ = "workflow"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('uuid_generate_v4()'))
+    name = Column(String, index=True)
     description = Column(String, nullable=True)
-    process_type = Column(String, default=ProcessType.SEQUENTIAL.value)
-    manager_chat_model_id = Column(UUID(as_uuid=True), ForeignKey("chat_models.id"), nullable=True)
-    manager_persona_id = Column(UUID(as_uuid=True), ForeignKey("personas.id"), nullable=True)
-    max_iterations = Column(Integer, default=1)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    process_type = Column(String)
+    manager_chat_model_id = Column(UUID(as_uuid=True), ForeignKey("chat_model.id"), nullable=True)
+    manager_persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"), nullable=True)
+    max_iterations = Column(Integer, nullable=True)
     
-    # Define relationships with secondary tables
+    # Add the new relationships
     assets = relationship(
         "Asset",
         secondary=workflow_assets,
@@ -190,15 +188,14 @@ class Workflow(Base):
     steps = relationship(
         "WorkflowStep",
         order_by="WorkflowStep.position",
-        cascade="all, delete-orphan",
-        back_populates="workflow"
+        cascade="all, delete-orphan"
     )
 
 class WorkflowStep(Base):
     __tablename__ = "workflow_step"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    workflow_id = Column(UUID(as_uuid=True), ForeignKey("workflows.id"))
+    workflow_id = Column(UUID(as_uuid=True), ForeignKey("workflow.id"))
     prompt_template_id = Column(UUID(as_uuid=True), ForeignKey("prompt_template.id"), nullable=True)
     chat_model_id = Column(UUID(as_uuid=True), ForeignKey("chat_model.id"), nullable=True)
     persona_id = Column(UUID(as_uuid=True), ForeignKey("persona.id"), nullable=True)

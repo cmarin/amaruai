@@ -5,8 +5,6 @@ from app import crud, schemas, models
 from app.database import get_db
 from app.api.v1.router import create_protected_router, create_public_router
 from app.schemas import ChatMessage, WorkflowExecuteInput
-from app.api.v1.dependencies import get_current_user_id
-from uuid import UUID
 from crewai import Agent, Task, Crew, Process, LLM
 import logging
 import os
@@ -15,6 +13,8 @@ import asyncio
 from sse_starlette.sse import EventSourceResponse
 from app.config.crewai_service import crew_service, CrewAIError
 import json
+from uuid import UUID
+from app.api.v1.dependencies import get_current_user
 from uuid import uuid4
 from llama_index.storage.chat_store.postgres import PostgresChatStore
 from llama_index.core.memory import ChatMemoryBuffer
@@ -99,27 +99,28 @@ def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_
         )
 
 
-@router.get("/", response_model=List[schemas.WorkflowResponse])
+@router.get("/", response_model=List[schemas.Workflow])
 def read_workflows(
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = 0, 
+    limit: int = 100, 
     db: Session = Depends(get_db),
-    current_user: UUID = Depends(get_current_user_id)
+    current_user: str = Depends(get_current_user)
 ):
-    """Get all workflows."""
-    return crud.get_workflows(db, skip=skip, limit=limit)
+    workflows = crud.get_workflows(db, skip=skip, limit=limit)
+    return workflows
 
 
-@router.get("/{workflow_id}", response_model=schemas.WorkflowResponse)
-def read_workflow(
-    workflow_id: UUID,
-    db: Session = Depends(get_db)
-):
-    """Get a specific workflow by ID."""
-    workflow = crud.get_workflow(db, workflow_id)
-    if not workflow:
+@router.get("/{workflow_id}", response_model=schemas.Workflow)
+def get_workflow(workflow_id: UUID, db: Session = Depends(get_db)):
+    db_workflow = crud.get_workflow(db, workflow_id=workflow_id)
+    if db_workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    return workflow
+    
+    # Ensure max_iterations is a valid integer
+    if db_workflow.max_iterations is None:
+        db_workflow.max_iterations = 1  # Set a default value if None
+
+    return db_workflow
 
 
 @router.put("/{workflow_id}", response_model=schemas.Workflow)
