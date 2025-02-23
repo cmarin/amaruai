@@ -23,6 +23,8 @@ import { Persona } from '@/utils/persona-service'
 import { ChatModel } from '@/utils/chat-model-service';
 import { ComboboxPersonas } from './combobox-personas';
 import { ComboboxChatModels } from './combobox-chat-models';
+import { AppSidebar } from '@/components/app-sidebar';
+import { useSidebar } from '@/components/sidebar-context';
 
 type NumberValidation = {
   min?: number;
@@ -77,6 +79,7 @@ export interface ComplexPromptEditorProps {
   onCancel: () => void;
   isSaving?: boolean;
   mode?: 'create' | 'edit';
+  sidebarOpen?: boolean;
 }
 
 const ComplexPromptEditor = ({ 
@@ -90,7 +93,8 @@ const ComplexPromptEditor = ({
   onSave,
   onCancel,
   isSaving = false,
-  mode = 'edit'
+  mode = 'edit',
+  sidebarOpen = false
 }: ComplexPromptEditorProps) => {
   const [promptContent, setPromptContent] = useState<PromptContent>({
     variables: [],
@@ -106,6 +110,7 @@ const ComplexPromptEditor = ({
   const [currentStep, setCurrentStep] = useState(1)
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null)
   const { personas, chatModels } = useData();
+  const { sidebarOpen: useSidebarSidebarOpen } = useSidebar();
 
   useEffect(() => {
     if (initialContent) {
@@ -615,30 +620,35 @@ const ComplexPromptEditor = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col h-screen">
-      <div className="flex items-center justify-between p-4 border-b">
-        <h1 className="text-2xl font-bold">Prompt Template Editor</h1>
-        <div className="flex gap-2">
-        <Button onClick={onCancel} variant="outline">Close</Button>
-          <Button 
-            onClick={handleSave} 
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            Save
-          </Button>
+    <div className="h-full w-full">
+      <div className="flex h-screen">
+        <AppSidebar />
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${useSidebarSidebarOpen ? 'ml-64' : 'ml-16'}`}>
+          <div className="flex items-center justify-between p-4 border-b bg-white">
+            <h1 className="text-2xl font-bold">Prompt Template Editor</h1>
+            <div className="flex gap-2">
+              <Button onClick={onCancel} variant="outline">Close</Button>
+              <Button 
+                onClick={handleSave} 
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+          <div className="bg-gray-50 px-4 py-3 border-b">
+            <h2 className="text-gray-600 text-lg text-center">
+              {currentTitle || 'Untitled Prompt'}
+            </h2>
+          </div>
+          <div className="flex-grow overflow-auto bg-white">
+            <CardContent className="pt-8">
+              {renderStepIndicator()}
+              {renderStepContent()}
+              {renderNavigation()}
+            </CardContent>
+          </div>
         </div>
-      </div>
-      <div className="bg-gray-50 px-4 py-3 border-b">
-        <h2 className="text-gray-600 text-lg text-center">
-          {currentTitle || 'Untitled Prompt'}
-        </h2>
-      </div>
-      <div className="flex-grow overflow-auto">
-        <CardContent className="pt-8">
-          {renderStepIndicator()}
-          {renderStepContent()}
-          {renderNavigation()}
-        </CardContent>
       </div>
     </div>
   )
