@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, Text, Enum, UUID, BigInteger, TIMESTAMP, DateTime, Float
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, Text, Enum, UUID, BigInteger, TIMESTAMP, DateTime, Float, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import text, func
@@ -64,17 +64,17 @@ chat_model_favorites = Table(
 workflow_assets = Table(
     'workflow_assets',
     Base.metadata,
-    Column('workflow_id', PGUUID(as_uuid=True), ForeignKey('workflow.id', ondelete='CASCADE'), primary_key=True),
-    Column('asset_id', PGUUID(as_uuid=True), ForeignKey('assets.id', ondelete='CASCADE'), primary_key=True),
-    Column('created_at', TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+    Column('workflow_id', UUID(as_uuid=True), ForeignKey('workflows.id', ondelete='CASCADE')),
+    Column('asset_id', UUID(as_uuid=True), ForeignKey('assets.id', ondelete='CASCADE')),
+    UniqueConstraint('workflow_id', 'asset_id', name='uq_workflow_asset')
 )
 
 workflow_knowledge_bases = Table(
     'workflow_knowledge_bases',
     Base.metadata,
-    Column('workflow_id', PGUUID(as_uuid=True), ForeignKey('workflow.id', ondelete='CASCADE'), primary_key=True),
-    Column('knowledge_base_id', PGUUID(as_uuid=True), ForeignKey('knowledge_bases.id', ondelete='CASCADE'), primary_key=True),
-    Column('created_at', TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+    Column('workflow_id', UUID(as_uuid=True), ForeignKey('workflows.id', ondelete='CASCADE')),
+    Column('knowledge_base_id', UUID(as_uuid=True), ForeignKey('knowledge_bases.id', ondelete='CASCADE')),
+    UniqueConstraint('workflow_id', 'knowledge_base_id', name='uq_workflow_knowledge_base')
 )
 
 class ProcessType(enum.Enum):
@@ -174,7 +174,7 @@ class Workflow(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Add the new relationships
+    # Define relationships with secondary tables
     assets = relationship(
         "Asset",
         secondary=workflow_assets,
@@ -190,7 +190,8 @@ class Workflow(Base):
     steps = relationship(
         "WorkflowStep",
         order_by="WorkflowStep.position",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        back_populates="workflow"
     )
 
 class WorkflowStep(Base):
