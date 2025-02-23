@@ -5,6 +5,8 @@ from app import crud, schemas, models
 from app.database import get_db
 from app.api.v1.router import create_protected_router, create_public_router
 from app.schemas import ChatMessage, WorkflowExecuteInput
+from app.api.v1.dependencies import get_current_user_id
+from uuid import UUID
 from crewai import Agent, Task, Crew, Process, LLM
 import logging
 import os
@@ -13,8 +15,6 @@ import asyncio
 from sse_starlette.sse import EventSourceResponse
 from app.config.crewai_service import crew_service, CrewAIError
 import json
-from uuid import UUID
-from app.api.v1.dependencies import get_current_user
 from uuid import uuid4
 from llama_index.storage.chat_store.postgres import PostgresChatStore
 from llama_index.core.memory import ChatMemoryBuffer
