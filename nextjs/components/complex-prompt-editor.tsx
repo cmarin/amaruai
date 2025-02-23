@@ -627,11 +627,7 @@ const ComplexPromptEditor = ({
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-white">
         <AppSidebar />
-        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
-          mode === 'create' 
-            ? useSidebarSidebarOpen ? 'ml-52' : 'ml-14'  // Smaller margin for new templates
-            : useSidebarSidebarOpen ? 'ml-52' : 'ml-14'  // Same smaller margin for editing
-        }`}>
+        <main className="flex-1 flex flex-col">
           <div className="flex items-center justify-between p-4 border-b bg-white">
             <h1 className="text-2xl font-bold">Template Editor</h1>
             <div className="flex gap-2">
@@ -656,7 +652,7 @@ const ComplexPromptEditor = ({
               {renderNavigation()}
             </CardContent>
           </div>
-        </div>
+        </main>
       </div>
     </div>
   )
