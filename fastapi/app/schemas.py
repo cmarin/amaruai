@@ -251,19 +251,28 @@ class WorkflowStepBase(BaseModel):
         return v
 
 class WorkflowStepCreate(BaseModel):
-    prompt_template_id: UUID
-    chat_model_id: UUID
-    persona_id: UUID
+    prompt_template_id: Optional[UUID] = None
+    chat_model_id: Optional[UUID] = None
+    persona_id: Optional[UUID] = None
     position: Optional[int] = None
 
     @validator('prompt_template_id', 'chat_model_id', 'persona_id', pre=True)
     def convert_to_uuid(cls, v):
-        if v is None:
-            raise ValueError("ID cannot be None for new workflow steps")
+        if not v or v == "":  # Handle empty strings and None
+            return None
         if isinstance(v, str):
-            return UUID(v)
+            try:
+                return UUID(v)
+            except ValueError:
+                return None
         elif isinstance(v, UUID):
             return v
+        return None
+
+    @validator('position')
+    def validate_position(cls, v):
+        if v is None:
+            return 0  # Default position if none provided
         return v
 
 class WorkflowStepUpdate(BaseModel):

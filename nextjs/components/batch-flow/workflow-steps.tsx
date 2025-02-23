@@ -35,7 +35,10 @@ export function WorkflowSteps({
 
   const handlePromptChange = (index: number, promptId: string) => {
     console.log('Prompt template changed:', promptId);
-    onUpdateStep(index, 'prompt_template_id', promptId);
+    
+    // Find the selected prompt template
+    const template = promptTemplates.find(t => t.id === promptId);
+    console.log('Found template:', template);
     
     // Reset user changes for this step when prompt template changes
     setUserChangedValues(prev => ({
@@ -43,18 +46,17 @@ export function WorkflowSteps({
       [index]: { model: false, persona: false }
     }));
     
-    // Find the selected prompt template
-    const template = promptTemplates.find(t => t.id === promptId);
-    console.log('Found template:', template);
+    // Update all fields at once to avoid race conditions
+    const updatedStep = {
+      prompt_template_id: promptId,
+      chat_model_id: template?.default_chat_model_id || '',
+      persona_id: template?.default_persona_id || ''
+    };
     
-    // Only update if template exists and has defaults
-    if (template) {
-      // Update model if it has a default
-      onUpdateStep(index, 'chat_model_id', template.default_chat_model_id || '');
-      
-      // Update persona if it has a default
-      onUpdateStep(index, 'persona_id', template.default_persona_id || '');
-    }
+    // Update each field in the step
+    Object.entries(updatedStep).forEach(([field, value]) => {
+      onUpdateStep(index, field as keyof BatchFlowStep, value);
+    });
   };
 
   const handleModelChange = (index: number, modelId: string) => {

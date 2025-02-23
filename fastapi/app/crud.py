@@ -540,21 +540,18 @@ def get_workflow_steps(db: Session, workflow_id: UUID):
 
 def create_workflow_step(db: Session, workflow_id: UUID, step: schemas.WorkflowStepCreate):
     try:
-        # Get all existing steps for this workflow
-        existing_steps = db.query(models.WorkflowStep).filter(
+        # Get the current max position for this workflow
+        max_position = db.query(func.max(models.WorkflowStep.position)).filter(
             models.WorkflowStep.workflow_id == workflow_id
-        ).order_by(models.WorkflowStep.position).all()
-        
-        # Calculate next position if not provided
-        position = step.position if step.position is not None else len(existing_steps)
-        
-        # Create new step
+        ).scalar() or 0
+
+        # Create the step with validated data
         db_step = models.WorkflowStep(
             workflow_id=workflow_id,
-            prompt_template_id=step.prompt_template_id,
-            chat_model_id=step.chat_model_id,
-            persona_id=step.persona_id,
-            position=position
+            prompt_template_id=step.prompt_template_id if step.prompt_template_id else None,
+            chat_model_id=step.chat_model_id if step.chat_model_id else None,
+            persona_id=step.persona_id if step.persona_id else None,
+            position=step.position if step.position is not None else max_position + 1
         )
         
         db.add(db_step)
