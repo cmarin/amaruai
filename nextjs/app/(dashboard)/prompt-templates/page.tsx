@@ -58,7 +58,7 @@ export default function PromptTemplatesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { sidebarOpen } = useSidebar();
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const { getApiHeaders, loading: sessionLoading, initialized } = useSession();
+  const { getApiHeaders, loading: sessionLoading, initialized, session } = useSession();
   const [isDeletePromptDialogOpen, setIsDeletePromptDialogOpen] = useState(false);
   const [promptToDelete, setPromptToDelete] = useState<PromptTemplate | null>(null);
   const { personas, chatModels } = useData();
@@ -82,6 +82,10 @@ export default function PromptTemplatesPage() {
   }, [getApiHeaders, filters]);
 
   const handleUpdateFilters = (newFilters: Partial<PromptTemplateFilters>) => {
+    // If setting favorited_by, use actual user ID from session
+    if ('favorited_by' in newFilters && newFilters.favorited_by === 'current_user') {
+      newFilters.favorited_by = session?.user?.id || undefined;
+    }
     setFilters(prev => ({
       ...prev,
       ...newFilters,
