@@ -620,10 +620,10 @@ const ComplexPromptEditor = ({
   }
 
   return (
-    <div className="h-screen w-full">
-      <div className="flex">
+    <div className="h-full w-full">
+      <div className="flex h-full w-full overflow-hidden bg-white">
         <AppSidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${useSidebarSidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <div className="flex items-center justify-between p-4 border-b bg-white">
             <h1 className="text-2xl font-bold">Template Editor</h1>
             <div className="flex gap-2">
