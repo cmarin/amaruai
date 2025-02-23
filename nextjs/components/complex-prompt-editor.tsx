@@ -620,12 +620,12 @@ const ComplexPromptEditor = ({
   }
 
   return (
-    <div className="h-full w-full">
-      <div className="flex h-screen">
+    <div className="h-screen w-full">
+      <div className="flex">
         <AppSidebar />
-        <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300">
+        <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b bg-white">
-            <h1 className="text-2xl font-bold">Prompt Editor</h1>
+            <h1 className="text-2xl font-bold">Template Editor</h1>
             <div className="flex gap-2">
               <Button onClick={onCancel} variant="outline">Close</Button>
               <Button 
@@ -638,7 +638,7 @@ const ComplexPromptEditor = ({
           </div>
           <div className="bg-gray-50 px-4 py-3 border-b">
             <h2 className="text-gray-600 text-lg text-center">
-              {currentTitle || 'Untitled Prompt'}
+              {currentTitle || 'Untitled Template'}
             </h2>
           </div>
           <div className="flex-grow overflow-auto bg-white">
