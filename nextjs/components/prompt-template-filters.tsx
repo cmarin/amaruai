@@ -33,14 +33,14 @@ export function PromptTemplateFilters({
         <h3 className="font-medium text-sm">Filters</h3>
         <div className="space-y-2">
           <Select
-            value={selectedCategory || ''}
-            onValueChange={(value) => onCategoryChange(value || null)}
+            value={selectedCategory || 'all'}
+            onValueChange={(value) => onCategoryChange(value === 'all' ? null : value)}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Categories</SelectItem>
+              <SelectItem value="all">All Categories</SelectItem>
               {categories.map((category) => (
                 <SelectItem key={category} value={category}>
                   {category}
@@ -72,7 +72,7 @@ export function PromptTemplateFilters({
       <div className="space-y-4">
         <h3 className="font-medium text-sm">Sort</h3>
         <Select
-          value={filters.sort_by}
+          value={filters.sort_by || 'created_at'}
           onValueChange={(value: any) => onUpdateFilters({ sort_by: value })}
         >
           <SelectTrigger className="w-[180px]">
