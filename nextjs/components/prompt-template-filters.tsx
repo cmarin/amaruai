@@ -2,7 +2,7 @@ import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { PromptTemplateFilters } from '@/utils/prompt-template-service';
+import type { PromptTemplateFilters as PromptTemplateFiltersType } from '@/utils/prompt-template-service';
 
 interface PromptTemplateFiltersProps {
   categories: string[];
@@ -12,8 +12,8 @@ interface PromptTemplateFiltersProps {
   onFavoritesChange: (show: boolean) => void;
   showMyPrompts: boolean;
   onMyPromptsChange: (show: boolean) => void;
-  filters: PromptTemplateFilters;
-  onUpdateFilters: (filters: Partial<PromptTemplateFilters>) => void;
+  filters: PromptTemplateFiltersType;
+  onUpdateFilters: (filters: Partial<PromptTemplateFiltersType>) => void;
 }
 
 export function PromptTemplateFilters({
