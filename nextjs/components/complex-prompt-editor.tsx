@@ -528,9 +528,13 @@ const ComplexPromptEditor = ({
         return (
           <div className="space-y-6">
             <div>
-              <div className="flex justify-between items-center mb-4">
-                <Label>Form Fields</Label>
-                <Button onClick={handleAddVariable} className="bg-blue-500 hover:bg-blue-600 text-white">Add Field</Button>
+              <div className="flex justify-center mb-8">
+                <Button 
+                  onClick={handleAddVariable} 
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  Add Field
+                </Button>
               </div>
               {(promptContent.variables || []).map((variable, index) => renderVariable(variable, index))}
             </div>
@@ -623,7 +627,7 @@ const ComplexPromptEditor = ({
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-white">
         <AppSidebar />
-        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${useSidebarSidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${useSidebarSidebarOpen ? 'ml-56' : 'ml-14'}`}>
           <div className="flex items-center justify-between p-4 border-b bg-white">
             <h1 className="text-2xl font-bold">Template Editor</h1>
             <div className="flex gap-2">
