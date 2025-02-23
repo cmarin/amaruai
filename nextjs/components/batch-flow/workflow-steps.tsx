@@ -93,7 +93,7 @@ export function WorkflowSteps({
                   <div className="flex-1">
                     <ComboboxPromptTemplates
                       templates={promptTemplates}
-                      value={step.prompt_template_id || null}
+                      value={step.prompt_template_id}
                       onSelect={(template) => handlePromptChange(index, template.id)}
                     />
                   </div>
