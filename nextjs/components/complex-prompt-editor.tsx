@@ -629,8 +629,8 @@ const ComplexPromptEditor = ({
         <AppSidebar />
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
           mode === 'create' 
-            ? useSidebarSidebarOpen ? 'ml-56' : 'ml-14'  // Smaller margin for new templates
-            : useSidebarSidebarOpen ? 'ml-64' : 'ml-16'  // Original margin for editing
+            ? useSidebarSidebarOpen ? 'ml-52' : 'ml-14'  // Smaller margin for new templates
+            : useSidebarSidebarOpen ? 'ml-52' : 'ml-14'  // Same smaller margin for editing
         }`}>
           <div className="flex items-center justify-between p-4 border-b bg-white">
             <h1 className="text-2xl font-bold">Template Editor</h1>
