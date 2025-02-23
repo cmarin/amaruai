@@ -69,6 +69,7 @@ export interface PromptTemplateFilters {
   sort_order?: 'asc' | 'desc';
   favorited_by?: string;
   has_favorites?: boolean;
+  created_by?: string;
 }
 
 export async function createPromptTemplate(
