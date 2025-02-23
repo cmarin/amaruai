@@ -385,7 +385,8 @@ def get_chat_model_by_name(db: Session, name: str):
 def get_chat_model_by_model(db: Session, model: str):
     return db.query(models.ChatModel).filter(models.ChatModel.model == model).first()
 
-def get_default_chat_model(db: Session):
+def get_default_chat_model(db: Session) -> models.ChatModel:
+    """Get the default chat model."""
     return db.query(models.ChatModel).filter(models.ChatModel.default == True).first()
 
 def get_workflows(db: Session, skip: int = 0, limit: int = 100):

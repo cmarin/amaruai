@@ -95,7 +95,7 @@ async def batch_flow_endpoint(
             logger.info("Validated request data:")
             logger.info(json.dumps(validated_data, indent=2, cls=UUIDEncoder))
         except Exception as e:
-            logger.error(f"Error serializing validated data: {str(e)}")
+            logger.error(f"Error logging validated data: {str(e)}")
 
         global active_connections
         start_time = time.time()
@@ -126,13 +126,17 @@ async def batch_flow_endpoint(
                 detail=f"PromptTemplate with ID {step.prompt_template_id} not found."
             )
 
-        # Retrieve chat model
-        chat_model = crud.get_chat_model(db, step.chat_model_id)
+        # Retrieve chat model - use default if none specified
+        chat_model = None
+        if step.chat_model_id:
+            chat_model = crud.get_chat_model(db, step.chat_model_id)
         if not chat_model:
-            raise HTTPException(
-                status_code=404,
-                detail=f"ChatModel with ID {step.chat_model_id} not found."
-            )
+            chat_model = crud.get_default_chat_model(db)
+            if not chat_model:
+                raise HTTPException(
+                    status_code=404,
+                    detail="No chat model specified and no default chat model found"
+                )
 
         # Retrieve persona (optional)
         system_message = ""
