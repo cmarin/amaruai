@@ -251,10 +251,10 @@ export default function PromptTemplateLibrary({
           <div className="flex items-center gap-2 min-w-[300px] justify-end">
             <Button onClick={onNewSimple} className="bg-blue-600 hover:bg-blue-700 text-white">
               <Plus className="mr-2 h-4 w-4" />
-              Prompt
+              Template
             </Button>
             <Button onClick={onNewComplex} className="bg-blue-600 hover:bg-blue-700 text-white">
-              <Code className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-4 w-4" />
               Form Template
             </Button>
           </div>
