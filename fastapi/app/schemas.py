@@ -270,16 +270,18 @@ class WorkflowStepUpdate(BaseModel):
             return v
         return v
 
-class WorkflowStep(WorkflowStepBase):
+class WorkflowStep(BaseModel):
     id: UUID
     workflow_id: UUID
+    prompt_template_id: UUID
+    chat_model_id: Optional[UUID] = None
+    persona_id: Optional[UUID] = None
     position: int
-    prompt_template: Optional[PromptTemplate] = None
+    prompt_template: Optional[PromptTemplateSimple] = None  # Use simplified version
+    persona: Optional[PersonaBase] = None  # Use base model
     chat_model: Optional[ChatModel] = None
-    persona: Optional[Persona] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class WorkflowBase(BaseModel):
     name: str
@@ -561,5 +563,28 @@ class PromptTemplateResponse(PromptTemplateBase):
     default_chat_model: Optional[ChatModel] = None
     is_favorited: Optional[bool] = False
     favorite_count: Optional[int] = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+# Add these new response models for workflows
+class WorkflowStepResponse(BaseModel):
+    """Response model for workflow steps with simplified relationships"""
+    id: UUID
+    prompt_template: Optional[PromptTemplateSimple] = None
+    persona: Optional[PersonaBase] = None  # Use base model to avoid nesting
+    chat_model: Optional[ChatModel] = None
+    position: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+class WorkflowResponse(BaseModel):
+    """Response model for workflows with simplified relationships"""
+    id: UUID
+    name: str
+    description: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    steps: List[WorkflowStepResponse] = []
+    is_favorited: Optional[bool] = False
 
     model_config = ConfigDict(from_attributes=True)

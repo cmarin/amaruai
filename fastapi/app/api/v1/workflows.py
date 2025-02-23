@@ -99,28 +99,27 @@ def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_
         )
 
 
-@router.get("/", response_model=List[schemas.Workflow])
+@router.get("/", response_model=List[schemas.WorkflowResponse])
 def read_workflows(
-    skip: int = 0, 
-    limit: int = 100, 
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: str = Depends(get_current_user)
+    current_user: UUID = Depends(get_current_user_id)
 ):
-    workflows = crud.get_workflows(db, skip=skip, limit=limit)
-    return workflows
+    """Get all workflows."""
+    return crud.get_workflows(db, skip=skip, limit=limit)
 
 
-@router.get("/{workflow_id}", response_model=schemas.Workflow)
-def get_workflow(workflow_id: UUID, db: Session = Depends(get_db)):
-    db_workflow = crud.get_workflow(db, workflow_id=workflow_id)
-    if db_workflow is None:
+@router.get("/{workflow_id}", response_model=schemas.WorkflowResponse)
+def read_workflow(
+    workflow_id: UUID,
+    db: Session = Depends(get_db)
+):
+    """Get a specific workflow by ID."""
+    workflow = crud.get_workflow(db, workflow_id)
+    if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    
-    # Ensure max_iterations is a valid integer
-    if db_workflow.max_iterations is None:
-        db_workflow.max_iterations = 1  # Set a default value if None
-
-    return db_workflow
+    return workflow
 
 
 @router.put("/{workflow_id}", response_model=schemas.Workflow)
