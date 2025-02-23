@@ -1,14 +1,26 @@
-from fastapi import Depends, HTTPException, Path
+from fastapi import Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy import desc, asc
+from typing import List, Optional
 from uuid import UUID
+from enum import Enum
 from app import crud, schemas, models
 from app.database import get_db
 from app.api.v1.router import create_protected_router
 from app.api.v1.dependencies import get_current_user_id
 
+class SortField(str, Enum):
+    CREATED_AT = "created_at"
+    UPDATED_AT = "updated_at"
+    TITLE = "title"
+
+class SortOrder(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
+
 # Create a protected router for prompt templates
 router = create_protected_router(prefix="prompt_templates", tags=["prompt_templates"])
+
 
 @router.post("/", response_model=schemas.PromptTemplate)
 async def create_prompt_template(
