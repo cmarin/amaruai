@@ -627,7 +627,11 @@ const ComplexPromptEditor = ({
     <div className="h-full w-full">
       <div className="flex h-full w-full overflow-hidden bg-white">
         <AppSidebar />
-        <main className="flex-1 flex flex-col">
+        <main className={`flex-1 flex flex-col ${
+          mode === 'create'
+            ? useSidebarSidebarOpen ? 'ml-56' : 'ml-14'
+            : ''
+        }`}>
           <div className="flex items-center justify-between p-4 border-b bg-white">
             <h1 className="text-2xl font-bold">Template Editor</h1>
             <div className="flex gap-2">
