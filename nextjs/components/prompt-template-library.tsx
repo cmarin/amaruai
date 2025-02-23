@@ -313,7 +313,7 @@ export default function PromptTemplateLibrary({
         </div>
       </div>
       <div className="p-4 bg-white border-b">
-        <div className="flex gap-4 items-center">
+        <div className="flex flex-col gap-4">
           <Input
             type="search"
             placeholder="Search prompts..."
@@ -332,18 +332,6 @@ export default function PromptTemplateLibrary({
             filters={{}}
             onUpdateFilters={onUpdateFilters}
           />
-          <Select value={selectedSort} onValueChange={handleSortChange}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Sort by..." />
-            </SelectTrigger>
-            <SelectContent>
-              {sortOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
       </div>
       <ScrollArea className="flex-grow">

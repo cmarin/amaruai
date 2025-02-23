@@ -28,62 +28,58 @@ export function PromptTemplateFilters({
   onUpdateFilters,
 }: PromptTemplateFiltersProps) {
   return (
-    <div className="flex gap-8 items-start">
-      <div className="space-y-4">
-        <h3 className="font-medium text-sm">Filters</h3>
-        <div className="space-y-2">
-          <Select
-            value={selectedCategory || 'all'}
-            onValueChange={(value) => onCategoryChange(value === 'all' ? null : value)}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="favorites"
-              checked={showFavorites}
-              onCheckedChange={onFavoritesChange}
-            />
-            <Label htmlFor="favorites">Favorites</Label>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="myPrompts"
-              checked={showMyPrompts}
-              onCheckedChange={onMyPromptsChange}
-            />
-            <Label htmlFor="myPrompts">My Prompts</Label>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="font-medium text-sm">Sort</h3>
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-4">
         <Select
-          value={filters.sort_by || 'created_at'}
-          onValueChange={(value: any) => onUpdateFilters({ sort_by: value })}
+          value={selectedCategory || 'all'}
+          onValueChange={(value) => onCategoryChange(value === 'all' ? null : value)}
         >
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Sort by" />
+            <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="created_at">Creation Date</SelectItem>
-            <SelectItem value="updated_at">Last Modified</SelectItem>
-            <SelectItem value="title">Title</SelectItem>
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category} value={category}>
+                {category}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
+        
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="favorites"
+            checked={showFavorites}
+            onCheckedChange={onFavoritesChange}
+          />
+          <Label htmlFor="favorites">Favorites</Label>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="myPrompts"
+            checked={showMyPrompts}
+            onCheckedChange={onMyPromptsChange}
+          />
+          <Label htmlFor="myPrompts">My Prompts</Label>
+        </div>
+
+        <div className="ml-auto">
+          <Select
+            value={filters.sort_by || 'created_at'}
+            onValueChange={(value: any) => onUpdateFilters({ sort_by: value })}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="created_at">Creation Date</SelectItem>
+              <SelectItem value="updated_at">Last Modified</SelectItem>
+              <SelectItem value="title">Title</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </div>
   );
