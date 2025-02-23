@@ -30,17 +30,17 @@ def create_persona(persona: schemas.PersonaCreate, db: Session = Depends(get_db)
     """
     return crud.create_persona(db=db, persona=persona)
 
-@router.get("/", response_model=List[schemas.Persona])
-def read_personas(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+@router.get("/", response_model=List[schemas.PersonaResponse])
+def read_personas(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
     personas = crud.get_personas(db, skip=skip, limit=limit)
     return personas
 
-@router.get("/{persona_id}", response_model=schemas.Persona)
-def read_persona(
-    persona_id: UUID = Path(...),
-    db: Session = Depends(get_db),
-    current_user: str = Depends(get_current_user)
-):
+@router.get("/{persona_id}", response_model=schemas.PersonaResponse)
+def read_persona(persona_id: UUID, db: Session = Depends(get_db)):
     db_persona = crud.get_persona(db, persona_id=persona_id)
     if db_persona is None:
         raise HTTPException(status_code=404, detail="Persona not found")

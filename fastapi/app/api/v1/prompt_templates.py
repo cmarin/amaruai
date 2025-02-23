@@ -52,7 +52,7 @@ async def create_prompt_template(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/", response_model=List[schemas.PromptTemplate])
+@router.get("/", response_model=List[schemas.PromptTemplateResponse])
 def read_prompt_templates(
     skip: int = 0,
     limit: int = 100,
@@ -149,7 +149,7 @@ def get_favorite_prompt_templates(
     """Get all prompt templates favorited by the current user."""
     return crud.get_favorite_prompt_templates(db=db, user_id=current_user)
 
-@router.get("/{prompt_template_id}", response_model=schemas.PromptTemplate)
+@router.get("/{prompt_template_id}", response_model=schemas.PromptTemplateResponse)
 def read_prompt_template(prompt_template_id: UUID, db: Session = Depends(get_db)):
     db_prompt_template = crud.get_prompt_template(db, prompt_template_id=prompt_template_id)
     if db_prompt_template is None:

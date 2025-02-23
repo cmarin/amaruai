@@ -520,3 +520,46 @@ class BatchFlowPayload(BaseModel):
                 "asset_ids": ["123e4567-e89b-12d3-a456-426614174005"]
             }
         }
+
+# Add these new response models
+class PromptTemplateSimple(PromptTemplateBase):
+    """A simplified PromptTemplate model without nested relationships"""
+    id: UUID
+    created_by: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+    default_persona_id: Optional[UUID] = None
+    default_chat_model_id: Optional[UUID] = None
+    is_favorited: Optional[bool] = False
+    favorite_count: Optional[int] = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+class PersonaResponse(PersonaBase):
+    """Response model for Persona with simplified PromptTemplate references"""
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+    tools: List[Tool] = []
+    categories: List[Category] = []
+    tags: List[Tag] = []
+    prompt_templates: List[PromptTemplateSimple] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+class PromptTemplateResponse(PromptTemplateBase):
+    """Response model for PromptTemplate with full relationships"""
+    id: UUID
+    created_by: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+    categories: List[Category] = []
+    tags: List[Tag] = []
+    default_persona_id: Optional[UUID] = None
+    default_chat_model_id: Optional[UUID] = None
+    default_persona: Optional[PersonaBase] = None  # Use base model to avoid nesting
+    default_chat_model: Optional[ChatModel] = None
+    is_favorited: Optional[bool] = False
+    favorite_count: Optional[int] = 0
+
+    model_config = ConfigDict(from_attributes=True)
