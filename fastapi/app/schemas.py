@@ -1,9 +1,13 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any, Union, ForwardRef, Annotated
+from pydantic import BaseModel, Field, ConfigDict
+from typing import List, Optional, Dict, Any, Union, Annotated
 from enum import Enum
 from uuid import UUID
 from datetime import datetime
 from pydantic import validator
+
+# Create forward references
+# Persona = ForwardRef('Persona')
+# ChatModel = ForwardRef('ChatModel')
 
 class ToolBase(BaseModel):
     name: str
@@ -63,46 +67,26 @@ class PromptTemplateCreate(BaseModel):
             return []
         return v
 
-class PromptTemplate(PromptTemplateBase):
+class PersonaBase(BaseModel):
+    role: str
+    goal: str
+    backstory: str
+    allow_delegation: bool
+    verbose: bool
+    memory: bool
+    avatar: Optional[str] = None
+    temperature: Optional[float] = None
+
+class Persona(PersonaBase):
     id: UUID
-    title: str
-    prompt: str
-    is_complex: bool = False
-    default_persona_id: Optional[UUID] = None
-    default_chat_model_id: Optional[UUID] = None
-    created_by: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
+    tools: List[Tool] = []
     categories: List[Category] = []
     tags: List[Tag] = []
-    default_persona: Optional[Persona] = None
-    default_chat_model: Optional[ChatModel] = None
-    is_favorited: Optional[bool] = False
-    favorite_count: Optional[int] = 0
+    prompt_templates: List["PromptTemplate"] = []
 
-    class Config:
-        orm_mode = True
-
-class PromptTemplateUpdate(BaseModel):
-    title: Optional[str] = None
-    prompt: Optional[str] = None
-    is_complex: Optional[bool] = None
-    default_persona_id: Optional[UUID] = None
-    default_chat_model_id: Optional[UUID] = None
-    category_ids: Optional[List[Optional[UUID]]] = None
-    tags: Optional[List[str]] = None
-
-    @validator('category_ids', pre=True)
-    def validate_category_ids(cls, v):
-        if v is None:
-            return []
-        # Filter out empty strings and None values
-        return [
-            UUID(cat_id) if isinstance(cat_id, str) and cat_id 
-            else cat_id 
-            for cat_id in v 
-            if cat_id not in (None, "")
-        ]
+    model_config = ConfigDict(from_attributes=True)
 
 class ChatModelBase(BaseModel):
     name: str
@@ -139,37 +123,49 @@ class ChatModelUpdate(BaseModel):
 
 class ChatModel(ChatModelBase):
     id: UUID
-    is_favorited: bool = False  # Will be computed based on current user
+    is_favorited: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
-class PersonaBase(BaseModel):
-    role: str
-    goal: str
-    backstory: str
-    allow_delegation: bool
-    verbose: bool
-    memory: bool
-    avatar: Optional[str] = None
-    temperature: Optional[float] = Field(
-        None, 
-        ge=0.0, 
-        le=1.0, 
-        description="Temperature value between 0 and 1"
-    )
+class PromptTemplate(PromptTemplateBase):
+    id: UUID
+    title: str
+    prompt: str
+    is_complex: bool = False
+    default_persona_id: Optional[UUID] = None
+    default_chat_model_id: Optional[UUID] = None
+    created_by: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+    categories: List[Category] = []
+    tags: List[Tag] = []
+    default_persona: Optional["Persona"] = None
+    default_chat_model: Optional["ChatModel"] = None
+    is_favorited: Optional[bool] = False
+    favorite_count: Optional[int] = 0
 
-    @validator('temperature')
-    def validate_temperature(cls, v):
-        if v is not None:
-            try:
-                v = float(v)  # Convert to float if possible
-                if v < 0.0 or v > 1.0:
-                    raise ValueError("Temperature must be between 0 and 1")
-                return v
-            except (TypeError, ValueError):
-                raise ValueError("Temperature must be a valid number between 0 and 1")
-        return v
+    model_config = ConfigDict(from_attributes=True)
+
+class PromptTemplateUpdate(BaseModel):
+    title: Optional[str] = None
+    prompt: Optional[str] = None
+    is_complex: Optional[bool] = None
+    default_persona_id: Optional[UUID] = None
+    default_chat_model_id: Optional[UUID] = None
+    category_ids: Optional[List[Optional[UUID]]] = None
+    tags: Optional[List[str]] = None
+
+    @validator('category_ids', pre=True)
+    def validate_category_ids(cls, v):
+        if v is None:
+            return []
+        # Filter out empty strings and None values
+        return [
+            UUID(cat_id) if isinstance(cat_id, str) and cat_id 
+            else cat_id 
+            for cat_id in v 
+            if cat_id not in (None, "")
+        ]
 
 class PersonaCreate(PersonaBase):
     category_ids: List[Optional[UUID]] = []  
@@ -222,18 +218,6 @@ class PersonaUpdate(BaseModel):
             except (TypeError, ValueError):
                 raise ValueError("Temperature must be a valid number between 0 and 1")
         return v
-
-class Persona(PersonaBase):
-    id: UUID
-    tools: List[Tool] = []
-    categories: List[Category] = []
-    tags: List[Tag] = []
-    prompt_templates: List[PromptTemplate] = []
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 class ProcessType(str, Enum):
     SEQUENTIAL = "SEQUENTIAL"
