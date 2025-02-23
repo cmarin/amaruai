@@ -169,8 +169,9 @@ class PersonaCreate(PersonaBase):
     category_ids: List[Optional[UUID]] = []  
     tags: List[str] = []  
     tools: List[UUID] = []
-    description: Optional[str] = None  # Add this if it's in your payload
-    prompt_templates: Optional[List[Any]] = []  # Add this if it's in your payload
+    description: Optional[str] = None
+    prompt_templates: Optional[List[Any]] = []
+    created_by: Optional[UUID] = None
 
     @validator('category_ids', pre=True)
     def validate_category_ids(cls, v):
@@ -318,6 +319,7 @@ class WorkflowCreate(BaseModel):
     max_iterations: Optional[int] = None
     asset_ids: Optional[List[UUID]] = None
     knowledge_base_ids: Optional[List[UUID]] = None
+    created_by: Optional[UUID] = None
 
     class Config:
         from_attributes = True
@@ -360,6 +362,7 @@ class KnowledgeBaseBase(BaseModel):
 
 class KnowledgeBaseCreate(KnowledgeBaseBase):
     asset_ids: List[UUID] = []
+    created_by: Optional[UUID] = None
 
 class KnowledgeBaseUpdate(KnowledgeBaseBase):
     asset_ids: Optional[List[UUID]] = None

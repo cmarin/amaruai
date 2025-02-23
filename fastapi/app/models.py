@@ -95,6 +95,7 @@ class Persona(Base):
     temperature = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_by = Column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     workflow_steps = relationship("WorkflowStep", back_populates="persona")
 
     tools = relationship("Tool", secondary=tool_persona, back_populates="personas")
@@ -171,6 +172,9 @@ class Workflow(Base):
     manager_chat_model_id = Column(UUID(as_uuid=True), ForeignKey("chat_model.id"), nullable=True)
     manager_persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"), nullable=True)
     max_iterations = Column(Integer, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+    created_by = Column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
     # Add the new relationships
     assets = relationship(
@@ -242,8 +246,9 @@ class KnowledgeBase(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
     token_count = Column(Integer, nullable=True, default=0)
+    created_by = Column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
-    # Add this relationship if not already present
+    # Add this relationship
     assets = relationship(
         "Asset",
         secondary=knowledge_base_assets,

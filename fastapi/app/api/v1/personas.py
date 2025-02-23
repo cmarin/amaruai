@@ -16,21 +16,12 @@ logger = logging.getLogger(__name__)
 router = create_protected_router(prefix="personas", tags=["personas"])
 
 @router.post("/", response_model=schemas.Persona)
-def create_persona(persona: schemas.PersonaCreate, db: Session = Depends(get_db)):
-    """
-    Create a new persona with the following fields:
-    - role: The role of the persona
-    - goal: The goal of the persona
-    - backstory: The backstory of the persona
-    - allow_delegation: Whether the persona can delegate tasks
-    - verbose: Whether the persona is verbose
-    - memory: Whether the persona has memory
-    - avatar: Optional avatar URL
-    - temperature: Optional temperature value (float between 0 and 1)
-    - category_ids: Optional list of category IDs
-    - tags: Optional list of tag names
-    - tools: Optional list of tool IDs
-    """
+def create_persona(
+    persona: schemas.PersonaCreate, 
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user_id)
+):
+    persona.created_by = current_user
     return crud.create_persona(db=db, persona=persona)
 
 @router.get("/", response_model=List[schemas.Persona])

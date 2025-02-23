@@ -41,12 +41,17 @@ workflow_results = {}
 logger = logging.getLogger(__name__)
 
 @router.post("/", response_model=schemas.Workflow)
-def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_db)):
+def create_workflow(
+    workflow: schemas.WorkflowCreate, 
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user_id)
+):
     try:
         # Set default values for empty lists
         workflow_dict = workflow.dict()
         workflow_dict["asset_ids"] = workflow_dict.get("asset_ids", []) or []
         workflow_dict["knowledge_base_ids"] = workflow_dict.get("knowledge_base_ids", []) or []
+        workflow_dict["created_by"] = current_user
         
         # Create the workflow with basic info first
         db_workflow = models.Workflow(
@@ -55,7 +60,8 @@ def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_
             process_type=workflow_dict.get("process_type", models.ProcessType.SEQUENTIAL.value),
             manager_chat_model_id=workflow_dict.get("manager_chat_model_id"),
             manager_persona_id=workflow_dict.get("manager_persona_id"),
-            max_iterations=workflow_dict.get("max_iterations", 1)
+            max_iterations=workflow_dict.get("max_iterations", 1),
+            created_by=workflow_dict["created_by"]
         )
         db.add(db_workflow)
         db.flush()  # Get the ID without committing
