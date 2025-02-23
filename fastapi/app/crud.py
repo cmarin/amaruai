@@ -390,33 +390,17 @@ def get_default_chat_model(db: Session) -> models.ChatModel:
     return db.query(models.ChatModel).filter(models.ChatModel.default == True).first()
 
 def get_workflows(db: Session, skip: int = 0, limit: int = 100):
-    try:
-        # Query workflows with all relationships in a single query
-        workflows = db.query(models.Workflow).options(
-            joinedload(models.Workflow.steps)
-        ).order_by(
-            models.Workflow.id
-        ).offset(skip).limit(limit).all()
-        
-        # Load relationships separately to avoid type casting issues
-        for workflow in workflows:
-            for step in workflow.steps:
-                db.query(models.PromptTemplate).filter(
-                    models.PromptTemplate.id == step.prompt_template_id
-                ).first()
-                db.query(models.ChatModel).filter(
-                    models.ChatModel.id == step.chat_model_id
-                ).first()
-                db.query(models.Persona).filter(
-                    models.Persona.id == step.persona_id
-                ).first()
-        
-        return workflows
-        
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error getting workflows: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """Get all workflows with their relationships."""
+    return db.query(models.Workflow)\
+        .options(
+            joinedload(models.Workflow.steps),
+            joinedload(models.Workflow.assets),
+            joinedload(models.Workflow.knowledge_bases)
+        )\
+        .order_by(models.Workflow.created_at.desc())\
+        .offset(skip)\
+        .limit(limit)\
+        .all()
 
 def get_workflow(db: Session, workflow_id: UUID):
     try:

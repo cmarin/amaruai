@@ -283,26 +283,13 @@ class PromptTemplateSimple(PromptTemplateBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-class WorkflowStep(BaseModel):
-    id: UUID
-    workflow_id: UUID
-    prompt_template_id: UUID
-    chat_model_id: Optional[UUID] = None
-    persona_id: Optional[UUID] = None
-    position: int
-    prompt_template: Optional[PromptTemplateSimple] = None  # Now PromptTemplateSimple is defined
-    persona: Optional[PersonaBase] = None  # Use base model
-    chat_model: Optional[ChatModel] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
 class WorkflowBase(BaseModel):
     name: str
     description: Optional[str] = None
-    process_type: str = "SEQUENTIAL"
+    process_type: Optional[str] = ProcessType.SEQUENTIAL.value
     manager_chat_model_id: Optional[UUID] = None
     manager_persona_id: Optional[UUID] = None
-    max_iterations: Optional[int] = None
+    max_iterations: Optional[int] = 1
 
     @validator('manager_chat_model_id', 'manager_persona_id', pre=True)
     def convert_to_uuid(cls, v):
@@ -314,24 +301,40 @@ class WorkflowBase(BaseModel):
             return v
         return v
 
-class WorkflowCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    process_type: str
-    manager_chat_model_id: Optional[UUID] = None
-    manager_persona_id: Optional[UUID] = None
-    max_iterations: Optional[int] = None
-    asset_ids: Optional[List[UUID]] = None
-    knowledge_base_ids: Optional[List[UUID]] = None
+class WorkflowStepResponse(BaseModel):
+    """Response model for workflow steps with simplified relationships"""
+    id: UUID
+    prompt_template: Optional[PromptTemplateSimple] = None
+    persona: Optional[PersonaBase] = None
+    chat_model: Optional[ChatModel] = None
+    position: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
-class WorkflowUpdate(WorkflowBase):
-    steps: Optional[List[WorkflowStepUpdate]] = None
-    asset_ids: Optional[List[UUID]] = None
-    knowledge_base_ids: Optional[List[UUID]] = None
+class WorkflowResponse(WorkflowBase):
+    """Response model for workflows with simplified relationships"""
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+    steps: List[WorkflowStepResponse] = []
+    is_favorited: Optional[bool] = False
 
+    model_config = ConfigDict(from_attributes=True)
+
+class WorkflowStep(BaseModel):
+    id: UUID
+    workflow_id: UUID
+    prompt_template_id: UUID
+    chat_model_id: Optional[UUID] = None
+    persona_id: Optional[UUID] = None
+    position: int
+    prompt_template: Optional[PromptTemplateSimple] = None
+    persona: Optional[PersonaBase] = None
+    chat_model: Optional[ChatModel] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+# Move these classes before Workflow
 class AssetBase(BaseModel):
     title: str
     file_name: str
@@ -344,10 +347,6 @@ class AssetBase(BaseModel):
     status: Optional[str] = None
     managed: Optional[bool] = False
 
-class AssetCreate(AssetBase):
-    uploaded_by: UUID
-    storage_id: Optional[UUID] = None
-
 class Asset(AssetBase):
     id: UUID
     uploaded_by: UUID
@@ -355,19 +354,12 @@ class Asset(AssetBase):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class KnowledgeBaseBase(BaseModel):
     title: str
     description: str
     token_count: Optional[int] = 0
-
-class KnowledgeBaseCreate(KnowledgeBaseBase):
-    asset_ids: List[UUID] = []
-
-class KnowledgeBaseUpdate(KnowledgeBaseBase):
-    asset_ids: Optional[List[UUID]] = None
 
 class KnowledgeBase(KnowledgeBaseBase):
     id: UUID
@@ -375,29 +367,17 @@ class KnowledgeBase(KnowledgeBaseBase):
     updated_at: datetime
     assets: List[Asset] = []
 
-    class Config:
-        from_attributes = True
-
-class AssetIds(BaseModel):
-    asset_ids: List[UUID]
-
-class WorkflowExecuteInput(BaseModel):
-    message: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
 
 class Workflow(WorkflowBase):
     id: UUID
+    created_at: datetime
+    updated_at: datetime
     steps: List[WorkflowStep] = []
-    assets: List["Asset"] = []
-    knowledge_bases: List["KnowledgeBase"] = []
+    assets: List[Asset] = []  # Now Asset is defined
+    knowledge_bases: List[KnowledgeBase] = []  # Now KnowledgeBase is defined
 
-    @property
-    def effective_max_iterations(self) -> Optional[int]:
-        if self.process_type == ProcessType.HIERARCHICAL.value:
-            return self.max_iterations or 1
-        return None
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 Workflow.model_rebuild()
 
@@ -566,25 +546,36 @@ class PromptTemplateResponse(PromptTemplateBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-# Add these new response models for workflows
-class WorkflowStepResponse(BaseModel):
-    """Response model for workflow steps with simplified relationships"""
-    id: UUID
-    prompt_template: Optional[PromptTemplateSimple] = None
-    persona: Optional[PersonaBase] = None  # Use base model to avoid nesting
-    chat_model: Optional[ChatModel] = None
-    position: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-class WorkflowResponse(BaseModel):
-    """Response model for workflows with simplified relationships"""
-    id: UUID
+class WorkflowCreate(BaseModel):
     name: str
     description: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
-    steps: List[WorkflowStepResponse] = []
-    is_favorited: Optional[bool] = False
+    process_type: str
+    manager_chat_model_id: Optional[UUID] = None
+    manager_persona_id: Optional[UUID] = None
+    max_iterations: Optional[int] = None
+    asset_ids: Optional[List[UUID]] = None
+    knowledge_base_ids: Optional[List[UUID]] = None
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
+
+class WorkflowUpdate(WorkflowBase):
+    steps: Optional[List[WorkflowStepUpdate]] = None
+    asset_ids: Optional[List[UUID]] = None
+    knowledge_base_ids: Optional[List[UUID]] = None
+
+class AssetCreate(AssetBase):
+    uploaded_by: UUID
+    storage_id: Optional[UUID] = None
+
+class KnowledgeBaseCreate(KnowledgeBaseBase):
+    asset_ids: List[UUID] = []
+
+class KnowledgeBaseUpdate(KnowledgeBaseBase):
+    asset_ids: Optional[List[UUID]] = None
+
+class AssetIds(BaseModel):
+    asset_ids: List[UUID]
+
+class WorkflowExecuteInput(BaseModel):
+    message: Optional[str] = None

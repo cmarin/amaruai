@@ -162,15 +162,17 @@ class ChatModel(Base):
     favorited_by = relationship("User", secondary=chat_model_favorites, back_populates="favorite_chat_models")
 
 class Workflow(Base):
-    __tablename__ = "workflow"
+    __tablename__ = "workflows"
 
-    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('uuid_generate_v4()'))
-    name = Column(String, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String)
     description = Column(String, nullable=True)
-    process_type = Column(String)
-    manager_chat_model_id = Column(UUID(as_uuid=True), ForeignKey("chat_model.id"), nullable=True)
-    manager_persona_id = Column(PGUUID(as_uuid=True), ForeignKey("persona.id"), nullable=True)
-    max_iterations = Column(Integer, nullable=True)
+    process_type = Column(String, default=ProcessType.SEQUENTIAL.value)
+    manager_chat_model_id = Column(UUID(as_uuid=True), ForeignKey("chat_models.id"), nullable=True)
+    manager_persona_id = Column(UUID(as_uuid=True), ForeignKey("personas.id"), nullable=True)
+    max_iterations = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Add the new relationships
     assets = relationship(
