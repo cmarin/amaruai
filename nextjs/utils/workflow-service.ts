@@ -318,7 +318,7 @@ export async function deleteWorkflow(id: string, headers: ApiHeaders): Promise<v
 export async function createWorkflowStep(workflowId: string, step: Omit<WorkflowStep, 'id' | 'workflow_id'>, headers: ApiHeaders): Promise<WorkflowStep> {
   return fetchWithRetry(async () => {
     console.log('Creating workflow step:', step);
-    const response = await fetch(`${getApiUrl()}/workflows/${workflowId}/steps`, {
+    const response = await fetch(`${getApiUrl()}/workflows/${workflowId}/steps/`, {
       method: 'POST',
       headers: {
         ...headers,

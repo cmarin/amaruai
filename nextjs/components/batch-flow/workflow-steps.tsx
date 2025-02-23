@@ -92,17 +92,7 @@ export function WorkflowSteps({
                     <ComboboxPromptTemplates
                       templates={promptTemplates}
                       value={step.prompt_template_id || null}
-                      onSelect={(template) => {
-                        onUpdateStep(index, 'prompt_template_id', template.id);
-                        
-                        // Set default persona and chat model if available
-                        if (template.default_persona_id && !step.persona_id) {
-                          onUpdateStep(index, 'persona_id', template.default_persona_id);
-                        }
-                        if (template.default_chat_model_id && !step.chat_model_id) {
-                          onUpdateStep(index, 'chat_model_id', template.default_chat_model_id);
-                        }
-                      }}
+                      onSelect={(template) => handlePromptChange(index, template.id)}
                     />
                   </div>
                   {step.prompt_template_id && (
