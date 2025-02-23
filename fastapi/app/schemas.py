@@ -65,17 +65,23 @@ class PromptTemplateCreate(BaseModel):
 
 class PromptTemplate(PromptTemplateBase):
     id: UUID
+    title: str
+    prompt: str
+    is_complex: bool = False
     default_persona_id: Optional[UUID] = None
     default_chat_model_id: Optional[UUID] = None
-    categories: List[Category] = []
-    tags: List[Tag] = []
-    created_by: UUID
+    created_by: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
-    is_favorited: bool = False
+    categories: List[Category] = []
+    tags: List[Tag] = []
+    default_persona: Optional[Persona] = None
+    default_chat_model: Optional[ChatModel] = None
+    is_favorited: Optional[bool] = False
+    favorite_count: Optional[int] = 0
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 class PromptTemplateUpdate(BaseModel):
     title: Optional[str] = None
