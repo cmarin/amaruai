@@ -5,7 +5,7 @@ from uuid import UUID
 from app import crud, schemas
 from app.database import get_db
 from app.api.v1.router import create_protected_router
-from app.api.v1.dependencies import get_current_user
+from app.api.v1.dependencies import get_current_user, get_current_user_id
 from pydantic import ValidationError
 import logging
 

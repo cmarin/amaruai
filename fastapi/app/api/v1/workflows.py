@@ -14,7 +14,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.config.crewai_service import crew_service, CrewAIError
 import json
 from uuid import UUID
-from app.api.v1.dependencies import get_current_user
+from app.api.v1.dependencies import get_current_user, get_current_user_id
 from uuid import uuid4
 from llama_index.storage.chat_store.postgres import PostgresChatStore
 from llama_index.core.memory import ChatMemoryBuffer

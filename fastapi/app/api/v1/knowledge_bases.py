@@ -5,7 +5,7 @@ from app import crud, schemas
 from app.database import get_db
 from app.api.v1.router import create_protected_router
 from uuid import UUID
-from app.utils import get_current_user_id
+from app.api.v1.dependencies import get_current_user, get_current_user_id
 
 router = create_protected_router(prefix="knowledge_bases", tags=["knowledge_bases"])
 
