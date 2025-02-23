@@ -62,6 +62,15 @@ export interface UpdatePromptTemplateRequest {
   default_chat_model_id?: string | null;
 }
 
+export interface PromptTemplateFilters {
+  skip?: number;
+  limit?: number;
+  sort_by?: 'created_at' | 'updated_at' | 'title';
+  sort_order?: 'asc' | 'desc';
+  favorited_by?: string;
+  has_favorites?: boolean;
+}
+
 export async function createPromptTemplate(
   promptTemplate: CreatePromptTemplateRequest,
   headers: ApiHeaders
@@ -151,9 +160,25 @@ export async function deletePromptTemplate(promptTemplateId: string, headers: Ap
   });
 }
 
-export async function fetchPromptTemplates(headers: ApiHeaders | null): Promise<PromptTemplate[]> {
+export async function fetchPromptTemplates(
+  headers: ApiHeaders | null,
+  filters?: PromptTemplateFilters
+): Promise<PromptTemplate[]> {
   return await fetchWithRetry(async () => {
-    const response = await fetch(`${getApiUrl()}/prompt_templates/`, {
+    // Construct query parameters
+    const queryParams = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+
+    const queryString = queryParams.toString();
+    const url = `${getApiUrl()}/prompt_templates/${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(url, {
       headers: headers || {},
     });
 

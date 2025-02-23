@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   PromptTemplate, 
@@ -9,7 +9,8 @@ import {
   deletePromptTemplate,
   favoritePromptTemplate,
   unfavoritePromptTemplate,
-  fetchFavoritePromptTemplates 
+  fetchFavoritePromptTemplates,
+  PromptTemplateFilters
 } from '@/utils/prompt-template-service';
 import { AppSidebar } from '@/components/app-sidebar';
 import { Input } from "@/components/ui/input"
@@ -61,6 +62,31 @@ export default function PromptTemplatesPage() {
   const [isDeletePromptDialogOpen, setIsDeletePromptDialogOpen] = useState(false);
   const [promptToDelete, setPromptToDelete] = useState<PromptTemplate | null>(null);
   const { personas, chatModels } = useData();
+  const [filters, setFilters] = useState<PromptTemplateFilters>({
+    sort_by: 'created_at',
+    sort_order: 'desc',
+  });
+
+  const loadPrompts = useCallback(async () => {
+    try {
+      const headers = getApiHeaders();
+      if (!headers) {
+        console.error('No valid headers available');
+        return;
+      }
+      const fetchedPrompts = await fetchPromptTemplates(headers, filters);
+      setPrompts(fetchedPrompts);
+    } catch (error) {
+      console.error('Error loading prompts:', error);
+    }
+  }, [getApiHeaders, filters]);
+
+  const handleUpdateFilters = (newFilters: Partial<PromptTemplateFilters>) => {
+    setFilters(prev => ({
+      ...prev,
+      ...newFilters,
+    }));
+  };
 
   useEffect(() => {
     if (!sessionLoading && initialized) {
@@ -73,7 +99,7 @@ export default function PromptTemplatesPage() {
 
         try {
           const [fetchedPrompts, fetchedCategories, fetchedFavorites] = await Promise.all([
-            fetchPromptTemplates(headers),
+            fetchPromptTemplates(headers, filters),
             fetchCategories(headers),
             fetchFavoritePromptTemplates(headers)
           ]);
@@ -98,7 +124,7 @@ export default function PromptTemplatesPage() {
 
       loadData();
     }
-  }, [sessionLoading, initialized, getApiHeaders]);
+  }, [sessionLoading, initialized, getApiHeaders, filters]);
 
   const filteredPrompts = prompts.filter(prompt =>
     (prompt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -153,7 +179,7 @@ export default function PromptTemplatesPage() {
       setIsNewSimplePromptDialogOpen(false);
 
       // Refresh the prompts list
-      const updatedPrompts = await fetchPromptTemplates(headers);
+      const updatedPrompts = await fetchPromptTemplates(headers, filters);
       setPrompts(updatedPrompts);
     } catch (error) {
       console.error('Error creating prompt template:', error);
@@ -178,7 +204,7 @@ export default function PromptTemplatesPage() {
       } catch (error) {
         console.error('Error deleting prompt template:', error);
         // On error, revert the optimistic update by fetching fresh data
-        const updatedPrompts = await fetchPromptTemplates(headers);
+        const updatedPrompts = await fetchPromptTemplates(headers, filters);
         setPrompts(updatedPrompts);
       }
     }
@@ -244,6 +270,7 @@ export default function PromptTemplatesPage() {
             onCategoryChange={setSelectedCategory}
             categories={allCategories}
             onFavoriteToggle={handleFavoriteToggle}
+            onUpdateFilters={handleUpdateFilters}
           />
 
           {/* New Simple Prompt Dialog */}

@@ -37,9 +37,25 @@ type PromptTemplateLibraryProps = {
   onCategoryChange: (value: string | null) => void;
   categories: string[];
   onFavoriteToggle: (prompt: PromptTemplate) => void;
+  onUpdateFilters: (filters: any) => void;
 };
 
 type ViewMode = 'grid' | 'table';
+
+type SortOption = {
+  label: string;
+  value: string;
+  sort_by: 'created_at' | 'updated_at' | 'title';
+  sort_order: 'asc' | 'desc';
+};
+
+const sortOptions: SortOption[] = [
+  { label: 'Creation Date (Newest)', value: 'created_desc', sort_by: 'created_at', sort_order: 'desc' },
+  { label: 'Creation Date (Oldest)', value: 'created_asc', sort_by: 'created_at', sort_order: 'asc' },
+  { label: 'Last Updated', value: 'updated_desc', sort_by: 'updated_at', sort_order: 'desc' },
+  { label: 'Alphabetical (A-Z)', value: 'alpha_asc', sort_by: 'title', sort_order: 'asc' },
+  { label: 'Alphabetical (Z-A)', value: 'alpha_desc', sort_by: 'title', sort_order: 'desc' },
+];
 
 const getPromptPreview = (prompt: string | PromptContent): string => {
   let previewText: string;
@@ -214,16 +230,39 @@ export default function PromptTemplateLibrary({
   selectedCategory,
   onCategoryChange,
   categories,
-  onFavoriteToggle
+  onFavoriteToggle,
+  onUpdateFilters
 }: PromptTemplateLibraryProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [currentPage, setCurrentPage] = useState(1)
+  const [selectedSort, setSelectedSort] = useState<string>('created_desc')
+  const [showFavorited, setShowFavorited] = useState(false)
   const itemsPerPage = 10
 
   const totalPages = Math.ceil(prompts.length / itemsPerPage)
   const paginatedPrompts = viewMode === 'table' 
     ? prompts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
     : prompts
+
+  // Handle sort change
+  const handleSortChange = (value: string) => {
+    setSelectedSort(value)
+    const sortOption = sortOptions.find(opt => opt.value === value)
+    if (sortOption) {
+      onUpdateFilters({
+        sort_by: sortOption.sort_by,
+        sort_order: sortOption.sort_order,
+      })
+    }
+  }
+
+  // Handle favorites filter change
+  const handleFavoritesChange = (checked: boolean) => {
+    setShowFavorited(checked)
+    onUpdateFilters({
+      favorited_by: checked ? 'current_user' : undefined,
+    })
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -261,7 +300,7 @@ export default function PromptTemplateLibrary({
         </div>
       </div>
       <div className="p-4 bg-white border-b">
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
           <Input
             type="search"
             placeholder="Search prompts..."
@@ -285,6 +324,29 @@ export default function PromptTemplateLibrary({
               ))}
             </SelectContent>
           </Select>
+          <Select value={selectedSort} onValueChange={handleSortChange}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Sort by..." />
+            </SelectTrigger>
+            <SelectContent>
+              {sortOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showFavorited}
+                onChange={(e) => handleFavoritesChange(e.target.checked)}
+                className="form-checkbox h-4 w-4 text-blue-600"
+              />
+              <span>Show Favorites Only</span>
+            </label>
+          </div>
         </div>
       </div>
       <ScrollArea className="flex-grow">
