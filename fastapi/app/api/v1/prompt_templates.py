@@ -58,7 +58,7 @@ async def create_prompt_template(
 #     prompt_templates = crud.get_prompt_templates(db, skip=skip, limit=limit)
 #     return prompt_templates
 
-@router.get("/", response_model=List[schemas.PromptTemplateResponse])
+@router.get("/", response_model=List[schemas.PromptTemplate])
 def read_prompt_templates(
     skip: int = 0,
     limit: int = 100,
@@ -103,8 +103,6 @@ def read_prompt_templates(
                     models.prompt_template_favorites
                 ).group_by(
                     models.PromptTemplate.id
-                ).having(
-                    func.count(models.prompt_template_favorites.c.user_id) > 0
                 )
             else:
                 # Subquery to find templates with favorites
