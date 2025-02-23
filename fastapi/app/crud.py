@@ -27,6 +27,7 @@ def create_persona(db: Session, persona: schemas.PersonaCreate):
             "verbose": persona.verbose,
             "memory": persona.memory,
             "avatar": persona.avatar,
+            "created_by": persona.created_by
         }
         
         # Only add temperature if it's provided
@@ -723,23 +724,31 @@ def get_knowledge_bases(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.KnowledgeBase).offset(skip).limit(limit).all()
 
 def create_knowledge_base(db: Session, knowledge_base: schemas.KnowledgeBaseCreate):
-    db_knowledge_base = models.KnowledgeBase(
-        title=knowledge_base.title,
-        description=knowledge_base.description
-    )
-    db.add(db_knowledge_base)
-    db.commit()
-    db.refresh(db_knowledge_base)
-    
-    # Add associated assets
-    for asset_id in knowledge_base.asset_ids:
-        asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
-        if asset:
-            db_knowledge_base.assets.append(asset)
-    
-    db.commit()
-    db.refresh(db_knowledge_base)
-    return db_knowledge_base
+    try:
+        # Create the knowledge base with basic info
+        db_knowledge_base = models.KnowledgeBase(
+            title=knowledge_base.title,
+            description=knowledge_base.description,
+            token_count=0,  # Default value
+            created_by=knowledge_base.created_by  # Add this line
+        )
+        db.add(db_knowledge_base)
+        db.flush()  # Get the ID without committing
+        
+        # Add associated assets
+        for asset_id in knowledge_base.asset_ids:
+            asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+            if asset:
+                db_knowledge_base.assets.append(asset)
+        
+        db.commit()
+        db.refresh(db_knowledge_base)
+        return db_knowledge_base
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating knowledge base: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 def update_knowledge_base(db: Session, knowledge_base_id: UUID, knowledge_base: schemas.KnowledgeBaseUpdate):
     db_knowledge_base = db.query(models.KnowledgeBase).filter(models.KnowledgeBase.id == knowledge_base_id).first()

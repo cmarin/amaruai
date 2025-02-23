@@ -226,6 +226,7 @@ class Persona(PersonaBase):
     prompt_templates: List[PromptTemplate] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    created_by: UUID
 
     class Config:
         from_attributes = True
@@ -372,6 +373,7 @@ class KnowledgeBase(KnowledgeBaseBase):
     created_at: datetime
     updated_at: datetime
     assets: List[Asset] = []
+    created_by: UUID
 
     class Config:
         from_attributes = True
