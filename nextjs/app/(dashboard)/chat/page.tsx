@@ -649,7 +649,7 @@ function ChatContent() {
     isCopied: boolean
     chatWindowId: string
     mode: 'single' | 'dual' | 'quad'
-    chatContainerRef: React.RefObject<HTMLDivElement>
+    chatContainerRef: ((el: HTMLDivElement | null) => void) | React.RefObject<HTMLDivElement>
   }
 
   const ChatWindow = ({
@@ -741,8 +741,8 @@ function ChatContent() {
               if (el) {
                 chatContainerRefs.current[chatWindowId] = el;
                 if (typeof chatContainerRef === 'function') {
-                  chatContainerRef(el);
-                } else if (chatContainerRef) {
+                  (chatContainerRef as (el: HTMLDivElement | null) => void)(el);
+                } else if (chatContainerRef && 'current' in chatContainerRef) {
                   chatContainerRef.current = el;
                 }
               }
