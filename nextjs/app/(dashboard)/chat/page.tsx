@@ -325,7 +325,6 @@ function ChatContent() {
       }
 
       try {
-        // Set streaming state for this specific chat window
         streamingStatesRef.current[chatId] = true;
 
         // Get or create conversation_id for this chat window
@@ -393,7 +392,6 @@ function ChatContent() {
             if (chunkCount > 0 && !hasReceivedContent) {
               throw new Error('Stream completed with only empty chunks')
             }
-            // Update streaming state for this specific window only
             streamingStatesRef.current[chatId] = false;
             break
           }
@@ -436,9 +434,6 @@ function ChatContent() {
                         role: 'assistant',
                         content: assistantMessage,
                       }
-                      if (chatContainerRefs.current[chatId]) {
-                        chatContainerRefs.current[chatId]!.style.overflowY = 'auto';
-                      }
                       return updated
                     })
                   }
@@ -452,11 +447,7 @@ function ChatContent() {
           }
         }
       } catch (err: any) {
-        // Update streaming state on error
         streamingStatesRef.current[chatId] = false;
-        if (chatContainerRefs.current[chatId]) {
-          chatContainerRefs.current[chatId]!.style.overflowY = 'auto';
-        }
         console.error('Error in API call:', err)
 
         // If this is a timeout error or empty chunk error, retry without model_id
@@ -668,15 +659,12 @@ function ChatContent() {
     const isStreaming = streamingStatesRef.current[chatWindowId];
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
     
-    // Local scroll position tracking
-    const [canScroll, setCanScroll] = useState(true);
-    
     useEffect(() => {
-      // Enable scrolling when streaming is complete
-      if (!isStreaming) {
-        setCanScroll(true);
+      // Scroll to bottom when new messages are added
+      if (scrollContainerRef.current && wasAtBottomRef.current) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
       }
-    }, [isStreaming]);
+    }, [messages]);
 
     return (
       <TooltipProvider>
@@ -744,24 +732,14 @@ function ChatContent() {
 
           {/* Chat messages area */}
           <ScrollArea 
-            className="flex-1 p-4 relative" 
+            className="flex-1 p-4 relative overflow-y-auto" 
             onScroll={handleScroll}
             ref={(el) => {
               if (el) {
-                // Store in local ref
                 scrollContainerRef.current = el;
-                // Store in shared refs
                 chatContainerRefs.current[chatWindowId] = el;
                 onContainerRef(el);
-                
-                // Set initial scroll state
-                if (!isStreaming) {
-                  el.style.overflowY = 'auto';
-                }
               }
-            }}
-            style={{
-              overflowY: canScroll ? 'auto' : 'hidden'
             }}
           >
             <div className="space-y-4">
