@@ -368,6 +368,10 @@ function ChatContent() {
         }))
       }
 
+      // Declare timer variable at function scope so it's available in both try and catch blocks
+      let messageUpdateTimer: NodeJS.Timeout | null = null;
+      let pendingContent = '';
+
       try {
         // Save scroll position at start of streaming
         const container = chatContainerRefs.current[chatId];
@@ -436,6 +440,32 @@ function ChatContent() {
 
         streamStartTime = Date.now()
 
+        // Helper function to update message content with throttling
+        const updateMessageContent = (content: string) => {
+          if (!hasCreatedAssistantMessage) {
+            hasCreatedAssistantMessage = true
+            setMessagesFunction(prev => [...prev, { role: 'assistant', content }])
+          } else {
+            // Update pending content
+            pendingContent = content
+            
+            // If no timer is active, set one to update in 100ms
+            if (!messageUpdateTimer) {
+              messageUpdateTimer = setTimeout(() => {
+                setMessagesFunction(prev => {
+                  const updated = [...prev]
+                  updated[updated.length - 1] = {
+                    role: 'assistant',
+                    content: pendingContent,
+                  }
+                  return updated
+                })
+                messageUpdateTimer = null
+              }, 100) // Throttle updates to 10 per second max
+            }
+          }
+        }
+
         while (true) {
           const timeElapsed = Date.now() - streamStartTime
           if (timeElapsed > 10000 && (!receivedFirstChunk || (chunkCount === 1 && !hasReceivedContent))) {
@@ -447,6 +477,23 @@ function ChatContent() {
             if (chunkCount > 0 && !hasReceivedContent) {
               throw new Error('Stream completed with only empty chunks')
             }
+            
+            // Ensure any pending updates are applied
+            if (messageUpdateTimer) {
+              clearTimeout(messageUpdateTimer)
+              messageUpdateTimer = null
+              
+              // Final update with latest content
+              setMessagesFunction(prev => {
+                const updated = [...prev]
+                updated[updated.length - 1] = {
+                  role: 'assistant',
+                  content: pendingContent || assistantMessage,
+                }
+                return updated
+              })
+            }
+            
             // Mark streaming as complete for this specific chat window
             streamingStatesRef.current[chatId] = false;
             streamingSetters[chatId](false);
@@ -481,19 +528,8 @@ function ChatContent() {
                   hasReceivedContent = true
                   assistantMessage += parsed.choices[0].delta.content
                   
-                  if (!hasCreatedAssistantMessage) {
-                    hasCreatedAssistantMessage = true
-                    setMessagesFunction(prev => [...prev, { role: 'assistant', content: assistantMessage }])
-                  } else {
-                    setMessagesFunction(prev => {
-                      const updated = [...prev]
-                      updated[updated.length - 1] = {
-                        role: 'assistant',
-                        content: assistantMessage,
-                      }
-                      return updated
-                    })
-                  }
+                  // Use throttled update function
+                  updateMessageContent(assistantMessage)
                 }
               } catch (parseError) {
                 console.warn('Error parsing chunk, skipping:', parseError)
@@ -504,6 +540,11 @@ function ChatContent() {
           }
         }
       } catch (err: any) {
+        // Make sure to cancel any pending timer
+        if (messageUpdateTimer) {
+          clearTimeout(messageUpdateTimer)
+        }
+        
         // Make sure to mark streaming as complete even if there's an error
         streamingStatesRef.current[chatId] = false;
         streamingSetters[chatId](false);
@@ -718,6 +759,36 @@ function ChatContent() {
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
     const [localWasAtBottom, setLocalWasAtBottom] = useState(true);
+    const [userHasScrolled, setUserHasScrolled] = useState(false);
+    const lastScrollTopRef = useRef<number>(0);
+    const messageContentRef = useRef<string>('');
+    
+    // Keep track of when streaming ends to stop auto-scrolling
+    const wasStreamingRef = useRef<boolean>(isStreamingState);
+    useEffect(() => {
+      // When streaming ends, remember that we've finished streaming
+      if (wasStreamingRef.current && !isStreamingState) {
+        wasStreamingRef.current = false;
+      }
+      // When streaming starts, reset our tracking
+      if (!wasStreamingRef.current && isStreamingState) {
+        wasStreamingRef.current = true;
+        setUserHasScrolled(false);
+      }
+    }, [isStreamingState]);
+
+    // Track whether the current message content has changed
+    useEffect(() => {
+      if (messages.length > 0) {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage.role === 'assistant') {
+          // If new content is different from what we had before
+          if (lastMessage.content !== messageContentRef.current) {
+            messageContentRef.current = lastMessage.content;
+          }
+        }
+      }
+    }, [messages]);
 
     const handleLocalScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
       const container = e.target as HTMLDivElement;
@@ -725,18 +796,43 @@ function ChatContent() {
       const position = container.scrollTop + container.clientHeight;
       const height = container.scrollHeight;
       const isAtBottom = height - position <= threshold;
+      
+      // Only mark as user scrolled if they've actually moved from last position
+      if (Math.abs(container.scrollTop - lastScrollTopRef.current) > 5) {
+        setUserHasScrolled(true);
+        lastScrollTopRef.current = container.scrollTop;
+      }
+      
       setLocalWasAtBottom(isAtBottom);
     }, []);
 
-    // Updated auto-scroll effect
+    // Improved auto-scroll logic
     useEffect(() => {
       if (!scrollContainerRef.current) return;
       
-      // Only auto-scroll if user was at the bottom
-      if (localWasAtBottom) {
+      // Case 1: During streaming, scroll to bottom if user hasn't manually scrolled up
+      if (isStreamingState && !userHasScrolled) {
         scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        return;
       }
-    }, [messages, localWasAtBottom]);
+      
+      // Case 2: During streaming, if user manually scrolled to bottom, keep at bottom
+      if (isStreamingState && localWasAtBottom) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        return;
+      }
+      
+      // Case 3: When streaming just ended, do one final scroll to bottom
+      if (!isStreamingState && wasStreamingRef.current) {
+        wasStreamingRef.current = false;
+        if (localWasAtBottom) {
+          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        }
+        return;
+      }
+      
+      // Otherwise, don't auto-scroll - let user control position
+    }, [messages, isStreamingState, localWasAtBottom, userHasScrolled]);
 
     return (
       <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
@@ -809,7 +905,8 @@ function ChatContent() {
           style={{ 
             pointerEvents: 'auto', // Force pointer events to be enabled
             touchAction: 'auto',   // Enable touch interactions
-            overflowY: 'auto'      // Force scrolling to be enabled 
+            overflowY: 'auto',     // Force scrolling to be enabled
+            overscrollBehavior: 'contain' // Prevent scroll chaining
           }}
           onScroll={handleLocalScroll}
           ref={(el) => {
@@ -817,6 +914,9 @@ function ChatContent() {
               scrollContainerRef.current = el;
               chatContainerRefs.current[chatWindowId] = el;
               onContainerRef(el);
+              if (!lastScrollTopRef.current) {
+                lastScrollTopRef.current = el.scrollTop;
+              }
             }
           }}
         >
@@ -873,27 +973,29 @@ function ChatContent() {
           {/* Single/dual/quad chat windows */}
           {mode === 'single' ? (
             <div className="grid h-full gap-4" style={{ gridTemplateColumns: '1fr', isolation: 'isolate' }}>
-              <ChatWindow
-                messages={messages}
-                messagesEndRef={messagesEndRef}
-                title="Perplexity Llama"
-                Icon={Timer}
-                onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onClearConversation={() => clearConversation(messages)}
-                isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                chatWindowId="chat1"
-                mode={mode}
-                onContainerRef={(el) => {
-                  chatContainerRefs.current.chat1 = el;
-                  // For backwards compatibility with single mode
-                  if (el && chatContainerRef.current !== el) {
-                    // Use Object.assign to modify the ref without triggering the readonly error
-                    Object.assign(chatContainerRef, { current: el });
-                  }
-                }}
-                isStreamingState={isStreaming1}
-              />
+              <div className="overflow-hidden relative isolate">
+                <ChatWindow
+                  messages={messages}
+                  messagesEndRef={messagesEndRef}
+                  title="Perplexity Llama"
+                  Icon={Timer}
+                  onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onClearConversation={() => clearConversation(messages)}
+                  isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                  chatWindowId="chat1"
+                  mode={mode}
+                  onContainerRef={(el) => {
+                    chatContainerRefs.current.chat1 = el;
+                    // For backwards compatibility with single mode
+                    if (el && chatContainerRef.current !== el) {
+                      // Use Object.assign to modify the ref without triggering the readonly error
+                      Object.assign(chatContainerRef, { current: el });
+                    }
+                  }}
+                  isStreamingState={isStreaming1}
+                />
+              </div>
             </div>
           ) : (
             <div
@@ -904,64 +1006,72 @@ function ChatContent() {
                 isolation: 'isolate' // Ensures each grid item has its own stacking context
               }}
             >
-              <ChatWindow
-                messages={messages}
-                messagesEndRef={messagesEndRef}
-                title="Perplexity Llama"
-                Icon={Timer}
-                onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onClearConversation={() => clearConversation(messages)}
-                isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                chatWindowId="chat1"
-                mode={mode}
-                onContainerRef={(el) => chatContainerRefs.current.chat1 = el}
-                isStreamingState={isStreaming1}
-              />
-              <ChatWindow
-                messages={messages2}
-                messagesEndRef={messagesEndRef2}
-                title="GPT-4o"
-                Icon={Sparkles}
-                onCopy={() => copyToClipboard(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onAddToScratchPad={() => addToScratchPad(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onClearConversation={() => clearConversation(messages2)}
-                isCopied={copiedStates[messages2.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                chatWindowId="chat2"
-                mode={mode}
-                onContainerRef={(el) => chatContainerRefs.current.chat2 = el}
-                isStreamingState={isStreaming2}
-              />
+              <div className="overflow-hidden relative isolate">
+                <ChatWindow
+                  messages={messages}
+                  messagesEndRef={messagesEndRef}
+                  title="Perplexity Llama"
+                  Icon={Timer}
+                  onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onClearConversation={() => clearConversation(messages)}
+                  isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                  chatWindowId="chat1"
+                  mode={mode}
+                  onContainerRef={(el) => chatContainerRefs.current.chat1 = el}
+                  isStreamingState={isStreaming1}
+                />
+              </div>
+              <div className="overflow-hidden relative isolate">
+                <ChatWindow
+                  messages={messages2}
+                  messagesEndRef={messagesEndRef2}
+                  title="GPT-4o"
+                  Icon={Sparkles}
+                  onCopy={() => copyToClipboard(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onAddToScratchPad={() => addToScratchPad(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onClearConversation={() => clearConversation(messages2)}
+                  isCopied={copiedStates[messages2.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                  chatWindowId="chat2"
+                  mode={mode}
+                  onContainerRef={(el) => chatContainerRefs.current.chat2 = el}
+                  isStreamingState={isStreaming2}
+                />
+              </div>
               {mode === 'quad' && (
                 <>
-                  <ChatWindow
-                    messages={messages3}
-                    messagesEndRef={messagesEndRef3}
-                    title="Gemini 1.5 Pro"
-                    Icon={Bot}
-                    onCopy={() => copyToClipboard(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                    onAddToScratchPad={() => addToScratchPad(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                    onClearConversation={() => clearConversation(messages3)}
-                    isCopied={copiedStates[messages3.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                    chatWindowId="chat3"
-                    mode={mode}
-                    onContainerRef={(el) => chatContainerRefs.current.chat3 = el}
-                    isStreamingState={isStreaming3}
-                  />
-                  <ChatWindow
-                    messages={messages4}
-                    messagesEndRef={messagesEndRef4}
-                    title="Meta Llama 3.1"
-                    Icon={SmilePlus}
-                    onCopy={() => copyToClipboard(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                    onAddToScratchPad={() => addToScratchPad(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                    onClearConversation={() => clearConversation(messages4)}
-                    isCopied={copiedStates[messages4.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                    chatWindowId="chat4"
-                    mode={mode}
-                    onContainerRef={(el) => chatContainerRefs.current.chat4 = el}
-                    isStreamingState={isStreaming4}
-                  />
+                  <div className="overflow-hidden relative isolate">
+                    <ChatWindow
+                      messages={messages3}
+                      messagesEndRef={messagesEndRef3}
+                      title="Gemini 1.5 Pro"
+                      Icon={Bot}
+                      onCopy={() => copyToClipboard(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                      onAddToScratchPad={() => addToScratchPad(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                      onClearConversation={() => clearConversation(messages3)}
+                      isCopied={copiedStates[messages3.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                      chatWindowId="chat3"
+                      mode={mode}
+                      onContainerRef={(el) => chatContainerRefs.current.chat3 = el}
+                      isStreamingState={isStreaming3}
+                    />
+                  </div>
+                  <div className="overflow-hidden relative isolate">
+                    <ChatWindow
+                      messages={messages4}
+                      messagesEndRef={messagesEndRef4}
+                      title="Meta Llama 3.1"
+                      Icon={SmilePlus}
+                      onCopy={() => copyToClipboard(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                      onAddToScratchPad={() => addToScratchPad(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                      onClearConversation={() => clearConversation(messages4)}
+                      isCopied={copiedStates[messages4.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                      chatWindowId="chat4"
+                      mode={mode}
+                      onContainerRef={(el) => chatContainerRefs.current.chat4 = el}
+                      isStreamingState={isStreaming4}
+                    />
+                  </div>
                 </>
               )}
             </div>
