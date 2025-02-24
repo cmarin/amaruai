@@ -652,118 +652,112 @@ function ChatContent() {
     mode,
     onContainerRef
   }: ChatWindowProps) => {
-    // Create a local ref for this specific window's scroll container
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-    
-    // Get streaming state for this specific window
     const isStreaming = streamingStatesRef.current[chatWindowId];
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
-    
+
     useEffect(() => {
-      // Scroll to bottom when new messages are added
       if (scrollContainerRef.current && wasAtBottomRef.current) {
         scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
       }
     }, [messages]);
 
     return (
-      <TooltipProvider>
-        <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
-          {/* Top header (title, copy, clear) */}
-          <div className="flex items-center justify-between p-3 border-b">
-            <div className="flex items-center gap-4">
-              {mode === 'single' && (
-                <div className="flex items-center gap-2">
-                  {React.createElement(getModelIcon(chatWindowId), { className: "w-5 h-5" })}
-                  <span className="font-medium">{getModelName(chatWindowId)}</span>
-                </div>
-              )}
+      <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
+        {/* Top header (title, copy, clear) */}
+        <div className="flex items-center justify-between p-3 border-b">
+          <div className="flex items-center gap-4">
+            {mode === 'single' && (
               <div className="flex items-center gap-2">
-                <div className="w-[200px]">
-                  <ComboboxPersonas
-                    personas={personas || []}
-                    value={selectedPersonas[chatWindowId]}
-                    onSelect={(persona) => handlePersonaChange(chatWindowId, persona.id.toString())}
-                  />
-                </div>
-                <div className="w-[200px]">
-                  <ComboboxChatModels
-                    models={allChatModels || []}
-                    value={selectedModels[chatWindowId] || null}
-                    onSelect={(model) => handleModelChange(chatWindowId, model.id)}
-                  />
-                </div>
-              </div>
-            </div>
-            {/* Copy, add to scratch pad, clear */}
-            <div className="flex items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onCopy}>
-                    {isCopied ? (
-                      <Check className="w-4 h-4" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isCopied ? "Copied!" : "Copy chat content"}
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onAddToScratchPad}>
-                    <FileText className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Add to Scratch Pad</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onClearConversation}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Clear Conversation</TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
-
-          {/* Chat messages area */}
-          <ScrollArea 
-            className="flex-1 p-4 relative overflow-y-auto" 
-            onScroll={handleScroll}
-            ref={(el) => {
-              if (el) {
-                scrollContainerRef.current = el;
-                chatContainerRefs.current[chatWindowId] = el;
-                onContainerRef(el);
-              }
-            }}
-          >
-            <div className="space-y-4">
-              {messages.map((message, index) => (
-                <ChatMessage
-                  key={index}
-                  role={message.role}
-                  content={message.content}
-                  avatar={message.role === 'assistant' ? selectedPersona?.avatar : null}
-                />
-              ))}
-              <div ref={messagesEndRef} className="h-4" />
-            </div>
-            {isStreaming && (
-              <div className="sticky bottom-4 w-full flex justify-center">
-                <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Generating response...</span>
-                </div>
+                {React.createElement(getModelIcon(chatWindowId), { className: "w-5 h-5" })}
+                <span className="font-medium">{getModelName(chatWindowId)}</span>
               </div>
             )}
-          </ScrollArea>
+            <div className="flex items-center gap-2">
+              <div className="w-[200px]">
+                <ComboboxPersonas
+                  personas={personas || []}
+                  value={selectedPersonas[chatWindowId]}
+                  onSelect={(persona) => handlePersonaChange(chatWindowId, persona.id.toString())}
+                />
+              </div>
+              <div className="w-[200px]">
+                <ComboboxChatModels
+                  models={allChatModels || []}
+                  value={selectedModels[chatWindowId] || null}
+                  onSelect={(model) => handleModelChange(chatWindowId, model.id)}
+                />
+              </div>
+            </div>
+          </div>
+          {/* Copy, add to scratch pad, clear */}
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onCopy}>
+                  {isCopied ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isCopied ? "Copied!" : "Copy chat content"}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onAddToScratchPad}>
+                  <FileText className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Add to Scratch Pad</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onClearConversation}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Clear Conversation</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
-      </TooltipProvider>
+
+        {/* Chat messages area */}
+        <div 
+          className="flex-1 p-4 overflow-y-auto"
+          onScroll={handleScroll}
+          ref={(el) => {
+            if (el) {
+              scrollContainerRef.current = el;
+              chatContainerRefs.current[chatWindowId] = el;
+              onContainerRef(el);
+            }
+          }}
+        >
+          <div className="space-y-4">
+            {messages.map((message, index) => (
+              <ChatMessage
+                key={index}
+                role={message.role}
+                content={message.content}
+                avatar={message.role === 'assistant' ? selectedPersona?.avatar : null}
+              />
+            ))}
+            <div ref={messagesEndRef} className="h-4" />
+          </div>
+          {isStreaming && (
+            <div className="sticky bottom-4 w-full flex justify-center">
+              <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Generating response...</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     );
   };
 
