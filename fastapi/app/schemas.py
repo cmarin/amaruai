@@ -236,19 +236,32 @@ class ProcessType(str, Enum):
     PARALLEL = "HIERARCHICAL"
 
 class WorkflowStepBase(BaseModel):
-    prompt_template_id: Optional[UUID] = None
-    chat_model_id: Optional[UUID] = None
-    persona_id: Optional[UUID] = None
+    prompt_template_id: UUID  # Required
+    chat_model_id: Optional[UUID] = None  # Optional, will use default if not specified
+    persona_id: Optional[UUID] = None  # Optional
 
-    @validator('prompt_template_id', 'chat_model_id', 'persona_id', pre=True)
-    def convert_to_uuid(cls, v):
-        if v is None:
-            return None
+    @validator('prompt_template_id', pre=True)
+    def validate_prompt_template(cls, v):
+        if not v:
+            raise ValueError("Prompt template ID is required")
         if isinstance(v, str):
             return UUID(v)
         elif isinstance(v, UUID):
             return v
-        return v
+        raise ValueError("Invalid prompt template ID")
+
+    @validator('chat_model_id', 'persona_id', pre=True)
+    def convert_optional_uuid(cls, v):
+        if not v or v == "":  # Handle empty strings and None
+            return None
+        if isinstance(v, str):
+            try:
+                return UUID(v)
+            except ValueError:
+                return None
+        elif isinstance(v, UUID):
+            return v
+        return None
 
 class WorkflowStepCreate(BaseModel):
     prompt_template_id: Optional[UUID] = None

@@ -160,7 +160,7 @@ async def execute_workflow(
     db: Session = Depends(get_db)
 ):
     try:
-        # Use the same eager loading as the GET endpoint
+        # Use eager loading to get workflow with all relationships
         workflow = db.query(models.Workflow).options(
             joinedload(models.Workflow.steps),
             joinedload(models.Workflow.assets),
@@ -174,6 +174,29 @@ async def execute_workflow(
 
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
+
+        # Get default chat model if needed
+        default_chat_model = db.query(models.ChatModel).filter(
+            models.ChatModel.default == True
+        ).first()
+        
+        if not default_chat_model:
+            raise HTTPException(status_code=400, detail="No default chat model configured")
+
+        # Validate each step has required components
+        for step in workflow.steps:
+            if not step.prompt_template:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Step {step.position} is missing a prompt template"
+                )
+                
+            # Use default chat model if none specified
+            if not step.chat_model:
+                step.chat_model = default_chat_model
+
+            # Persona is optional, can be None
+            # No need to validate persona
 
         # Debug logging
         logger.info(f"Workflow {workflow_id} loaded for execution with:")

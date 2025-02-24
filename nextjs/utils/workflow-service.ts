@@ -590,10 +590,17 @@ export function streamWorkflow(
                 console.log('Not a JSON prompt, using as-is');
               }
             }
+
+            // Ensure chat_model and persona information is included
+            const streamMessage: WorkflowStreamMessage = {
+              ...data,
+              chat_model: data.chat_model || undefined,
+              persona: data.persona || undefined
+            };
             
-            console.log('Dispatching step message to handler');
+            console.log('Dispatching step message to handler:', streamMessage);
             window.requestAnimationFrame(() => {
-              onMessage(data as WorkflowStreamMessage);
+              onMessage(streamMessage);
             });
           }
         } catch (error) {
