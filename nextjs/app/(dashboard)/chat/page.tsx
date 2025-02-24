@@ -655,20 +655,35 @@ function ChatContent() {
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const isStreaming = streamingStatesRef.current[chatWindowId];
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
-    const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+    const [isUserScrolling, setIsUserScrolling] = useState(false);
+    const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
-    // Scroll to bottom only for new messages and when streaming starts
+    // Handle scroll events
+    const handleLocalScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+      const container = e.target as HTMLDivElement;
+      const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 30;
+      
+      setIsUserScrolling(true);
+      setShouldAutoScroll(isAtBottom);
+      
+      // Reset user scrolling flag after a short delay
+      setTimeout(() => setIsUserScrolling(false), 150);
+    }, []);
+
+    // Auto-scroll logic
     useEffect(() => {
-      if (scrollContainerRef.current && (!hasScrolledToBottom || isStreaming)) {
+      if (!scrollContainerRef.current || isUserScrolling) return;
+
+      // Auto-scroll if we're streaming and should auto-scroll, or if it's a new message
+      if ((isStreaming && shouldAutoScroll) || (!isStreaming && messages.length > 0)) {
         scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-        setHasScrolledToBottom(true);
       }
-    }, [messages, isStreaming, hasScrolledToBottom]);
+    }, [messages, isStreaming, shouldAutoScroll, isUserScrolling]);
 
-    // Reset scroll state when streaming completes
+    // Reset auto-scroll when streaming starts
     useEffect(() => {
-      if (!isStreaming) {
-        setHasScrolledToBottom(false);
+      if (isStreaming) {
+        setShouldAutoScroll(true);
       }
     }, [isStreaming]);
 
@@ -740,7 +755,7 @@ function ChatContent() {
         {/* Chat messages area */}
         <div 
           className="flex-1 p-4 overflow-y-auto"
-          onScroll={handleScroll}
+          onScroll={handleLocalScroll}
           ref={(el) => {
             if (el) {
               scrollContainerRef.current = el;
