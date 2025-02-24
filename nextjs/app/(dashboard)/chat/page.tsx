@@ -655,12 +655,22 @@ function ChatContent() {
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const isStreaming = streamingStatesRef.current[chatWindowId];
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
+    const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
 
+    // Scroll to bottom only for new messages and when streaming starts
     useEffect(() => {
-      if (scrollContainerRef.current && wasAtBottomRef.current) {
+      if (scrollContainerRef.current && (!hasScrolledToBottom || isStreaming)) {
         scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        setHasScrolledToBottom(true);
       }
-    }, [messages]);
+    }, [messages, isStreaming, hasScrolledToBottom]);
+
+    // Reset scroll state when streaming completes
+    useEffect(() => {
+      if (!isStreaming) {
+        setHasScrolledToBottom(false);
+      }
+    }, [isStreaming]);
 
     return (
       <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
