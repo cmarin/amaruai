@@ -107,6 +107,14 @@ function ChatContent() {
     chat4: null
   });
 
+  // Track which windows were at the bottom before streaming started
+  const wasAtBottomBeforeStreamingRef = useRef<{ [key: string]: boolean }>({
+    chat1: true,
+    chat2: true,
+    chat3: true,
+    chat4: true
+  });
+
   useEffect(() => {
     if (!uppyRef.current) {
       const uppyInstance = UploadService.createUppy(
@@ -291,9 +299,11 @@ function ChatContent() {
 
     const newMessage: Message = { role: 'user', content: input.trim() }
     setMessages(prev => [...prev, newMessage])
-    setMessages2(prev => [...prev, newMessage])
-    setMessages3(prev => [...prev, newMessage])
-    setMessages4(prev => [...prev, newMessage])
+    if (mode !== 'single') setMessages2(prev => [...prev, newMessage])
+    if (mode === 'quad') {
+      setMessages3(prev => [...prev, newMessage])
+      setMessages4(prev => [...prev, newMessage])  
+    }
     setInput('')
 
     // Generate a new multi_conversation_id if in multi-chat mode and none exists
@@ -301,6 +311,16 @@ function ChatContent() {
     if ((mode === 'dual' || mode === 'quad') && !currentMultiConversationId) {
       currentMultiConversationId = crypto.randomUUID()
       setMultiConversationId(currentMultiConversationId)
+    }
+
+    // Set streaming states to false initially for windows not in use
+    if (mode === 'single') {
+      streamingStatesRef.current.chat2 = false;
+      streamingStatesRef.current.chat3 = false;
+      streamingStatesRef.current.chat4 = false;
+    } else if (mode === 'dual') {
+      streamingStatesRef.current.chat3 = false;
+      streamingStatesRef.current.chat4 = false;
     }
 
     // Shared streaming logic
@@ -325,6 +345,15 @@ function ChatContent() {
       }
 
       try {
+        // Save scroll position at start of streaming
+        const container = chatContainerRefs.current[chatId];
+        if (container) {
+          const threshold = 100; // pixels from bottom
+          const position = container.scrollTop + container.clientHeight;
+          const height = container.scrollHeight;
+          wasAtBottomBeforeStreamingRef.current[chatId] = height - position <= threshold;
+        }
+        
         streamingStatesRef.current[chatId] = true;
 
         // Get or create conversation_id for this chat window
@@ -392,6 +421,7 @@ function ChatContent() {
             if (chunkCount > 0 && !hasReceivedContent) {
               throw new Error('Stream completed with only empty chunks')
             }
+            // Mark streaming as complete for this specific chat window
             streamingStatesRef.current[chatId] = false;
             break
           }
@@ -447,6 +477,7 @@ function ChatContent() {
           }
         }
       } catch (err: any) {
+        // Make sure to mark streaming as complete even if there's an error
         streamingStatesRef.current[chatId] = false;
         console.error('Error in API call:', err)
 
@@ -655,12 +686,26 @@ function ChatContent() {
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const isStreaming = streamingStatesRef.current[chatWindowId];
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
+    const [localWasAtBottom, setLocalWasAtBottom] = useState(true);
 
-    // Simple auto-scroll during streaming only
+    const handleLocalScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+      const container = e.target as HTMLDivElement;
+      const threshold = 100; // pixels from bottom
+      const position = container.scrollTop + container.clientHeight;
+      const height = container.scrollHeight;
+      const isAtBottom = height - position <= threshold;
+      setLocalWasAtBottom(isAtBottom);
+    }, []);
+
+    // Updated auto-scroll effect
     useEffect(() => {
-      if (!scrollContainerRef.current || !isStreaming) return;
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-    }, [messages, isStreaming]);
+      if (!scrollContainerRef.current) return;
+      
+      // Only auto-scroll if user was at the bottom
+      if (localWasAtBottom) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      }
+    }, [messages, localWasAtBottom]);
 
     return (
       <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
@@ -730,6 +775,7 @@ function ChatContent() {
         {/* Chat messages area */}
         <div 
           className="flex-1 p-4 overflow-y-auto"
+          onScroll={handleLocalScroll}
           ref={(el) => {
             if (el) {
               scrollContainerRef.current = el;
@@ -750,7 +796,7 @@ function ChatContent() {
             <div ref={messagesEndRef} className="h-4" />
           </div>
           {isStreaming && (
-            <div className="sticky bottom-4 w-full flex justify-center">
+            <div className="sticky bottom-4 w-full flex justify-center pointer-events-none">
               <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>Generating response...</span>
