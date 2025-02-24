@@ -71,10 +71,20 @@ function ChatContent() {
   const [selectedPersonas, setSelectedPersonas] = useState<{ [key: string]: string }>({})
   const [hasUserChangedModel, setHasUserChangedModel] = useState(false)
   const [hasUserChangedPersona, setHasUserChangedPersona] = useState(false)
+  
+  // State variables to track streaming status for each chat window
+  const [isStreaming1, setIsStreaming1] = useState(false)
+  const [isStreaming2, setIsStreaming2] = useState(false)
+  const [isStreaming3, setIsStreaming3] = useState(false)
+  const [isStreaming4, setIsStreaming4] = useState(false)
 
-  useEffect(() => {
-    console.log('Personas changed:', personas);
-  }, [personas]);
+  // Map chat IDs to their streaming state setters
+  const streamingSetters: { [key: string]: React.Dispatch<React.SetStateAction<boolean>> } = {
+    chat1: setIsStreaming1,
+    chat2: setIsStreaming2,
+    chat3: setIsStreaming3,
+    chat4: setIsStreaming4
+  }
 
   const [conversationIds, setConversationIds] = useState<{ [key: string]: string }>({})
   const [multiConversationId, setMultiConversationId] = useState<string | null>(null)
@@ -292,6 +302,7 @@ function ChatContent() {
     e.preventDefault()
     if (!input.trim() && uploadedFiles.length === 0) return
 
+    // Set global loading state - this only affects the submit button
     setIsLoading(true)
     setError(null)
     // Reset retry attempts for new chat
@@ -313,14 +324,27 @@ function ChatContent() {
       setMultiConversationId(currentMultiConversationId)
     }
 
-    // Set streaming states to false initially for windows not in use
+    // Set streaming states for active windows
+    setIsStreaming1(true);
+    if (mode !== 'single') setIsStreaming2(true);
+    if (mode === 'quad') {
+      setIsStreaming3(true);
+      setIsStreaming4(true);
+    }
+
+    // Set streaming states to false for windows not in use
     if (mode === 'single') {
       streamingStatesRef.current.chat2 = false;
       streamingStatesRef.current.chat3 = false;
       streamingStatesRef.current.chat4 = false;
+      setIsStreaming2(false);
+      setIsStreaming3(false);
+      setIsStreaming4(false);
     } else if (mode === 'dual') {
       streamingStatesRef.current.chat3 = false;
       streamingStatesRef.current.chat4 = false;
+      setIsStreaming3(false);
+      setIsStreaming4(false);
     }
 
     // Shared streaming logic
@@ -354,9 +378,11 @@ function ChatContent() {
           wasAtBottomBeforeStreamingRef.current[chatId] = height - position <= threshold;
         }
         
+        // Set streaming state using both ref and state setter
         streamingStatesRef.current[chatId] = true;
+        streamingSetters[chatId](true);
 
-        // Get or create conversation_id for this chat window
+        // Get or create conversation_id for this chat
         let currentConversationId = conversationIds[chatId]
         if (!currentConversationId) {
           currentConversationId = crypto.randomUUID()
@@ -423,6 +449,7 @@ function ChatContent() {
             }
             // Mark streaming as complete for this specific chat window
             streamingStatesRef.current[chatId] = false;
+            streamingSetters[chatId](false);
             break
           }
 
@@ -479,6 +506,7 @@ function ChatContent() {
       } catch (err: any) {
         // Make sure to mark streaming as complete even if there's an error
         streamingStatesRef.current[chatId] = false;
+        streamingSetters[chatId](false);
         console.error('Error in API call:', err)
 
         // If this is a timeout error or empty chunk error, retry without model_id
@@ -542,6 +570,8 @@ function ChatContent() {
           : new Error(errMsg)
       )
     } finally {
+      // Only update the global loading state (affects submit button)
+      // The streaming states for each window are handled separately in makeApiCall
       setIsLoading(false)
       setUploadedFiles([])
     }
@@ -668,6 +698,7 @@ function ChatContent() {
     chatWindowId: string
     mode: 'single' | 'dual' | 'quad'
     onContainerRef: (el: HTMLDivElement | null) => void
+    isStreamingState: boolean
   }
 
   const ChatWindow = ({
@@ -681,10 +712,10 @@ function ChatContent() {
     isCopied,
     chatWindowId,
     mode,
-    onContainerRef
+    onContainerRef,
+    isStreamingState
   }: ChatWindowProps) => {
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-    const isStreaming = streamingStatesRef.current[chatWindowId];
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
     const [localWasAtBottom, setLocalWasAtBottom] = useState(true);
 
@@ -774,7 +805,12 @@ function ChatContent() {
 
         {/* Chat messages area */}
         <div 
-          className="flex-1 p-4 overflow-y-auto"
+          className="flex-1 p-4 overflow-y-auto scrollable-always"
+          style={{ 
+            pointerEvents: 'auto', // Force pointer events to be enabled
+            touchAction: 'auto',   // Enable touch interactions
+            overflowY: 'auto'      // Force scrolling to be enabled 
+          }}
           onScroll={handleLocalScroll}
           ref={(el) => {
             if (el) {
@@ -795,8 +831,8 @@ function ChatContent() {
             ))}
             <div ref={messagesEndRef} className="h-4" />
           </div>
-          {isStreaming && (
-            <div className="sticky bottom-4 w-full flex justify-center pointer-events-none">
+          {isStreamingState && (
+            <div className="sticky bottom-4 w-full flex justify-center pointer-events-none z-10">
               <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>Generating response...</span>
@@ -836,7 +872,7 @@ function ChatContent() {
         <div className="flex-1 overflow-auto p-4">
           {/* Single/dual/quad chat windows */}
           {mode === 'single' ? (
-            <div className="grid h-full gap-4" style={{ gridTemplateColumns: '1fr' }}>
+            <div className="grid h-full gap-4" style={{ gridTemplateColumns: '1fr', isolation: 'isolate' }}>
               <ChatWindow
                 messages={messages}
                 messagesEndRef={messagesEndRef}
@@ -856,6 +892,7 @@ function ChatContent() {
                     Object.assign(chatContainerRef, { current: el });
                   }
                 }}
+                isStreamingState={isStreaming1}
               />
             </div>
           ) : (
@@ -864,6 +901,7 @@ function ChatContent() {
               style={{
                 gridTemplateColumns: mode === 'dual' ? '1fr 1fr' : '1fr 1fr',
                 gridTemplateRows: mode === 'quad' ? '1fr 1fr' : '1fr',
+                isolation: 'isolate' // Ensures each grid item has its own stacking context
               }}
             >
               <ChatWindow
@@ -878,6 +916,7 @@ function ChatContent() {
                 chatWindowId="chat1"
                 mode={mode}
                 onContainerRef={(el) => chatContainerRefs.current.chat1 = el}
+                isStreamingState={isStreaming1}
               />
               <ChatWindow
                 messages={messages2}
@@ -891,6 +930,7 @@ function ChatContent() {
                 chatWindowId="chat2"
                 mode={mode}
                 onContainerRef={(el) => chatContainerRefs.current.chat2 = el}
+                isStreamingState={isStreaming2}
               />
               {mode === 'quad' && (
                 <>
@@ -906,6 +946,7 @@ function ChatContent() {
                     chatWindowId="chat3"
                     mode={mode}
                     onContainerRef={(el) => chatContainerRefs.current.chat3 = el}
+                    isStreamingState={isStreaming3}
                   />
                   <ChatWindow
                     messages={messages4}
@@ -919,6 +960,7 @@ function ChatContent() {
                     chatWindowId="chat4"
                     mode={mode}
                     onContainerRef={(el) => chatContainerRefs.current.chat4 = el}
+                    isStreamingState={isStreaming4}
                   />
                 </>
               )}
