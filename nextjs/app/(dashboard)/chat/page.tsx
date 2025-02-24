@@ -395,10 +395,6 @@ function ChatContent() {
             }
             // Update streaming state for this specific window only
             streamingStatesRef.current[chatId] = false;
-            // Enable scrolling for this specific chat container
-            if (chatContainerRefs.current[chatId]) {
-              chatContainerRefs.current[chatId]!.style.overflowY = 'auto';
-            }
             break
           }
 
@@ -665,10 +661,23 @@ function ChatContent() {
     mode,
     onContainerRef
   }: ChatWindowProps) => {
+    // Create a local ref for this specific window's scroll container
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+    
     // Get streaming state for this specific window
     const isStreaming = streamingStatesRef.current[chatWindowId];
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
     
+    // Local scroll position tracking
+    const [canScroll, setCanScroll] = useState(true);
+    
+    useEffect(() => {
+      // Enable scrolling when streaming is complete
+      if (!isStreaming) {
+        setCanScroll(true);
+      }
+    }, [isStreaming]);
+
     return (
       <TooltipProvider>
         <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
@@ -739,9 +748,20 @@ function ChatContent() {
             onScroll={handleScroll}
             ref={(el) => {
               if (el) {
+                // Store in local ref
+                scrollContainerRef.current = el;
+                // Store in shared refs
                 chatContainerRefs.current[chatWindowId] = el;
                 onContainerRef(el);
+                
+                // Set initial scroll state
+                if (!isStreaming) {
+                  el.style.overflowY = 'auto';
+                }
               }
+            }}
+            style={{
+              overflowY: canScroll ? 'auto' : 'hidden'
             }}
           >
             <div className="space-y-4">
