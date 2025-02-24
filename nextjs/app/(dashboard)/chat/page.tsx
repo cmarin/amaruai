@@ -810,8 +810,11 @@ function ChatContent() {
                 chatWindowId="chat1"
                 mode={mode}
                 onContainerRef={(el) => {
-                  if (chatContainerRef.current !== el) {
-                    chatContainerRef.current = el;
+                  chatContainerRefs.current.chat1 = el;
+                  // For backwards compatibility with single mode
+                  if (el && chatContainerRef.current !== el) {
+                    // Use Object.assign to modify the ref without triggering the readonly error
+                    Object.assign(chatContainerRef, { current: el });
                   }
                 }}
               />
