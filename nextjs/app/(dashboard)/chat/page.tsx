@@ -72,6 +72,10 @@ function ChatContent() {
   const [hasUserChangedModel, setHasUserChangedModel] = useState(false)
   const [hasUserChangedPersona, setHasUserChangedPersona] = useState(false)
 
+  useEffect(() => {
+    console.log('Personas changed:', personas);
+  }, [personas]);
+
   const [conversationIds, setConversationIds] = useState<{ [key: string]: string }>({})
   const [multiConversationId, setMultiConversationId] = useState<string | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
@@ -103,7 +107,177 @@ function ChatContent() {
     chat4: null
   });
 
+  useEffect(() => {
+    if (!uppyRef.current) {
+      const uppyInstance = UploadService.createUppy(
+        'chat-uploader',
+        {
+          maxFiles: 1,
+          storageFolder: 'chats',
+          storageBucket: 'amaruai-dev'
+        },
+        (file) => {
+          setUploadedFiles(prev => [...prev, {
+            id: file.id,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            uploadURL: file.uploadURL
+          }]);
+        },
+        () => {
+          setShowUploadModal(false)
+        },
+        supabase
+      )
+      uppyRef.current = uppyInstance
+    }
+
+    return () => {
+      if (uppyRef.current) {
+        uppyRef.current.cancelAll()
+      }
+    }
+  }, [supabase])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const headers = await getApiHeaders()
+        if (!headers) return
+
+        setIsLoadingKnowledgeBases(true)
+        const fetchedKnowledgeBases = await fetchKnowledgeBases(headers)
+        setKnowledgeBases(fetchedKnowledgeBases)
+      } catch (error) {
+        console.error('Error fetching knowledge bases:', error)
+      } finally {
+        setIsLoadingKnowledgeBases(false)
+      }
+    }
+    fetchData()
+  }, [getApiHeaders])
+
+  useEffect(() => {
+    if (allChatModels?.length > 0) {
+      // Find the default model
+      const defaultModel = allChatModels.find(model => model.default)
+      if (!defaultModel) return
+
+      // Get non-default models for other chat windows
+      const otherModels = allChatModels
+        .filter(model => !model.default && model.id !== defaultModel.id)
+        .slice(0, 3) // We need at most 3 other models for chat2, chat3, chat4
+
+      setSelectedModels(prev => ({
+        ...prev,
+        chat1: defaultModel.id,
+        ...(mode !== 'single' && otherModels[0] && { chat2: otherModels[0].id }),
+        ...(mode === 'quad' && otherModels[1] && { chat3: otherModels[1].id }),
+        ...(mode === 'quad' && otherModels[2] && { chat4: otherModels[2].id })
+      }))
+    }
+  }, [allChatModels, mode])
+
+  useEffect(() => {
+    const modelId = searchParams.get('model')
+    if (modelId && allChatModels?.some(model => model.id === modelId)) {
+      setSelectedModels(prev => ({
+        ...prev,
+        chat1: modelId
+      }))
+    }
+  }, [searchParams, allChatModels])
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef2 = useRef<HTMLDivElement>(null);
+  const messagesEndRef3 = useRef<HTMLDivElement>(null);
+  const messagesEndRef4 = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const wasAtBottomRef = useRef<boolean>(true);
+
+  const isAtBottom = useCallback((containerRef: HTMLElement) => {
+    const threshold = 100; // pixels from bottom
+    const position = containerRef.scrollTop + containerRef.clientHeight;
+    const height = containerRef.scrollHeight;
+    return height - position <= threshold;
+  }, []);
+
+  const maintainScroll = useCallback((containerRef: HTMLElement) => {
+    if (!containerRef) return;
+    
+    // If we were at the bottom before the update, scroll to bottom
+    if (wasAtBottomRef.current) {
+      containerRef.scrollTop = containerRef.scrollHeight;
+    }
+  }, []);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.target as HTMLDivElement;
+    wasAtBottomRef.current = isAtBottom(container);
+  }, [isAtBottom]);
+
+  const getProviderIcon = (modelId: string, modelName: string) => {
+    const nameLower = modelName.toLowerCase()
+    
+    if (nameLower.includes('gpt') || nameLower.includes('o1')) return OpenAIIcon
+    if (nameLower.includes('claude')) return AnthropicIcon
+    if (nameLower.includes('gemini')) return GeminiIcon
+    if (nameLower.includes('perplexity')) return PerplexityIcon
+    if (nameLower.includes('mistral') || nameLower.includes('mixtral')) return MistralIcon
+    if (nameLower.includes('llama')) return MetaIcon
+    if (nameLower.includes('zephyr')) return ZephyrIcon
+    return MessageSquare as React.ComponentType<any>
+  }
+
+  const handleModelChange = (chatWindowId: string, modelId: string) => {
+    setSelectedModels(prev => ({ ...prev, [chatWindowId]: modelId }))
+    setHasUserChangedModel(true)
+    // Reset retry attempts when manually changing model
+    setRetryAttempts(prev => ({ ...prev, [chatWindowId]: 0 }))
+  }
+
+  const handlePersonaChange = (chatWindowId: string, personaId: string) => {
+    setSelectedPersonas(prev => ({ ...prev, [chatWindowId]: personaId }))
+    setHasUserChangedPersona(true)
+  }
+
+  const getModelName = (chatWindowId: string) => {
+    const modelId = selectedModels[chatWindowId]
+    const model = allChatModels?.find(m => m?.id === modelId)
+    return model?.name || "Select model..."
+  }
+
+  const getModelIcon = (chatWindowId: string) => {
+    const modelId = selectedModels[chatWindowId]
+    const model = allChatModels?.find(m => m?.id === modelId)
+    return model ? getProviderIcon(model.id, model.name) : Timer
+  }
+
+  const handleFileUpload = async (result: any) => {
+    if (result.successful && result.successful.length > 0) {
+      const file = result.successful[0];
+      const uploadedFile: UploadedFile = {
+        id: file.id,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        uploadURL: file.uploadURL
+      };
+      setUploadedFiles(prev => [...prev, uploadedFile]);
+    }
+  }
+
+  const handleCloseUploadModal = () => {
+    setShowUploadModal(false)
+    if (uppyRef.current) {
+      uppyRef.current.cancelAll()
+    }
+  }
+
+  const handleRemoveFile = (file: UploadedFile) => {
+    setUploadedFiles(prev => prev.filter(f => f.name !== file.name))
+  }
 
   // Submit user input to all relevant LLMs
   const handleSubmit = async (e: React.FormEvent) => {
@@ -203,6 +377,7 @@ function ChatContent() {
 
         let assistantMessage = ''
         let hasCreatedAssistantMessage = false
+        // Removed initial empty message creation
 
         streamStartTime = Date.now()
 
@@ -341,11 +516,6 @@ function ChatContent() {
     }
   }
 
-  // Reset retry attempts when starting a new chat
-  const resetRetryAttempts = () => {
-    setRetryAttempts({})
-  }
-
   // Copy all messages to clipboard
   const copyToClipboard = async (content: string) => {
     try {
@@ -405,17 +575,42 @@ function ChatContent() {
     setSelectedComplexPrompt(null)
   }
 
-  // Handle file upload modal close
-  const handleCloseUploadModal = () => {
-    setShowUploadModal(false)
-    if (uppyRef.current) {
-      uppyRef.current.cancelAll()
-    }
+  // Reset retry attempts when starting a new chat
+  const resetRetryAttempts = () => {
+    setRetryAttempts({})
   }
 
-  // Handle file removal
-  const handleRemoveFile = (file: UploadedFile) => {
-    setUploadedFiles(prev => prev.filter(f => f.name !== file.name))
+  // Add mode change handler
+  const handleModeChange = (newMode: 'single' | 'dual' | 'quad') => {
+    setMode(newMode)
+    
+    // Find default and other models
+    const defaultModel = allChatModels?.find(model => model.default)
+    const otherModels = allChatModels
+      ?.filter(model => !model.default && model.id !== defaultModel?.id)
+      .slice(0, 3)
+
+    if (defaultModel) {
+      // Always keep chat1 as default model
+      const newModelSelections: { [key: string]: string } = {
+        chat1: defaultModel.id,
+      }
+
+      // Add other models based on mode
+      if (newMode !== 'single' && otherModels?.[0]) {
+        newModelSelections.chat2 = otherModels[0].id
+      }
+      if (newMode === 'quad') {
+        if (otherModels?.[1]) newModelSelections.chat3 = otherModels[1].id
+        if (otherModels?.[2]) newModelSelections.chat4 = otherModels[2].id
+      }
+
+      setSelectedModels(newModelSelections)
+    }
+
+    // Reset retry attempts and multi-conversation tracking
+    resetRetryAttempts()
+    setMultiConversationId(null)
   }
 
   // Add toggleChatbot handler
@@ -429,46 +624,10 @@ function ChatContent() {
     }))
   }
 
-  const getProviderIcon = (modelId: string, modelName: string) => {
-    const nameLower = modelName.toLowerCase()
-    
-    if (nameLower.includes('gpt') || nameLower.includes('o1')) return OpenAIIcon
-    if (nameLower.includes('claude')) return AnthropicIcon
-    if (nameLower.includes('gemini')) return GeminiIcon
-    if (nameLower.includes('perplexity')) return PerplexityIcon
-    if (nameLower.includes('mistral') || nameLower.includes('mixtral')) return MistralIcon
-    if (nameLower.includes('llama')) return MetaIcon
-    if (nameLower.includes('zephyr')) return ZephyrIcon
-    return MessageSquare as React.ComponentType<any>
-  }
-
-  const handleModelChange = (chatWindowId: string, modelId: string) => {
-    setSelectedModels(prev => ({ ...prev, [chatWindowId]: modelId }))
-    setHasUserChangedModel(true)
-    // Reset retry attempts when manually changing model
-    setRetryAttempts(prev => ({ ...prev, [chatWindowId]: 0 }))
-  }
-
-  const handlePersonaChange = (chatWindowId: string, personaId: string) => {
-    setSelectedPersonas(prev => ({ ...prev, [chatWindowId]: personaId }))
-    setHasUserChangedPersona(true)
-  }
-
-  const getModelName = (chatWindowId: string) => {
-    const modelId = selectedModels[chatWindowId]
-    const model = allChatModels?.find(m => m?.id === modelId)
-    return model?.name || "Select model..."
-  }
-
-  const getModelIcon = (chatWindowId: string) => {
-    const modelId = selectedModels[chatWindowId]
-    const model = allChatModels?.find(m => m?.id === modelId)
-    return model ? getProviderIcon(model.id, model.name) : Timer
-  }
-
   // ChatWindow sub-component
   interface ChatWindowProps {
     messages: Message[]
+    messagesEndRef: React.RefObject<HTMLDivElement>
     title: string
     Icon: React.ComponentType<any>
     onCopy: () => void
@@ -482,6 +641,7 @@ function ChatContent() {
 
   const ChatWindow = ({
     messages,
+    messagesEndRef,
     title,
     Icon,
     onCopy,
@@ -492,8 +652,15 @@ function ChatContent() {
     mode,
     onContainerRef
   }: ChatWindowProps) => {
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+    const isStreaming = streamingStatesRef.current[chatWindowId];
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
-    const streaming = streamingStatesRef.current[chatWindowId];
+
+    // Simple auto-scroll during streaming only
+    useEffect(() => {
+      if (!scrollContainerRef.current || !isStreaming) return;
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }, [messages, isStreaming]);
 
     return (
       <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
@@ -563,7 +730,13 @@ function ChatContent() {
         {/* Chat messages area */}
         <div 
           className="flex-1 p-4 overflow-y-auto"
-          ref={onContainerRef}
+          ref={(el) => {
+            if (el) {
+              scrollContainerRef.current = el;
+              chatContainerRefs.current[chatWindowId] = el;
+              onContainerRef(el);
+            }
+          }}
         >
           <div className="space-y-4">
             {messages.map((message, index) => (
@@ -574,8 +747,9 @@ function ChatContent() {
                 avatar={message.role === 'assistant' ? selectedPersona?.avatar : null}
               />
             ))}
+            <div ref={messagesEndRef} className="h-4" />
           </div>
-          {streaming && (
+          {isStreaming && (
             <div className="sticky bottom-4 w-full flex justify-center">
               <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -588,7 +762,20 @@ function ChatContent() {
     );
   };
 
-  // [Rest of the file remains the same...]
+  const loadAssets = useCallback(async () => {
+    try {
+      const headers = getApiHeaders();
+      if (!headers) return;
+      const assets = await fetchAssets(headers);
+      setAssets(assets);
+    } catch (error) {
+      console.error('Error loading assets:', error);
+    }
+  }, [getApiHeaders]);
+
+  useEffect(() => {
+    loadAssets();
+  }, [loadAssets]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
@@ -606,6 +793,7 @@ function ChatContent() {
             <div className="grid h-full gap-4" style={{ gridTemplateColumns: '1fr' }}>
               <ChatWindow
                 messages={messages}
+                messagesEndRef={messagesEndRef}
                 title="Perplexity Llama"
                 Icon={Timer}
                 onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
@@ -634,6 +822,7 @@ function ChatContent() {
             >
               <ChatWindow
                 messages={messages}
+                messagesEndRef={messagesEndRef}
                 title="Perplexity Llama"
                 Icon={Timer}
                 onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
@@ -646,6 +835,7 @@ function ChatContent() {
               />
               <ChatWindow
                 messages={messages2}
+                messagesEndRef={messagesEndRef2}
                 title="GPT-4o"
                 Icon={Sparkles}
                 onCopy={() => copyToClipboard(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
@@ -660,6 +850,7 @@ function ChatContent() {
                 <>
                   <ChatWindow
                     messages={messages3}
+                    messagesEndRef={messagesEndRef3}
                     title="Gemini 1.5 Pro"
                     Icon={Bot}
                     onCopy={() => copyToClipboard(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
@@ -672,6 +863,7 @@ function ChatContent() {
                   />
                   <ChatWindow
                     messages={messages4}
+                    messagesEndRef={messagesEndRef4}
                     title="Meta Llama 3.1"
                     Icon={SmilePlus}
                     onCopy={() => copyToClipboard(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
