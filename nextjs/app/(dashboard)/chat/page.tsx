@@ -670,20 +670,25 @@ function ChatContent() {
       setTimeout(() => setIsUserScrolling(false), 150);
     }, []);
 
-    // Auto-scroll logic
+    // Auto-scroll only during streaming
     useEffect(() => {
-      if (!scrollContainerRef.current || isUserScrolling) return;
-
-      // Auto-scroll if we're streaming and should auto-scroll, or if it's a new message
-      if ((isStreaming && shouldAutoScroll) || (!isStreaming && messages.length > 0)) {
+      if (!scrollContainerRef.current || !isStreaming) return;
+      
+      // Only auto-scroll during active streaming if we're at the bottom
+      if (shouldAutoScroll) {
         scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
       }
-    }, [messages, isStreaming, shouldAutoScroll, isUserScrolling]);
+    }, [messages, isStreaming, shouldAutoScroll]);
 
-    // Reset auto-scroll when streaming starts
+    // Reset auto-scroll state when streaming starts/ends
     useEffect(() => {
       if (isStreaming) {
-        setShouldAutoScroll(true);
+        // When streaming starts, check if we're near bottom to determine initial auto-scroll
+        if (scrollContainerRef.current) {
+          const container = scrollContainerRef.current;
+          const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 30;
+          setShouldAutoScroll(isNearBottom);
+        }
       }
     }, [isStreaming]);
 
