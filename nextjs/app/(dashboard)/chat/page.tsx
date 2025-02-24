@@ -655,42 +655,12 @@ function ChatContent() {
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const isStreaming = streamingStatesRef.current[chatWindowId];
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
-    const [isUserScrolling, setIsUserScrolling] = useState(false);
-    const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
-    // Handle scroll events
-    const handleLocalScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-      const container = e.target as HTMLDivElement;
-      const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 30;
-      
-      setIsUserScrolling(true);
-      setShouldAutoScroll(isAtBottom);
-      
-      // Reset user scrolling flag after a short delay
-      setTimeout(() => setIsUserScrolling(false), 150);
-    }, []);
-
-    // Auto-scroll only during streaming
+    // Simple auto-scroll during streaming only
     useEffect(() => {
       if (!scrollContainerRef.current || !isStreaming) return;
-      
-      // Only auto-scroll during active streaming if we're at the bottom
-      if (shouldAutoScroll) {
-        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-      }
-    }, [messages, isStreaming, shouldAutoScroll]);
-
-    // Reset auto-scroll state when streaming starts/ends
-    useEffect(() => {
-      if (isStreaming) {
-        // When streaming starts, check if we're near bottom to determine initial auto-scroll
-        if (scrollContainerRef.current) {
-          const container = scrollContainerRef.current;
-          const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 30;
-          setShouldAutoScroll(isNearBottom);
-        }
-      }
-    }, [isStreaming]);
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }, [messages, isStreaming]);
 
     return (
       <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
@@ -760,7 +730,6 @@ function ChatContent() {
         {/* Chat messages area */}
         <div 
           className="flex-1 p-4 overflow-y-auto"
-          onScroll={handleLocalScroll}
           ref={(el) => {
             if (el) {
               scrollContainerRef.current = el;
