@@ -91,6 +91,22 @@ function ChatContent() {
 
   const uppyRef = useRef<Uppy | null>(null)
 
+  // Replace single isStreamingRef with a map of streaming states
+  const streamingStatesRef = useRef<{ [key: string]: boolean }>({
+    chat1: false,
+    chat2: false,
+    chat3: false,
+    chat4: false
+  });
+
+  // Add refs for each chat container
+  const chatContainerRefs = useRef<{ [key: string]: HTMLDivElement | null }>({
+    chat1: null,
+    chat2: null,
+    chat3: null,
+    chat4: null
+  });
+
   useEffect(() => {
     if (!uppyRef.current) {
       const uppyInstance = UploadService.createUppy(
@@ -178,7 +194,6 @@ function ChatContent() {
   const messagesEndRef3 = useRef<HTMLDivElement>(null);
   const messagesEndRef4 = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const isStreamingRef = useRef<boolean>(false);
   const wasAtBottomRef = useRef<boolean>(true);
 
   const isAtBottom = useCallback((containerRef: HTMLElement) => {
@@ -293,7 +308,7 @@ function ChatContent() {
       prevMessagesLocal: Message[],
       setMessagesFunction: React.Dispatch<React.SetStateAction<Message[]>>,
       chatId: string,
-      isRetry: boolean = false // Add isRetry parameter
+      isRetry: boolean = false
     ) => {
       // Don't allow more than one retry per chat window
       if (isRetry) {
@@ -310,7 +325,9 @@ function ChatContent() {
       }
 
       try {
-        isStreamingRef.current = true;
+        // Set streaming state for this specific chat window
+        streamingStatesRef.current[chatId] = true;
+
         // Get or create conversation_id for this chat window
         let currentConversationId = conversationIds[chatId]
         if (!currentConversationId) {
@@ -376,9 +393,11 @@ function ChatContent() {
             if (chunkCount > 0 && !hasReceivedContent) {
               throw new Error('Stream completed with only empty chunks')
             }
-            isStreamingRef.current = false;
-            if (chatContainerRef.current) {
-              chatContainerRef.current.style.overflowY = 'auto';
+            // Update streaming state for this specific window only
+            streamingStatesRef.current[chatId] = false;
+            // Enable scrolling for this specific chat container
+            if (chatContainerRefs.current[chatId]) {
+              chatContainerRefs.current[chatId]!.style.overflowY = 'auto';
             }
             break
           }
@@ -421,8 +440,8 @@ function ChatContent() {
                         role: 'assistant',
                         content: assistantMessage,
                       }
-                      if (chatContainerRef.current) {
-                        chatContainerRef.current.style.overflowY = 'auto';
+                      if (chatContainerRefs.current[chatId]) {
+                        chatContainerRefs.current[chatId]!.style.overflowY = 'auto';
                       }
                       return updated
                     })
@@ -437,9 +456,10 @@ function ChatContent() {
           }
         }
       } catch (err: any) {
-        isStreamingRef.current = false;
-        if (chatContainerRef.current) {
-          chatContainerRef.current.style.overflowY = 'auto';
+        // Update streaming state on error
+        streamingStatesRef.current[chatId] = false;
+        if (chatContainerRefs.current[chatId]) {
+          chatContainerRefs.current[chatId]!.style.overflowY = 'auto';
         }
         console.error('Error in API call:', err)
 
@@ -629,6 +649,7 @@ function ChatContent() {
     isCopied: boolean
     chatWindowId: string
     mode: 'single' | 'dual' | 'quad'
+    chatContainerRef: React.RefObject<HTMLDivElement>
   }
 
   const ChatWindow = ({
@@ -641,9 +662,11 @@ function ChatContent() {
     onClearConversation,
     isCopied,
     chatWindowId,
-    mode
+    mode,
+    chatContainerRef
   }: ChatWindowProps) => {
-    const isStreaming = isStreamingRef.current;
+    // Get streaming state for this specific window
+    const isStreaming = streamingStatesRef.current[chatWindowId];
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
     
     return (
@@ -714,7 +737,16 @@ function ChatContent() {
           <ScrollArea 
             className="flex-1 p-4 relative" 
             onScroll={handleScroll}
-            ref={chatContainerRef}
+            ref={(el) => {
+              if (el) {
+                chatContainerRefs.current[chatWindowId] = el;
+                if (typeof chatContainerRef === 'function') {
+                  chatContainerRef(el);
+                } else if (chatContainerRef) {
+                  chatContainerRef.current = el;
+                }
+              }
+            }}
           >
             <div className="space-y-4">
               {messages.map((message, index) => (
@@ -781,6 +813,7 @@ function ChatContent() {
                 isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
                 chatWindowId="chat1"
                 mode={mode}
+                chatContainerRef={chatContainerRef}
               />
             </div>
           ) : (
@@ -802,6 +835,7 @@ function ChatContent() {
                 isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
                 chatWindowId="chat1"
                 mode={mode}
+                chatContainerRef={(el) => chatContainerRefs.current.chat1 = el}
               />
               <ChatWindow
                 messages={messages2}
@@ -814,6 +848,7 @@ function ChatContent() {
                 isCopied={copiedStates[messages2.map(m => `${m.role}: ${m.content}`).join('\n')]}
                 chatWindowId="chat2"
                 mode={mode}
+                chatContainerRef={(el) => chatContainerRefs.current.chat2 = el}
               />
               {mode === 'quad' && (
                 <>
@@ -828,6 +863,7 @@ function ChatContent() {
                     isCopied={copiedStates[messages3.map(m => `${m.role}: ${m.content}`).join('\n')]}
                     chatWindowId="chat3"
                     mode={mode}
+                    chatContainerRef={(el) => chatContainerRefs.current.chat3 = el}
                   />
                   <ChatWindow
                     messages={messages4}
@@ -840,6 +876,7 @@ function ChatContent() {
                     isCopied={copiedStates[messages4.map(m => `${m.role}: ${m.content}`).join('\n')]}
                     chatWindowId="chat4"
                     mode={mode}
+                    chatContainerRef={(el) => chatContainerRefs.current.chat4 = el}
                   />
                 </>
               )}
