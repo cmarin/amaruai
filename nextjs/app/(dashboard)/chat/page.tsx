@@ -649,7 +649,7 @@ function ChatContent() {
     isCopied: boolean
     chatWindowId: string
     mode: 'single' | 'dual' | 'quad'
-    chatContainerRef: ((el: HTMLDivElement | null) => void) | React.RefObject<HTMLDivElement>
+    onContainerRef: (el: HTMLDivElement | null) => void
   }
 
   const ChatWindow = ({
@@ -663,7 +663,7 @@ function ChatContent() {
     isCopied,
     chatWindowId,
     mode,
-    chatContainerRef
+    onContainerRef
   }: ChatWindowProps) => {
     // Get streaming state for this specific window
     const isStreaming = streamingStatesRef.current[chatWindowId];
@@ -740,11 +740,7 @@ function ChatContent() {
             ref={(el) => {
               if (el) {
                 chatContainerRefs.current[chatWindowId] = el;
-                if (typeof chatContainerRef === 'function') {
-                  (chatContainerRef as (el: HTMLDivElement | null) => void)(el);
-                } else if (chatContainerRef && 'current' in chatContainerRef) {
-                  chatContainerRef.current = el;
-                }
+                onContainerRef(el);
               }
             }}
           >
@@ -813,7 +809,11 @@ function ChatContent() {
                 isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
                 chatWindowId="chat1"
                 mode={mode}
-                chatContainerRef={chatContainerRef}
+                onContainerRef={(el) => {
+                  if (chatContainerRef.current !== el) {
+                    chatContainerRef.current = el;
+                  }
+                }}
               />
             </div>
           ) : (
@@ -835,7 +835,7 @@ function ChatContent() {
                 isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
                 chatWindowId="chat1"
                 mode={mode}
-                chatContainerRef={(el) => chatContainerRefs.current.chat1 = el}
+                onContainerRef={(el) => chatContainerRefs.current.chat1 = el}
               />
               <ChatWindow
                 messages={messages2}
@@ -848,7 +848,7 @@ function ChatContent() {
                 isCopied={copiedStates[messages2.map(m => `${m.role}: ${m.content}`).join('\n')]}
                 chatWindowId="chat2"
                 mode={mode}
-                chatContainerRef={(el) => chatContainerRefs.current.chat2 = el}
+                onContainerRef={(el) => chatContainerRefs.current.chat2 = el}
               />
               {mode === 'quad' && (
                 <>
@@ -863,7 +863,7 @@ function ChatContent() {
                     isCopied={copiedStates[messages3.map(m => `${m.role}: ${m.content}`).join('\n')]}
                     chatWindowId="chat3"
                     mode={mode}
-                    chatContainerRef={(el) => chatContainerRefs.current.chat3 = el}
+                    onContainerRef={(el) => chatContainerRefs.current.chat3 = el}
                   />
                   <ChatWindow
                     messages={messages4}
@@ -876,7 +876,7 @@ function ChatContent() {
                     isCopied={copiedStates[messages4.map(m => `${m.role}: ${m.content}`).join('\n')]}
                     chatWindowId="chat4"
                     mode={mode}
-                    chatContainerRef={(el) => chatContainerRefs.current.chat4 = el}
+                    onContainerRef={(el) => chatContainerRefs.current.chat4 = el}
                   />
                 </>
               )}
