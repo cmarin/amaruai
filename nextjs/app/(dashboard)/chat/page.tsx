@@ -656,11 +656,12 @@ function ChatContent() {
     const isStreaming = streamingStatesRef.current[chatWindowId];
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
 
-    // Simple auto-scroll during streaming only
+    // Only scroll to bottom when messages change
     useEffect(() => {
-      if (!scrollContainerRef.current || !isStreaming) return;
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-    }, [messages, isStreaming]);
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      }
+    }, [messages]);
 
     return (
       <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
