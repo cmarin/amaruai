@@ -656,12 +656,27 @@ function ChatContent() {
     const isStreaming = streamingStatesRef.current[chatWindowId];
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
 
-    // Only scroll to bottom when messages change
-    useEffect(() => {
+    // Scroll to bottom when a new user message is added
+    const scrollToBottom = useCallback(() => {
       if (scrollContainerRef.current) {
         scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
       }
-    }, [messages]);
+    }, []);
+
+    // Handle new messages
+    useEffect(() => {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage?.role === 'user') {
+        scrollToBottom();
+      }
+    }, [messages.length, scrollToBottom]);
+
+    // Remove scroll lock when streaming ends
+    useEffect(() => {
+      if (!isStreaming && scrollContainerRef.current) {
+        scrollContainerRef.current.style.overflowY = 'auto';
+      }
+    }, [isStreaming]);
 
     return (
       <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
@@ -730,7 +745,8 @@ function ChatContent() {
 
         {/* Chat messages area */}
         <div 
-          className="flex-1 p-4 overflow-y-auto"
+          className="flex-1 p-4"
+          style={{ overflowY: isStreaming ? 'scroll' : 'auto' }}
           ref={(el) => {
             if (el) {
               scrollContainerRef.current = el;
