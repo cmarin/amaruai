@@ -762,16 +762,19 @@ function ChatContent() {
     const prevScrollHeightRef = useRef<number>(0);
     const isUserScrollingRef = useRef<boolean>(false);
     const isAtBottomRef = useRef<boolean>(true);
+    // Add a new ref to track explicit user scroll actions during streaming
+    const userHasExplicitlyScrolledRef = useRef<boolean>(false);
+    // Track manual scrolling with timestamp to avoid race conditions
+    const lastManualScrollTimeRef = useRef<number>(0);
     
-    // Function to determine if container is at bottom
+    // Function to determine if container is at bottom with a smaller threshold
     const checkIfAtBottom = useCallback(() => {
       if (!scrollContainerRef.current) return true;
       
       const { scrollTop, clientHeight, scrollHeight } = scrollContainerRef.current;
       const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-      const atBottom = distanceFromBottom < 30; // 30px threshold
-      
-      return atBottom;
+      // Reduced threshold to 10px to be more sensitive to scrolling away
+      return distanceFromBottom < 10;
     }, []);
     
     // Save scroll position before update
@@ -784,7 +787,7 @@ function ChatContent() {
       isAtBottomRef.current = checkIfAtBottom();
     }, [checkIfAtBottom]);
     
-    // Restore scroll position after update
+    // Restore scroll position after update with improved logic
     const restoreScrollPosition = useCallback(() => {
       if (!scrollContainerRef.current) return;
       
@@ -793,11 +796,14 @@ function ChatContent() {
       const prevHeight = prevScrollHeightRef.current;
       const newHeight = container.scrollHeight;
       
-      if (isAtBottomRef.current) {
-        // If we were at bottom before, stay at bottom
+      // Only scroll to bottom if:
+      // 1. We were at bottom before AND
+      // 2. User hasn't explicitly scrolled away during streaming AND
+      // 3. User isn't actively scrolling
+      if (isAtBottomRef.current && !userHasExplicitlyScrolledRef.current && !isUserScrollingRef.current) {
         container.scrollTop = container.scrollHeight;
-      } else if (!isUserScrollingRef.current && newHeight !== prevHeight) {
-        // If not at bottom and not actively scrolling, maintain relative position
+      } else if (newHeight !== prevHeight) {
+        // Otherwise maintain relative position when content height changes
         container.scrollTop = prevPos + (newHeight - prevHeight);
       }
     }, []);
@@ -807,30 +813,51 @@ function ChatContent() {
       restoreScrollPosition();
     }, [messages, restoreScrollPosition]);
     
-    // Handle initial streaming state
+    // Reset explicit scroll flag when streaming ends
     useEffect(() => {
-      if (isStreamingState && scrollContainerRef.current) {
-        // If streaming just started and we were previously at bottom, scroll to bottom
-        if (isAtBottomRef.current) {
-          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-        }
+      if (!isStreamingState) {
+        // Reset flag only when streaming completely ends
+        setTimeout(() => {
+          userHasExplicitlyScrolledRef.current = false;
+        }, 100);
       }
     }, [isStreamingState]);
 
-    // Handle scroll events
+    // Handle scroll events with improved detection of user intent
     const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
       if (!scrollContainerRef.current) return;
       
+      // Mark the current time of manual scrolling
+      lastManualScrollTimeRef.current = Date.now();
+      
+      // Set scrolling state
       isUserScrollingRef.current = true;
+      
+      // Get current bottom state before updating
+      const wasAtBottom = isAtBottomRef.current;
+      
+      // Update scroll position data
       saveScrollPosition();
       
-      // Reset the user scrolling flag after a brief delay
+      // Detect if user scrolled away from bottom during streaming
+      const isNowAtBottom = checkIfAtBottom();
+      
+      // If we were at bottom, and now we're not, AND streaming is happening,
+      // then mark that user has explicitly scrolled away
+      if (wasAtBottom && !isNowAtBottom && isStreamingState) {
+        userHasExplicitlyScrolledRef.current = true;
+      }
+      
+      // Use a longer timeout to reset user scrolling state
       setTimeout(() => {
-        isUserScrollingRef.current = false;
-      }, 150);
-    }, [saveScrollPosition]);
+        // Only reset if no new scrolls happened in the meantime
+        if (Date.now() - lastManualScrollTimeRef.current >= 800) {
+          isUserScrollingRef.current = false;
+        }
+      }, 800); // Much longer timeout (was 150ms)
+    }, [saveScrollPosition, checkIfAtBottom, isStreamingState]);
 
-    // Use ResizeObserver to detect content height changes
+    // Use ResizeObserver to detect content height changes with fixed logic
     useEffect(() => {
       if (!scrollContainerRef.current) return;
       
@@ -844,9 +871,24 @@ function ChatContent() {
             const newHeight = container.scrollHeight;
             
             if (newHeight !== prevHeight) {
-              if (isAtBottomRef.current && !isUserScrollingRef.current) {
-                container.scrollTop = newHeight;
+              const timeSinceLastScroll = Date.now() - lastManualScrollTimeRef.current;
+              
+              // If user is NOT actively scrolling AND
+              // (user is at bottom OR user hasn't explicitly scrolled away during streaming AND streaming is happening)
+              if (!isUserScrollingRef.current && timeSinceLastScroll > 100 && 
+                  ((isAtBottomRef.current && !userHasExplicitlyScrolledRef.current) || 
+                   (!isStreamingState && isAtBottomRef.current))) {
+                // Scroll to bottom
+                requestAnimationFrame(() => {
+                  if (container) container.scrollTop = container.scrollHeight;
+                });
+              } else if (newHeight !== prevHeight) {
+                // Otherwise maintain relative position
+                requestAnimationFrame(() => {
+                  if (container) container.scrollTop = prevScrollPositionRef.current + (newHeight - prevHeight);
+                });
               }
+              
               prevHeight = newHeight;
             }
           }
@@ -858,7 +900,7 @@ function ChatContent() {
       return () => {
         resizeObserver.disconnect();
       };
-    }, []);
+    }, [isStreamingState]);
 
     return (
       <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
