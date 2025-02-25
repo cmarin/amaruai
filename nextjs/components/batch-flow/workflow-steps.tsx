@@ -68,7 +68,24 @@ export function WorkflowSteps({
                     <ComboboxPromptTemplates
                       templates={promptTemplates}
                       value={step.prompt_template_id || null}
-                      onSelect={(template) => onUpdateStep(index, 'prompt_template_id', template ? template.id : '')}
+                      onSelect={(template) => {
+                        // First update the prompt template id
+                        onUpdateStep(index, 'prompt_template_id', template ? template.id : '');
+                        
+                        // If template has default values and user hasn't manually changed them, apply them
+                        const hasUserChangedModel = userChangedValues[index]?.model || false;
+                        const hasUserChangedPersona = userChangedValues[index]?.persona || false;
+                        
+                        // Apply default persona if it exists and user hasn't changed it manually
+                        if (template?.default_persona_id && !hasUserChangedPersona) {
+                          onUpdateStep(index, 'persona_id', template.default_persona_id);
+                        }
+                        
+                        // Apply default chat model if it exists and user hasn't changed it manually
+                        if (template?.default_chat_model_id && !hasUserChangedModel) {
+                          onUpdateStep(index, 'chat_model_id', template.default_chat_model_id);
+                        }
+                      }}
                     />
                   </div>
                   {step.prompt_template_id && (
