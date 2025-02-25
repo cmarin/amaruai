@@ -75,6 +75,22 @@ import '@uppy/dashboard/dist/style.min.css'
 // Add import for chat service
 import { prepareChatSubmission, handleChatSubmission } from '@/utils/chat-service';
 
+// Add a style tag to override the overflow-hidden property
+const ChatScrollStyles = () => (
+  <style jsx global>{`
+    .chat-scroll-area-chat1 .scroll-area-viewport,
+    .chat-scroll-area-chat2 .scroll-area-viewport,
+    .chat-scroll-area-chat3 .scroll-area-viewport,
+    .chat-scroll-area-chat4 .scroll-area-viewport {
+      overflow: auto !important;
+    }
+    
+    [data-chat-id] .scroll-area-viewport {
+      overflow: auto !important;
+    }
+  `}</style>
+);
+
 function ChatContent() {
   const { sidebarOpen } = useSidebar()
   const { promptTemplates: prompts, categories, chatModels: allChatModels, personas } = useData()
@@ -428,7 +444,7 @@ function ChatContent() {
 
           {/* Chat messages area */}
           <ScrollArea 
-            className="flex-1 p-4 relative"
+            className={`flex-1 p-4 relative chat-scroll-area-${chatWindowId}`}
             onScroll={handleScroll}
             ref={(el) => { chatContainerRefs.current[chatWindowId] = el; }}
             data-scroll-container={chatWindowId}
@@ -475,6 +491,7 @@ function ChatContent() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
+      <ChatScrollStyles />
       {/* LEFT COLUMN (sidebar) */}
       <div className="w-64 h-full border-r border-gray-200">
         <AppSidebar toggleChatbot={handleToggleChatbot} />
