@@ -25,7 +25,6 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/sidebar-context'
 import { PromptSelector } from '@/components/prompt-selector'
 import { useData } from '@/components/data-context'
-import { addToScratchPad as addToScratchPadService } from '@/utils/scratch-pad-service'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon } from '@/components/icons/ai-provider-icons'
 import { useSession } from '@/app/utils/session/session'
@@ -53,7 +52,12 @@ import {
   getModelName, 
   copyToClipboard as copyToClipboardUtil,
   resetSelectedModels,
-  makeApiCall
+  makeApiCall,
+  addToScratchPad as addToScratchPadUtil,
+  handlePromptSelect as handlePromptSelectUtil,
+  handleComplexPromptSubmit as handleComplexPromptSubmitUtil,
+  handleModeChange as handleModeChangeUtil,
+  handleToggleChatbot as handleToggleChatbotUtil
 } from '@/utils/chat-utils'
 
 // Import the chat upload utilities
@@ -313,11 +317,7 @@ function ChatContent() {
 
   // Add conversation to scratch pad
   const addToScratchPad = async (content: string) => {
-    try {
-      await addToScratchPadService(content)
-    } catch (err) {
-      console.error('Failed to add to scratch pad:', err)
-    }
+    await addToScratchPadUtil(content);
   }
 
   // Clear entire conversation for a given messages array
@@ -335,21 +335,12 @@ function ChatContent() {
 
   // Handles prompt selection
   const handlePromptSelect = (prompt: any) => {
-    if (prompt.is_complex) {
-      setSelectedComplexPrompt(prompt)
-    } else {
-      setInput(prevInput => {
-        const prefix = prevInput ? prevInput + ' ' : ''
-        const promptText = typeof prompt.prompt === 'string' ? prompt.prompt : ''
-        return prefix + promptText
-      })
-    }
+    handlePromptSelectUtil(prompt, setSelectedComplexPrompt, setInput);
   }
 
   // For complex prompts
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
-    setInput(prevInput => (prevInput ? prevInput + ' ' : '') + generatedPrompt)
-    setSelectedComplexPrompt(null)
+    handleComplexPromptSubmitUtil(generatedPrompt, setInput, setSelectedComplexPrompt);
   }
 
   // Reset retry attempts when starting a new chat
@@ -359,27 +350,19 @@ function ChatContent() {
 
   // Add mode change handler
   const handleModeChange = (newMode: ChatMode) => {
-    setMode(newMode)
-    
-    // Update models based on the new mode
-    if (allChatModels?.length > 0) {
-      setSelectedModels(resetSelectedModels(newMode, allChatModels));
-    }
-
-    // Reset retry attempts and multi-conversation tracking
-    resetRetryAttempts()
-    setMultiConversationId(null)
+    handleModeChangeUtil(
+      newMode,
+      setMode,
+      allChatModels,
+      setSelectedModels,
+      resetRetryAttempts,
+      setMultiConversationId
+    );
   }
 
   // Add toggleChatbot handler
   const handleToggleChatbot = (modelId: string) => {
-    // Update the URL
-    router.push(`/chat?model=${modelId}`, { scroll: false })
-    // Update the selected model
-    setSelectedModels(prev => ({
-      ...prev,
-      chat1: modelId
-    }))
+    handleToggleChatbotUtil(modelId, router, setSelectedModels);
   }
 
   // ChatWindow sub-component

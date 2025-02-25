@@ -52,7 +52,7 @@ export const getProviderIcon = (modelId: string, modelName: string) => {
 };
 
 /**
- * Copies text to clipboard and updates copy state
+ * Copies content to the clipboard and updates copied states temporarily
  */
 export const copyToClipboard = async (
   content: string,
@@ -65,7 +65,7 @@ export const copyToClipboard = async (
       setCopiedStates(prev => ({ ...prev, [content]: false }));
     }, 2000);
   } catch (err) {
-    console.error('Failed to copy:', err);
+    console.error('Failed to copy text:', err);
   }
 };
 
@@ -96,35 +96,45 @@ export const getModelIcon = (
 };
 
 /**
- * Resets selected models when changing display mode
+ * Returns a reset object with the initial model selections based on the chat mode
  */
-export const resetSelectedModels = (
-  mode: ChatMode,
-  allChatModels?: ChatModel[]
-): { [key: string]: string } => {
-  // Find default and other models
-  const defaultModel = allChatModels?.find(model => model.default);
-  const otherModels = allChatModels
-    ?.filter(model => !model.default && model.id !== defaultModel?.id)
-    .slice(0, 3);
-
-  if (!defaultModel) return { chat1: '' };
-
-  // Always keep chat1 as default model
-  const newModelSelections: { [key: string]: string } = {
-    chat1: defaultModel.id,
-  };
-
-  // Add other models based on mode
-  if (mode !== 'single' && otherModels?.[0]) {
-    newModelSelections.chat2 = otherModels[0].id;
-  }
-  if (mode === 'quad') {
-    if (otherModels?.[1]) newModelSelections.chat3 = otherModels[1].id;
-    if (otherModels?.[2]) newModelSelections.chat4 = otherModels[2].id;
+export const resetSelectedModels = (mode: ChatMode, allChatModels: ChatModel[] | undefined): { [key: string]: string } => {
+  // Handle case when models are undefined
+  if (!allChatModels || allChatModels.length === 0) {
+    return { chat1: '' };
   }
 
-  return newModelSelections;
+  // Find default models
+  const defaultOpenAIModel = allChatModels.find(model => 
+    model.provider === 'openai' && model.name.includes('4'))?.id || allChatModels[0]?.id;
+  
+  const defaultAnthropicModel = allChatModels.find(model => 
+    model.provider === 'anthropic')?.id || allChatModels[1]?.id;
+  
+  const defaultGeminiModel = allChatModels.find(model => 
+    model.provider === 'google')?.id || allChatModels[2]?.id;
+  
+  const defaultMetaModel = allChatModels.find(model => 
+    model.provider === 'meta')?.id || allChatModels[3]?.id;
+
+  switch (mode) {
+    case 'single':
+      return { chat1: defaultOpenAIModel || allChatModels[0]?.id || '' };
+    case 'dual':
+      return { 
+        chat1: defaultOpenAIModel || allChatModels[0]?.id || '',
+        chat2: defaultAnthropicModel || allChatModels[1]?.id || ''
+      };
+    case 'quad':
+      return {
+        chat1: defaultOpenAIModel || allChatModels[0]?.id || '',
+        chat2: defaultAnthropicModel || allChatModels[1]?.id || '',
+        chat3: defaultGeminiModel || allChatModels[2]?.id || '',
+        chat4: defaultMetaModel || allChatModels[3]?.id || ''
+      };
+    default:
+      return { chat1: defaultOpenAIModel || allChatModels[0]?.id || '' };
+  }
 };
 
 /**
@@ -331,4 +341,101 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
       );
     }
   }
+};
+
+/**
+ * Add conversation to scratch pad
+ * @param content Content to add to the scratch pad
+ */
+export const addToScratchPad = async (content: string) => {
+  try {
+    const { addToScratchPad: addToScratchPadService } = await import('./scratch-pad-service');
+    await addToScratchPadService(content);
+  } catch (err) {
+    console.error('Failed to add to scratch pad:', err);
+  }
+};
+
+/**
+ * Handles a prompt selection, adding it to the input or showing complex prompt modal
+ * @param prompt The selected prompt
+ * @param setSelectedComplexPrompt State setter for the selected complex prompt
+ * @param setInput State setter for the input field
+ */
+export const handlePromptSelect = (
+  prompt: any,
+  setSelectedComplexPrompt: React.Dispatch<React.SetStateAction<any | null>>,
+  setInput: React.Dispatch<React.SetStateAction<string>>
+) => {
+  if (prompt.is_complex) {
+    setSelectedComplexPrompt(prompt);
+  } else {
+    setInput(prevInput => {
+      const prefix = prevInput ? prevInput + ' ' : '';
+      const promptText = typeof prompt.prompt === 'string' ? prompt.prompt : '';
+      return prefix + promptText;
+    });
+  }
+};
+
+/**
+ * Handles complex prompt submission, adding the generated prompt to the input
+ * @param generatedPrompt The generated prompt text
+ * @param setInput State setter for the input field
+ * @param setSelectedComplexPrompt State setter for the selected complex prompt
+ */
+export const handleComplexPromptSubmit = (
+  generatedPrompt: string,
+  setInput: React.Dispatch<React.SetStateAction<string>>,
+  setSelectedComplexPrompt: React.Dispatch<React.SetStateAction<any | null>>
+) => {
+  setInput(prevInput => (prevInput ? prevInput + ' ' : '') + generatedPrompt);
+  setSelectedComplexPrompt(null);
+};
+
+/**
+ * Handles mode change, updating models and resetting conversation tracking
+ * @param newMode The new chat mode
+ * @param setMode State setter for the chat mode
+ * @param allChatModels Available chat models
+ * @param setSelectedModels State setter for selected models
+ * @param resetRetryAttempts Function to reset retry attempts
+ * @param setMultiConversationId State setter for multi-conversation ID
+ */
+export const handleModeChange = (
+  newMode: ChatMode,
+  setMode: React.Dispatch<React.SetStateAction<ChatMode>>,
+  allChatModels: ChatModel[] | undefined,
+  setSelectedModels: React.Dispatch<React.SetStateAction<{ [key: string]: string }>>,
+  resetRetryAttemptsState: () => void,
+  setMultiConversationId: React.Dispatch<React.SetStateAction<string | null>>
+) => {
+  setMode(newMode);
+  
+  // Update models based on the new mode
+  setSelectedModels(resetSelectedModels(newMode, allChatModels));
+
+  // Reset retry attempts and multi-conversation tracking
+  resetRetryAttemptsState();
+  setMultiConversationId(null);
+};
+
+/**
+ * Handles toggling between different chatbot models
+ * @param modelId The model ID to switch to
+ * @param router Next.js router
+ * @param setSelectedModels State setter for selected models
+ */
+export const handleToggleChatbot = (
+  modelId: string,
+  router: any,
+  setSelectedModels: React.Dispatch<React.SetStateAction<{ [key: string]: string }>>
+) => {
+  // Update the URL
+  router.push(`/chat?model=${modelId}`, { scroll: false });
+  // Update the selected model
+  setSelectedModels(prev => ({
+    ...prev,
+    chat1: modelId
+  }));
 }; 
