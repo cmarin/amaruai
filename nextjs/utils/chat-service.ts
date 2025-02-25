@@ -22,6 +22,7 @@ interface ChatSubmitParams {
   knowledgeBaseIds?: string[];
   assetIds?: string[];
   webSearch?: boolean;
+  headers?: Record<string, string>;
 }
 
 interface SubmitChatMessagesParams {
@@ -50,11 +51,15 @@ export const submitChatMessage = async (
   params: ChatSubmitParams,
   signal?: AbortSignal
 ): Promise<Response> => {
+  // Prepare headers by combining default headers with any provided authentication headers
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(params.headers || {})  // Include authentication headers if provided
+  };
+
   const response = await fetch('/api/chat', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
       messages: params.messages,
       user_id: params.userId,

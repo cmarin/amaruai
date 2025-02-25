@@ -205,6 +205,12 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
     let hasReceivedContent = false;
     let chunkCount = 0;
 
+    // Get authentication headers
+    const headers = await getApiHeaders();
+    if (!headers) {
+      throw new Error('Unable to get authentication headers');
+    }
+
     // Use the new submitChatMessage function from chat-service.ts
     const response = await submitChatMessage({
       messages: [...prevMessagesLocal, newMessage],
@@ -216,7 +222,8 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
       multiConversationId: currentMultiConversationId,
       knowledgeBaseIds: selectedKnowledgeBases.map(kb => kb.id),
       assetIds: selectedAssets.map(asset => asset.id),
-      webSearch: isWebSearchEnabled
+      webSearch: isWebSearchEnabled,
+      headers // Pass the authentication headers
     });
 
     if (!response.body) {
