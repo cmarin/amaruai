@@ -1,7 +1,13 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback, Suspense } from "react";
-import ReactMarkdown from "react-markdown";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  Suspense,
+  RefObject
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,8 +29,6 @@ import {
   FileText,
   Paperclip,
   X,
-  Database,
-  ChevronDown,
   Globe2
 } from "lucide-react";
 import {
@@ -40,13 +44,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { isMarkdown } from "@/app/utils/isMarkdown";
-import { AppSidebar } from "@/components/app-sidebar";
 import { useSidebar } from "@/components/sidebar-context";
+import { useData, ChatModel } from "@/components/data-context";
 import { PromptSelector } from "@/components/prompt-selector";
-import { useData } from "@/components/data-context";
-import { addToScratchPad as addToScratchPadService } from "@/utils/scratch-pad-service";
 import { ComplexPromptModal } from "@/components/complex-prompt-modal";
+import { addToScratchPad as addToScratchPadService } from "@/utils/scratch-pad-service";
 import {
   OpenAIIcon,
   AnthropicIcon,
@@ -66,14 +68,15 @@ import { KnowledgeBaseSelector } from "@/components/knowledge-base-selector";
 import { KnowledgeBase, fetchKnowledgeBases } from "@/utils/knowledge-base-service";
 import { fetchAssets } from "@/utils/asset-service";
 import { Asset } from "@/types/knowledge-base";
-import { ChatModel } from "@/components/data-context";
 import { useRouter, useSearchParams } from "next/navigation";
 import ChatMessage from "@/components/chat-message";
+import { AppSidebar } from "@/components/app-sidebar";
 
 // Uppy CSS
 import "@uppy/core/dist/style.min.css";
 import "@uppy/dashboard/dist/style.min.css";
 
+// Basic shape of a message
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -87,11 +90,13 @@ function ChatContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // -- All your message states (unchanged) --
+  // Chat messages for each window
   const [messages, setMessages] = useState<Message[]>([]);
   const [messages2, setMessages2] = useState<Message[]>([]);
   const [messages3, setMessages3] = useState<Message[]>([]);
   const [messages4, setMessages4] = useState<Message[]>([]);
+
+  // Overall user input & state
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -99,18 +104,19 @@ function ChatContent() {
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({});
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<any | null>(null);
 
-  // -- NEW: Each chat has its own isStreaming state --
+  // Per-window streaming states (so each loader can appear independently)
   const [isStreaming1, setIsStreaming1] = useState(false);
   const [isStreaming2, setIsStreaming2] = useState(false);
   const [isStreaming3, setIsStreaming3] = useState(false);
   const [isStreaming4, setIsStreaming4] = useState(false);
 
-  // -- Each chat has its own scroll ref --
+  // Per-window container refs
   const chatContainerRef1 = useRef<HTMLDivElement>(null);
   const chatContainerRef2 = useRef<HTMLDivElement>(null);
   const chatContainerRef3 = useRef<HTMLDivElement>(null);
   const chatContainerRef4 = useRef<HTMLDivElement>(null);
 
+  // Model & persona selection
   const [selectedModels, setSelectedModels] = useState<{ [key: string]: string }>({});
   const [selectedPersonas, setSelectedPersonas] = useState<{ [key: string]: string }>({
     chat1: "default",
@@ -119,22 +125,31 @@ function ChatContent() {
     chat4: "default",
   });
 
+  // For conversation tracking
   const [conversationIds, setConversationIds] = useState<{ [key: string]: string }>({});
   const [multiConversationId, setMultiConversationId] = useState<string | null>(null);
+
+  // File uploads
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const uppyRef = useRef<Uppy | null>(null);
+
+  // Knowledge base
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
   const [isLoadingKnowledgeBases, setIsLoadingKnowledgeBases] = useState(true);
+
+  // SSE fallback / retry logic
   const [retryAttempts, setRetryAttempts] = useState<{ [key: string]: number }>({});
+
+  // Web search toggle
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
-  const [showKnowledgeBaseModal, setShowKnowledgeBaseModal] = useState(false);
 
-  // Uppy for file uploads
-  const uppyRef = useRef<Uppy | null>(null);
-
+  // --------------------------------------------
+  // Uppy File Upload
+  // --------------------------------------------
   useEffect(() => {
     if (!uppyRef.current) {
       const uppyInstance = UploadService.createUppy(
@@ -163,104 +178,12 @@ function ChatContent() {
       );
       uppyRef.current = uppyInstance;
     }
-
     return () => {
       if (uppyRef.current) {
         uppyRef.current.cancelAll();
       }
     };
   }, [supabase]);
-
-  // Load knowledge bases
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const headers = await getApiHeaders();
-        if (!headers) return;
-
-        setIsLoadingKnowledgeBases(true);
-        const fetchedKnowledgeBases = await fetchKnowledgeBases(headers);
-        setKnowledgeBases(fetchedKnowledgeBases);
-      } catch (error) {
-        console.error("Error fetching knowledge bases:", error);
-      } finally {
-        setIsLoadingKnowledgeBases(false);
-      }
-    };
-    fetchData();
-  }, [getApiHeaders]);
-
-  // Load default models on mount / when mode changes
-  useEffect(() => {
-    if (allChatModels?.length > 0) {
-      const defaultModel = allChatModels.find((model) => model.default);
-      if (!defaultModel) return;
-
-      // Grab up to 3 "other" models for dual/quad
-      const otherModels = allChatModels
-        .filter((model) => !model.default && model.id !== defaultModel.id)
-        .slice(0, 3);
-
-      setSelectedModels((prev) => ({
-        ...prev,
-        chat1: defaultModel.id,
-        ...(mode !== "single" && otherModels[0] && { chat2: otherModels[0].id }),
-        ...(mode === "quad" && otherModels[1] && { chat3: otherModels[1].id }),
-        ...(mode === "quad" && otherModels[2] && { chat4: otherModels[2].id }),
-      }));
-    }
-  }, [allChatModels, mode]);
-
-  // If there's a `model` query param, select that for chat1
-  useEffect(() => {
-    const modelId = searchParams.get("model");
-    if (modelId && allChatModels?.some((model) => model.id === modelId)) {
-      setSelectedModels((prev) => ({
-        ...prev,
-        chat1: modelId,
-      }));
-    }
-  }, [searchParams, allChatModels]);
-
-  // For debugging: see if the persona array updates
-  useEffect(() => {
-    console.log("Personas changed:", personas);
-  }, [personas]);
-
-  // Helper to get the correct provider icon
-  const getProviderIcon = (modelId: string, modelName: string) => {
-    const nameLower = modelName.toLowerCase();
-    if (nameLower.includes("gpt") || nameLower.includes("o1")) return OpenAIIcon;
-    if (nameLower.includes("claude")) return AnthropicIcon;
-    if (nameLower.includes("gemini")) return GeminiIcon;
-    if (nameLower.includes("perplexity")) return PerplexityIcon;
-    if (nameLower.includes("mistral") || nameLower.includes("mixtral")) return MistralIcon;
-    if (nameLower.includes("llama")) return MetaIcon;
-    if (nameLower.includes("zephyr")) return ZephyrIcon;
-    return MessageSquare;
-  };
-
-  const handleModelChange = (chatWindowId: string, modelId: string) => {
-    setSelectedModels((prev) => ({ ...prev, [chatWindowId]: modelId }));
-    // Reset any retry attempts for that window
-    setRetryAttempts((prev) => ({ ...prev, [chatWindowId]: 0 }));
-  };
-
-  const handlePersonaChange = (chatWindowId: string, personaId: string) => {
-    setSelectedPersonas((prev) => ({ ...prev, [chatWindowId]: personaId }));
-  };
-
-  const getModelName = (chatWindowId: string) => {
-    const modelId = selectedModels[chatWindowId];
-    const model = allChatModels?.find((m) => m.id === modelId);
-    return model?.name || "Default Model";
-  };
-
-  const getModelIcon = (chatWindowId: string) => {
-    const modelId = selectedModels[chatWindowId];
-    const model = allChatModels?.find((m) => m.id === modelId);
-    return model ? getProviderIcon(model.id, model.name) : Timer;
-  };
 
   const handleFileUpload = async (result: any) => {
     if (result.successful && result.successful.length > 0) {
@@ -288,29 +211,140 @@ function ChatContent() {
   };
 
   // --------------------------------------------
-  // Updated makeApiCall uses per-window streaming states
+  // Knowledge Base
   // --------------------------------------------
-  const makeApiCall = async (
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const headers = await getApiHeaders();
+        if (!headers) return;
+        setIsLoadingKnowledgeBases(true);
+        const fetchedKnowledgeBases = await fetchKnowledgeBases(headers);
+        setKnowledgeBases(fetchedKnowledgeBases);
+      } catch (error) {
+        console.error("Error fetching knowledge bases:", error);
+      } finally {
+        setIsLoadingKnowledgeBases(false);
+      }
+    };
+    fetchData();
+  }, [getApiHeaders]);
+
+  const loadAssets = useCallback(async () => {
+    try {
+      const headers = await getApiHeaders();
+      if (!headers) return;
+      const assets = await fetchAssets(headers);
+      setAssets(assets);
+    } catch (error) {
+      console.error("Error loading assets:", error);
+    }
+  }, [getApiHeaders]);
+
+  useEffect(() => {
+    loadAssets();
+  }, [loadAssets]);
+
+  // --------------------------------------------
+  // Handle default/selected models
+  // --------------------------------------------
+  useEffect(() => {
+    if (allChatModels?.length > 0) {
+      const defaultModel = allChatModels.find((m) => m.default);
+      if (!defaultModel) return;
+
+      // Up to 3 "other" models
+      const otherModels = allChatModels
+        .filter((m) => !m.default && m.id !== defaultModel.id)
+        .slice(0, 3);
+
+      setSelectedModels((prev) => ({
+        ...prev,
+        chat1: defaultModel.id,
+        ...(mode !== "single" && otherModels[0] && { chat2: otherModels[0].id }),
+        ...(mode === "quad" && otherModels[1] && { chat3: otherModels[1].id }),
+        ...(mode === "quad" && otherModels[2] && { chat4: otherModels[2].id }),
+      }));
+    }
+  }, [allChatModels, mode]);
+
+  // If URL has ?model=..., prefer that for chat1
+  useEffect(() => {
+    const modelId = searchParams.get("model");
+    if (modelId && allChatModels?.some((m) => m.id === modelId)) {
+      setSelectedModels((prev) => ({ ...prev, chat1: modelId }));
+    }
+  }, [searchParams, allChatModels]);
+
+  // For debugging persona changes
+  useEffect(() => {
+    console.log("Personas changed:", personas);
+  }, [personas]);
+
+  // --------------------------------------------
+  // Helper: pick a provider icon from name
+  // --------------------------------------------
+  const getProviderIcon = (modelId: string, modelName: string) => {
+    const nameLower = modelName.toLowerCase();
+    if (nameLower.includes("gpt") || nameLower.includes("o1")) return OpenAIIcon;
+    if (nameLower.includes("claude")) return AnthropicIcon;
+    if (nameLower.includes("gemini")) return GeminiIcon;
+    if (nameLower.includes("perplexity")) return PerplexityIcon;
+    if (nameLower.includes("mistral") || nameLower.includes("mixtral")) return MistralIcon;
+    if (nameLower.includes("llama")) return MetaIcon;
+    if (nameLower.includes("zephyr")) return ZephyrIcon;
+    return MessageSquare;
+  };
+
+  // --------------------------------------------
+  // Per-window persona/model changes
+  // --------------------------------------------
+  const handleModelChange = (chatWindowId: string, modelId: string) => {
+    setSelectedModels((prev) => ({ ...prev, [chatWindowId]: modelId }));
+    // reset retry attempt
+    setRetryAttempts((prev) => ({ ...prev, [chatWindowId]: 0 }));
+  };
+
+  const handlePersonaChange = (chatWindowId: string, personaId: string) => {
+    setSelectedPersonas((prev) => ({ ...prev, [chatWindowId]: personaId }));
+  };
+
+  // Grab the model name from the ID
+  const getModelName = (chatWindowId: string) => {
+    const modelId = selectedModels[chatWindowId];
+    const model = allChatModels?.find((m) => m.id === modelId);
+    return model?.name || "Default Model";
+  };
+
+  // Grab the model icon from the ID
+  const getModelIcon = (chatWindowId: string) => {
+    const modelId = selectedModels[chatWindowId];
+    const model = allChatModels?.find((m) => m.id === modelId);
+    return model ? getProviderIcon(model.id, model.name) : Timer;
+  };
+
+  // --------------------------------------------
+  // SSE call for each chat window
+  // --------------------------------------------
+  async function makeApiCall(
     prevMessagesLocal: Message[],
     setMessagesFunction: React.Dispatch<React.SetStateAction<Message[]>>,
     chatId: string,
-    isRetry: boolean = false
-  ) => {
-    // Decide which setIsStreaming to use
-    let setStreaming: React.Dispatch<React.SetStateAction<boolean>>;
-    if (chatId === "chat1") setStreaming = setIsStreaming1;
-    else if (chatId === "chat2") setStreaming = setIsStreaming2;
+    isRetry = false
+  ) {
+    // Decide which streaming state to update
+    let setStreaming = setIsStreaming1;
+    if (chatId === "chat2") setStreaming = setIsStreaming2;
     else if (chatId === "chat3") setStreaming = setIsStreaming3;
-    else setStreaming = setIsStreaming4;
+    else if (chatId === "chat4") setStreaming = setIsStreaming4;
 
-    // Check how many times we've retried
+    // If retry, ensure we don't exceed 1
     if (isRetry) {
       const currentRetries = retryAttempts[chatId] || 0;
       if (currentRetries > 0) {
         console.log(`Already retried chat ${chatId}, skipping further retries`);
         return;
       }
-      // Mark this chat window as having been retried
       setRetryAttempts((prev) => ({
         ...prev,
         [chatId]: (prev[chatId] || 0) + 1,
@@ -318,23 +352,18 @@ function ChatContent() {
     }
 
     try {
-      setStreaming(true); // <-- streaming ON
+      setStreaming(true);
 
-      // Grab or create conversation_id
       let currentConversationId = conversationIds[chatId];
       if (!currentConversationId) {
         currentConversationId = crypto.randomUUID();
-        setConversationIds((prev) => ({
-          ...prev,
-          [chatId]: currentConversationId,
-        }));
+        setConversationIds((prev) => ({ ...prev, [chatId]: currentConversationId }));
       }
 
-      // Model & persona
       const modelId = isRetry ? undefined : selectedModels[chatId];
       const personaId = selectedPersonas[chatId];
       const selectedModel = modelId
-        ? allChatModels?.find((model) => model.id === modelId)
+        ? allChatModels?.find((m) => m.id === modelId)
         : undefined;
       const selectedPersona = personas?.find((p) => p.id.toString() === personaId);
 
@@ -374,7 +403,6 @@ function ChatContent() {
       let hasCreatedAssistantMessage = false;
       streamStartTime = Date.now();
 
-      // SSE loop
       while (true) {
         const timeElapsed = Date.now() - (streamStartTime ?? 0);
         if (
@@ -392,13 +420,10 @@ function ChatContent() {
           break;
         }
 
-        if (!receivedFirstChunk) {
-          receivedFirstChunk = true;
-        }
+        if (!receivedFirstChunk) receivedFirstChunk = true;
 
         const chunk = decoder.decode(value);
         const lines = chunk.split("\n");
-
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             chunkCount++;
@@ -406,7 +431,7 @@ function ChatContent() {
             if (jsonData === "[DONE]") continue;
 
             try {
-              // Basic check for incomplete JSON
+              // basic check for incomplete JSON
               const openBraces = (jsonData.match(/{/g) || []).length;
               const closeBraces = (jsonData.match(/}/g) || []).length;
               if (
@@ -439,8 +464,8 @@ function ChatContent() {
                   });
                 }
               }
-            } catch (parseError) {
-              console.warn("Error parsing chunk, skipping:", parseError);
+            } catch (parseErr) {
+              console.warn("Error parsing chunk, skipping:", parseErr);
               console.warn("Problematic chunk:", jsonData);
               continue;
             }
@@ -451,7 +476,7 @@ function ChatContent() {
       console.error("Error in API call:", err);
       const errMsg = err instanceof Error ? err.message : "Unknown error";
 
-      // If timeout or empty chunk, retry once without model_id
+      // Retry once if we get a "timeout" or "empty chunk"
       if ((errMsg.includes("timeout") || errMsg.includes("empty chunk")) && !isRetry) {
         console.log("Retrying stream without specific model for", chatId);
         try {
@@ -473,11 +498,13 @@ function ChatContent() {
         );
       }
     } finally {
-      setStreaming(false); // <-- streaming OFF
+      setStreaming(false);
     }
-  };
+  }
 
-  // Submit user input to all windows
+  // --------------------------------------------
+  // Submit user input
+  // --------------------------------------------
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() && uploadedFiles.length === 0) return;
@@ -486,6 +513,7 @@ function ChatContent() {
     setError(null);
     resetRetryAttempts();
 
+    // Add user msg to all windows
     const newMessage: Message = { role: "user", content: input.trim() };
     setMessages((prev) => [...prev, newMessage]);
     setMessages2((prev) => [...prev, newMessage]);
@@ -493,12 +521,14 @@ function ChatContent() {
     setMessages4((prev) => [...prev, newMessage]);
     setInput("");
 
+    // For multi-conversation grouping
     let currentMultiConversationId = multiConversationId;
     if ((mode === "dual" || mode === "quad") && !currentMultiConversationId) {
       currentMultiConversationId = crypto.randomUUID();
       setMultiConversationId(currentMultiConversationId);
     }
 
+    // Fire SSE calls
     const calls = [
       makeApiCall(messages, setMessages, "chat1"),
       mode !== "single" && makeApiCall(messages2, setMessages2, "chat2"),
@@ -508,13 +538,13 @@ function ChatContent() {
 
     try {
       const results = await Promise.allSettled(calls);
-      // Log any failed calls
-      results.forEach((result, index) => {
-        if (result.status === "rejected") {
-          const chatId = ["chat1", "chat2", "chat3", "chat4"][index];
-          console.error(`Chat ${chatId} failed:`, result.reason);
+      // Log any failures
+      results.forEach((r, i) => {
+        if (r.status === "rejected") {
+          const chatId = ["chat1", "chat2", "chat3", "chat4"][i];
+          console.error(`Chat ${chatId} failed:`, r.reason);
           const errMsg =
-            result.reason instanceof Error ? result.reason.message : "Unknown error";
+            r.reason instanceof Error ? r.reason.message : "Unknown error";
           setError(
             (prevError) =>
               prevError
@@ -523,73 +553,26 @@ function ChatContent() {
           );
         }
       });
-    } catch (err: unknown) {
+    } catch (err) {
       console.error("Error in handleSubmit:", err);
       const errMsg = err instanceof Error ? err.message : "Unknown error";
-      setError((prevError) => (prevError ? new Error(`${prevError.message}\n${errMsg}`) : new Error(errMsg)));
+      setError((prev) => (prev ? new Error(`${prev.message}\n${errMsg}`) : new Error(errMsg)));
     } finally {
       setIsLoading(false);
       setUploadedFiles([]);
     }
   };
 
-  // Copy & scratch pad
-  const copyToClipboard = async (content: string) => {
-    try {
-      await navigator.clipboard.writeText(content);
-      setCopiedStates((prev) => ({ ...prev, [content]: true }));
-      setTimeout(() => {
-        setCopiedStates((prev) => ({ ...prev, [content]: false }));
-      }, 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
-  };
-
-  const addToScratchPad = async (content: string) => {
-    try {
-      await addToScratchPadService(content);
-    } catch (err) {
-      console.error("Failed to add to scratch pad:", err);
-    }
-  };
-
-  const clearConversation = (messagesList: Message[]) => {
-    if (messagesList === messages) {
-      setMessages([]);
-    } else if (messagesList === messages2) {
-      setMessages2([]);
-    } else if (messagesList === messages3) {
-      setMessages3([]);
-    } else if (messagesList === messages4) {
-      setMessages4([]);
-    }
-  };
-
-  const handlePromptSelect = (prompt: any) => {
-    if (prompt.is_complex) {
-      setSelectedComplexPrompt(prompt);
-    } else {
-      setInput((prevInput) => {
-        const prefix = prevInput ? prevInput + " " : "";
-        const promptText = typeof prompt.prompt === "string" ? prompt.prompt : "";
-        return prefix + promptText;
-      });
-    }
-  };
-
-  const handleComplexPromptSubmit = (generatedPrompt: string) => {
-    setInput((prevInput) => (prevInput ? prevInput + " " : "") + generatedPrompt);
-    setSelectedComplexPrompt(null);
-  };
-
+  // --------------------------------------------
+  // Basic housekeeping
+  // --------------------------------------------
   const resetRetryAttempts = () => {
     setRetryAttempts({});
   };
 
   const handleModeChange = (newMode: "single" | "dual" | "quad") => {
     setMode(newMode);
-    const defaultModel = allChatModels?.find((model) => model.default);
+    const defaultModel = allChatModels?.find((m) => m.default);
     const otherModels = allChatModels
       ?.filter((m) => !m.default && m.id !== defaultModel?.id)
       .slice(0, 3);
@@ -607,25 +590,74 @@ function ChatContent() {
       }
       setSelectedModels(newSelections);
     }
-
     resetRetryAttempts();
     setMultiConversationId(null);
   };
 
   const handleToggleChatbot = (modelId: string) => {
     router.push(`/chat?model=${modelId}`, { scroll: false });
-    setSelectedModels((prev) => ({
-      ...prev,
-      chat1: modelId,
-    }));
+    setSelectedModels((prev) => ({ ...prev, chat1: modelId }));
+  };
+
+  // Copy entire conversation
+  const copyToClipboard = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedStates((prev) => ({ ...prev, [content]: true }));
+      setTimeout(() => {
+        setCopiedStates((prev) => ({ ...prev, [content]: false }));
+      }, 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  // Add conversation to scratch pad
+  const addToScratchPad = async (content: string) => {
+    try {
+      await addToScratchPadService(content);
+    } catch (err) {
+      console.error("Failed to add to scratch pad:", err);
+    }
+  };
+
+  // Clear an individual chat window
+  const clearConversation = (messagesList: Message[]) => {
+    if (messagesList === messages) {
+      setMessages([]);
+    } else if (messagesList === messages2) {
+      setMessages2([]);
+    } else if (messagesList === messages3) {
+      setMessages3([]);
+    } else if (messagesList === messages4) {
+      setMessages4([]);
+    }
+  };
+
+  // For prompt selection
+  const handlePromptSelect = (prompt: any) => {
+    if (prompt.is_complex) {
+      setSelectedComplexPrompt(prompt);
+    } else {
+      setInput((prev) => {
+        const prefix = prev ? prev + " " : "";
+        const promptText = typeof prompt.prompt === "string" ? prompt.prompt : "";
+        return prefix + promptText;
+      });
+    }
+  };
+
+  const handleComplexPromptSubmit = (generatedPrompt: string) => {
+    setInput((prev) => (prev ? prev + " " : "") + generatedPrompt);
+    setSelectedComplexPrompt(null);
   };
 
   // --------------------------------------------
-  // Updated ChatWindow sub-component
+  // The updated ChatWindow sub-component
   // --------------------------------------------
   interface ChatWindowProps {
     messages: Message[];
-    messagesEndRef: React.RefObject<HTMLDivElement>;
+    messagesEndRef: RefObject<HTMLDivElement>;
     title: string;
     Icon: React.ComponentType<any>;
     onCopy: () => void;
@@ -633,8 +665,17 @@ function ChatContent() {
     onClearConversation: () => void;
     isCopied: boolean;
     chatWindowId: string;
-    isStreaming: boolean;                     // <-- new
-    containerRef: React.RefObject<HTMLDivElement>; // <-- new
+    isStreaming: boolean; 
+    containerRef: RefObject<HTMLDivElement>;
+
+    // Additional props so ChatWindow can pick up personas/models
+    personas: any[] | undefined;
+    selectedPersonas: { [key: string]: string };
+    selectedModels: { [key: string]: string };
+    handlePersonaChange: (chatWindowId: string, personaId: string) => void;
+    handleModelChange: (chatWindowId: string, modelId: string) => void;
+    getModelIcon: (chatWindowId: string) => React.ComponentType<any>;
+    getModelName: (chatWindowId: string) => string;
   }
 
   function ChatWindow({
@@ -649,23 +690,54 @@ function ChatContent() {
     chatWindowId,
     isStreaming,
     containerRef,
+
+    // pass these so the window can manage persona/model selection
+    personas,
+    selectedPersonas,
+    selectedModels,
+    handlePersonaChange,
+    handleModelChange,
+    getModelIcon,
+    getModelName,
   }: ChatWindowProps) {
-    const selectedPersona = personas?.find((p) => p.id.toString() === selectedPersonas[chatWindowId]);
-    
-    // Get the icon component dynamically
-    const IconComponent = getModelIcon(chatWindowId);
+    const shouldAutoScrollRef = useRef(true);
+
+    // Auto-scroll if near bottom
+    useEffect(() => {
+      if (!containerRef.current) return;
+      if (shouldAutoScrollRef.current) {
+        containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      }
+    }, [messages, containerRef]);
+
+    // On scroll, check if user is near bottom
+    const handleScroll = useCallback(() => {
+      if (!containerRef.current) return;
+      const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+      const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+
+      // If user is within 100px, auto-scroll
+      shouldAutoScrollRef.current = distanceFromBottom < 100;
+    }, [containerRef]);
+
+    // Which persona for this window
+    const selectedPersona = personas?.find(
+      (p) => p.id.toString() === selectedPersonas[chatWindowId]
+    );
 
     return (
       <TooltipProvider>
-        <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
-          {/* Header */}
+        <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden relative">
+          {/* Header (model + persona + copy, etc.) */}
           <div className="flex items-center justify-between p-3 border-b">
+            {/* Left side: model info */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <IconComponent className="w-5 h-5" />
+                {React.createElement(getModelIcon(chatWindowId), { className: "w-5 h-5" })}
                 <span className="font-medium">{getModelName(chatWindowId)}</span>
               </div>
               <div className="flex items-center gap-2">
+                {/* Persona dropdown */}
                 <Select
                   value={selectedPersonas[chatWindowId]}
                   onValueChange={(value) => handlePersonaChange(chatWindowId, value)}
@@ -683,6 +755,7 @@ function ChatContent() {
                   </SelectContent>
                 </Select>
 
+                {/* Model dropdown */}
                 <Select
                   value={selectedModels[chatWindowId]}
                   onValueChange={(value) => handleModelChange(chatWindowId, value)}
@@ -700,7 +773,8 @@ function ChatContent() {
                 </Select>
               </div>
             </div>
-            {/* Copy, add to scratch pad, clear */}
+
+            {/* Right side: copy, scratch pad, clear */}
             <div className="flex items-center gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -710,17 +784,29 @@ function ChatContent() {
                 </TooltipTrigger>
                 <TooltipContent>{isCopied ? "Copied!" : "Copy chat content"}</TooltipContent>
               </Tooltip>
+
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onAddToScratchPad}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-8 h-8"
+                    onClick={onAddToScratchPad}
+                  >
                     <FileText className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Add to Scratch Pad</TooltipContent>
               </Tooltip>
+
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="w-8 h-8" onClick={onClearConversation}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-8 h-8"
+                    onClick={onClearConversation}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
@@ -729,8 +815,12 @@ function ChatContent() {
             </div>
           </div>
 
-          {/* Scrollable chat area */}
-          <ScrollArea className="flex-1 p-4 relative" ref={containerRef}>
+          {/* Scrollable area with an onScroll handler */}
+          <ScrollArea
+            className="flex-1 p-4"
+            ref={containerRef}
+            onScroll={handleScroll}
+          >
             <div className="space-y-4">
               {messages.map((message, index) => (
                 <ChatMessage
@@ -740,40 +830,28 @@ function ChatContent() {
                   avatar={message.role === "assistant" ? selectedPersona?.avatar : null}
                 />
               ))}
+              {/* anchor to scroll into view */}
               <div ref={messagesEndRef} className="h-4" />
             </div>
-
-            {/* Show loader only if THIS window is streaming */}
-            {isStreaming && (
-              <div className="sticky bottom-4 w-full flex justify-center">
-                <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Generating response...</span>
-                </div>
-              </div>
-            )}
           </ScrollArea>
+
+          {/* Absolutely-positioned loader so it doesn't shift messages */}
+          {isStreaming && (
+            <div className="absolute bottom-4 left-0 w-full flex justify-center pointer-events-none">
+              <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground pointer-events-auto">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Generating response...</span>
+              </div>
+            </div>
+          )}
         </div>
       </TooltipProvider>
     );
   }
 
-  // Load assets
-  const loadAssets = useCallback(async () => {
-    try {
-      const headers = getApiHeaders();
-      if (!headers) return;
-      const assets = await fetchAssets(headers);
-      setAssets(assets);
-    } catch (error) {
-      console.error("Error loading assets:", error);
-    }
-  }, [getApiHeaders]);
-
-  useEffect(() => {
-    loadAssets();
-  }, [loadAssets]);
-
+  // --------------------------------------------
+  // Render
+  // --------------------------------------------
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       {/* LEFT SIDEBAR */}
@@ -781,9 +859,8 @@ function ChatContent() {
         <AppSidebar toggleChatbot={handleToggleChatbot} />
       </div>
 
-      {/* MAIN PANEL */}
+      {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col h-full relative">
-        {/* Chat Windows */}
         <div className="flex-1 overflow-auto p-4">
           {mode === "single" ? (
             <div className="grid h-full gap-4" style={{ gridTemplateColumns: "1fr" }}>
@@ -803,6 +880,13 @@ function ChatContent() {
                 chatWindowId="chat1"
                 isStreaming={isStreaming1}
                 containerRef={chatContainerRef1}
+                personas={personas}
+                selectedPersonas={selectedPersonas}
+                selectedModels={selectedModels}
+                handlePersonaChange={handlePersonaChange}
+                handleModelChange={handleModelChange}
+                getModelIcon={getModelIcon}
+                getModelName={getModelName}
               />
             </div>
           ) : (
@@ -813,6 +897,7 @@ function ChatContent() {
                 gridTemplateRows: mode === "quad" ? "1fr 1fr" : "1fr",
               }}
             >
+              {/* Window 1 */}
               <ChatWindow
                 messages={messages}
                 messagesEndRef={useRef<HTMLDivElement>(null)}
@@ -829,8 +914,16 @@ function ChatContent() {
                 chatWindowId="chat1"
                 isStreaming={isStreaming1}
                 containerRef={chatContainerRef1}
+                personas={personas}
+                selectedPersonas={selectedPersonas}
+                selectedModels={selectedModels}
+                handlePersonaChange={handlePersonaChange}
+                handleModelChange={handleModelChange}
+                getModelIcon={getModelIcon}
+                getModelName={getModelName}
               />
 
+              {/* Window 2 (already knows it's not single mode) */}
               <ChatWindow
                 messages={messages2}
                 messagesEndRef={useRef<HTMLDivElement>(null)}
@@ -843,12 +936,22 @@ function ChatContent() {
                   addToScratchPad(messages2.map((m) => `${m.role}: ${m.content}`).join("\n"))
                 }
                 onClearConversation={() => clearConversation(messages2)}
-                isCopied={copiedStates[messages2.map((m) => `${m.role}: ${m.content}`).join("\n")]}
+                isCopied={
+                  copiedStates[messages2.map((m) => `${m.role}: ${m.content}`).join("\n")]
+                }
                 chatWindowId="chat2"
                 isStreaming={isStreaming2}
                 containerRef={chatContainerRef2}
+                personas={personas}
+                selectedPersonas={selectedPersonas}
+                selectedModels={selectedModels}
+                handlePersonaChange={handlePersonaChange}
+                handleModelChange={handleModelChange}
+                getModelIcon={getModelIcon}
+                getModelName={getModelName}
               />
 
+              {/* Window 3 & 4 only if quad */}
               {mode === "quad" && (
                 <>
                   <ChatWindow
@@ -869,6 +972,13 @@ function ChatContent() {
                     chatWindowId="chat3"
                     isStreaming={isStreaming3}
                     containerRef={chatContainerRef3}
+                    personas={personas}
+                    selectedPersonas={selectedPersonas}
+                    selectedModels={selectedModels}
+                    handlePersonaChange={handlePersonaChange}
+                    handleModelChange={handleModelChange}
+                    getModelIcon={getModelIcon}
+                    getModelName={getModelName}
                   />
 
                   <ChatWindow
@@ -889,6 +999,13 @@ function ChatContent() {
                     chatWindowId="chat4"
                     isStreaming={isStreaming4}
                     containerRef={chatContainerRef4}
+                    personas={personas}
+                    selectedPersonas={selectedPersonas}
+                    selectedModels={selectedModels}
+                    handlePersonaChange={handlePersonaChange}
+                    handleModelChange={handleModelChange}
+                    getModelIcon={getModelIcon}
+                    getModelName={getModelName}
                   />
                 </>
               )}
@@ -896,7 +1013,7 @@ function ChatContent() {
           )}
         </div>
 
-        {/* Footer (input, modes, etc.) */}
+        {/* Footer: input, mode toggles, etc. */}
         <div className="border-t p-4 flex items-center gap-2">
           <TooltipProvider>
             <Tooltip>
@@ -916,7 +1033,12 @@ function ChatContent() {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowUploadModal(true)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setShowUploadModal(true)}
+                >
                   <Paperclip className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -934,14 +1056,20 @@ function ChatContent() {
                   isLoadingKnowledgeBases={isLoadingKnowledgeBases}
                   selectedKnowledgeBases={selectedKnowledgeBases}
                   selectedAssets={selectedAssets}
-                  onSelectKnowledgeBase={(kb) => setSelectedKnowledgeBases([...selectedKnowledgeBases, kb])}
-                  onDeselectKnowledgeBase={(kb) =>
-                    setSelectedKnowledgeBases(selectedKnowledgeBases.filter((k) => k.id !== kb.id))
-                  }
-                  onSelectAsset={(asset) => setSelectedAssets([...selectedAssets, asset])}
-                  onDeselectAsset={(asset) =>
-                    setSelectedAssets(selectedAssets.filter((a) => a.id !== asset.id))
-                  }
+                  onSelectKnowledgeBase={(kb) => {
+                    setSelectedKnowledgeBases([...selectedKnowledgeBases, kb]);
+                  }}
+                  onDeselectKnowledgeBase={(kb) => {
+                    setSelectedKnowledgeBases(
+                      selectedKnowledgeBases.filter((k) => k.id !== kb.id)
+                    );
+                  }}
+                  onSelectAsset={(asset) => {
+                    setSelectedAssets([...selectedAssets, asset]);
+                  }}
+                  onDeselectAsset={(asset) => {
+                    setSelectedAssets(selectedAssets.filter((a) => a.id !== asset.id));
+                  }}
                 />
               </TooltipTrigger>
               <TooltipContent className="bg-white">
@@ -983,11 +1111,17 @@ function ChatContent() {
             className="flex-1"
           />
 
-          <Button onClick={(e) => handleSubmit(e)} disabled={isLoading || (!input.trim() && !uploadedFiles.length)}>
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          <Button
+            onClick={(e) => handleSubmit(e)}
+            disabled={isLoading || (!input.trim() && !uploadedFiles.length)}
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </Button>
 
-          {/* Mode toggles */}
           <div className="flex items-center gap-2">
             <Button
               variant={mode === "single" ? "secondary" : "ghost"}
@@ -1016,7 +1150,7 @@ function ChatContent() {
           </div>
         </div>
 
-        {/* File upload pills */}
+        {/* File upload pills (show if any files) */}
         {uploadedFiles.length > 0 && (
           <div className="absolute bottom-[72px] left-0 right-0 p-2 bg-background border-t">
             <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
@@ -1024,7 +1158,7 @@ function ChatContent() {
         )}
       </div>
 
-      {/* Complex prompt modal */}
+      {/* Complex Prompt Modal */}
       {selectedComplexPrompt && (
         <ComplexPromptModal
           prompt={selectedComplexPrompt}
@@ -1034,7 +1168,7 @@ function ChatContent() {
         />
       )}
 
-      {/* File upload modal */}
+      {/* File Upload Modal */}
       {showUploadModal && uppyRef.current && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-4 rounded-lg max-w-2xl w-full">
