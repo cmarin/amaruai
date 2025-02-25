@@ -442,12 +442,13 @@ function ChatContent() {
             </div>
           </div>
 
-          {/* Chat messages area */}
-          <ScrollArea 
-            className={`flex-1 p-4 relative chat-scroll-area-${chatWindowId}`}
+          {/* Chat messages area - Using a simple div with overflow-y: auto instead of ScrollArea */}
+          <div 
+            className={`flex-1 p-4 relative overflow-y-auto custom-scroll-${chatWindowId}`}
             onScroll={handleScroll}
             ref={(el) => { chatContainerRefs.current[chatWindowId] = el; }}
             data-scroll-container={chatWindowId}
+            style={{ height: '100%', overflowY: 'auto' }}
           >
             <div className="space-y-4">
               {messages.map((message, index) => (
@@ -468,7 +469,7 @@ function ChatContent() {
                 </div>
               </div>
             )}
-          </ScrollArea>
+          </div>
         </div>
       </TooltipProvider>
     );
