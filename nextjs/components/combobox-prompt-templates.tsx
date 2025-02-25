@@ -33,7 +33,9 @@ export function ComboboxPromptTemplates({ templates, value, onSelect }: Combobox
 
   // Find the selected template
   const selectedTemplate = React.useMemo(() => {
-    return templates.find(t => t.id.toString() === valueString);
+    const found = templates.find(t => t.id.toString() === valueString);
+    console.log('Recalculated selected template:', found?.title || null);
+    return found;
   }, [templates, valueString]);
 
   return (
@@ -76,12 +78,12 @@ export function ComboboxPromptTemplates({ templates, value, onSelect }: Combobox
                       
                       // Explicitly compare the template ID with the current value
                       if (template.id.toString() === valueString) {
-                        console.log('Template already selected - ensuring UI updates');
+                        console.log('Template already selected - forcing re-selection');
                         // Force a re-selection to ensure UI updates
                         onSelect(null); // Clear first
                         setTimeout(() => {
                           onSelect(template); // Then set again
-                        }, 10);
+                        }, 50);
                       } else {
                         onSelect(template);
                       }
@@ -92,7 +94,7 @@ export function ComboboxPromptTemplates({ templates, value, onSelect }: Combobox
                     <CheckIcon
                       className={cn(
                         "mr-2 h-4 w-4",
-                        selectedTemplate?.id === template.id ? "opacity-100" : "opacity-0"
+                        valueString === template.id.toString() ? "opacity-100" : "opacity-0"
                       )}
                     />
                     {template.title}

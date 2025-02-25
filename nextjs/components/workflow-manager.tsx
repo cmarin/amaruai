@@ -155,15 +155,23 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   const updateStep = (index: number, field: keyof WorkflowStep, value: string) => {
     console.log(`Updating step ${index}, field ${field} to value:`, value);
     
+    // Create a new array of steps
     const updatedSteps = [...workflow.steps];
+    
+    // Update the step with the new value
     updatedSteps[index] = { ...updatedSteps[index], [field]: value };
+    
+    // First update the workflow with the basic change
+    setWorkflow(prevWorkflow => ({
+      ...prevWorkflow,
+      steps: updatedSteps
+    }));
 
-    // If updating prompt template, check for defaults
+    // If updating prompt template, handle defaults
     if (field === 'prompt_template_id') {
       const template = promptTemplates.find(t => t.id === value);
       
       // Always reset the user changed values when selecting a template
-      // This matches the behavior in the batch-flow feature
       setUserChangedValues(prev => ({
         ...prev,
         [index]: { model: false, persona: false }
@@ -176,39 +184,51 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
           default_chat_model_id: template.default_chat_model_id
         });
         
-        // Always apply defaults when template is selected
-        if (template.default_chat_model_id) {
-          console.log('Applying default chat model:', template.default_chat_model_id);
-          updatedSteps[index].chat_model_id = template.default_chat_model_id;
-        }
-        
-        if (template.default_persona_id) {
-          console.log('Applying default persona:', template.default_persona_id);
-          updatedSteps[index].persona_id = template.default_persona_id;
-        }
+        // Use setTimeout to ensure the prompt_template_id update happens first
+        setTimeout(() => {
+          console.log('Applying template defaults after delay');
+          // Get fresh copy of steps to ensure we're working with the latest state
+          const currentSteps = [...workflow.steps];
+          let hasUpdates = false;
+          
+          // Apply defaults
+          if (template.default_chat_model_id) {
+            console.log('Applying default chat model:', template.default_chat_model_id);
+            currentSteps[index].chat_model_id = template.default_chat_model_id;
+            hasUpdates = true;
+          }
+          
+          if (template.default_persona_id) {
+            console.log('Applying default persona:', template.default_persona_id);
+            currentSteps[index].persona_id = template.default_persona_id;
+            hasUpdates = true;
+          }
+          
+          if (hasUpdates) {
+            console.log('Updated step with defaults:', currentSteps[index]);
+            // Update the workflow with the defaults applied
+            setWorkflow(prevWorkflow => ({
+              ...prevWorkflow,
+              steps: currentSteps
+            }));
+          }
+        }, 100); // Delay to ensure prompt_template_id is set first
       }
-    } else {
-      // Track when user manually changes model or persona
-      if (field === 'chat_model_id') {
-        setUserChangedValues(prev => ({
-          ...prev,
-          [index]: { ...(prev[index] || { persona: false }), model: true }
-        }));
-      } else if (field === 'persona_id') {
-        setUserChangedValues(prev => ({
-          ...prev,
-          [index]: { ...(prev[index] || { model: false }), persona: true }
-        }));
-      }
+    } else if (field === 'chat_model_id') {
+      // Track when user manually changes model
+      setUserChangedValues(prev => ({
+        ...prev,
+        [index]: { ...(prev[index] || { persona: false }), model: true }
+      }));
+    } else if (field === 'persona_id') {
+      // Track when user manually changes persona
+      setUserChangedValues(prev => ({
+        ...prev,
+        [index]: { ...(prev[index] || { model: false }), persona: true }
+      }));
     }
 
     console.log('Updated step:', updatedSteps[index]);
-    
-    // Force state update by creating a new workflow object
-    setWorkflow(prevWorkflow => ({
-      ...prevWorkflow,
-      steps: updatedSteps
-    }));
   };
 
   const removeStep = (index: number) => {

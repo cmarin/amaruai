@@ -94,45 +94,34 @@ export function WorkflowSteps({
                       value={step.prompt_template_id || null}
                       onSelect={(template) => {
                         console.log('Selected template in WorkflowSteps:', template);
+                        console.log('Current step values:', step);
                         
                         if (template) {
                           // First update the prompt template id
                           onUpdateStep(index, 'prompt_template_id', template.id);
                           
-                          // Get the user's change status for this step
-                          const hasUserChangedModel = userChangedValues[index]?.model || false;
-                          const hasUserChangedPersona = userChangedValues[index]?.persona || false;
-                          
-                          console.log('User changed values:', { model: hasUserChangedModel, persona: hasUserChangedPersona });
-                          
-                          // Clear any user changes when selecting a template
+                          // Reset user changes when selecting a template - this is critical
+                          console.log('Resetting user changed values for step', index);
                           setUserChangedValues(prev => ({
                             ...prev,
                             [index]: { model: false, persona: false }
                           }));
-                          
-                          // If the template has default values, apply them immediately with a small delay
-                          // to ensure that the prompt template update happens first
-                          setTimeout(() => {
-                            // Ensure we have a string value for persona
-                            if (template.default_persona_id && typeof template.default_persona_id === 'string') {
-                              console.log('Applying default persona:', template.default_persona_id);
-                              onUpdateStep(index, 'persona_id', template.default_persona_id);
-                            }
-                            
-                            // Ensure we have a string value for chat model
-                            if (template.default_chat_model_id && typeof template.default_chat_model_id === 'string') {
-                              console.log('Applying default chat model:', template.default_chat_model_id);
-                              onUpdateStep(index, 'chat_model_id', template.default_chat_model_id);
-                            }
-                            
-                            // Force a refresh to update the UI
-                            forceRefresh();
-                          }, 10);
                         } else if (template === null) {
                           // This is a special case for re-selection of the same template
-                          // We don't want to clear the template ID in this case
+                          // We don't want to clear the template ID in this case, but we still want to reset user changes
                           console.log('Received null template - this is for re-selection, not clearing');
+                          console.log('Re-selecting current template ID:', step.prompt_template_id);
+                          
+                          // Force a re-selection by updating with the same value
+                          if (step.prompt_template_id) {
+                            onUpdateStep(index, 'prompt_template_id', step.prompt_template_id);
+                            
+                            // Also reset user changes
+                            setUserChangedValues(prev => ({
+                              ...prev,
+                              [index]: { model: false, persona: false }
+                            }));
+                          }
                         } else {
                           onUpdateStep(index, 'prompt_template_id', '');
                         }
