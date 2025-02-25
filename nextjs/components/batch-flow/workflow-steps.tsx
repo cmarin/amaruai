@@ -19,6 +19,8 @@ interface WorkflowStepsProps {
   promptTemplates: PromptTemplateOption[];
   chatModels: ChatModelOption[];
   personas: PersonaOption[];
+  userChangedValues?: {[key: number]: {model: boolean, persona: boolean}};
+  onUserChangedValues?: React.Dispatch<React.SetStateAction<{[key: number]: {model: boolean, persona: boolean}}>>;
 }
 
 export function WorkflowSteps({
@@ -29,9 +31,23 @@ export function WorkflowSteps({
   promptTemplates,
   chatModels,
   personas,
+  userChangedValues: externalUserChangedValues,
+  onUserChangedValues
 }: WorkflowStepsProps) {
   // Track whether each step's model/persona has been manually changed
-  const [userChangedValues, setUserChangedValues] = useState<{[key: number]: {model: boolean, persona: boolean}}>({});
+  const [internalUserChangedValues, setInternalUserChangedValues] = useState<{[key: number]: {model: boolean, persona: boolean}}>({});
+  
+  // Use external values if provided, otherwise use internal state
+  const userChangedValues = externalUserChangedValues || internalUserChangedValues;
+  const setUserChangedValues = onUserChangedValues || setInternalUserChangedValues;
+  
+  // Add key to force re-renders when needed
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Function to force a refresh of the component
+  const forceRefresh = () => {
+    setRefreshKey(prev => prev + 1);
+  };
 
   const handleModelChange = (index: number, modelId: string) => {
     console.log('Model changed:', modelId);
@@ -64,7 +80,7 @@ export function WorkflowSteps({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" key={refreshKey}>
       {steps.map((step, index) => (
         <div key={index} className="flex gap-4 items-start p-4 border rounded-lg bg-slate-50">
           <div className="space-y-4 flex-1">
@@ -89,16 +105,30 @@ export function WorkflowSteps({
                           
                           console.log('User changed values:', { model: hasUserChangedModel, persona: hasUserChangedPersona });
                           
-                          // If the template has default values and the user hasn't changed them manually, apply them
-                          if (template.default_persona_id && !hasUserChangedPersona) {
-                            console.log('Applying default persona:', template.default_persona_id);
-                            onUpdateStep(index, 'persona_id', template.default_persona_id);
-                          }
+                          // Clear any user changes when selecting a template
+                          setUserChangedValues(prev => ({
+                            ...prev,
+                            [index]: { model: false, persona: false }
+                          }));
                           
-                          if (template.default_chat_model_id && !hasUserChangedModel) {
-                            console.log('Applying default chat model:', template.default_chat_model_id);
-                            onUpdateStep(index, 'chat_model_id', template.default_chat_model_id);
-                          }
+                          // If the template has default values, apply them immediately with a small delay
+                          // to ensure that the prompt template update happens first
+                          setTimeout(() => {
+                            // Ensure we have a string value for persona
+                            if (template.default_persona_id && typeof template.default_persona_id === 'string') {
+                              console.log('Applying default persona:', template.default_persona_id);
+                              onUpdateStep(index, 'persona_id', template.default_persona_id);
+                            }
+                            
+                            // Ensure we have a string value for chat model
+                            if (template.default_chat_model_id && typeof template.default_chat_model_id === 'string') {
+                              console.log('Applying default chat model:', template.default_chat_model_id);
+                              onUpdateStep(index, 'chat_model_id', template.default_chat_model_id);
+                            }
+                            
+                            // Force a refresh to update the UI
+                            forceRefresh();
+                          }, 10);
                         } else {
                           onUpdateStep(index, 'prompt_template_id', '');
                         }

@@ -18,7 +18,20 @@ export function ComboboxPersonas({ personas, value, onSelect }: ComboboxPersonas
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
 
-  const selectedPersona = personas.find(p => p.id.toString() === value?.toString())
+  // Debug the incoming value and available personas
+  React.useEffect(() => {
+    console.log('ComboboxPersonas props:', { value, personasCount: personas.length });
+    const found = personas.find(p => p.id.toString() === value?.toString());
+    console.log('Selected persona:', found);
+    if (value && !found) {
+      console.warn('Persona with ID', value, 'not found in available personas');
+    }
+  }, [personas, value]);
+
+  // Find the selected persona
+  const selectedPersona = React.useMemo(() => {
+    return personas.find(p => p.id.toString() === value?.toString());
+  }, [personas, value]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -26,7 +39,11 @@ export function ComboboxPersonas({ personas, value, onSelect }: ComboboxPersonas
         variant="outline" 
         role="combobox" 
         aria-expanded={open}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          console.log('Opening persona dialog with value:', value);
+          console.log('Selected persona before opening:', selectedPersona);
+          setOpen(true);
+        }}
         className="w-full justify-between"
       >
         <span>{selectedPersona ? selectedPersona.role : "Select persona..."}</span>
@@ -52,8 +69,9 @@ export function ComboboxPersonas({ personas, value, onSelect }: ComboboxPersonas
                     key={persona.id}
                     value={persona.role}
                     onSelect={() => {
-                      onSelect(persona)
-                      setOpen(false)
+                      console.log('Persona selected in ComboboxPersonas:', persona);
+                      onSelect(persona);
+                      setOpen(false);
                     }}
                   >
                     <CheckIcon

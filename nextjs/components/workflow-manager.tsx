@@ -153,6 +153,8 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   };
 
   const updateStep = (index: number, field: keyof WorkflowStep, value: string) => {
+    console.log(`Updating step ${index}, field ${field} to value:`, value);
+    
     const updatedSteps = [...workflow.steps];
     updatedSteps[index] = { ...updatedSteps[index], [field]: value };
 
@@ -170,23 +172,19 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
         console.log('User changed values:', stepChanges);
         
         // Update model if it has a default and user hasn't changed it
-        if (template.default_chat_model_id) {
-          if (!stepChanges.model) {
-            console.log('Applying default chat model:', template.default_chat_model_id);
-            updatedSteps[index].chat_model_id = template.default_chat_model_id;
-          } else {
-            console.log('User already changed chat model, not applying default');
-          }
+        if (template.default_chat_model_id && !stepChanges.model) {
+          console.log('Applying default chat model:', template.default_chat_model_id);
+          updatedSteps[index].chat_model_id = template.default_chat_model_id;
+        } else {
+          console.log('User already changed chat model, not applying default');
         }
         
         // Update persona if it has a default and user hasn't changed it
-        if (template.default_persona_id) {
-          if (!stepChanges.persona) {
-            console.log('Applying default persona:', template.default_persona_id);
-            updatedSteps[index].persona_id = template.default_persona_id;
-          } else {
-            console.log('User already changed persona, not applying default');
-          }
+        if (template.default_persona_id && !stepChanges.persona) {
+          console.log('Applying default persona:', template.default_persona_id);
+          updatedSteps[index].persona_id = template.default_persona_id;
+        } else {
+          console.log('User already changed persona, not applying default');
         }
       }
     } else {
@@ -204,7 +202,13 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
       }
     }
 
-    setWorkflow({ ...workflow, steps: updatedSteps });
+    console.log('Updated step:', updatedSteps[index]);
+    
+    // Force state update by creating a new workflow object
+    setWorkflow(prevWorkflow => ({
+      ...prevWorkflow,
+      steps: updatedSteps
+    }));
   };
 
   const removeStep = (index: number) => {
