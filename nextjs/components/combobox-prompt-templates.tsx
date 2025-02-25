@@ -18,6 +18,9 @@ export function ComboboxPromptTemplates({ templates, value, onSelect }: Combobox
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
   
+  // Keep track of the last selected template to prevent flicker
+  const [lastSelectedTemplate, setLastSelectedTemplate] = React.useState<PromptTemplateOption | null>(null)
+  
   // Convert value to string for comparison
   const valueString = value ? value.toString() : null;
 
@@ -29,14 +32,25 @@ export function ComboboxPromptTemplates({ templates, value, onSelect }: Combobox
     if (valueString && !found) {
       console.warn('Template with ID', value, 'not found in available templates');
     }
+    
+    // Update lastSelectedTemplate when we have a valid template
+    if (found) {
+      setLastSelectedTemplate(found);
+    }
   }, [templates, value, valueString]);
 
   // Find the selected template
   const selectedTemplate = React.useMemo(() => {
+    // First try to find by value
     const found = templates.find(t => t.id.toString() === valueString);
-    console.log('Recalculated selected template:', found?.title || null);
-    return found;
-  }, [templates, valueString]);
+    
+    // If not found but we have a lastSelectedTemplate and the value is null,
+    // this might be a temporary state update - use the last known template
+    const result = found || (valueString === null && lastSelectedTemplate) || null;
+    
+    console.log('Recalculated selected template:', result?.title || null);
+    return result;
+  }, [templates, valueString, lastSelectedTemplate]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -75,6 +89,9 @@ export function ComboboxPromptTemplates({ templates, value, onSelect }: Combobox
                     value={template.title}
                     onSelect={() => {
                       console.log('Template selected in ComboboxPromptTemplates:', template);
+                      
+                      // Save this as the last selected template
+                      setLastSelectedTemplate(template);
                       
                       // Explicitly compare the template ID with the current value
                       if (template.id.toString() === valueString) {

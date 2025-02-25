@@ -184,34 +184,51 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
           default_chat_model_id: template.default_chat_model_id
         });
         
+        // Store the template ID for reference in the setTimeout
+        const selectedTemplateId = value;
+        
         // Use setTimeout to ensure the prompt_template_id update happens first
         setTimeout(() => {
           console.log('Applying template defaults after delay');
           // Get fresh copy of steps to ensure we're working with the latest state
-          const currentSteps = [...workflow.steps];
-          let hasUpdates = false;
-          
-          // Apply defaults
-          if (template.default_chat_model_id) {
-            console.log('Applying default chat model:', template.default_chat_model_id);
-            currentSteps[index].chat_model_id = template.default_chat_model_id;
-            hasUpdates = true;
-          }
-          
-          if (template.default_persona_id) {
-            console.log('Applying default persona:', template.default_persona_id);
-            currentSteps[index].persona_id = template.default_persona_id;
-            hasUpdates = true;
-          }
-          
-          if (hasUpdates) {
-            console.log('Updated step with defaults:', currentSteps[index]);
-            // Update the workflow with the defaults applied
-            setWorkflow(prevWorkflow => ({
-              ...prevWorkflow,
-              steps: currentSteps
-            }));
-          }
+          // Careful: We need to preserve the prompt_template_id that was just set
+          setWorkflow(prevWorkflow => {
+            const currentSteps = [...prevWorkflow.steps];
+            let hasUpdates = false;
+            
+            // Make sure the prompt_template_id is still set correctly
+            if (currentSteps[index].prompt_template_id !== selectedTemplateId) {
+              console.log('Warning: prompt_template_id was lost, restoring it');
+              currentSteps[index].prompt_template_id = selectedTemplateId;
+              hasUpdates = true;
+            }
+            
+            // Apply defaults
+            if (template.default_chat_model_id) {
+              console.log('Applying default chat model:', template.default_chat_model_id);
+              currentSteps[index].chat_model_id = template.default_chat_model_id;
+              hasUpdates = true;
+            }
+            
+            if (template.default_persona_id) {
+              console.log('Applying default persona:', template.default_persona_id);
+              currentSteps[index].persona_id = template.default_persona_id;
+              hasUpdates = true;
+            }
+            
+            console.log('Step after applying defaults:', currentSteps[index]);
+            
+            // Only update if needed
+            if (hasUpdates) {
+              return {
+                ...prevWorkflow,
+                steps: currentSteps
+              };
+            }
+            
+            // No changes needed
+            return prevWorkflow;
+          });
         }, 100); // Delay to ensure prompt_template_id is set first
       }
     } else if (field === 'chat_model_id') {
