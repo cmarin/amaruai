@@ -78,6 +78,33 @@ import { prepareChatSubmission, handleChatSubmission } from '@/utils/chat-servic
 // Add a script that will forcefully enable scrolling for all chat windows
 const ChatScrollFixer = () => {
   useEffect(() => {
+    // Add a global style to force scrolling on all elements
+    const style = document.createElement('style');
+    style.innerHTML = `
+      [data-chat-id] > div[data-scroll-container] {
+        overflow-y: auto !important;
+        height: 100% !important;
+        max-height: none !important;
+        position: relative !important;
+        z-index: 10 !important;
+        pointer-events: auto !important;
+      }
+      
+      .flex-1.overflow-auto.p-4 {
+        overflow: visible !important;
+      }
+      
+      /* Force all parent elements to allow scrolling */
+      [data-chat-id] * {
+        overflow: visible !important;
+      }
+      
+      [data-chat-id] > div[data-scroll-container] {
+        overflow-y: auto !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
     // Function to forcefully enable scrolling on all chat windows
     const enableScrolling = () => {
       // Get all chat windows
@@ -89,28 +116,43 @@ const ChatScrollFixer = () => {
         const scrollContainer = chatWindow.querySelector(`div[data-scroll-container="${chatId}"]`);
         
         if (scrollContainer) {
-          // Force scrolling to be enabled
-          (scrollContainer as HTMLElement).style.overflowY = 'auto !important';
-          (scrollContainer as HTMLElement).style.height = '100%';
+          // Force scrolling to be enabled with !important
+          (scrollContainer as HTMLElement).style.cssText = `
+            overflow-y: auto !important;
+            height: 100% !important;
+            max-height: none !important;
+            position: relative !important;
+            z-index: 10 !important;
+            pointer-events: auto !important;
+          `;
           
           // Also try to enable scrolling on parent elements
           let parent = scrollContainer.parentElement;
           while (parent) {
-            parent.style.overflowY = 'visible';
+            parent.style.overflowY = 'visible !important';
             parent = parent.parentElement;
           }
+          
+          // Remove any data attributes that might be preventing scrolling
+          scrollContainer.removeAttribute('data-radix-scroll-area-viewport');
           
           // Log that we've enabled scrolling
           console.log(`Forced scrolling enabled for chat ${chatId}`);
         }
       });
+      
+      // Also try to find the parent container and enable scrolling
+      const parentContainer = document.querySelector('.flex-1.overflow-auto.p-4');
+      if (parentContainer) {
+        (parentContainer as HTMLElement).style.overflow = 'visible !important';
+      }
     };
     
     // Run the function immediately
     enableScrolling();
     
-    // Then run it every 100ms to ensure scrolling stays enabled
-    const interval = setInterval(enableScrolling, 100);
+    // Then run it every 50ms to ensure scrolling stays enabled
+    const interval = setInterval(enableScrolling, 50);
     
     // Add a global event listener for scroll events
     const handleScroll = (e: Event) => {
@@ -127,14 +169,12 @@ const ChatScrollFixer = () => {
       enableScrolling();
     });
     
-    // Observe all chat windows for changes
-    document.querySelectorAll('[data-chat-id]').forEach(chatWindow => {
-      observer.observe(chatWindow, { 
-        childList: true, 
-        subtree: true, 
-        attributes: true,
-        characterData: true
-      });
+    // Observe the entire document for changes
+    observer.observe(document.body, { 
+      childList: true, 
+      subtree: true, 
+      attributes: true,
+      characterData: true
     });
     
     // Clean up the interval and event listener when the component unmounts
@@ -142,6 +182,7 @@ const ChatScrollFixer = () => {
       clearInterval(interval);
       window.removeEventListener('scroll', handleScroll, true);
       observer.disconnect();
+      document.head.removeChild(style);
     };
   }, []);
   
