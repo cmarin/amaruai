@@ -759,82 +759,123 @@ function ChatContent() {
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
     
-    // Completely new approach to scroll management
-    const userScrolledAwayRef = useRef(false);
-    const prevContentHeightRef = useRef(0);
-    const isStreamingStartingRef = useRef(false);
+    // Store actual DOM scroll position, bypassing React entirely
+    const lastKnownScrollTopRef = useRef<number>(0);
+    const lastKnownScrollHeightRef = useRef<number>(0);
+    const manualScrollTimestampRef = useRef<number>(0);
+    const ignoreScrollEventsRef = useRef<boolean>(false);
+    const messageCountRef = useRef<number>(0);
     
-    // Track when streaming starts/stops
-    useEffect(() => {
-      if (isStreamingState && !isStreamingStartingRef.current) {
-        // Streaming just started
-        isStreamingStartingRef.current = true;
-        
-        // Only auto-scroll to bottom on stream start
-        // if the container exists and user hasn't scrolled away
-        if (scrollContainerRef.current && !userScrolledAwayRef.current) {
-          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-        }
-      } else if (!isStreamingState) {
-        // Reset the streaming start flag when streaming ends
-        isStreamingStartingRef.current = false;
-      }
-    }, [isStreamingState]);
-    
-    // Extreme measure - disable all auto-scrolling
-    // Only focus on maintaining relative position
-    useEffect(() => {
+    // Force DOM scroll position to match lastKnownScrollTop
+    // Use this function to restore position without React's interference
+    const forceScrollPosition = useCallback(() => {
       if (!scrollContainerRef.current) return;
       
       const container = scrollContainerRef.current;
-      const contentHeight = container.scrollHeight;
+      const heightDiff = container.scrollHeight - lastKnownScrollHeightRef.current;
       
-      // If content height changed, maintain the relative scroll position
-      if (prevContentHeightRef.current > 0 && contentHeight !== prevContentHeightRef.current) {
-        const heightDiff = contentHeight - prevContentHeightRef.current;
-        
-        // Get current scroll data
-        const { scrollTop, clientHeight, scrollHeight } = container;
-        const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-        
-        if (distanceFromBottom > 30 || userScrolledAwayRef.current) {
-          // User is not at bottom, adjust scroll to maintain relative position
-          container.scrollTop = scrollTop + heightDiff;
-        }
+      // Disable scroll events temporarily to prevent loops
+      ignoreScrollEventsRef.current = true;
+      
+      // If we have a prior position, restore it accounting for height change
+      if (lastKnownScrollTopRef.current > 0) {
+        container.scrollTop = lastKnownScrollTopRef.current + heightDiff;
       }
       
-      // Update the previous content height
-      prevContentHeightRef.current = contentHeight;
-    }, [messages]); // Only run when messages change
-    
-    // Handle scroll events - only to track if user has scrolled away
-    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-      if (!scrollContainerRef.current) return;
+      // Store the new height after adjustment
+      lastKnownScrollHeightRef.current = container.scrollHeight;
       
-      const container = scrollContainerRef.current;
-      const { scrollTop, clientHeight, scrollHeight } = container;
-      const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+      // Re-enable scroll events after a short delay
+      setTimeout(() => {
+        ignoreScrollEventsRef.current = false;
+      }, 100);
       
-      // If user scrolls up more than 30px during streaming, mark as scrolled away
-      if (isStreamingState && distanceFromBottom > 30) {
-        userScrolledAwayRef.current = true;
-      }
-    }, [isStreamingState]);
-    
-    // Simple function to force scroll to bottom - used only for manual actions
-    const scrollToBottom = useCallback(() => {
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-      }
     }, []);
     
-    // Only scroll to bottom when streaming first starts
+    // Initial setup: directly capture scroll position on mount
     useEffect(() => {
-      if (isStreamingState && isStreamingStartingRef.current && !userScrolledAwayRef.current) {
-        scrollToBottom();
-        isStreamingStartingRef.current = false;
+      if (!scrollContainerRef.current) return;
+      
+      // Set initial values
+      const container = scrollContainerRef.current;
+      lastKnownScrollHeightRef.current = container.scrollHeight;
+      
+      // Set up mutation observer to catch DOM changes that affect height
+      const resizeObserver = new ResizeObserver(() => {
+        if (ignoreScrollEventsRef.current) return;
+        
+        // If this is our first content or user hasn't scrolled, scroll to bottom
+        if (messageCountRef.current === 0 || (
+            Date.now() - manualScrollTimestampRef.current > 1000 && 
+            !lastKnownScrollTopRef.current)) {
+          // First content being added, scroll to bottom
+          container.scrollTop = container.scrollHeight;
+          return;
+        }
+        
+        // Otherwise force our saved position
+        forceScrollPosition();
+      });
+      
+      resizeObserver.observe(container);
+      
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }, [forceScrollPosition]);
+    
+    // Handle message changes (specifically for when streaming ends)
+    useEffect(() => {
+      // Track message count to know when we're adding first content
+      messageCountRef.current = messages.length;
+    }, [messages]);
+    
+    // Don't auto-scroll on streaming end
+    useEffect(() => {
+      if (isStreamingState === false && scrollContainerRef.current) {
+        // Streaming just ended - force our last position
+        forceScrollPosition();
       }
-    }, [isStreamingState, scrollToBottom]);
+    }, [isStreamingState, forceScrollPosition]);
+    
+    // Handle initial streaming state
+    useEffect(() => {
+      if (isStreamingState === true && scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        
+        // At the start of streaming, if user hasn't manually scrolled,
+        // reset to bottom
+        if (manualScrollTimestampRef.current === 0) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }
+    }, [isStreamingState]);
+    
+    // Handle manual scrolling - capture position directly through DOM
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+      if (ignoreScrollEventsRef.current) return;
+      
+      const container = e.target as HTMLDivElement;
+      
+      // Record that user manually scrolled and when
+      manualScrollTimestampRef.current = Date.now();
+      
+      // Store the exact scroll position for later restoration
+      lastKnownScrollTopRef.current = container.scrollTop;
+    }, []);
+    
+    // Use a clean, targeted CSS style to disable all browser auto-scrolling
+    const chatContainerStyle: React.CSSProperties = {
+      pointerEvents: 'auto',
+      touchAction: 'pan-y',
+      overflowY: 'auto',
+      overscrollBehavior: 'none',
+      willChange: 'transform',
+      isolation: 'isolate',
+      position: 'relative',
+      // Disable all forms of auto-scrolling
+      scrollBehavior: 'auto'
+    };
 
     return (
       <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
@@ -904,20 +945,21 @@ function ChatContent() {
         {/* Chat messages area */}
         <div 
           className="flex-1 p-4 overflow-y-auto scrollable-always"
-          style={{ 
-            pointerEvents: 'auto',
-            touchAction: 'auto',
-            overflowY: 'auto',
-            overscrollBehavior: 'contain',
-            willChange: 'transform', // Hardware acceleration
-            isolation: 'isolate'     // Create stacking context
-          }}
+          style={chatContainerStyle}
           onScroll={handleScroll}
           ref={(el) => {
             if (el) {
               scrollContainerRef.current = el;
               chatContainerRefs.current[chatWindowId] = el;
               onContainerRef(el);
+              
+              // Initial scroll to bottom on mount
+              if (lastKnownScrollTopRef.current === 0) {
+                // Use setTimeout to ensure this happens after React finishes rendering
+                setTimeout(() => {
+                  if (el) el.scrollTop = el.scrollHeight;
+                }, 50);
+              }
             }
           }}
         >
