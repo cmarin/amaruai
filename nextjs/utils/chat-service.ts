@@ -152,6 +152,7 @@ export const handleChatSubmission = async ({
   setError,
   isStreamingRef,
   chatContainerRef,
+  chatContainerRefs,
   personas,
   messages,
   messages2,
@@ -182,6 +183,7 @@ export const handleChatSubmission = async ({
   setError: React.Dispatch<React.SetStateAction<Error | null>>;
   isStreamingRef: MutableRefObject<boolean>;
   chatContainerRef: React.RefObject<HTMLDivElement>;
+  chatContainerRefs: MutableRefObject<{[key: string]: HTMLDivElement | null}>;
   personas: any[] | undefined;
   messages: Message[];
   messages2: Message[];
@@ -253,6 +255,7 @@ export const handleChatSubmission = async ({
       setError,
       isStreamingRef,
       chatContainerRef,
+      chatContainerRefs,
       selectedKnowledgeBases,
       selectedAssets,
       allChatModels,
@@ -277,6 +280,7 @@ export const handleChatSubmission = async ({
       setError,
       isStreamingRef,
       chatContainerRef,
+      chatContainerRefs,
       selectedKnowledgeBases,
       selectedAssets,
       allChatModels,
@@ -301,6 +305,7 @@ export const handleChatSubmission = async ({
       setError,
       isStreamingRef,
       chatContainerRef,
+      chatContainerRefs,
       selectedKnowledgeBases,
       selectedAssets,
       allChatModels,
@@ -325,6 +330,7 @@ export const handleChatSubmission = async ({
       setError,
       isStreamingRef,
       chatContainerRef,
+      chatContainerRefs,
       selectedKnowledgeBases,
       selectedAssets,
       allChatModels,
@@ -357,4 +363,4 @@ export const handleChatSubmission = async ({
   });
   
   return results;
-}; 
+};

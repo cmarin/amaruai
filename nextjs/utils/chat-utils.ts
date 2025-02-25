@@ -164,6 +164,7 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
     setError,
     isStreamingRef,
     chatContainerRef,
+    chatContainerRefs,
     selectedKnowledgeBases,
     selectedAssets,
     allChatModels,
@@ -186,7 +187,13 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
   }
 
   try {
-    isStreamingRef.current = true;
+    // Track streaming state for this specific chat window
+    if (!isStreamingRef.current) {
+      isStreamingRef.current = true;
+    }
+    
+    // Create a flag to track streaming state for this specific chat window
+    const isThisWindowStreaming = true;
     // Get or create conversation_id for this chat window
     let currentConversationId = conversationIds[chatId];
     if (!currentConversationId) {
@@ -241,6 +248,9 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
 
     streamStartTime = Date.now();
 
+    // Get the specific scroll container for this chat window
+    const scrollContainer = chatContainerRefs.current[chatId] as HTMLElement | null;
+
     while (true) {
       const timeElapsed = Date.now() - streamStartTime;
       if (timeElapsed > 10000 && (!receivedFirstChunk || (chunkCount === 1 && !hasReceivedContent))) {
@@ -252,10 +262,22 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
         if (chunkCount > 0 && !hasReceivedContent) {
           throw new Error('Stream completed with only empty chunks');
         }
-        isStreamingRef.current = false;
-        if (chatContainerRef.current) {
-          chatContainerRef.current.style.overflowY = 'auto';
+        
+        // This specific chat window is done streaming
+        // Enable scrolling for this specific chat window
+        if (scrollContainer) {
+          scrollContainer.style.overflowY = 'auto';
         }
+        
+        // Check if all chat windows are done streaming
+        const activeChats = document.querySelectorAll('[data-streaming="true"]');
+        if (activeChats.length === 0) {
+          isStreamingRef.current = false;
+          if (chatContainerRef.current) {
+            chatContainerRef.current.style.overflowY = 'auto';
+          }
+        }
+        
         break;
       }
 
@@ -290,6 +312,12 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
               if (!hasCreatedAssistantMessage) {
                 hasCreatedAssistantMessage = true;
                 setMessagesFunction(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
+                
+                // Mark this chat window as streaming
+                const chatWindow = document.querySelector(`[data-chat-id="${chatId}"]`);
+                if (chatWindow) {
+                  chatWindow.setAttribute('data-streaming', 'true');
+                }
               } else {
                 setMessagesFunction(prev => {
                   const updated = [...prev];
@@ -297,9 +325,12 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
                     role: 'assistant',
                     content: assistantMessage,
                   };
-                  if (chatContainerRef.current) {
-                    chatContainerRef.current.style.overflowY = 'auto';
+                  
+                  // Enable scrolling for this specific chat window
+                  if (scrollContainer) {
+                    scrollContainer.style.overflowY = 'auto';
                   }
+                  
                   return updated;
                 });
               }
@@ -313,10 +344,28 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
       }
     }
   } catch (err: any) {
-    isStreamingRef.current = false;
+    // Mark this chat window as done streaming
+    const chatWindow = document.querySelector(`[data-chat-id="${chatId}"]`);
+    if (chatWindow) {
+      chatWindow.removeAttribute('data-streaming');
+    }
+    
+    // Check if all chat windows are done streaming
+    const activeChats = document.querySelectorAll('[data-streaming="true"]');
+    if (activeChats.length === 0) {
+      isStreamingRef.current = false;
+    }
+    
+    // Enable scrolling for this specific chat window
+    const scrollContainer = chatContainerRefs.current[chatId] as HTMLElement | null;
+    if (scrollContainer) {
+      scrollContainer.style.overflowY = 'auto';
+    }
+    
     if (chatContainerRef.current) {
       chatContainerRef.current.style.overflowY = 'auto';
     }
+    
     console.error('Error in API call:', err);
 
     // If this is a timeout error or empty chunk error, retry without model_id
@@ -443,4 +492,4 @@ export const handleToggleChatbot = (
     ...prev,
     chat1: modelId
   }));
-}; 
+};

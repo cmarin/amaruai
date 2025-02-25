@@ -104,9 +104,10 @@ export interface ApiCallParams {
   setError: React.Dispatch<React.SetStateAction<Error | null>>;
   isStreamingRef: React.MutableRefObject<boolean>;
   chatContainerRef: RefObject<HTMLDivElement>;
+  chatContainerRefs: React.MutableRefObject<{[key: string]: HTMLDivElement | null}>;
   selectedKnowledgeBases: KnowledgeBase[];
   selectedAssets: Asset[];
   allChatModels: ChatModel[] | undefined;
   personas: any[] | undefined;
   isWebSearchEnabled: boolean;
-} 
+}

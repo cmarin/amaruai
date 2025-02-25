@@ -176,6 +176,12 @@ function ChatContent() {
   const messagesEndRef3 = useRef<HTMLDivElement>(null);
   const messagesEndRef4 = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const chatContainerRefs = useRef<{[key: string]: HTMLDivElement | null}>({
+    chat1: null,
+    chat2: null,
+    chat3: null,
+    chat4: null
+  });
   const isStreamingRef = useRef<boolean>(false);
   const wasAtBottomRef = useRef<boolean>(true);
 
@@ -237,6 +243,7 @@ function ChatContent() {
         setError,
         isStreamingRef,
         chatContainerRef,
+        chatContainerRefs,
         personas,
         messages,
         messages2,
@@ -348,7 +355,7 @@ function ChatContent() {
     
     return (
       <TooltipProvider>
-        <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
+        <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden" data-chat-id={chatWindowId}>
           {/* Top header (title, copy, clear) */}
           <div className="flex items-center justify-between p-3 border-b">
             <div className="flex items-center gap-4">
@@ -421,9 +428,10 @@ function ChatContent() {
 
           {/* Chat messages area */}
           <ScrollArea 
-            className="flex-1 p-4 relative" 
+            className="flex-1 p-4 relative"
             onScroll={handleScroll}
-            ref={chatContainerRef}
+            ref={(el) => { chatContainerRefs.current[chatWindowId] = el; }}
+            data-scroll-container={chatWindowId}
           >
             <div className="space-y-4">
               {messages.map((message, index) => (
