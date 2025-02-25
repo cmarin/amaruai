@@ -1,5 +1,8 @@
 import { Asset } from './knowledge-base';
 import { ReactNode, RefObject } from 'react';
+import type { UploadedFile } from '@/utils/upload-service';
+import type { KnowledgeBase } from '@/utils/knowledge-base-service';
+import type { ChatModel } from '@/components/data-context';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -71,9 +74,4 @@ export interface ApiCallParams {
   allChatModels: ChatModel[] | undefined;
   personas: any[] | undefined;
   isWebSearchEnabled: boolean;
-}
-
-// Import these from external files to avoid circular dependencies
-import { ChatModel } from '@/components/data-context';
-import { KnowledgeBase } from '@/utils/knowledge-base-service';
-import { UploadedFile } from '@/utils/upload-service'; 
+} 

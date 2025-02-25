@@ -43,7 +43,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import ChatMessage from '@/components/chat-message'
 
-// Import the new types and utilities
+// Import the types and utilities
 import { Message, ChatMode, ChatWindowProps } from '@/types/chat'
 import { 
   isAtBottom, 
@@ -55,6 +55,14 @@ import {
   resetSelectedModels,
   makeApiCall
 } from '@/utils/chat-utils'
+
+// Import the chat upload utilities
+import {
+  initializeChatUploader,
+  handleFileUpload as handleChatFileUpload,
+  closeUploadModal,
+  removeUploadedFile
+} from '@/utils/chat-uploads'
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css'
@@ -106,37 +114,21 @@ function ChatContent() {
   const uppyRef = useRef<Uppy | null>(null)
 
   useEffect(() => {
-    if (!uppyRef.current) {
-      const uppyInstance = UploadService.createUppy(
-        'chat-uploader',
-        {
-          maxFiles: 1,
-          storageFolder: 'chats',
-          storageBucket: 'amaruai-dev'
-        },
-        (file) => {
-          setUploadedFiles(prev => [...prev, {
-            id: file.id,
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            uploadURL: file.uploadURL
-          }]);
-        },
-        () => {
-          setShowUploadModal(false)
-        },
-        supabase
-      )
-      uppyRef.current = uppyInstance
-    }
-
-    return () => {
-      if (uppyRef.current) {
-        uppyRef.current.cancelAll()
-      }
-    }
-  }, [supabase])
+    // Use the utility function to initialize uploader
+    const cleanupUploader = initializeChatUploader(
+      uppyRef,
+      (file) => {
+        setUploadedFiles(prev => [...prev, file]);
+      },
+      () => {
+        setShowUploadModal(false);
+      },
+      supabase
+    );
+    
+    // Return the cleanup function
+    return cleanupUploader;
+  }, [supabase]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -196,28 +188,15 @@ function ChatContent() {
   }
 
   const handleFileUpload = async (result: any) => {
-    if (result.successful && result.successful.length > 0) {
-      const file = result.successful[0];
-      const uploadedFile: UploadedFile = {
-        id: file.id,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        uploadURL: file.uploadURL
-      };
-      setUploadedFiles(prev => [...prev, uploadedFile]);
-    }
+    handleChatFileUpload(result, setUploadedFiles);
   }
 
   const handleCloseUploadModal = () => {
-    setShowUploadModal(false)
-    if (uppyRef.current) {
-      uppyRef.current.cancelAll()
-    }
+    closeUploadModal(uppyRef, setShowUploadModal);
   }
 
   const handleRemoveFile = (file: UploadedFile) => {
-    setUploadedFiles(prev => prev.filter(f => f.name !== file.name))
+    removeUploadedFile(file, setUploadedFiles);
   }
 
   // Submit user input to all relevant LLMs
