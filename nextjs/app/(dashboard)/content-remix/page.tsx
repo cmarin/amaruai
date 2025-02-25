@@ -49,6 +49,10 @@ import { fetchAssets } from '@/utils/asset-service'
 import { Asset } from '@/types/knowledge-base'
 import Uppy from '@uppy/core'
 import Dashboard from '@uppy/react/lib/Dashboard'
+import { 
+  handlePromptSelect as handlePromptSelectUtil,
+  handleComplexPromptSubmit as handleComplexPromptSubmitUtil
+} from '@/utils/chat-utils'
 import '@uppy/core/dist/style.min.css'
 import '@uppy/dashboard/dist/style.min.css'
 
@@ -397,16 +401,11 @@ function ContentRemixContent() {
   }
 
   const handlePromptSelect = (prompt: any) => {
-    if (prompt.variables && prompt.variables.length > 0) {
-      setSelectedComplexPrompt(prompt)
-    } else {
-      setInput(prompt.content)
-    }
+    handlePromptSelectUtil(prompt, setSelectedComplexPrompt, setInput);
   }
 
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
-    setInput(generatedPrompt)
-    setSelectedComplexPrompt(null)
+    handleComplexPromptSubmitUtil(generatedPrompt, setInput, setSelectedComplexPrompt);
   }
 
   const handleCloseUploadModal = () => {

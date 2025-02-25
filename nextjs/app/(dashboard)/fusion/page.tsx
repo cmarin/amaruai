@@ -43,6 +43,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { 
+  handlePromptSelect as handlePromptSelectUtil,
+  handleComplexPromptSubmit as handleComplexPromptSubmitUtil
+} from '@/utils/chat-utils'
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css'
@@ -440,17 +444,12 @@ Please synthesize these responses into a comprehensive answer that combines the 
 
   // Add this function near the other handlers
   const handlePromptSelect = (prompt: any) => {
-    if (prompt.variables && prompt.variables.length > 0) {
-      setSelectedComplexPrompt(prompt)
-    } else {
-      setInput(prompt.content)
-    }
+    handlePromptSelectUtil(prompt, setSelectedComplexPrompt, setInput);
   }
 
   // Add this handler for complex prompts
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
-    setInput(generatedPrompt)
-    setSelectedComplexPrompt(null)
+    handleComplexPromptSubmitUtil(generatedPrompt, setInput, setSelectedComplexPrompt);
   }
 
   // Add this function near the other handlers
