@@ -291,6 +291,16 @@ function ChatContent() {
 
   // Handles prompt selection
   const handlePromptSelect = (prompt: any) => {
+    // Apply default persona and model if they exist in the prompt template
+    if (prompt.default_persona_id) {
+      handlePersonaChange('chat1', prompt.default_persona_id);
+    }
+    
+    if (prompt.default_chat_model_id) {
+      handleModelChange('chat1', prompt.default_chat_model_id);
+    }
+    
+    // Then handle the prompt text as before
     handlePromptSelectUtil(prompt, setSelectedComplexPrompt, setInput);
   }
 
