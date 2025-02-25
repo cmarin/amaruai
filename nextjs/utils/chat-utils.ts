@@ -105,8 +105,11 @@ export const resetSelectedModels = (mode: ChatMode, allChatModels: ChatModel[] |
     return { chat1: '' };
   }
 
-  // Find default models
-  const defaultOpenAIModel = allChatModels.find(model => 
+  // First, check for models with default:true property
+  const defaultModel = allChatModels.find(model => model.default === true);
+  
+  // Find default models based on providers if no explicit default is set
+  const defaultOpenAIModel = defaultModel?.id || allChatModels.find(model => 
     model.provider === 'openai' && model.name.includes('4'))?.id || allChatModels[0]?.id;
   
   const defaultAnthropicModel = allChatModels.find(model => 
@@ -120,21 +123,21 @@ export const resetSelectedModels = (mode: ChatMode, allChatModels: ChatModel[] |
 
   switch (mode) {
     case 'single':
-      return { chat1: defaultOpenAIModel || allChatModels[0]?.id || '' };
+      return { chat1: defaultModel?.id || defaultOpenAIModel || allChatModels[0]?.id || '' };
     case 'dual':
       return { 
-        chat1: defaultOpenAIModel || allChatModels[0]?.id || '',
+        chat1: defaultModel?.id || defaultOpenAIModel || allChatModels[0]?.id || '',
         chat2: defaultAnthropicModel || allChatModels[1]?.id || ''
       };
     case 'quad':
       return {
-        chat1: defaultOpenAIModel || allChatModels[0]?.id || '',
+        chat1: defaultModel?.id || defaultOpenAIModel || allChatModels[0]?.id || '',
         chat2: defaultAnthropicModel || allChatModels[1]?.id || '',
         chat3: defaultGeminiModel || allChatModels[2]?.id || '',
         chat4: defaultMetaModel || allChatModels[3]?.id || ''
       };
     default:
-      return { chat1: defaultOpenAIModel || allChatModels[0]?.id || '' };
+      return { chat1: defaultModel?.id || defaultOpenAIModel || allChatModels[0]?.id || '' };
   }
 };
 
