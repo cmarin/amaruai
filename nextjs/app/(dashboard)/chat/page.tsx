@@ -373,34 +373,72 @@ function ChatContent() {
         : undefined;
       const selectedPersona = personas?.find((p) => p.id.toString() === personaId);
 
+      // Ensure we have proper message format
+      const formattedMessages = prevMessagesLocal.map(m => ({
+        role: m.role,
+        content: m.content || ""
+      }));
+
+      // Create request body
+      const requestBody = {
+        messages: formattedMessages,
+        user_id: session?.user?.id,
+        model_id: selectedModel?.id,
+        ...(selectedPersona?.id && { persona_id: selectedPersona.id }),
+        ...(uploadedFiles.length > 0 && { 
+          files: uploadedFiles.map((f) => ({ name: f.name, url: f.uploadURL })) 
+        }),
+        conversation_id: currentConversationId,
+        ...(selectedKnowledgeBases.length > 0 && { 
+          knowledge_base_ids: selectedKnowledgeBases.map((kb) => kb.id)
+        }),
+        ...(selectedAssets.length > 0 && { 
+          asset_ids: selectedAssets.map((asset) => asset.id) 
+        }),
+        ...(multiConversationId && { multi_conversation_id: multiConversationId }),
+        web: isWebSearchEnabled,
+      };
+
+      // Debug log the request
+      console.log(`Chat ${chatId} request body:`, requestBody);
+
+      const headers = await getApiHeaders();
+      if (!headers) {
+        throw new Error("Failed to get API headers - authentication may be missing");
+      }
+
+      // Ensure we have a clean headers object without duplicate Content-Type
+      const requestHeaders = {
+        ...headers,
+        "Content-Type": "application/json"
+      };
+
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: requestHeaders,
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        // Try to get more detailed error information
+        let errorDetail = "";
+        try {
+          const errorJson = await response.json();
+          errorDetail = errorJson.error || JSON.stringify(errorJson);
+        } catch (e) {
+          errorDetail = await response.text() || `Status: ${response.status}`;
+        }
+        throw new Error(`HTTP error: ${response.status} - ${errorDetail}`);
+      }
+
+      if (!response.body) {
+        throw new Error("Response has no body");
+      }
+
       let streamStartTime: number | null = null;
       let receivedFirstChunk = false;
       let hasReceivedContent = false;
       let chunkCount = 0;
-
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(await getApiHeaders()),
-        },
-        body: JSON.stringify({
-          messages: [...prevMessagesLocal],
-          user_id: session?.user?.id,
-          model_id: selectedModel?.id,
-          persona_id: selectedPersona?.id,
-          files: uploadedFiles.map((f) => ({ name: f.name, url: f.uploadURL })),
-          conversation_id: currentConversationId,
-          knowledge_base_ids: selectedKnowledgeBases.map((kb) => kb.id),
-          asset_ids: selectedAssets.map((asset) => asset.id),
-          ...(multiConversationId && { multi_conversation_id: multiConversationId }),
-          web: isWebSearchEnabled,
-        }),
-      });
-
-      if (!response.ok || !response.body) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
