@@ -21,6 +21,7 @@ from app.config.chat_utils import process_attached_files, process_referenced_kno
 from app.config.openrouter_utils import stream_openrouter_completions
 from app.config.openai_assistant_utils import stream_openai_assistant_completions
 from app.config.openai_utils import stream_openai_completions
+from app.config.asset_utils import resolve_file_url_to_asset
 
 logging.basicConfig(
     level=logging.INFO,
@@ -185,18 +186,39 @@ async def batch_flow_endpoint(
 
         # Add files if any
         if batch_flow_data.file_ids:
-            files = [
-                FileInfo(
-                    name=asset.file_name,
-                    url=asset.file_url
-                )
-                for asset in crud.get_assets_by_ids(db, batch_flow_data.file_ids, context="batch-flow")
-                if asset
-            ]
+            logger.info(f"Processing {len(batch_flow_data.file_ids)} file IDs")
+            files = []
+            for asset_id in batch_flow_data.file_ids:
+                asset = crud.get_asset(db, asset_id)
+                if asset:
+                    logger.info(f"Found asset for ID {asset_id}: {asset.file_name} - URL: {asset.file_url}")
+                    # Verify the asset URL can be resolved properly
+                    result = resolve_file_url_to_asset(db, asset.file_url, asset.file_name)
+                    if result:
+                        files.append(
+                            FileInfo(
+                                name=asset.file_name,
+                                url=asset.file_url
+                            )
+                        )
+                        logger.info(f"Asset URL resolved successfully for {asset.file_name}")
+                    else:
+                        logger.warning(f"Asset URL could not be resolved for {asset.file_name}: {asset.file_url}")
+                        # Add it anyway, maybe the direct content retrieval will work
+                        files.append(
+                            FileInfo(
+                                name=asset.file_name,
+                                url=asset.file_url
+                            )
+                        )
+                else:
+                    logger.warning(f"Could not find asset with ID {asset_id}")
+            
             chat_data.files = files
+            logger.info(f"Added {len(files)} files to chat_data out of {len(batch_flow_data.file_ids)} file IDs")
             
         # Use existing utilities to process files and knowledge
-        if batch_flow_data.file_ids:
+        if chat_data.files:
             process_attached_files(db, chat_data, local_messages)
         if batch_flow_data.knowledge_base_ids or batch_flow_data.asset_ids:
             process_referenced_knowledge(db, chat_data, local_messages, chat_model)

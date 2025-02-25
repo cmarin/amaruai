@@ -11,6 +11,41 @@ export interface Message {
 
 export type ChatMode = 'single' | 'dual' | 'quad';
 
+// Service interfaces moved from chat-service.ts
+export interface ApiResponse {
+  success: boolean;
+  errorMessage?: string;
+}
+
+export interface ChatSubmitParams {
+  messages: Message[];
+  userId?: string;
+  modelId?: string;
+  personaId?: string;
+  files?: Array<{ name: string; url: string }>;
+  conversationId: string;
+  multiConversationId?: string | null;
+  knowledgeBaseIds?: string[];
+  assetIds?: string[];
+  webSearch?: boolean;
+  headers?: Record<string, string>;
+}
+
+export interface SubmitChatMessagesParams {
+  input: string;
+  uploadedFiles: UploadedFile[];
+  messages: Message[];
+  session: any;
+  getApiHeaders: () => any;
+  modelId?: string;
+  personaId?: string;
+  conversationId?: string;
+  multiConversationId?: string | null;
+  selectedKnowledgeBases?: KnowledgeBase[];
+  selectedAssets?: Asset[];
+  webSearch?: boolean;
+}
+
 export interface ChatWindowProps {
   messages: Message[];
   messagesEndRef: RefObject<HTMLDivElement>;

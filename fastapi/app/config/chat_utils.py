@@ -3,6 +3,7 @@ import logging
 from uuid import UUID
 from urllib.parse import unquote
 from app import crud
+from app.config.asset_utils import resolve_file_url_to_asset
 
 logger = logging.getLogger(__name__)
 
@@ -40,54 +41,15 @@ def process_attached_files(db, chat_data, local_messages):
 
     # First pass: Log and fetch any corresponding assets from the database
     for file in chat_data.files:
-        file_url = file.url.strip(';')
-        try:
-            # Find the index of "chats/" and take everything after it
-            chats_index = file_url.find("chats/")
-            if chats_index == -1:
-                logger.error(
-                    f"Invalid file URL format for {file.name}: 'chats/' not found in {file_url}"
-                )
-                continue
-
-            relative_url = file_url[chats_index:]
-            logger.info(f"Processing file: {file.name}")
-            logger.info(f"Full URL: {file_url}")
-            logger.info(f"Relative URL: {relative_url}")
-            
-            # URL decode the file_url to handle spaces and special characters
-            decoded_url = unquote(relative_url)
-            logger.info(f"Decoded URL: {decoded_url}")
-
-            # First try with the decoded URL (for files with spaces)
-            asset = crud.get_asset_by_file_url(db, decoded_url)
-            
-            # If not found, fallback to the encoded URL (legacy)
-            if not asset:
-                logger.info(f"No asset found with decoded URL, trying encoded URL: {relative_url}")
-                asset = crud.get_asset_by_file_url(db, relative_url)
-            
-            if asset:
-                logger.info(f"Found asset in database: {asset.id}")
-                if asset.content:
-                    logger.info(
-                        f"Added content from file {file.name} "
-                        f"({len(asset.content)} characters)"
-                    )
-                    # Log the first 200 chars of content for debugging
-                    logger.info(f"Content preview: {asset.content[:200]}...")
-                    found_assets.append(asset)
-                else:
-                    logger.warning(
-                        f"No content found in asset {asset.id} for file {file.name}"
-                    )
-            else:
-                logger.warning(
-                    f"No asset found for file {file.name} with relative URL {relative_url} or decoded URL {decoded_url}"
-                )
-        except Exception as e:
-            logger.error(f"Error processing file {file.name}: {str(e)}", exc_info=True)
-            continue
+        # Use the centralized utility function to resolve the file URL to an asset
+        result = resolve_file_url_to_asset(db, file.url, file.name)
+        
+        if result and result["asset"]:
+            asset = result["asset"]
+            if asset.content:
+                # Log the first 200 chars of content for debugging
+                logger.info(f"Content preview: {asset.content[:200]}...")
+                found_assets.append(asset)
 
     # Second pass: Append file content to the last user message
     last_user_message_index = -1

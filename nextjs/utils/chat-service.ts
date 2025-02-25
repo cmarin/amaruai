@@ -1,44 +1,17 @@
-import { Message, ChatMode, ApiCallParams } from '@/types/chat';
+import { 
+  Message, 
+  ChatMode, 
+  ApiCallParams, 
+  ChatSubmitParams, 
+  ApiResponse, 
+  SubmitChatMessagesParams 
+} from '@/types/chat';
 import { ChatModel } from '@/components/data-context';
 import type { UploadedFile } from '@/utils/upload-service';
 import type { KnowledgeBase } from '@/utils/knowledge-base-service';
 import type { Asset } from '@/types/knowledge-base';
 import { makeApiCall } from './chat-utils';
 import { MutableRefObject } from 'react';
-
-interface ApiResponse {
-  success: boolean;
-  errorMessage?: string;
-}
-
-interface ChatSubmitParams {
-  messages: Message[];
-  userId?: string;
-  modelId?: string;
-  personaId?: string;
-  files?: Array<{ name: string; url: string }>;
-  conversationId: string;
-  multiConversationId?: string | null;
-  knowledgeBaseIds?: string[];
-  assetIds?: string[];
-  webSearch?: boolean;
-  headers?: Record<string, string>;
-}
-
-interface SubmitChatMessagesParams {
-  input: string;
-  uploadedFiles: UploadedFile[];
-  messages: Message[];
-  session: any;
-  getApiHeaders: () => any;
-  modelId?: string;
-  personaId?: string;
-  conversationId?: string;
-  multiConversationId?: string | null;
-  selectedKnowledgeBases?: KnowledgeBase[];
-  selectedAssets?: Asset[];
-  webSearch?: boolean;
-}
 
 /**
  * Submits a message to the chat API

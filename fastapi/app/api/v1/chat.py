@@ -20,6 +20,7 @@ from app.api.v1.router import create_protected_router
 from app.database import get_db
 from app import crud
 from app.utils import format_openai_message, log_chat_request
+from app.config.asset_utils import resolve_file_url_to_asset
 
 # Existing utility imports
 from app.config.chat_utils import (
@@ -142,29 +143,12 @@ async def chat_endpoint(
                 logger.info("Attempting to auto-include attached file assets")
                 attached_asset_ids = []
                 for file in chat_data.files:
-                    if file.url.strip(';'):
-                        chats_index = file.url.find("chats/")
-                        if chats_index == -1:
-                            continue
-                        relative_url = file.url[chats_index:]
-                        
-                        # URL decode the file_url to handle spaces and special characters
-                        decoded_url = unquote(relative_url)
-                        logger.info(f"Looking up asset with decoded file_url: {decoded_url}")
-                        
-                        # Try with decoded URL first
-                        asset = crud.get_asset_by_file_url(db, decoded_url)
-                        
-                        # If not found, try with the original encoded URL
-                        if not asset:
-                            logger.info(f"Asset not found with decoded URL, trying encoded URL: {relative_url}")
-                            asset = crud.get_asset_by_file_url(db, relative_url)
-                        
-                        if asset:
-                            attached_asset_ids.append(asset.id)
-                            logger.info(f"Auto-including asset {asset.id} for file {file.name}")
-                        else:
-                            logger.warning(f"Could not find asset for file {file.name} with either decoded or encoded URL")
+                    # Use the centralized utility function
+                    result = resolve_file_url_to_asset(db, file.url, file.name)
+                    if result and result["asset"]:
+                        asset = result["asset"]
+                        attached_asset_ids.append(asset.id)
+                        logger.info(f"Auto-including asset {asset.id} for file {file.name}")
                 
                 if attached_asset_ids:
                     # Create a new list if chat_data.asset_ids is None, otherwise extend existing
