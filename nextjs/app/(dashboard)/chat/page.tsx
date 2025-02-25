@@ -75,21 +75,42 @@ import '@uppy/dashboard/dist/style.min.css'
 // Add import for chat service
 import { prepareChatSubmission, handleChatSubmission } from '@/utils/chat-service';
 
-// Add a style tag to override the overflow-hidden property
-const ChatScrollStyles = () => (
-  <style jsx global>{`
-    .chat-scroll-area-chat1 .scroll-area-viewport,
-    .chat-scroll-area-chat2 .scroll-area-viewport,
-    .chat-scroll-area-chat3 .scroll-area-viewport,
-    .chat-scroll-area-chat4 .scroll-area-viewport {
-      overflow: auto !important;
-    }
+// Add a script that will forcefully enable scrolling for all chat windows
+const ChatScrollFixer = () => {
+  useEffect(() => {
+    // Function to forcefully enable scrolling on all chat windows
+    const enableScrolling = () => {
+      // Get all chat windows
+      const chatWindows = document.querySelectorAll('[data-chat-id]');
+      
+      // For each chat window, enable scrolling on all elements
+      chatWindows.forEach(chatWindow => {
+        const chatId = chatWindow.getAttribute('data-chat-id');
+        const scrollContainer = chatWindow.querySelector(`div[data-scroll-container="${chatId}"]`);
+        
+        if (scrollContainer) {
+          // Force scrolling to be enabled
+          (scrollContainer as HTMLElement).style.overflowY = 'auto';
+          (scrollContainer as HTMLElement).style.height = '100%';
+          
+          // Log that we've enabled scrolling
+          console.log(`Forced scrolling enabled for chat ${chatId}`);
+        }
+      });
+    };
     
-    [data-chat-id] .scroll-area-viewport {
-      overflow: auto !important;
-    }
-  `}</style>
-);
+    // Run the function immediately
+    enableScrolling();
+    
+    // Then run it every 500ms to ensure scrolling stays enabled
+    const interval = setInterval(enableScrolling, 500);
+    
+    // Clean up the interval when the component unmounts
+    return () => clearInterval(interval);
+  }, []);
+  
+  return null;
+};
 
 function ChatContent() {
   const { sidebarOpen } = useSidebar()
@@ -492,7 +513,7 @@ function ChatContent() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      <ChatScrollStyles />
+      <ChatScrollFixer />
       {/* LEFT COLUMN (sidebar) */}
       <div className="w-64 h-full border-r border-gray-200">
         <AppSidebar toggleChatbot={handleToggleChatbot} />
