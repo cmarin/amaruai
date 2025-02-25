@@ -249,7 +249,12 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
     streamStartTime = Date.now();
 
     // Get the specific scroll container for this chat window
-    const scrollContainer = chatContainerRefs.current[chatId] as HTMLElement | null;
+    // Use a more direct approach to find the scrollable element
+    const chatWindow = document.querySelector(`[data-chat-id="${chatId}"]`);
+    const scrollContainer = chatWindow?.querySelector('.scroll-area-viewport') as HTMLElement | null;
+    
+    // Debug logging
+    console.log(`Chat ${chatId} - Found scroll container:`, scrollContainer);
 
     while (true) {
       const timeElapsed = Date.now() - streamStartTime;
@@ -264,18 +269,30 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
         }
         
         // This specific chat window is done streaming
-        // Enable scrolling for this specific chat window
-        if (scrollContainer) {
-          scrollContainer.style.overflowY = 'auto';
+        // Mark this chat window as no longer streaming
+        const currentChatWindow = document.querySelector(`[data-chat-id="${chatId}"]`);
+        if (currentChatWindow) {
+          currentChatWindow.setAttribute('data-streaming-complete', 'true');
+          currentChatWindow.removeAttribute('data-streaming');
+          
+          // Enable scrolling for this specific chat window
+          const scrollViewport = currentChatWindow.querySelector('.scroll-area-viewport') as HTMLElement | null;
+          if (scrollViewport) {
+            console.log(`Chat ${chatId} - Enabling scroll on completion`);
+            scrollViewport.style.overflowY = 'auto';
+            // Also try to enable scrolling on parent elements
+            const scrollArea = currentChatWindow.querySelector('.scroll-area') as HTMLElement | null;
+            if (scrollArea) {
+              scrollArea.style.overflowY = 'auto';
+            }
+          }
         }
         
         // Check if all chat windows are done streaming
         const activeChats = document.querySelectorAll('[data-streaming="true"]');
+        console.log('Active streaming chats remaining:', activeChats.length);
         if (activeChats.length === 0) {
           isStreamingRef.current = false;
-          if (chatContainerRef.current) {
-            chatContainerRef.current.style.overflowY = 'auto';
-          }
         }
         
         break;
@@ -317,6 +334,8 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
                 const chatWindow = document.querySelector(`[data-chat-id="${chatId}"]`);
                 if (chatWindow) {
                   chatWindow.setAttribute('data-streaming', 'true');
+                  chatWindow.removeAttribute('data-streaming-complete');
+                  console.log(`Chat ${chatId} - Started streaming`);
                 }
               } else {
                 setMessagesFunction(prev => {
@@ -326,9 +345,12 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
                     content: assistantMessage,
                   };
                   
-                  // Enable scrolling for this specific chat window
-                  if (scrollContainer) {
-                    scrollContainer.style.overflowY = 'auto';
+                  // Enable scrolling for this specific chat window during streaming
+                  const streamingChatWindow = document.querySelector(`[data-chat-id="${chatId}"]`);
+                  const scrollViewport = streamingChatWindow?.querySelector('.scroll-area-viewport') as HTMLElement | null;
+                  if (scrollViewport) {
+                    scrollViewport.style.overflowY = 'auto';
+                    console.log(`Chat ${chatId} - Enabling scroll during streaming`);
                   }
                   
                   return updated;
@@ -345,9 +367,9 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
     }
   } catch (err: any) {
     // Mark this chat window as done streaming
-    const chatWindow = document.querySelector(`[data-chat-id="${chatId}"]`);
-    if (chatWindow) {
-      chatWindow.removeAttribute('data-streaming');
+    const errorChatWindow = document.querySelector(`[data-chat-id="${chatId}"]`);
+    if (errorChatWindow) {
+      errorChatWindow.removeAttribute('data-streaming');
     }
     
     // Check if all chat windows are done streaming
@@ -356,14 +378,19 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
       isStreamingRef.current = false;
     }
     
-    // Enable scrolling for this specific chat window
-    const scrollContainer = chatContainerRefs.current[chatId] as HTMLElement | null;
-    if (scrollContainer) {
-      scrollContainer.style.overflowY = 'auto';
-    }
-    
-    if (chatContainerRef.current) {
-      chatContainerRef.current.style.overflowY = 'auto';
+    // Enable scrolling for this specific chat window on error
+    if (errorChatWindow) {
+      const scrollViewport = errorChatWindow.querySelector('.scroll-area-viewport') as HTMLElement | null;
+      if (scrollViewport) {
+        scrollViewport.style.overflowY = 'auto';
+        console.log(`Chat ${chatId} - Enabling scroll on error`);
+      }
+      
+      // Also try to enable scrolling on parent elements
+      const scrollArea = errorChatWindow.querySelector('.scroll-area') as HTMLElement | null;
+      if (scrollArea) {
+        scrollArea.style.overflowY = 'auto';
+      }
     }
     
     console.error('Error in API call:', err);
