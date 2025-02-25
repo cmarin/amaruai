@@ -110,4 +110,5 @@ export interface ApiCallParams {
   allChatModels: ChatModel[] | undefined;
   personas: any[] | undefined;
   isWebSearchEnabled: boolean;
+  isStreamingRefs?: React.MutableRefObject<{[key: string]: boolean}>;
 }

@@ -163,7 +163,8 @@ export const handleChatSubmission = async ({
   setMessages3,
   setMessages4,
   setConversationIds,
-  setMultiConversationId
+  setMultiConversationId,
+  isStreamingRefs
 }: {
   input: string;
   uploadedFiles: UploadedFile[];
@@ -195,6 +196,7 @@ export const handleChatSubmission = async ({
   setMessages4: React.Dispatch<React.SetStateAction<Message[]>>;
   setConversationIds: React.Dispatch<React.SetStateAction<{ [key: string]: string }>>;
   setMultiConversationId: React.Dispatch<React.SetStateAction<string | null>>;
+  isStreamingRefs?: MutableRefObject<{[key: string]: boolean}>;
 }): Promise<PromiseSettledResult<any>[]> => {
   // Prepare submission parameters
   const { 
@@ -264,7 +266,8 @@ export const handleChatSubmission = async ({
       newMessage,
       prevMessagesLocal: messages,
       setMessagesFunction: setMessages,
-      chatId: 'chat1'
+      chatId: 'chat1',
+      isStreamingRefs
     }),
     mode !== 'single' && makeApiCall({
       session,
@@ -289,7 +292,8 @@ export const handleChatSubmission = async ({
       newMessage,
       prevMessagesLocal: messages2,
       setMessagesFunction: setMessages2,
-      chatId: 'chat2'
+      chatId: 'chat2',
+      isStreamingRefs
     }),
     mode === 'quad' && makeApiCall({
       session,
@@ -314,7 +318,8 @@ export const handleChatSubmission = async ({
       newMessage,
       prevMessagesLocal: messages3,
       setMessagesFunction: setMessages3,
-      chatId: 'chat3'
+      chatId: 'chat3',
+      isStreamingRefs
     }),
     mode === 'quad' && makeApiCall({
       session,
@@ -339,7 +344,8 @@ export const handleChatSubmission = async ({
       newMessage,
       prevMessagesLocal: messages4,
       setMessagesFunction: setMessages4,
-      chatId: 'chat4'
+      chatId: 'chat4',
+      isStreamingRefs
     }),
   ].filter(Boolean);
 

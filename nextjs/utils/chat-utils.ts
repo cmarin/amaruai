@@ -169,7 +169,8 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
     selectedAssets,
     allChatModels,
     personas,
-    isWebSearchEnabled
+    isWebSearchEnabled,
+    isStreamingRefs
   } = params;
 
   // Don't allow more than one retry per chat window
@@ -188,8 +189,9 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
 
   try {
     // Track streaming state for this specific chat window
-    if (!isStreamingRef.current) {
-      isStreamingRef.current = true;
+    isStreamingRef.current = true;
+    if (isStreamingRefs) {
+      isStreamingRefs.current[chatId] = true;
     }
     
     // Create a flag to track streaming state for this specific chat window
@@ -278,6 +280,11 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
           console.log(`Chat ${chatId} - Streaming completed, scrolling should be enabled by default`);
         }
         
+        // Mark this specific chat window as no longer streaming
+        if (isStreamingRefs) {
+          isStreamingRefs.current[chatId] = false;
+        }
+        
         // Check if all chat windows are done streaming
         const activeChats = document.querySelectorAll('[data-streaming="true"]');
         console.log('Active streaming chats remaining:', activeChats.length);
@@ -355,6 +362,11 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
     const errorChatWindow = document.querySelector(`[data-chat-id="${chatId}"]`);
     if (errorChatWindow) {
       errorChatWindow.removeAttribute('data-streaming');
+    }
+    
+    // Mark this specific chat window as no longer streaming
+    if (isStreamingRefs) {
+      isStreamingRefs.current[chatId] = false;
     }
     
     // Check if all chat windows are done streaming

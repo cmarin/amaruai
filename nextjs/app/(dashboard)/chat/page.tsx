@@ -90,8 +90,15 @@ const ChatScrollFixer = () => {
         
         if (scrollContainer) {
           // Force scrolling to be enabled
-          (scrollContainer as HTMLElement).style.overflowY = 'auto';
+          (scrollContainer as HTMLElement).style.overflowY = 'auto !important';
           (scrollContainer as HTMLElement).style.height = '100%';
+          
+          // Also try to enable scrolling on parent elements
+          let parent = scrollContainer.parentElement;
+          while (parent) {
+            parent.style.overflowY = 'visible';
+            parent = parent.parentElement;
+          }
           
           // Log that we've enabled scrolling
           console.log(`Forced scrolling enabled for chat ${chatId}`);
@@ -102,11 +109,40 @@ const ChatScrollFixer = () => {
     // Run the function immediately
     enableScrolling();
     
-    // Then run it every 500ms to ensure scrolling stays enabled
-    const interval = setInterval(enableScrolling, 500);
+    // Then run it every 100ms to ensure scrolling stays enabled
+    const interval = setInterval(enableScrolling, 100);
     
-    // Clean up the interval when the component unmounts
-    return () => clearInterval(interval);
+    // Add a global event listener for scroll events
+    const handleScroll = (e: Event) => {
+      // Force enable scrolling on all chat windows
+      enableScrolling();
+    };
+    
+    // Add the event listener
+    window.addEventListener('scroll', handleScroll, true);
+    
+    // Add a MutationObserver to detect when new content is added
+    const observer = new MutationObserver((mutations) => {
+      // Force enable scrolling when content changes
+      enableScrolling();
+    });
+    
+    // Observe all chat windows for changes
+    document.querySelectorAll('[data-chat-id]').forEach(chatWindow => {
+      observer.observe(chatWindow, { 
+        childList: true, 
+        subtree: true, 
+        attributes: true,
+        characterData: true
+      });
+    });
+    
+    // Clean up the interval and event listener when the component unmounts
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('scroll', handleScroll, true);
+      observer.disconnect();
+    };
   }, []);
   
   return null;
@@ -219,7 +255,14 @@ function ChatContent() {
     chat3: null,
     chat4: null
   });
+  // Use individual streaming refs for each chat window
   const isStreamingRef = useRef<boolean>(false);
+  const isStreamingRefs = useRef<{[key: string]: boolean}>({
+    chat1: false,
+    chat2: false,
+    chat3: false,
+    chat4: false
+  });
   const wasAtBottomRef = useRef<boolean>(true);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -291,7 +334,8 @@ function ChatContent() {
         setMessages3,
         setMessages4,
         setConversationIds,
-        setMultiConversationId
+        setMultiConversationId,
+        isStreamingRefs
       });
       
       // Clear input field after submission
@@ -387,7 +431,8 @@ function ChatContent() {
     isCopied,
     chatWindowId
   }: ChatWindowProps) => {
-    const isStreaming = isStreamingRef.current;
+    // Use individual streaming state for each chat window
+    const isStreaming = isStreamingRefs.current[chatWindowId] || isStreamingRef.current;
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
     
     return (
@@ -469,7 +514,7 @@ function ChatContent() {
             onScroll={handleScroll}
             ref={(el) => { chatContainerRefs.current[chatWindowId] = el; }}
             data-scroll-container={chatWindowId}
-            style={{ height: '100%', overflowY: 'auto' }}
+            style={{ height: '100%', overflowY: 'auto', maxHeight: 'none' }}
           >
             <div className="space-y-4">
               {messages.map((message, index) => (
