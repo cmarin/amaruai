@@ -22,37 +22,45 @@ def collect_reference_content(
     
     # Process knowledge bases first
     if knowledge_base_ids:
+        logger.info(f"Processing {len(knowledge_base_ids)} knowledge bases")
         for kb_id in knowledge_base_ids:
-            kb = crud.get_knowledge_base(db, kb_id)
-            if kb:
-                # Get assets directly from the knowledge base relationship
-                if kb.assets:
-                    for asset in kb.assets:
-                        if asset.content:
-                            combined_content.append(f"\nKnowledge Base: {kb.title}\nContent:\n{asset.content}\n")
-                    # Use the stored token count from the knowledge base
-                    total_kb_tokens += kb.token_count or 0
-                    logger.info(f"Added content from knowledge base {kb.title} with {kb.token_count} tokens")
+            try:
+                kb = crud.get_knowledge_base(db, kb_id)
+                if kb:
+                    # Get assets directly from the knowledge base relationship
+                    if kb.assets:
+                        for asset in kb.assets:
+                            if asset.content:
+                                combined_content.append(f"\nKnowledge Base: {kb.title}\nContent:\n{asset.content}\n")
+                        # Use the stored token count from the knowledge base
+                        total_kb_tokens += kb.token_count or 0
+                        logger.info(f"Added content from knowledge base {kb.title} with {kb.token_count} tokens")
+                    else:
+                        logger.warning(f"No assets found in knowledge base {kb.title}")
                 else:
-                    logger.warning(f"No assets found in knowledge base {kb.title}")
-            else:
-                logger.warning(f"Knowledge base not found: {kb_id}")
+                    logger.warning(f"Knowledge base not found: {kb_id}")
+            except Exception as e:
+                logger.error(f"Error processing knowledge base {kb_id}: {str(e)}", exc_info=True)
     
     # Process individual assets
     if asset_ids:
+        logger.info(f"Processing {len(asset_ids)} individual assets")
         for asset_id in asset_ids:
-            asset = crud.get_asset(db, asset_id)
-            if asset:
-                if asset.content:
-                    combined_content.append(f"\nAsset: {asset.file_name}\nContent:\n{asset.content}\n")
-                    # Calculate tokens for individual assets
-                    asset_tokens = len(asset.content.split())
-                    total_asset_tokens += asset_tokens
-                    logger.info(f"Added content from asset {asset.file_name} with {asset_tokens} tokens")
+            try:
+                asset = crud.get_asset(db, asset_id)
+                if asset:
+                    if asset.content:
+                        combined_content.append(f"\nAsset: {asset.file_name}\nContent:\n{asset.content}\n")
+                        # Calculate tokens for individual assets
+                        asset_tokens = len(asset.content.split())
+                        total_asset_tokens += asset_tokens
+                        logger.info(f"Added content from asset {asset.file_name} with {asset_tokens} tokens")
+                    else:
+                        logger.warning(f"No content found in asset {asset_id} (file: {asset.file_name})")
                 else:
-                    logger.warning(f"No content found in asset {asset_id}")
-            else:
-                logger.warning(f"Asset not found: {asset_id}")
+                    logger.warning(f"Asset not found: {asset_id}")
+            except Exception as e:
+                logger.error(f"Error processing asset {asset_id}: {str(e)}", exc_info=True)
 
     total_tokens = total_kb_tokens + total_asset_tokens
     logger.info(f"Total tokens from knowledge bases: {total_kb_tokens}")

@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from urllib.parse import unquote
 
 from app.schemas import ChatMessage, Message, FileInfo
 from app.api.v1.router import create_protected_router
@@ -146,10 +147,24 @@ async def chat_endpoint(
                         if chats_index == -1:
                             continue
                         relative_url = file.url[chats_index:]
-                        asset = crud.get_asset_by_file_url(db, relative_url)
+                        
+                        # URL decode the file_url to handle spaces and special characters
+                        decoded_url = unquote(relative_url)
+                        logger.info(f"Looking up asset with decoded file_url: {decoded_url}")
+                        
+                        # Try with decoded URL first
+                        asset = crud.get_asset_by_file_url(db, decoded_url)
+                        
+                        # If not found, try with the original encoded URL
+                        if not asset:
+                            logger.info(f"Asset not found with decoded URL, trying encoded URL: {relative_url}")
+                            asset = crud.get_asset_by_file_url(db, relative_url)
+                        
                         if asset:
                             attached_asset_ids.append(asset.id)
                             logger.info(f"Auto-including asset {asset.id} for file {file.name}")
+                        else:
+                            logger.warning(f"Could not find asset for file {file.name} with either decoded or encoded URL")
                 
                 if attached_asset_ids:
                     # Create a new list if chat_data.asset_ids is None, otherwise extend existing

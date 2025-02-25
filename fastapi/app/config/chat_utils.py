@@ -1,6 +1,7 @@
 import json
 import logging
 from uuid import UUID
+from urllib.parse import unquote
 from app import crud
 
 logger = logging.getLogger(__name__)
@@ -53,8 +54,19 @@ def process_attached_files(db, chat_data, local_messages):
             logger.info(f"Processing file: {file.name}")
             logger.info(f"Full URL: {file_url}")
             logger.info(f"Relative URL: {relative_url}")
+            
+            # URL decode the file_url to handle spaces and special characters
+            decoded_url = unquote(relative_url)
+            logger.info(f"Decoded URL: {decoded_url}")
 
-            asset = crud.get_asset_by_file_url(db, relative_url)
+            # First try with the decoded URL (for files with spaces)
+            asset = crud.get_asset_by_file_url(db, decoded_url)
+            
+            # If not found, fallback to the encoded URL (legacy)
+            if not asset:
+                logger.info(f"No asset found with decoded URL, trying encoded URL: {relative_url}")
+                asset = crud.get_asset_by_file_url(db, relative_url)
+            
             if asset:
                 logger.info(f"Found asset in database: {asset.id}")
                 if asset.content:
@@ -71,7 +83,7 @@ def process_attached_files(db, chat_data, local_messages):
                     )
             else:
                 logger.warning(
-                    f"No asset found for file {file.name} with relative URL {relative_url}"
+                    f"No asset found for file {file.name} with relative URL {relative_url} or decoded URL {decoded_url}"
                 )
         except Exception as e:
             logger.error(f"Error processing file {file.name}: {str(e)}", exc_info=True)
