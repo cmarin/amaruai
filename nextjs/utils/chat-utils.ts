@@ -12,6 +12,7 @@ import {
   SmilePlus
 } from 'lucide-react';
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon } from '@/components/icons/ai-provider-icons';
+import { submitChatMessage } from './chat-service';
 
 /**
  * Determines if a scrollable container is at the bottom (within a threshold)
@@ -204,28 +205,22 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
     let hasReceivedContent = false;
     let chunkCount = 0;
 
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getApiHeaders(),
-      },
-      body: JSON.stringify({ 
-        messages: [...prevMessagesLocal, newMessage],
-        user_id: session?.user?.id,
-        model_id: selectedModel?.id,
-        persona_id: selectedPersona?.id,
-        files: uploadedFiles.map(f => ({ name: f.name, url: f.uploadURL })),
-        conversation_id: currentConversationId,
-        knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
-        asset_ids: selectedAssets.map(asset => asset.id),
-        ...(currentMultiConversationId && { multi_conversation_id: currentMultiConversationId }),
-        web: isWebSearchEnabled
-      }),
+    // Use the new submitChatMessage function from chat-service.ts
+    const response = await submitChatMessage({
+      messages: [...prevMessagesLocal, newMessage],
+      userId: session?.user?.id,
+      modelId: selectedModel?.id,
+      personaId: selectedPersona?.id,
+      files: uploadedFiles.map(f => ({ name: f.name, url: f.uploadURL })),
+      conversationId: currentConversationId,
+      multiConversationId: currentMultiConversationId,
+      knowledgeBaseIds: selectedKnowledgeBases.map(kb => kb.id),
+      assetIds: selectedAssets.map(asset => asset.id),
+      webSearch: isWebSearchEnabled
     });
 
-    if (!response.ok || !response.body) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (!response.body) {
+      throw new Error('Response body is empty');
     }
 
     const reader = response.body.getReader();

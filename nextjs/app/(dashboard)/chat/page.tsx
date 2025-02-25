@@ -72,6 +72,9 @@ import {
 import '@uppy/core/dist/style.min.css'
 import '@uppy/dashboard/dist/style.min.css'
 
+// Add import for chat service
+import { prepareChatSubmission, handleChatSubmission } from '@/utils/chat-service';
+
 function ChatContent() {
   const { sidebarOpen } = useSidebar()
   const { promptTemplates: prompts, categories, chatModels: allChatModels, personas } = useData()
@@ -213,89 +216,42 @@ function ChatContent() {
     // Reset retry attempts for new chat
     resetRetryAttempts()
 
-    const newMessage: Message = { role: 'user', content: input.trim() }
-    setMessages(prev => [...prev, newMessage])
-    setMessages2(prev => [...prev, newMessage])
-    setMessages3(prev => [...prev, newMessage])
-    setMessages4(prev => [...prev, newMessage])
-    setInput('')
-
-    // Generate a new multi_conversation_id if in multi-chat mode and none exists
-    let currentMultiConversationId = multiConversationId
-    if ((mode === 'dual' || mode === 'quad') && !currentMultiConversationId) {
-      currentMultiConversationId = crypto.randomUUID()
-      setMultiConversationId(currentMultiConversationId)
-    }
-
-    // Shared API call params
-    const apiCallParams = {
-      session,
-      getApiHeaders,
-      uploadedFiles,
-      selectedModels,
-      selectedPersonas,
-      conversationIds,
-      setConversationIds,
-      currentMultiConversationId,
-      retryAttempts,
-      setRetryAttempts,
-      setError,
-      isStreamingRef,
-      chatContainerRef,
-      selectedKnowledgeBases,
-      selectedAssets,
-      allChatModels,
-      personas,
-      isWebSearchEnabled,
-      newMessage
-    };
-
-    const apiCalls = [
-      makeApiCall({
-        ...apiCallParams,
-        prevMessagesLocal: messages,
-        setMessagesFunction: setMessages,
-        chatId: 'chat1'
-      }),
-      mode !== 'single' && makeApiCall({
-        ...apiCallParams,
-        prevMessagesLocal: messages2,
-        setMessagesFunction: setMessages2,
-        chatId: 'chat2'
-      }),
-      mode === 'quad' && makeApiCall({
-        ...apiCallParams,
-        prevMessagesLocal: messages3,
-        setMessagesFunction: setMessages3,
-        chatId: 'chat3'
-      }),
-      mode === 'quad' && makeApiCall({
-        ...apiCallParams,
-        prevMessagesLocal: messages4,
-        setMessagesFunction: setMessages4,
-        chatId: 'chat4'
-      }),
-    ].filter(Boolean);
-
     try {
-      // Use Promise.allSettled instead of Promise.all to handle individual failures
-      const results = await Promise.allSettled(apiCalls)
+      // Use the handleChatSubmission function from chat-service.ts
+      await handleChatSubmission({
+        input,
+        uploadedFiles,
+        mode,
+        conversationIds,
+        multiConversationId,
+        selectedModels,
+        selectedPersonas,
+        selectedKnowledgeBases,
+        selectedAssets,
+        isWebSearchEnabled,
+        allChatModels,
+        session,
+        getApiHeaders,
+        retryAttempts,
+        setRetryAttempts,
+        setError,
+        isStreamingRef,
+        chatContainerRef,
+        personas,
+        messages,
+        messages2,
+        messages3,
+        messages4,
+        setMessages,
+        setMessages2,
+        setMessages3,
+        setMessages4,
+        setConversationIds,
+        setMultiConversationId
+      });
       
-      // Log any failures for debugging
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          const chatId = ['chat1', 'chat2', 'chat3', 'chat4'][index]
-          console.error(`Chat ${chatId} failed:`, result.reason)
-          
-          // Set error message for failed chats
-          const errMsg = result.reason instanceof Error ? result.reason.message : 'Unknown error'
-          setError(prevError =>
-            prevError
-              ? new Error(`${prevError.message}\nChat ${chatId}: ${errMsg}`)
-              : new Error(`Chat ${chatId}: ${errMsg}`)
-          )
-        }
-      })
+      // Clear input field after submission
+      setInput('');
     } catch (err: unknown) {
       console.error('Error in handleSubmit:', err)
       const errMsg = err instanceof Error ? err.message : 'Unknown error'
