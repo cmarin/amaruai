@@ -161,7 +161,13 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     // If updating prompt template, check for defaults
     if (field === 'prompt_template_id') {
       const template = promptTemplates.find(t => t.id === value);
-      const stepChanges = userChangedValues[index] || { model: false, persona: false };
+      
+      // Always reset the user changed values when selecting a template
+      // This matches the behavior in the batch-flow feature
+      setUserChangedValues(prev => ({
+        ...prev,
+        [index]: { model: false, persona: false }
+      }));
 
       if (template) {
         console.log('Selected template:', template);
@@ -169,22 +175,16 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
           default_persona_id: template.default_persona_id,
           default_chat_model_id: template.default_chat_model_id
         });
-        console.log('User changed values:', stepChanges);
         
-        // Update model if it has a default and user hasn't changed it
-        if (template.default_chat_model_id && !stepChanges.model) {
+        // Always apply defaults when template is selected
+        if (template.default_chat_model_id) {
           console.log('Applying default chat model:', template.default_chat_model_id);
           updatedSteps[index].chat_model_id = template.default_chat_model_id;
-        } else {
-          console.log('User already changed chat model, not applying default');
         }
         
-        // Update persona if it has a default and user hasn't changed it
-        if (template.default_persona_id && !stepChanges.persona) {
+        if (template.default_persona_id) {
           console.log('Applying default persona:', template.default_persona_id);
           updatedSteps[index].persona_id = template.default_persona_id;
-        } else {
-          console.log('User already changed persona, not applying default');
         }
       }
     } else {
@@ -192,12 +192,12 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
       if (field === 'chat_model_id') {
         setUserChangedValues(prev => ({
           ...prev,
-          [index]: { ...(prev[index] || {}), model: true }
+          [index]: { ...(prev[index] || { persona: false }), model: true }
         }));
       } else if (field === 'persona_id') {
         setUserChangedValues(prev => ({
           ...prev,
-          [index]: { ...(prev[index] || {}), persona: true }
+          [index]: { ...(prev[index] || { model: false }), persona: true }
         }));
       }
     }
@@ -451,6 +451,8 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
               id: String(p.id),
               role: p.role
             }))}
+            userChangedValues={userChangedValues}
+            onUserChangedValues={setUserChangedValues}
           />
         </CardContent>
       </Card>

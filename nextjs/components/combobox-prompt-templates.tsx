@@ -11,27 +11,30 @@ import type { PromptTemplateOption } from "@/types"
 interface ComboboxPromptTemplatesProps {
   templates: PromptTemplateOption[]
   value?: string | number | null
-  onSelect: (template: PromptTemplateOption) => void
+  onSelect: (template: PromptTemplateOption | null) => void
 }
 
 export function ComboboxPromptTemplates({ templates, value, onSelect }: ComboboxPromptTemplatesProps) {
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
+  
+  // Convert value to string for comparison
+  const valueString = value ? value.toString() : null;
 
   // Debug the incoming value and available templates
   React.useEffect(() => {
-    console.log('ComboboxPromptTemplates props:', { value, templatesCount: templates.length });
-    const found = templates.find(t => t.id.toString() === value?.toString());
+    console.log('ComboboxPromptTemplates props:', { value, valueString, templatesCount: templates.length });
+    const found = templates.find(t => t.id.toString() === valueString);
     console.log('SelectedTemplate:', found);
-    if (value && !found) {
+    if (valueString && !found) {
       console.warn('Template with ID', value, 'not found in available templates');
     }
-  }, [templates, value]);
+  }, [templates, value, valueString]);
 
   // Find the selected template
   const selectedTemplate = React.useMemo(() => {
-    return templates.find(t => t.id.toString() === value?.toString());
-  }, [templates, value]);
+    return templates.find(t => t.id.toString() === valueString);
+  }, [templates, valueString]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -70,7 +73,19 @@ export function ComboboxPromptTemplates({ templates, value, onSelect }: Combobox
                     value={template.title}
                     onSelect={() => {
                       console.log('Template selected in ComboboxPromptTemplates:', template);
-                      onSelect(template);
+                      
+                      // Explicitly compare the template ID with the current value
+                      if (template.id.toString() === valueString) {
+                        console.log('Template already selected - ensuring UI updates');
+                        // Force a re-selection to ensure UI updates
+                        onSelect(null); // Clear first
+                        setTimeout(() => {
+                          onSelect(template); // Then set again
+                        }, 10);
+                      } else {
+                        onSelect(template);
+                      }
+                      
                       setOpen(false);
                     }}
                   >

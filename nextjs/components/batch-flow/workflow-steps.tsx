@@ -129,6 +129,10 @@ export function WorkflowSteps({
                             // Force a refresh to update the UI
                             forceRefresh();
                           }, 10);
+                        } else if (template === null) {
+                          // This is a special case for re-selection of the same template
+                          // We don't want to clear the template ID in this case
+                          console.log('Received null template - this is for re-selection, not clearing');
                         } else {
                           onUpdateStep(index, 'prompt_template_id', '');
                         }
