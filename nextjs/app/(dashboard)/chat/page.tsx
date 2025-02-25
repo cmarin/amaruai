@@ -115,6 +115,12 @@ function ChatContent() {
   const chatContainerRef2 = useRef<HTMLDivElement>(null);
   const chatContainerRef3 = useRef<HTMLDivElement>(null);
   const chatContainerRef4 = useRef<HTMLDivElement>(null);
+  
+  // Create message end refs for each window at the top level
+  const messagesEndRef1 = useRef<HTMLDivElement>(null);
+  const messagesEndRef2 = useRef<HTMLDivElement>(null);
+  const messagesEndRef3 = useRef<HTMLDivElement>(null);
+  const messagesEndRef4 = useRef<HTMLDivElement>(null);
 
   // Model & persona selection
   const [selectedModels, setSelectedModels] = useState<{ [key: string]: string }>({});
@@ -866,7 +872,7 @@ function ChatContent() {
             <div className="grid h-full gap-4" style={{ gridTemplateColumns: "1fr" }}>
               <ChatWindow
                 messages={messages}
-                messagesEndRef={useRef<HTMLDivElement>(null)}
+                messagesEndRef={messagesEndRef1}
                 title="Perplexity Llama"
                 Icon={Timer}
                 onCopy={() =>
@@ -900,7 +906,7 @@ function ChatContent() {
               {/* Window 1 */}
               <ChatWindow
                 messages={messages}
-                messagesEndRef={useRef<HTMLDivElement>(null)}
+                messagesEndRef={messagesEndRef1}
                 title="Perplexity Llama"
                 Icon={Timer}
                 onCopy={() =>
@@ -926,7 +932,7 @@ function ChatContent() {
               {/* Window 2 (already knows it's not single mode) */}
               <ChatWindow
                 messages={messages2}
-                messagesEndRef={useRef<HTMLDivElement>(null)}
+                messagesEndRef={messagesEndRef2}
                 title="GPT-4o"
                 Icon={Sparkles}
                 onCopy={() =>
@@ -956,7 +962,7 @@ function ChatContent() {
                 <>
                   <ChatWindow
                     messages={messages3}
-                    messagesEndRef={useRef<HTMLDivElement>(null)}
+                    messagesEndRef={messagesEndRef3}
                     title="Gemini 1.5 Pro"
                     Icon={Bot}
                     onCopy={() =>
@@ -983,7 +989,7 @@ function ChatContent() {
 
                   <ChatWindow
                     messages={messages4}
-                    messagesEndRef={useRef<HTMLDivElement>(null)}
+                    messagesEndRef={messagesEndRef4}
                     title="Meta Llama 3.1"
                     Icon={SmilePlus}
                     onCopy={() =>
