@@ -18,7 +18,20 @@ export function ComboboxPromptTemplates({ templates, value, onSelect }: Combobox
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
 
-  const selectedTemplate = templates.find(t => t.id.toString() === value?.toString())
+  // Debug the incoming value and available templates
+  React.useEffect(() => {
+    console.log('ComboboxPromptTemplates props:', { value, templatesCount: templates.length });
+    const found = templates.find(t => t.id.toString() === value?.toString());
+    console.log('SelectedTemplate:', found);
+    if (value && !found) {
+      console.warn('Template with ID', value, 'not found in available templates');
+    }
+  }, [templates, value]);
+
+  // Find the selected template
+  const selectedTemplate = React.useMemo(() => {
+    return templates.find(t => t.id.toString() === value?.toString());
+  }, [templates, value]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -26,7 +39,11 @@ export function ComboboxPromptTemplates({ templates, value, onSelect }: Combobox
         variant="outline" 
         role="combobox" 
         aria-expanded={open}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          console.log('Opening template dialog with value:', value);
+          console.log('Selected template before opening:', selectedTemplate);
+          setOpen(true);
+        }}
         className="w-full justify-between"
       >
         <span>{selectedTemplate ? selectedTemplate.title : "Select template..."}</span>
@@ -52,8 +69,9 @@ export function ComboboxPromptTemplates({ templates, value, onSelect }: Combobox
                     key={template.id}
                     value={template.title}
                     onSelect={() => {
-                      onSelect(template)
-                      setOpen(false)
+                      console.log('Template selected in ComboboxPromptTemplates:', template);
+                      onSelect(template);
+                      setOpen(false);
                     }}
                   >
                     <CheckIcon

@@ -37,22 +37,30 @@ export function WorkflowSteps({
     console.log('Model changed:', modelId);
     const finalValue = modelId === 'none' ? '' : modelId;
     console.log('Setting model to:', finalValue);
-    onUpdateStep(index, 'chat_model_id', finalValue);
+    
+    // Update the state to track that the user changed this value
     setUserChangedValues(prev => ({
       ...prev,
-      [index]: { ...prev[index], model: true }
+      [index]: { ...(prev[index] || { persona: false }), model: true }
     }));
+    
+    // Pass the change up to the parent
+    onUpdateStep(index, 'chat_model_id', finalValue);
   };
 
   const handlePersonaChange = (index: number, personaId: string) => {
     console.log('Persona changed:', personaId);
     const finalValue = personaId === 'none' ? '' : personaId;
     console.log('Setting persona to:', finalValue);
-    onUpdateStep(index, 'persona_id', finalValue);
+    
+    // Update the state to track that the user changed this value
     setUserChangedValues(prev => ({
       ...prev,
-      [index]: { ...prev[index], persona: true }
+      [index]: { ...(prev[index] || { model: false }), persona: true }
     }));
+    
+    // Pass the change up to the parent
+    onUpdateStep(index, 'persona_id', finalValue);
   };
 
   return (
@@ -69,21 +77,30 @@ export function WorkflowSteps({
                       templates={promptTemplates}
                       value={step.prompt_template_id || null}
                       onSelect={(template) => {
-                        // First update the prompt template id
-                        onUpdateStep(index, 'prompt_template_id', template ? template.id : '');
+                        console.log('Selected template in WorkflowSteps:', template);
                         
-                        // If template has default values and user hasn't manually changed them, apply them
-                        const hasUserChangedModel = userChangedValues[index]?.model || false;
-                        const hasUserChangedPersona = userChangedValues[index]?.persona || false;
-                        
-                        // Apply default persona if it exists and user hasn't changed it manually
-                        if (template?.default_persona_id && !hasUserChangedPersona) {
-                          onUpdateStep(index, 'persona_id', template.default_persona_id);
-                        }
-                        
-                        // Apply default chat model if it exists and user hasn't changed it manually
-                        if (template?.default_chat_model_id && !hasUserChangedModel) {
-                          onUpdateStep(index, 'chat_model_id', template.default_chat_model_id);
+                        if (template) {
+                          // First update the prompt template id
+                          onUpdateStep(index, 'prompt_template_id', template.id);
+                          
+                          // Get the user's change status for this step
+                          const hasUserChangedModel = userChangedValues[index]?.model || false;
+                          const hasUserChangedPersona = userChangedValues[index]?.persona || false;
+                          
+                          console.log('User changed values:', { model: hasUserChangedModel, persona: hasUserChangedPersona });
+                          
+                          // If the template has default values and the user hasn't changed them manually, apply them
+                          if (template.default_persona_id && !hasUserChangedPersona) {
+                            console.log('Applying default persona:', template.default_persona_id);
+                            onUpdateStep(index, 'persona_id', template.default_persona_id);
+                          }
+                          
+                          if (template.default_chat_model_id && !hasUserChangedModel) {
+                            console.log('Applying default chat model:', template.default_chat_model_id);
+                            onUpdateStep(index, 'chat_model_id', template.default_chat_model_id);
+                          }
+                        } else {
+                          onUpdateStep(index, 'prompt_template_id', '');
                         }
                       }}
                     />
@@ -119,7 +136,7 @@ export function WorkflowSteps({
                     <ComboboxPersonas
                       personas={personas as unknown as Persona[]}
                       value={step.persona_id || null}
-                      onSelect={(persona) => onUpdateStep(index, 'persona_id', persona ? persona.id.toString() : '')}
+                      onSelect={(persona) => handlePersonaChange(index, persona ? persona.id.toString() : '')}
                     />
                   </div>
                   {step.persona_id && (
@@ -163,7 +180,7 @@ export function WorkflowSteps({
                         temperature: 0.7
                       }))}
                       value={step.chat_model_id || null}
-                      onSelect={(model) => onUpdateStep(index, 'chat_model_id', model ? model.id.toString() : '')}
+                      onSelect={(model) => handleModelChange(index, model ? model.id.toString() : '')}
                     />
                   </div>
                   {step.chat_model_id && (

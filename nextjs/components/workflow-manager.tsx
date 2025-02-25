@@ -162,14 +162,31 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
       const stepChanges = userChangedValues[index] || { model: false, persona: false };
 
       if (template) {
+        console.log('Selected template:', template);
+        console.log('Template defaults:', {
+          default_persona_id: template.default_persona_id,
+          default_chat_model_id: template.default_chat_model_id
+        });
+        console.log('User changed values:', stepChanges);
+        
         // Update model if it has a default and user hasn't changed it
-        if (!stepChanges.model && template.default_chat_model_id) {
-          updatedSteps[index].chat_model_id = template.default_chat_model_id;
+        if (template.default_chat_model_id) {
+          if (!stepChanges.model) {
+            console.log('Applying default chat model:', template.default_chat_model_id);
+            updatedSteps[index].chat_model_id = template.default_chat_model_id;
+          } else {
+            console.log('User already changed chat model, not applying default');
+          }
         }
         
         // Update persona if it has a default and user hasn't changed it
-        if (!stepChanges.persona && template.default_persona_id) {
-          updatedSteps[index].persona_id = template.default_persona_id;
+        if (template.default_persona_id) {
+          if (!stepChanges.persona) {
+            console.log('Applying default persona:', template.default_persona_id);
+            updatedSteps[index].persona_id = template.default_persona_id;
+          } else {
+            console.log('User already changed persona, not applying default');
+          }
         }
       }
     } else {
@@ -177,12 +194,12 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
       if (field === 'chat_model_id') {
         setUserChangedValues(prev => ({
           ...prev,
-          [index]: { ...prev[index], model: true }
+          [index]: { ...(prev[index] || {}), model: true }
         }));
       } else if (field === 'persona_id') {
         setUserChangedValues(prev => ({
           ...prev,
-          [index]: { ...prev[index], persona: true }
+          [index]: { ...(prev[index] || {}), persona: true }
         }));
       }
     }
