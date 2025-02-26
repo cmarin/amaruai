@@ -38,6 +38,21 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
 
   // Group the prompts into categories
   const groupPromptsByCategory = useCallback((promptsToGroup: PromptTemplate[], useSearchResults = false) => {
+    // Safety check - if promptsToGroup is empty or undefined, return empty groups
+    if (!promptsToGroup || promptsToGroup.length === 0) {
+      console.warn('No prompts to group, returning empty structure');
+      const emptyGroups: { [key: string]: PromptTemplate[] } = { 'Favorites': [] };
+      
+      // Still add categories if we're not in search mode
+      if (!useSearchResults) {
+        categories.forEach(category => {
+          emptyGroups[category.name] = [];
+        });
+        emptyGroups['Uncategorized'] = [];
+      }
+      return emptyGroups;
+    }
+    
     // Enhanced logging for debugging
     console.log('Grouping prompts:', promptsToGroup.length);
     console.log('Favorites count (is_favorite):', promptsToGroup.filter(p => p.is_favorite).length);
@@ -64,17 +79,18 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
     // Add Favorites category ALWAYS to the top (even if empty)
     newGroupedPrompts['Favorites'] = favoritePrompts;
     
-    // When in search mode, we don't need to add empty categories
-    if (!useSearchResults) {
-      // Process all categories from the categories prop
-      // This ensures we have ALL categories, not just ones with prompts
-      categories.forEach(category => {
+    // Always add all categories from the categories prop
+    // This ensures we have ALL categories, not just ones with prompts
+    categories.forEach(category => {
+      if (!newGroupedPrompts[category.name]) {
         newGroupedPrompts[category.name] = [];
-      });
-    }
+      }
+    });
     
-    // Create Uncategorized category
-    newGroupedPrompts['Uncategorized'] = [];
+    // Create Uncategorized category if it doesn't exist
+    if (!newGroupedPrompts['Uncategorized']) {
+      newGroupedPrompts['Uncategorized'] = [];
+    }
     
     // Group prompts by category - IMPORTANT: Skip favorites in regular categories
     promptsToGroup.forEach(prompt => {
@@ -98,12 +114,24 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
       }
     });
     
-    // Remove empty categories except Favorites (keep it even if empty)
-    Object.keys(newGroupedPrompts).forEach(key => {
-      if (newGroupedPrompts[key].length === 0 && key !== 'Favorites') {
-        delete newGroupedPrompts[key];
-      }
-    });
+    // When in search mode, we want to remove empty categories
+    if (useSearchResults) {
+      // Remove empty categories except Favorites (keep it even if empty)
+      Object.keys(newGroupedPrompts).forEach(key => {
+        if (newGroupedPrompts[key].length === 0 && key !== 'Favorites') {
+          delete newGroupedPrompts[key];
+        }
+      });
+    } else {
+      // In normal mode, only remove empty categories that are not special categories
+      Object.keys(newGroupedPrompts).forEach(key => {
+        if (newGroupedPrompts[key].length === 0 && 
+            key !== 'Favorites' && 
+            key !== 'Uncategorized') {
+          delete newGroupedPrompts[key];
+        }
+      });
+    }
     
     // Log the result to help debug
     console.log('Grouped prompts categories:', Object.keys(newGroupedPrompts));
@@ -114,17 +142,39 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
     return newGroupedPrompts;
   }, [categories]);
 
-  // Handle initial grouping of prompts
+  // Handle initial grouping of prompts when component mounts or prompts change
   useEffect(() => {
-    setGroupedPrompts(groupPromptsByCategory(prompts));
+    console.log('Initial prompts useEffect - prompt count:', prompts.length);
+    
+    if (prompts.length > 0) {
+      const grouped = groupPromptsByCategory(prompts, false);
+      console.log('Setting initial grouped prompts with categories:', Object.keys(grouped).length);
+      setGroupedPrompts(grouped);
+    }
   }, [prompts, groupPromptsByCategory]);
+
+  // When the popover opens, make sure we're showing all prompts and not just search results
+  useEffect(() => {
+    if (isOpen && !searchTerm && prompts.length > 0) {
+      console.log('Popover opened - regrouping all prompts');
+      setGroupedPrompts(groupPromptsByCategory(prompts, false));
+    }
+  }, [isOpen, searchTerm, prompts, groupPromptsByCategory]);
 
   // Search API function
   const searchPromptTemplates = useCallback(async (query: string) => {
     if (!query.trim()) {
       // If search is cleared, reset to show original prompts
+      console.log('Search cleared - resetting to all prompts');
       setSearchResults([]);
-      setGroupedPrompts(groupPromptsByCategory(prompts));
+      
+      // Make sure we regroup ALL prompts when search is cleared
+      if (prompts.length > 0) {
+        const grouped = groupPromptsByCategory(prompts, false);
+        console.log('Resetting to grouped prompts with categories:', Object.keys(grouped).length);
+        setGroupedPrompts(grouped);
+      }
+      
       setIsSearching(false);
       return;
     }
@@ -252,7 +302,15 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
   }
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={value => {
+      // When opening the popover, ensure we reset to showing all prompts
+      if (value === true && !isOpen && !searchTerm) {
+        console.log('Popover opening - ensuring all prompts are displayed');
+        // Force a regroup on open
+        setGroupedPrompts(groupPromptsByCategory(prompts, false));
+      }
+      setIsOpen(value);
+    }}>
       <PopoverTrigger asChild>
         {children}
       </PopoverTrigger>
