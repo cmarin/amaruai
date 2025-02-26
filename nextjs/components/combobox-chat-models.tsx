@@ -18,7 +18,20 @@ export function ComboboxChatModels({ models, value, onSelect }: ComboboxChatMode
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
 
-  const selectedModel = models.find(m => m.id.toString() === value?.toString())
+  // Debug the incoming value and available models
+  React.useEffect(() => {
+    console.log('ComboboxChatModels props:', { value, modelsCount: models.length });
+    const found = models.find(m => m.id.toString() === value?.toString());
+    console.log('Selected model:', found);
+    if (value && !found) {
+      console.warn('Model with ID', value, 'not found in available models');
+    }
+  }, [models, value]);
+
+  // Find the selected model
+  const selectedModel = React.useMemo(() => {
+    return models.find(m => m.id.toString() === value?.toString());
+  }, [models, value]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -26,7 +39,11 @@ export function ComboboxChatModels({ models, value, onSelect }: ComboboxChatMode
         variant="outline" 
         role="combobox" 
         aria-expanded={open}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          console.log('Opening model dialog with value:', value);
+          console.log('Selected model before opening:', selectedModel);
+          setOpen(true);
+        }}
         className="w-full justify-between"
       >
         <span>{selectedModel ? selectedModel.name : "Select model..."}</span>
@@ -53,8 +70,9 @@ export function ComboboxChatModels({ models, value, onSelect }: ComboboxChatMode
                     key={model.id}
                     value={model.name}
                     onSelect={() => {
-                      onSelect(model)
-                      setOpen(false)
+                      console.log('Model selected in ComboboxChatModels:', model);
+                      onSelect(model);
+                      setOpen(false);
                     }}
                     className="flex items-center gap-2"
                   >

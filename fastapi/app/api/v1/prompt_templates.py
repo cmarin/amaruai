@@ -9,9 +9,6 @@ from app.database import get_db
 from app.api.v1.router import create_protected_router
 from app.api.v1.dependencies import get_current_user_id
 
-# Create a protected router for prompt templates
-router = create_protected_router(prefix="prompt_templates", tags=["prompt_templates"])
-
 class SortField(str, Enum):
     CREATED_AT = "created_at"
     UPDATED_AT = "updated_at"
@@ -20,6 +17,10 @@ class SortField(str, Enum):
 class SortOrder(str, Enum):
     ASC = "asc"
     DESC = "desc"
+
+# Create a protected router for prompt templates
+router = create_protected_router(prefix="prompt_templates", tags=["prompt_templates"])
+
 
 @router.post("/", response_model=schemas.PromptTemplate)
 async def create_prompt_template(
@@ -52,7 +53,8 @@ async def create_prompt_template(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/", response_model=List[schemas.PromptTemplateResponse])
+
+@router.get("/", response_model=List[schemas.PromptTemplate])
 def read_prompt_templates(
     skip: int = 0,
     limit: int = 100,
@@ -61,6 +63,7 @@ def read_prompt_templates(
     created_by: Optional[UUID] = Query(None, description="Filter by creator's user ID"),
     favorited_by: Optional[UUID] = Query(None, description="Filter by user who favorited"),
     has_favorites: Optional[bool] = Query(None, description="Filter prompts that have been favorited by any user"),
+    query: Optional[str] = Query(None, description="Text search for prompt templates (searches title, prompt, tags, and categories)"),
     db: Session = Depends(get_db),
     current_user: UUID = Depends(get_current_user_id)
 ):
@@ -75,17 +78,18 @@ def read_prompt_templates(
     - created_by: Filter by creator's user ID
     - favorited_by: Filter by user who favorited
     - has_favorites: Filter prompts that have been favorited by any user
+    - query: Text search for prompt templates (searches title, prompt, tags, and categories)
     """
     try:
         # Start with base query
-        query = db.query(models.PromptTemplate)
+        query_obj = db.query(models.PromptTemplate)
 
         # Apply filters
         if created_by:
-            query = query.filter(models.PromptTemplate.created_by == created_by)
+            query_obj = query_obj.filter(models.PromptTemplate.created_by == created_by)
 
         if favorited_by:
-            query = query.join(
+            query_obj = query_obj.join(
                 models.prompt_template_favorites
             ).filter(
                 models.prompt_template_favorites.c.user_id == favorited_by
@@ -93,12 +97,10 @@ def read_prompt_templates(
 
         if has_favorites is not None:
             if has_favorites:
-                query = query.join(
+                query_obj = query_obj.join(
                     models.prompt_template_favorites
                 ).group_by(
                     models.PromptTemplate.id
-                ).having(
-                    func.count(models.prompt_template_favorites.c.user_id) > 0
                 )
             else:
                 # Subquery to find templates with favorites
@@ -107,23 +109,55 @@ def read_prompt_templates(
                 ).distinct().subquery()
                 
                 # Filter for templates not in the favorited subquery
-                query = query.filter(
+                query_obj = query_obj.filter(
                     models.PromptTemplate.id.notin_(favorited)
                 )
+
+        # Apply text search if query parameter is provided
+        if query:
+            # Escape special characters in query string for LIKE operations
+            # This is safe to do because SQLAlchemy will handle SQL injection protection
+            search_query = query.replace("%", r"\%").replace("_", r"\_")
+            search_pattern = f"%{search_query}%"
+            
+            # Search in title and prompt
+            title_match = models.PromptTemplate.title.ilike(search_pattern)
+            prompt_match = models.PromptTemplate.prompt.ilike(search_pattern)
+            
+            # Search in tags
+            tag_match = query_obj.join(
+                models.PromptTemplate.tags,
+                isouter=True  # Use outer join to avoid filtering out templates without tags
+            ).filter(
+                models.Tag.name.ilike(search_pattern)
+            ).exists().correlate(models.PromptTemplate)
+            
+            # Search in categories
+            category_match = query_obj.join(
+                models.PromptTemplate.categories,
+                isouter=True  # Use outer join to avoid filtering out templates without categories
+            ).filter(
+                models.Category.name.ilike(search_pattern)
+            ).exists().correlate(models.PromptTemplate)
+            
+            # Combine all search criteria with OR
+            query_obj = query_obj.filter(
+                title_match | prompt_match | tag_match | category_match
+            )
 
         # Apply sorting
         if sort_by:
             sort_column = getattr(models.PromptTemplate, sort_by.value)
             if sort_order == SortOrder.DESC:
-                query = query.order_by(desc(sort_column))
+                query_obj = query_obj.order_by(desc(sort_column))
             else:
-                query = query.order_by(asc(sort_column))
+                query_obj = query_obj.order_by(asc(sort_column))
         else:
             # Default sort by created_at desc
-            query = query.order_by(desc(models.PromptTemplate.created_at))
+            query_obj = query_obj.order_by(desc(models.PromptTemplate.created_at))
 
         # Apply pagination
-        prompt_templates = query.offset(skip).limit(limit).all()
+        prompt_templates = query_obj.offset(skip).limit(limit).all()
 
         # Add is_favorited flag for current user
         for template in prompt_templates:
@@ -149,7 +183,7 @@ def get_favorite_prompt_templates(
     """Get all prompt templates favorited by the current user."""
     return crud.get_favorite_prompt_templates(db=db, user_id=current_user)
 
-@router.get("/{prompt_template_id}", response_model=schemas.PromptTemplateResponse)
+@router.get("/{prompt_template_id}", response_model=schemas.PromptTemplate)
 def read_prompt_template(prompt_template_id: UUID, db: Session = Depends(get_db)):
     db_prompt_template = crud.get_prompt_template(db, prompt_template_id=prompt_template_id)
     if db_prompt_template is None:

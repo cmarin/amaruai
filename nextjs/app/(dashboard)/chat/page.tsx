@@ -1,26 +1,30 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import ReactMarkdown from 'react-markdown'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Copy, Trash2, Send, BookOpen, Grid2X2, Columns, Square, MessageSquare,
-  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Database, ChevronDown, Globe2
+  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Globe2
 } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { isMarkdown } from '@/app/utils/isMarkdown'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/sidebar-context'
 import { PromptSelector } from '@/components/prompt-selector'
 import { useData } from '@/components/data-context'
-import { addToScratchPad as addToScratchPadService } from '@/utils/scratch-pad-service'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 import { OpenAIIcon, AnthropicIcon, GeminiIcon, PerplexityIcon, MistralIcon, MetaIcon, ZephyrIcon } from '@/components/icons/ai-provider-icons'
 import { useSession } from '@/app/utils/session/session'
@@ -37,21 +41,44 @@ import { ChatModel } from '@/components/data-context'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import ChatMessage from '@/components/chat-message'
-import { ComboboxPersonas } from '@/components/combobox-personas'
-import { ComboboxChatModels } from '@/components/combobox-chat-models'
+
+// Import the types and utilities
+import { Message, ChatMode, ChatWindowProps } from '@/types/chat'
+import { PromptTemplate } from '@/utils/prompt-template-service'
+import { 
+  isAtBottom, 
+  maintainScroll, 
+  getProviderIcon, 
+  getModelIcon, 
+  getModelName, 
+  copyToClipboard as copyToClipboardUtil,
+  resetSelectedModels,
+  makeApiCall,
+  addToScratchPad as addToScratchPadUtil,
+  handlePromptSelect as handlePromptSelectUtil,
+  handleComplexPromptSubmit as handleComplexPromptSubmitUtil,
+  handleModeChange as handleModeChangeUtil,
+  handleToggleChatbot as handleToggleChatbotUtil
+} from '@/utils/chat-utils'
+
+// Import the chat upload utilities
+import {
+  initializeChatUploader,
+  handleFileUpload as handleChatFileUpload,
+  closeUploadModal,
+  removeUploadedFile
+} from '@/utils/chat-uploads'
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css'
 import '@uppy/dashboard/dist/style.min.css'
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
+// Add import for chat service
+import { prepareChatSubmission, handleChatSubmission } from '@/utils/chat-service';
 
 function ChatContent() {
   const { sidebarOpen } = useSidebar()
-  const { promptTemplates: prompts, categories, chatModels: allChatModels, personas } = useData()
+  const { promptTemplates: prompts, setData, categories, chatModels: allChatModels, personas } = useData()
   const { session, getApiHeaders } = useSession()
   const supabase = useSupabase()
   const searchParams = useSearchParams()
@@ -64,13 +91,16 @@ function ChatContent() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
-  const [mode, setMode] = useState<'single' | 'dual' | 'quad'>('single')
+  const [mode, setMode] = useState<ChatMode>('single')
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
   const [selectedComplexPrompt, setSelectedComplexPrompt] = useState<any | null>(null)
   const [selectedModels, setSelectedModels] = useState<{ [key: string]: string }>({})
-  const [selectedPersonas, setSelectedPersonas] = useState<{ [key: string]: string }>({})
-  const [hasUserChangedModel, setHasUserChangedModel] = useState(false)
-  const [hasUserChangedPersona, setHasUserChangedPersona] = useState(false)
+  const [selectedPersonas, setSelectedPersonas] = useState<{ [key: string]: string }>({
+    chat1: 'default',
+    chat2: 'default',
+    chat3: 'default',
+    chat4: 'default'
+  })
 
   useEffect(() => {
     console.log('Personas changed:', personas);
@@ -91,38 +121,31 @@ function ChatContent() {
 
   const uppyRef = useRef<Uppy | null>(null)
 
-  useEffect(() => {
-    if (!uppyRef.current) {
-      const uppyInstance = UploadService.createUppy(
-        'chat-uploader',
-        {
-          maxFiles: 1,
-          storageFolder: 'chats',
-          storageBucket: 'amaruai-dev'
-        },
-        (file) => {
-          setUploadedFiles(prev => [...prev, {
-            id: file.id,
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            uploadURL: file.uploadURL
-          }]);
-        },
-        () => {
-          setShowUploadModal(false)
-        },
-        supabase
-      )
-      uppyRef.current = uppyInstance
-    }
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef2 = useRef<HTMLDivElement>(null);
+  const messagesEndRef3 = useRef<HTMLDivElement>(null);
+  const messagesEndRef4 = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const isStreamingRef = useRef<boolean>(false);
+  const activeStreamsRef = useRef<Set<string>>(new Set());
+  const wasAtBottomRef = useRef<boolean>(true);
 
-    return () => {
-      if (uppyRef.current) {
-        uppyRef.current.cancelAll()
-      }
-    }
-  }, [supabase])
+  useEffect(() => {
+    // Use the utility function to initialize uploader
+    const cleanupUploader = initializeChatUploader(
+      uppyRef,
+      (file) => {
+        setUploadedFiles(prev => [...prev, file]);
+      },
+      () => {
+        setShowUploadModal(false);
+      },
+      supabase
+    );
+    
+    // Return the cleanup function
+    return cleanupUploader;
+  }, [supabase]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -144,22 +167,31 @@ function ChatContent() {
 
   useEffect(() => {
     if (allChatModels?.length > 0) {
-      // Find the default model
-      const defaultModel = allChatModels.find(model => model.default)
-      if (!defaultModel) return
-
-      // Get non-default models for other chat windows
-      const otherModels = allChatModels
-        .filter(model => !model.default && model.id !== defaultModel.id)
-        .slice(0, 3) // We need at most 3 other models for chat2, chat3, chat4
-
-      setSelectedModels(prev => ({
-        ...prev,
-        chat1: defaultModel.id,
-        ...(mode !== 'single' && otherModels[0] && { chat2: otherModels[0].id }),
-        ...(mode === 'quad' && otherModels[1] && { chat3: otherModels[1].id }),
-        ...(mode === 'quad' && otherModels[2] && { chat4: otherModels[2].id })
-      }))
+      console.log('Available chat models:', allChatModels.map(m => ({
+        id: m.id,
+        name: m.name,
+        position: m.position,
+        provider: m.provider
+      })));
+      
+      // Sort models by position to show them in the console
+      const sortedByPosition = [...allChatModels].sort((a, b) => {
+        if (a.position !== undefined && a.position !== null && b.position !== undefined && b.position !== null) {
+          return a.position - b.position;
+        }
+        if (a.position !== undefined && a.position !== null) return -1;
+        if (b.position !== undefined && b.position !== null) return 1;
+        return 0;
+      });
+      
+      console.log('Models sorted by position:', sortedByPosition.map(m => ({
+        id: m.id,
+        name: m.name,
+        position: m.position,
+        provider: m.provider
+      })));
+      
+      setSelectedModels(resetSelectedModels(mode, allChatModels));
     }
   }, [allChatModels, mode])
 
@@ -173,95 +205,31 @@ function ChatContent() {
     }
   }, [searchParams, allChatModels])
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef2 = useRef<HTMLDivElement>(null);
-  const messagesEndRef3 = useRef<HTMLDivElement>(null);
-  const messagesEndRef4 = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-  const isStreamingRef = useRef<boolean>(false);
-  const wasAtBottomRef = useRef<boolean>(true);
-
-  const isAtBottom = useCallback((containerRef: HTMLElement) => {
-    const threshold = 100; // pixels from bottom
-    const position = containerRef.scrollTop + containerRef.clientHeight;
-    const height = containerRef.scrollHeight;
-    return height - position <= threshold;
-  }, []);
-
-  const maintainScroll = useCallback((containerRef: HTMLElement) => {
-    if (!containerRef) return;
-    
-    // If we were at the bottom before the update, scroll to bottom
-    if (wasAtBottomRef.current) {
-      containerRef.scrollTop = containerRef.scrollHeight;
-    }
-  }, []);
-
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const container = e.target as HTMLDivElement;
     wasAtBottomRef.current = isAtBottom(container);
-  }, [isAtBottom]);
-
-  const getProviderIcon = (modelId: string, modelName: string) => {
-    const nameLower = modelName.toLowerCase()
-    
-    if (nameLower.includes('gpt') || nameLower.includes('o1')) return OpenAIIcon
-    if (nameLower.includes('claude')) return AnthropicIcon
-    if (nameLower.includes('gemini')) return GeminiIcon
-    if (nameLower.includes('perplexity')) return PerplexityIcon
-    if (nameLower.includes('mistral') || nameLower.includes('mixtral')) return MistralIcon
-    if (nameLower.includes('llama')) return MetaIcon
-    if (nameLower.includes('zephyr')) return ZephyrIcon
-    return MessageSquare as React.ComponentType<any>
-  }
+  }, []);
 
   const handleModelChange = (chatWindowId: string, modelId: string) => {
     setSelectedModels(prev => ({ ...prev, [chatWindowId]: modelId }))
-    setHasUserChangedModel(true)
     // Reset retry attempts when manually changing model
     setRetryAttempts(prev => ({ ...prev, [chatWindowId]: 0 }))
   }
 
   const handlePersonaChange = (chatWindowId: string, personaId: string) => {
     setSelectedPersonas(prev => ({ ...prev, [chatWindowId]: personaId }))
-    setHasUserChangedPersona(true)
-  }
-
-  const getModelName = (chatWindowId: string) => {
-    const modelId = selectedModels[chatWindowId]
-    const model = allChatModels?.find(m => m?.id === modelId)
-    return model?.name || "Select model..."
-  }
-
-  const getModelIcon = (chatWindowId: string) => {
-    const modelId = selectedModels[chatWindowId]
-    const model = allChatModels?.find(m => m?.id === modelId)
-    return model ? getProviderIcon(model.id, model.name) : Timer
   }
 
   const handleFileUpload = async (result: any) => {
-    if (result.successful && result.successful.length > 0) {
-      const file = result.successful[0];
-      const uploadedFile: UploadedFile = {
-        id: file.id,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        uploadURL: file.uploadURL
-      };
-      setUploadedFiles(prev => [...prev, uploadedFile]);
-    }
+    handleChatFileUpload(result, setUploadedFiles);
   }
 
   const handleCloseUploadModal = () => {
-    setShowUploadModal(false)
-    if (uppyRef.current) {
-      uppyRef.current.cancelAll()
-    }
+    closeUploadModal(uppyRef, setShowUploadModal);
   }
 
   const handleRemoveFile = (file: UploadedFile) => {
-    setUploadedFiles(prev => prev.filter(f => f.name !== file.name))
+    removeUploadedFile(file, setUploadedFiles);
   }
 
   // Submit user input to all relevant LLMs
@@ -273,228 +241,47 @@ function ChatContent() {
     setError(null)
     // Reset retry attempts for new chat
     resetRetryAttempts()
-
-    const newMessage: Message = { role: 'user', content: input.trim() }
-    setMessages(prev => [...prev, newMessage])
-    setMessages2(prev => [...prev, newMessage])
-    setMessages3(prev => [...prev, newMessage])
-    setMessages4(prev => [...prev, newMessage])
-    setInput('')
-
-    // Generate a new multi_conversation_id if in multi-chat mode and none exists
-    let currentMultiConversationId = multiConversationId
-    if ((mode === 'dual' || mode === 'quad') && !currentMultiConversationId) {
-      currentMultiConversationId = crypto.randomUUID()
-      setMultiConversationId(currentMultiConversationId)
-    }
-
-    // Shared streaming logic
-    const makeApiCall = async (
-      prevMessagesLocal: Message[],
-      setMessagesFunction: React.Dispatch<React.SetStateAction<Message[]>>,
-      chatId: string,
-      isRetry: boolean = false // Add isRetry parameter
-    ) => {
-      // Don't allow more than one retry per chat window
-      if (isRetry) {
-        const currentRetries = retryAttempts[chatId] || 0
-        if (currentRetries > 0) {
-          console.log(`Already retried chat ${chatId}, skipping further retries`)
-          return
-        }
-        // Mark this chat window as having been retried
-        setRetryAttempts(prev => ({
-          ...prev,
-          [chatId]: (prev[chatId] || 0) + 1
-        }))
-      }
-
-      try {
-        isStreamingRef.current = true;
-        // Get or create conversation_id for this chat window
-        let currentConversationId = conversationIds[chatId]
-        if (!currentConversationId) {
-          currentConversationId = crypto.randomUUID()
-          setConversationIds(prev => ({
-            ...prev,
-            [chatId]: currentConversationId
-          }))
-        }
-
-        // Get the selected model and persona for this chat
-        const modelId = isRetry ? undefined : (selectedModels[chatId] || allChatModels?.[0]?.id)
-        const personaId = selectedPersonas[chatId]
-        const selectedModel = modelId ? allChatModels?.find(model => model.id === modelId) : undefined
-        const selectedPersona = personas?.find(p => p.id.toString() === personaId)
-
-        let streamStartTime: number | null = null
-        let receivedFirstChunk = false
-        let hasReceivedContent = false
-        let chunkCount = 0
-
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getApiHeaders(),
-          },
-          body: JSON.stringify({ 
-            messages: [...prevMessagesLocal, newMessage],
-            user_id: session?.user?.id,
-            model_id: selectedModel?.id,
-            persona_id: selectedPersona?.id,
-            files: uploadedFiles.map(f => ({ name: f.name, url: f.uploadURL })),
-            conversation_id: currentConversationId,
-            knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
-            asset_ids: selectedAssets.map(asset => asset.id),
-            ...(currentMultiConversationId && { multi_conversation_id: currentMultiConversationId }),
-            web: isWebSearchEnabled
-          }),
-        })
-
-        if (!response.ok || !response.body) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
-
-        let assistantMessage = ''
-        let hasCreatedAssistantMessage = false
-        // Removed initial empty message creation
-
-        streamStartTime = Date.now()
-
-        while (true) {
-          const timeElapsed = Date.now() - streamStartTime
-          if (timeElapsed > 10000 && (!receivedFirstChunk || (chunkCount === 1 && !hasReceivedContent))) {
-            throw new Error('Stream timeout - no meaningful content received within 10 seconds')
-          }
-
-          const { value, done } = await reader.read()
-          if (done) {
-            if (chunkCount > 0 && !hasReceivedContent) {
-              throw new Error('Stream completed with only empty chunks')
-            }
-            isStreamingRef.current = false;
-            if (chatContainerRef.current) {
-              chatContainerRef.current.style.overflowY = 'auto';
-            }
-            break
-          }
-
-          if (!receivedFirstChunk) {
-            receivedFirstChunk = true
-          }
-
-          const chunk = decoder.decode(value)
-          const lines = chunk.split('\n')
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              chunkCount++
-              const jsonData = line.slice(5).trim()
-              if (jsonData === '[DONE]') continue
-
-              try {
-                const jsonString = jsonData
-                const openBraces = (jsonString.match(/{/g) || []).length
-                const closeBraces = (jsonString.match(/}/g) || []).length
-                
-                if (openBraces !== closeBraces || (openBraces > 0 && !jsonString.trim().endsWith('}'))) {
-                  console.warn('Skipping incomplete JSON chunk:', jsonString)
-                  continue
-                }
-
-                const parsed = JSON.parse(jsonString)
-                if (parsed.choices?.[0]?.delta?.content) {
-                  hasReceivedContent = true
-                  assistantMessage += parsed.choices[0].delta.content
-                  
-                  if (!hasCreatedAssistantMessage) {
-                    hasCreatedAssistantMessage = true
-                    setMessagesFunction(prev => [...prev, { role: 'assistant', content: assistantMessage }])
-                  } else {
-                    setMessagesFunction(prev => {
-                      const updated = [...prev]
-                      updated[updated.length - 1] = {
-                        role: 'assistant',
-                        content: assistantMessage,
-                      }
-                      if (chatContainerRef.current) {
-                        chatContainerRef.current.style.overflowY = 'auto';
-                      }
-                      return updated
-                    })
-                  }
-                }
-              } catch (parseError) {
-                console.warn('Error parsing chunk, skipping:', parseError)
-                console.warn('Problematic chunk:', jsonData)
-                continue
-              }
-            }
-          }
-        }
-      } catch (err: any) {
-        isStreamingRef.current = false;
-        if (chatContainerRef.current) {
-          chatContainerRef.current.style.overflowY = 'auto';
-        }
-        console.error('Error in API call:', err)
-
-        // If this is a timeout error or empty chunk error, retry without model_id
-        if ((err.message.includes('timeout') || err.message.includes('empty chunk')) && !isRetry) {
-          console.log('Retrying stream without specific model for', chatId)
-          try {
-            // Retry the API call without the model_id
-            return makeApiCall(prevMessagesLocal, setMessagesFunction, chatId, true)
-          } catch (retryErr) {
-            console.error('Retry also failed:', retryErr)
-            const errMsg = retryErr instanceof Error ? retryErr.message : 'Unknown error'
-            setError(prevError =>
-              prevError
-                ? new Error(`${prevError.message}\nRetry failed: ${errMsg}`)
-                : new Error(`Retry failed: ${errMsg}`)
-            )
-          }
-        } else {
-          const errMsg = err instanceof Error ? err.message : 'Unknown error'
-          setError(prevError =>
-            prevError
-              ? new Error(`${prevError.message}\n${errMsg}`)
-              : new Error(errMsg)
-          )
-        }
-      }
-    }
-
-    const apiCalls = [
-      makeApiCall(messages, setMessages, 'chat1'),
-      mode !== 'single' && makeApiCall(messages2, setMessages2, 'chat2'),
-      mode === 'quad' && makeApiCall(messages3, setMessages3, 'chat3'),
-      mode === 'quad' && makeApiCall(messages4, setMessages4, 'chat4'),
-    ].filter(Boolean)
+    
+    // Reset active streams tracking
+    activeStreamsRef.current.clear();
 
     try {
-      // Use Promise.allSettled instead of Promise.all to handle individual failures
-      const results = await Promise.allSettled(apiCalls)
+      // Use the modified chat-service to pass the mode and activeStreamsRef
+      await handleChatSubmission({
+        input,
+        uploadedFiles,
+        mode,
+        conversationIds,
+        multiConversationId,
+        selectedModels,
+        selectedPersonas,
+        selectedKnowledgeBases,
+        selectedAssets,
+        isWebSearchEnabled,
+        allChatModels,
+        session,
+        getApiHeaders,
+        retryAttempts,
+        setRetryAttempts,
+        setError,
+        isStreamingRef,
+        chatContainerRef,
+        personas,
+        messages,
+        messages2,
+        messages3,
+        messages4,
+        setMessages,
+        setMessages2,
+        setMessages3,
+        setMessages4,
+        setConversationIds,
+        setMultiConversationId,
+        activeStreamsRef
+      });
       
-      // Log any failures for debugging
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          const chatId = ['chat1', 'chat2', 'chat3', 'chat4'][index]
-          console.error(`Chat ${chatId} failed:`, result.reason)
-          
-          // Set error message for failed chats
-          const errMsg = result.reason instanceof Error ? result.reason.message : 'Unknown error'
-          setError(prevError =>
-            prevError
-              ? new Error(`${prevError.message}\nChat ${chatId}: ${errMsg}`)
-              : new Error(`Chat ${chatId}: ${errMsg}`)
-          )
-        }
-      })
+      // Clear input field after submission
+      setInput('');
     } catch (err: unknown) {
       console.error('Error in handleSubmit:', err)
       const errMsg = err instanceof Error ? err.message : 'Unknown error'
@@ -509,26 +296,14 @@ function ChatContent() {
     }
   }
 
-  // Copy all messages to clipboard
-  const copyToClipboard = async (content: string) => {
-    try {
-      await navigator.clipboard.writeText(content)
-      setCopiedStates(prev => ({ ...prev, [content]: true }))
-      setTimeout(() => {
-        setCopiedStates(prev => ({ ...prev, [content]: false }))
-      }, 2000)
-    } catch (err) {
-      console.error('Failed to copy:', err)
-    }
+  // Copy text to clipboard
+  const handleCopyToClipboard = async (content: string) => {
+    await copyToClipboardUtil(content, setCopiedStates);
   }
 
   // Add conversation to scratch pad
   const addToScratchPad = async (content: string) => {
-    try {
-      await addToScratchPadService(content)
-    } catch (err) {
-      console.error('Failed to add to scratch pad:', err)
-    }
+    await addToScratchPadUtil(content);
   }
 
   // Clear entire conversation for a given messages array
@@ -546,26 +321,22 @@ function ChatContent() {
 
   // Handles prompt selection
   const handlePromptSelect = (prompt: any) => {
-    // Only update model/persona for first chat window if user hasn't changed them
-    if (!hasUserChangedModel && prompt.default_chat_model_id) {
-      setSelectedModels(prev => ({ ...prev, chat1: prompt.default_chat_model_id! }))
+    // Apply default persona and model if they exist in the prompt template
+    if (prompt.default_persona_id) {
+      handlePersonaChange('chat1', prompt.default_persona_id);
     }
-    if (!hasUserChangedPersona && prompt.default_persona_id) {
-      setSelectedPersonas(prev => ({ ...prev, chat1: prompt.default_persona_id! }))
+    
+    if (prompt.default_chat_model_id) {
+      handleModelChange('chat1', prompt.default_chat_model_id);
     }
-
-    // Only set input immediately for simple prompts
-    if (!prompt.is_complex) {
-      setInput(prompt.prompt)
-    } else {
-      setSelectedComplexPrompt(prompt)
-    }
+    
+    // Then handle the prompt text as before
+    handlePromptSelectUtil(prompt, setSelectedComplexPrompt, setInput);
   }
 
   // For complex prompts
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
-    setInput(generatedPrompt)
-    setSelectedComplexPrompt(null)
+    handleComplexPromptSubmitUtil(generatedPrompt, setInput, setSelectedComplexPrompt);
   }
 
   // Reset retry attempts when starting a new chat
@@ -574,63 +345,23 @@ function ChatContent() {
   }
 
   // Add mode change handler
-  const handleModeChange = (newMode: 'single' | 'dual' | 'quad') => {
-    setMode(newMode)
-    
-    // Find default and other models
-    const defaultModel = allChatModels?.find(model => model.default)
-    const otherModels = allChatModels
-      ?.filter(model => !model.default && model.id !== defaultModel?.id)
-      .slice(0, 3)
-
-    if (defaultModel) {
-      // Always keep chat1 as default model
-      const newModelSelections: { [key: string]: string } = {
-        chat1: defaultModel.id,
-      }
-
-      // Add other models based on mode
-      if (newMode !== 'single' && otherModels?.[0]) {
-        newModelSelections.chat2 = otherModels[0].id
-      }
-      if (newMode === 'quad') {
-        if (otherModels?.[1]) newModelSelections.chat3 = otherModels[1].id
-        if (otherModels?.[2]) newModelSelections.chat4 = otherModels[2].id
-      }
-
-      setSelectedModels(newModelSelections)
-    }
-
-    // Reset retry attempts and multi-conversation tracking
-    resetRetryAttempts()
-    setMultiConversationId(null)
+  const handleModeChange = (newMode: ChatMode) => {
+    handleModeChangeUtil(
+      newMode,
+      setMode,
+      allChatModels,
+      setSelectedModels,
+      resetRetryAttempts,
+      setMultiConversationId
+    );
   }
 
   // Add toggleChatbot handler
   const handleToggleChatbot = (modelId: string) => {
-    // Update the URL
-    router.push(`/chat?model=${modelId}`, { scroll: false })
-    // Update the selected model
-    setSelectedModels(prev => ({
-      ...prev,
-      chat1: modelId
-    }))
+    handleToggleChatbotUtil(modelId, router, setSelectedModels, allChatModels);
   }
 
   // ChatWindow sub-component
-  interface ChatWindowProps {
-    messages: Message[]
-    messagesEndRef: React.RefObject<HTMLDivElement>
-    title: string
-    Icon: React.ComponentType<any>
-    onCopy: () => void
-    onAddToScratchPad: () => void
-    onClearConversation: () => void
-    isCopied: boolean
-    chatWindowId: string
-    mode: 'single' | 'dual' | 'quad'
-  }
-
   const ChatWindow = ({
     messages,
     messagesEndRef,
@@ -640,8 +371,7 @@ function ChatContent() {
     onAddToScratchPad,
     onClearConversation,
     isCopied,
-    chatWindowId,
-    mode
+    chatWindowId
   }: ChatWindowProps) => {
     const isStreaming = isStreamingRef.current;
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
@@ -652,27 +382,36 @@ function ChatContent() {
           {/* Top header (title, copy, clear) */}
           <div className="flex items-center justify-between p-3 border-b">
             <div className="flex items-center gap-4">
-              {mode === 'single' && (
-                <div className="flex items-center gap-2">
-                  {React.createElement(getModelIcon(chatWindowId), { className: "w-5 h-5" })}
-                  <span className="font-medium">{getModelName(chatWindowId)}</span>
-                </div>
-              )}
               <div className="flex items-center gap-2">
-                <div className="w-[200px]">
-                  <ComboboxPersonas
-                    personas={personas || []}
-                    value={selectedPersonas[chatWindowId]}
-                    onSelect={(persona) => handlePersonaChange(chatWindowId, persona.id.toString())}
-                  />
-                </div>
-                <div className="w-[200px]">
-                  <ComboboxChatModels
-                    models={allChatModels || []}
-                    value={selectedModels[chatWindowId] || null}
-                    onSelect={(model) => handleModelChange(chatWindowId, model.id)}
-                  />
-                </div>
+                {React.createElement(getModelIcon(chatWindowId, selectedModels, allChatModels), { className: "w-5 h-5" })}
+                <span className="font-medium">{getModelName(chatWindowId, selectedModels, allChatModels)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={selectedPersonas[chatWindowId]} onValueChange={(value) => handlePersonaChange(chatWindowId, value)}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Default" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Default</SelectItem>
+                    {personas?.map((persona) => (
+                      <SelectItem key={persona.id} value={persona.id.toString()}>
+                        {persona.role || "Default"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedModels[chatWindowId]} onValueChange={(value) => handleModelChange(chatWindowId, value)}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder={title} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allChatModels?.map((model) => (
+                      <SelectItem key={model.id} value={model.id}>
+                        {model.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             {/* Copy, add to scratch pad, clear */}
@@ -756,6 +495,46 @@ function ChatContent() {
     loadAssets();
   }, [loadAssets]);
 
+  // Function to handle loading more prompts
+  const handleLoadMorePrompts = useCallback((newPrompts: PromptTemplate[], offset?: number) => {
+    if (!newPrompts || newPrompts.length === 0) {
+      console.log('No new prompts to add');
+      return;
+    }
+
+    // Prevent duplicate state updates if we're already updating
+    if (isLoading) {
+      console.log('Already loading, skipping state update');
+      return;
+    }
+
+    console.log(`Adding ${newPrompts.length} new prompts to existing ${prompts.length} prompts`);
+    
+    // Add new prompts to the existing ones, avoiding duplicates
+    const existingIds = new Set(prompts.map(p => p.id));
+    const uniqueNewPrompts = newPrompts.filter(newPrompt => !existingIds.has(newPrompt.id));
+    
+    if (uniqueNewPrompts.length === 0) {
+      console.log('All new prompts are duplicates, not updating state');
+      return;
+    }
+    
+    console.log(`Adding ${uniqueNewPrompts.length} unique new prompts`);
+    
+    // Separate existing prompts into favorites and others
+    const existingFavorites = prompts.filter(p => p.is_favorite);
+    const existingNonFavorites = prompts.filter(p => !p.is_favorite);
+    
+    // Merge in the new prompts with existing non-favorites
+    const combined = [...existingFavorites, ...existingNonFavorites, ...uniqueNewPrompts];
+    
+    console.log(`New total: ${combined.length} prompts (${existingFavorites.length} favorites + ${existingNonFavorites.length + uniqueNewPrompts.length} others)`);
+    
+    setData({
+      promptTemplates: combined
+    });
+  }, [prompts, setData, isLoading]);
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       {/* LEFT COLUMN (sidebar) */}
@@ -775,12 +554,11 @@ function ChatContent() {
                 messagesEndRef={messagesEndRef}
                 title="Perplexity Llama"
                 Icon={Timer}
-                onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                onCopy={() => handleCopyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onClearConversation={() => clearConversation(messages)}
                 isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
                 chatWindowId="chat1"
-                mode={mode}
               />
             </div>
           ) : (
@@ -796,24 +574,22 @@ function ChatContent() {
                 messagesEndRef={messagesEndRef}
                 title="Perplexity Llama"
                 Icon={Timer}
-                onCopy={() => copyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                onCopy={() => handleCopyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onClearConversation={() => clearConversation(messages)}
                 isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
                 chatWindowId="chat1"
-                mode={mode}
               />
               <ChatWindow
                 messages={messages2}
                 messagesEndRef={messagesEndRef2}
                 title="GPT-4o"
                 Icon={Sparkles}
-                onCopy={() => copyToClipboard(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                onCopy={() => handleCopyToClipboard(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onAddToScratchPad={() => addToScratchPad(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
                 onClearConversation={() => clearConversation(messages2)}
                 isCopied={copiedStates[messages2.map(m => `${m.role}: ${m.content}`).join('\n')]}
                 chatWindowId="chat2"
-                mode={mode}
               />
               {mode === 'quad' && (
                 <>
@@ -822,24 +598,22 @@ function ChatContent() {
                     messagesEndRef={messagesEndRef3}
                     title="Gemini 1.5 Pro"
                     Icon={Bot}
-                    onCopy={() => copyToClipboard(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                    onCopy={() => handleCopyToClipboard(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
                     onAddToScratchPad={() => addToScratchPad(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
                     onClearConversation={() => clearConversation(messages3)}
                     isCopied={copiedStates[messages3.map(m => `${m.role}: ${m.content}`).join('\n')]}
                     chatWindowId="chat3"
-                    mode={mode}
                   />
                   <ChatWindow
                     messages={messages4}
                     messagesEndRef={messagesEndRef4}
                     title="Meta Llama 3.1"
                     Icon={SmilePlus}
-                    onCopy={() => copyToClipboard(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                    onCopy={() => handleCopyToClipboard(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
                     onAddToScratchPad={() => addToScratchPad(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
                     onClearConversation={() => clearConversation(messages4)}
                     isCopied={copiedStates[messages4.map(m => `${m.role}: ${m.content}`).join('\n')]}
                     chatWindowId="chat4"
-                    mode={mode}
                   />
                 </>
               )}
@@ -849,20 +623,25 @@ function ChatContent() {
 
         {/* Footer (input / mode toggle) */}
         <div className="border-t p-4 flex items-center gap-2">
-          <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PromptSelector 
+                  prompts={prompts} 
+                  categories={categories} 
+                  onSelectPrompt={handlePromptSelect}
+                  onLoad={handleLoadMorePrompts}
+                >
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     <BookOpen className="h-4 w-4" />
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Select Prompt</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </PromptSelector>
+                </PromptSelector>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Prompts</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <TooltipProvider>
             <Tooltip>
@@ -880,41 +659,30 @@ function ChatContent() {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={`h-8 w-8 ${selectedKnowledgeBases.length > 0 || selectedAssets.length > 0 ? "text-green-500" : ""}`}
-                  onClick={() => setShowKnowledgeBaseModal(true)}
-                >
-                  <Database className="h-4 w-4" />
-                </Button>
+                <KnowledgeBaseSelector
+                  knowledgeBases={knowledgeBases}
+                  isLoadingKnowledgeBases={isLoadingKnowledgeBases}
+                  selectedKnowledgeBases={selectedKnowledgeBases}
+                  selectedAssets={selectedAssets}
+                  onSelectKnowledgeBase={(kb: KnowledgeBase) => {
+                    setSelectedKnowledgeBases([...selectedKnowledgeBases, kb]);
+                  }}
+                  onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
+                    setSelectedKnowledgeBases(selectedKnowledgeBases.filter(k => k.id !== kb.id));
+                  }}
+                  onSelectAsset={(asset: Asset) => {
+                    setSelectedAssets([...selectedAssets, asset]);
+                  }}
+                  onDeselectAsset={(asset: Asset) => {
+                    setSelectedAssets(selectedAssets.filter(a => a.id !== asset.id));
+                  }}
+                />
               </TooltipTrigger>
-              <TooltipContent>
-                <p>Knowledge Base</p>
+              <TooltipContent className="bg-white">
+                <p>Add Knowledge Base or Asset</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-
-          <KnowledgeBaseSelector
-            knowledgeBases={knowledgeBases}
-            isLoadingKnowledgeBases={isLoadingKnowledgeBases}
-            selectedKnowledgeBases={selectedKnowledgeBases}
-            selectedAssets={selectedAssets}
-            onSelectKnowledgeBase={(kb: KnowledgeBase) => {
-              setSelectedKnowledgeBases([...selectedKnowledgeBases, kb]);
-            }}
-            onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
-              setSelectedKnowledgeBases(selectedKnowledgeBases.filter(k => k.id !== kb.id));
-            }}
-            onSelectAsset={(asset: Asset) => {
-              setSelectedAssets([...selectedAssets, asset]);
-            }}
-            onDeselectAsset={(asset: Asset) => {
-              setSelectedAssets(selectedAssets.filter(a => a.id !== asset.id));
-            }}
-            open={showKnowledgeBaseModal}
-            onOpenChange={setShowKnowledgeBaseModal}
-          />
 
           <div className="flex items-center gap-2">
             <TooltipProvider>
@@ -929,7 +697,7 @@ function ChatContent() {
                     <Globe2 className="h-5 w-5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent className="bg-white">
                   <p>Enable Web Search</p>
                 </TooltipContent>
               </Tooltip>

@@ -1,13 +1,9 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional, Dict, Any, Union, Annotated
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any, Union, ForwardRef, Annotated
 from enum import Enum
 from uuid import UUID
 from datetime import datetime
 from pydantic import validator
-
-# Create forward references
-# Persona = ForwardRef('Persona')
-# ChatModel = ForwardRef('ChatModel')
 
 class ToolBase(BaseModel):
     name: str
@@ -67,26 +63,40 @@ class PromptTemplateCreate(BaseModel):
             return []
         return v
 
-class PersonaBase(BaseModel):
-    role: str
-    goal: str
-    backstory: str
-    allow_delegation: bool
-    verbose: bool
-    memory: bool
-    avatar: Optional[str] = None
-    temperature: Optional[float] = None
-
-class Persona(PersonaBase):
+class PromptTemplate(PromptTemplateBase):
     id: UUID
-    created_at: datetime
-    updated_at: datetime
-    tools: List[Tool] = []
+    default_persona_id: Optional[UUID] = None
+    default_chat_model_id: Optional[UUID] = None
     categories: List[Category] = []
     tags: List[Tag] = []
-    prompt_templates: List["PromptTemplate"] = []
+    created_by: UUID
+    created_at: datetime
+    updated_at: datetime
+    is_favorited: bool = False
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
+
+class PromptTemplateUpdate(BaseModel):
+    title: Optional[str] = None
+    prompt: Optional[str] = None
+    is_complex: Optional[bool] = None
+    default_persona_id: Optional[UUID] = None
+    default_chat_model_id: Optional[UUID] = None
+    category_ids: Optional[List[Optional[UUID]]] = None
+    tags: Optional[List[str]] = None
+
+    @validator('category_ids', pre=True)
+    def validate_category_ids(cls, v):
+        if v is None:
+            return []
+        # Filter out empty strings and None values
+        return [
+            UUID(cat_id) if isinstance(cat_id, str) and cat_id 
+            else cat_id 
+            for cat_id in v 
+            if cat_id not in (None, "")
+        ]
 
 class ChatModelBase(BaseModel):
     name: str
@@ -129,20 +139,6 @@ class ChatModel(ChatModelBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-class ChatModelResponse(BaseModel):
-    """Response model for ChatModel that excludes the api_key field"""
-    id: UUID
-    name: str
-    model: str
-    provider: str | None = None
-    description: str = ""
-    default: bool = False
-    max_tokens: int | None = None
-    position: int | None = None
-    is_favorited: bool = False
-
-    model_config = ConfigDict(from_attributes=True)
-
 class PromptTemplate(PromptTemplateBase):
     id: UUID
     title: str
@@ -156,7 +152,7 @@ class PromptTemplate(PromptTemplateBase):
     categories: List[Category] = []
     tags: List[Tag] = []
     default_persona: Optional["Persona"] = None
-    default_chat_model: Optional["ChatModelResponse"] = None
+    default_chat_model: Optional["ChatModel"] = None
     is_favorited: Optional[bool] = False
     favorite_count: Optional[int] = 0
 
@@ -187,8 +183,9 @@ class PersonaCreate(PersonaBase):
     category_ids: List[Optional[UUID]] = []  
     tags: List[str] = []  
     tools: List[UUID] = []
-    description: Optional[str] = None  # Add this if it's in your payload
-    prompt_templates: Optional[List[Any]] = []  # Add this if it's in your payload
+    description: Optional[str] = None
+    prompt_templates: Optional[List[Any]] = []
+    created_by: Optional[UUID] = None
 
     @validator('category_ids', pre=True)
     def validate_category_ids(cls, v):
@@ -235,39 +232,74 @@ class PersonaUpdate(BaseModel):
                 raise ValueError("Temperature must be a valid number between 0 and 1")
         return v
 
+class Persona(PersonaBase):
+    id: UUID
+    tools: List[Tool] = []
+    categories: List[Category] = []
+    tags: List[Tag] = []
+    prompt_templates: List[PromptTemplate] = []
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    created_by: UUID
+
+    class Config:
+        from_attributes = True
+
 class ProcessType(str, Enum):
     SEQUENTIAL = "SEQUENTIAL"
     PARALLEL = "HIERARCHICAL"
 
 class WorkflowStepBase(BaseModel):
-    prompt_template_id: Optional[UUID] = None
-    chat_model_id: Optional[UUID] = None
-    persona_id: Optional[UUID] = None
+    prompt_template_id: UUID  # Required
+    chat_model_id: Optional[UUID] = None  # Optional, will use default if not specified
+    persona_id: Optional[UUID] = None  # Optional
 
-    @validator('prompt_template_id', 'chat_model_id', 'persona_id', pre=True)
-    def convert_to_uuid(cls, v):
-        if v is None:
-            return None
+    @validator('prompt_template_id', pre=True)
+    def validate_prompt_template(cls, v):
+        if not v:
+            raise ValueError("Prompt template ID is required")
         if isinstance(v, str):
             return UUID(v)
         elif isinstance(v, UUID):
             return v
-        return v
+        raise ValueError("Invalid prompt template ID")
+
+    @validator('chat_model_id', 'persona_id', pre=True)
+    def convert_optional_uuid(cls, v):
+        if not v or v == "":  # Handle empty strings and None
+            return None
+        if isinstance(v, str):
+            try:
+                return UUID(v)
+            except ValueError:
+                return None
+        elif isinstance(v, UUID):
+            return v
+        return None
 
 class WorkflowStepCreate(BaseModel):
-    prompt_template_id: UUID
-    chat_model_id: UUID
-    persona_id: UUID
+    prompt_template_id: Optional[UUID] = None
+    chat_model_id: Optional[UUID] = None
+    persona_id: Optional[UUID] = None
     position: Optional[int] = None
 
     @validator('prompt_template_id', 'chat_model_id', 'persona_id', pre=True)
     def convert_to_uuid(cls, v):
-        if v is None:
-            raise ValueError("ID cannot be None for new workflow steps")
+        if not v or v == "":  # Handle empty strings and None
+            return None
         if isinstance(v, str):
-            return UUID(v)
+            try:
+                return UUID(v)
+            except ValueError:
+                return None
         elif isinstance(v, UUID):
             return v
+        return None
+
+    @validator('position')
+    def validate_position(cls, v):
+        if v is None:
+            return 0  # Default position if none provided
         return v
 
 class WorkflowStepUpdate(BaseModel):
@@ -286,26 +318,24 @@ class WorkflowStepUpdate(BaseModel):
             return v
         return v
 
-class PromptTemplateSimple(PromptTemplateBase):
-    """A simplified PromptTemplate model without nested relationships"""
+class WorkflowStep(WorkflowStepBase):
     id: UUID
-    created_by: Optional[UUID] = None
-    created_at: datetime
-    updated_at: datetime
-    default_persona_id: Optional[UUID] = None
-    default_chat_model_id: Optional[UUID] = None
-    is_favorited: Optional[bool] = False
-    favorite_count: Optional[int] = 0
+    workflow_id: UUID
+    position: int
+    prompt_template: Optional[PromptTemplate] = None
+    chat_model: Optional[ChatModel] = None
+    persona: Optional[Persona] = None
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 class WorkflowBase(BaseModel):
     name: str
     description: Optional[str] = None
-    process_type: Optional[str] = ProcessType.SEQUENTIAL.value
+    process_type: str = "SEQUENTIAL"
     manager_chat_model_id: Optional[UUID] = None
     manager_persona_id: Optional[UUID] = None
-    max_iterations: Optional[int] = 1
+    max_iterations: Optional[int] = None
 
     @validator('manager_chat_model_id', 'manager_persona_id', pre=True)
     def convert_to_uuid(cls, v):
@@ -322,7 +352,7 @@ class WorkflowStepResponse(BaseModel):
     id: UUID
     prompt_template: Optional[PromptTemplateSimple] = None
     persona: Optional[PersonaBase] = None
-    chat_model: Optional[ChatModelResponse] = None
+    chat_model: Optional[ChatModel] = None
     position: int
 
     model_config = ConfigDict(from_attributes=True)
@@ -346,7 +376,7 @@ class WorkflowStep(BaseModel):
     position: int
     prompt_template: Optional[PromptTemplateSimple] = None
     persona: Optional[PersonaBase] = None
-    chat_model: Optional[ChatModelResponse] = None
+    chat_model: Optional[ChatModel] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -363,6 +393,10 @@ class AssetBase(BaseModel):
     status: Optional[str] = None
     managed: Optional[bool] = False
 
+class AssetCreate(AssetBase):
+    uploaded_by: UUID
+    storage_id: Optional[UUID] = None
+
 class Asset(AssetBase):
     id: UUID
     uploaded_by: UUID
@@ -370,30 +404,51 @@ class Asset(AssetBase):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 class KnowledgeBaseBase(BaseModel):
     title: str
     description: str
     token_count: Optional[int] = 0
 
+class KnowledgeBaseCreate(KnowledgeBaseBase):
+    asset_ids: List[UUID] = []
+    created_by: Optional[UUID] = None
+
+class KnowledgeBaseUpdate(KnowledgeBaseBase):
+    asset_ids: Optional[List[UUID]] = None
+
 class KnowledgeBase(KnowledgeBaseBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
     assets: List[Asset] = []
+    created_by: UUID
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
+
+class AssetIds(BaseModel):
+    asset_ids: List[UUID]
+
+class WorkflowExecuteInput(BaseModel):
+    message: Optional[str] = None
 
 class Workflow(WorkflowBase):
     id: UUID
-    created_at: datetime
-    updated_at: datetime
     steps: List[WorkflowStep] = []
-    assets: List[Asset] = []  # Now Asset is defined
-    knowledge_bases: List[KnowledgeBase] = []  # Now KnowledgeBase is defined
+    assets: List["Asset"] = []
+    knowledge_bases: List["KnowledgeBase"] = []
 
-    model_config = ConfigDict(from_attributes=True)
+    @property
+    def effective_max_iterations(self) -> Optional[int]:
+        if self.process_type == ProcessType.HIERARCHICAL.value:
+            return self.max_iterations or 1
+        return None
+
+    class Config:
+        from_attributes = True
 
 Workflow.model_rebuild()
 
@@ -531,67 +586,3 @@ class BatchFlowPayload(BaseModel):
                 "asset_ids": ["123e4567-e89b-12d3-a456-426614174005"]
             }
         }
-
-# Add these new response models
-class PersonaResponse(PersonaBase):
-    """Response model for Persona with simplified PromptTemplate references"""
-    id: UUID
-    created_at: datetime
-    updated_at: datetime
-    tools: List[Tool] = []
-    categories: List[Category] = []
-    tags: List[Tag] = []
-    prompt_templates: List[PromptTemplateSimple] = []
-
-    model_config = ConfigDict(from_attributes=True)
-
-class PromptTemplateResponse(PromptTemplateBase):
-    """Response model for PromptTemplate with full relationships"""
-    id: UUID
-    created_by: Optional[UUID] = None
-    created_at: datetime
-    updated_at: datetime
-    categories: List[Category] = []
-    tags: List[Tag] = []
-    default_persona_id: Optional[UUID] = None
-    default_chat_model_id: Optional[UUID] = None
-    default_persona: Optional[PersonaBase] = None  # Use base model to avoid nesting
-    default_chat_model: Optional[ChatModel] = None
-    is_favorited: Optional[bool] = False
-    favorite_count: Optional[int] = 0
-
-    model_config = ConfigDict(from_attributes=True)
-
-class WorkflowCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    process_type: str
-    manager_chat_model_id: Optional[UUID] = None
-    manager_persona_id: Optional[UUID] = None
-    max_iterations: Optional[int] = None
-    asset_ids: Optional[List[UUID]] = None
-    knowledge_base_ids: Optional[List[UUID]] = None
-
-    class Config:
-        from_attributes = True
-
-class WorkflowUpdate(WorkflowBase):
-    steps: Optional[List[WorkflowStepUpdate]] = None
-    asset_ids: Optional[List[UUID]] = None
-    knowledge_base_ids: Optional[List[UUID]] = None
-
-class AssetCreate(AssetBase):
-    uploaded_by: UUID
-    storage_id: Optional[UUID] = None
-
-class KnowledgeBaseCreate(KnowledgeBaseBase):
-    asset_ids: List[UUID] = []
-
-class KnowledgeBaseUpdate(KnowledgeBaseBase):
-    asset_ids: Optional[List[UUID]] = None
-
-class AssetIds(BaseModel):
-    asset_ids: List[UUID]
-
-class WorkflowExecuteInput(BaseModel):
-    message: Optional[str] = None

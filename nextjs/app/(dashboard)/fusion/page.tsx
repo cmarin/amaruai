@@ -43,6 +43,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { 
+  handlePromptSelect as handlePromptSelectUtil,
+  handleComplexPromptSubmit as handleComplexPromptSubmitUtil
+} from '@/utils/chat-utils'
 
 // Import required Uppy CSS
 import '@uppy/core/dist/style.min.css'
@@ -440,17 +444,12 @@ Please synthesize these responses into a comprehensive answer that combines the 
 
   // Add this function near the other handlers
   const handlePromptSelect = (prompt: any) => {
-    if (prompt.variables && prompt.variables.length > 0) {
-      setSelectedComplexPrompt(prompt)
-    } else {
-      setInput(prompt.content)
-    }
+    handlePromptSelectUtil(prompt, setSelectedComplexPrompt, setInput);
   }
 
   // Add this handler for complex prompts
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
-    setInput(generatedPrompt)
-    setSelectedComplexPrompt(null)
+    handleComplexPromptSubmitUtil(generatedPrompt, setInput, setSelectedComplexPrompt);
   }
 
   // Add this function near the other handlers
@@ -614,20 +613,20 @@ Please synthesize these responses into a comprehensive answer that combines the 
 
         {/* Footer (input) */}
         <div className="border-t p-4 flex items-center gap-2">
-          <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     <BookOpen className="h-4 w-4" />
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Select Prompt</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </PromptSelector>
+                </PromptSelector>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Select Prompt</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <TooltipProvider>
             <Tooltip>

@@ -5,11 +5,17 @@ from app import crud, schemas
 from app.database import get_db
 from app.api.v1.router import create_protected_router
 from uuid import UUID
+from app.api.v1.dependencies import get_current_user, get_current_user_id
 
 router = create_protected_router(prefix="knowledge_bases", tags=["knowledge_bases"])
 
 @router.post("/", response_model=schemas.KnowledgeBase)
-def create_knowledge_base(knowledge_base: schemas.KnowledgeBaseCreate, db: Session = Depends(get_db)):
+def create_knowledge_base(
+    knowledge_base: schemas.KnowledgeBaseCreate, 
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user_id)
+):
+    knowledge_base.created_by = current_user
     return crud.create_knowledge_base(db=db, knowledge_base=knowledge_base)
 
 @router.get("/", response_model=List[schemas.KnowledgeBase])

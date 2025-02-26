@@ -56,6 +56,7 @@ export default function BatchFlow() {
   const [totalTokens, setTotalTokens] = useState(0);
   const [selectedKnowledgeBases, setSelectedKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
+  const [userChangedValues, setUserChangedValues] = useState<{[key: number]: {model: boolean, persona: boolean}}>({});
 
   useEffect(() => {
     const loadKnowledgeBases = async () => {
@@ -109,15 +110,72 @@ export default function BatchFlow() {
   }, []);
 
   const handleUpdateStep = useCallback((index: number, field: keyof BatchFlowStep, value: string) => {
+    console.log(`BatchFlow: Updating step ${index}, field ${field} to value:`, value);
+    
     setWorkflowSteps(prev => {
       const newSteps = [...prev];
       newSteps[index] = { ...newSteps[index], [field]: value };
+      
+      // If updating prompt template, reset user changed tracking for this step
+      if (field === 'prompt_template_id') {
+        setUserChangedValues(prev => ({
+          ...prev,
+          [index]: { model: false, persona: false }
+        }));
+        
+        // Check if the prompt template has defaults and apply them
+        const template = promptTemplates.find(t => t.id === value);
+        if (template) {
+          console.log('BatchFlow: Selected template:', template);
+          if (template.default_persona_id) {
+            console.log('BatchFlow: Applying default persona:', template.default_persona_id);
+            newSteps[index].persona_id = template.default_persona_id;
+          }
+          
+          if (template.default_chat_model_id) {
+            console.log('BatchFlow: Applying default chat model:', template.default_chat_model_id);
+            newSteps[index].chat_model_id = template.default_chat_model_id;
+          }
+        }
+      } else {
+        // Track when user manually changes model or persona
+        if (field === 'chat_model_id') {
+          setUserChangedValues(prev => ({
+            ...prev,
+            [index]: { ...(prev[index] || { persona: false }), model: true }
+          }));
+        } else if (field === 'persona_id') {
+          setUserChangedValues(prev => ({
+            ...prev,
+            [index]: { ...(prev[index] || { model: false }), persona: true }
+          }));
+        }
+      }
+      
+      console.log('BatchFlow: Updated steps:', newSteps);
       return newSteps;
     });
-  }, []);
+  }, [promptTemplates]);
 
   const handleRemoveStep = useCallback((index: number) => {
     setWorkflowSteps(prev => prev.filter((_, i) => i !== index));
+    
+    // Clean up user changed values for the removed step
+    setUserChangedValues(prev => {
+      const newValues = { ...prev };
+      delete newValues[index];
+      
+      // Adjust indexes for steps after the removed one
+      Object.keys(newValues).forEach(key => {
+        const keyNum = parseInt(key);
+        if (keyNum > index) {
+          newValues[keyNum - 1] = newValues[keyNum];
+          delete newValues[keyNum];
+        }
+      });
+      
+      return newValues;
+    });
   }, []);
 
   const handleAddStep = useCallback(() => {
@@ -320,6 +378,8 @@ export default function BatchFlow() {
                   promptTemplates={promptTemplateOptions}
                   chatModels={chatModelOptions}
                   personas={personaOptions}
+                  userChangedValues={userChangedValues}
+                  onUserChangedValues={setUserChangedValues}
                 />
 
                 <div className="flex justify-between mt-6">

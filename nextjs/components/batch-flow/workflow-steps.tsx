@@ -19,6 +19,8 @@ interface WorkflowStepsProps {
   promptTemplates: PromptTemplateOption[];
   chatModels: ChatModelOption[];
   personas: PersonaOption[];
+  userChangedValues?: {[key: number]: {model: boolean, persona: boolean}};
+  onUserChangedValues?: React.Dispatch<React.SetStateAction<{[key: number]: {model: boolean, persona: boolean}}>>;
 }
 
 export function WorkflowSteps({
@@ -29,58 +31,56 @@ export function WorkflowSteps({
   promptTemplates,
   chatModels,
   personas,
+  userChangedValues: externalUserChangedValues,
+  onUserChangedValues
 }: WorkflowStepsProps) {
   // Track whether each step's model/persona has been manually changed
-  const [userChangedValues, setUserChangedValues] = useState<{[key: number]: {model: boolean, persona: boolean}}>({});
+  const [internalUserChangedValues, setInternalUserChangedValues] = useState<{[key: number]: {model: boolean, persona: boolean}}>({});
+  
+  // Use external values if provided, otherwise use internal state
+  const userChangedValues = externalUserChangedValues || internalUserChangedValues;
+  const setUserChangedValues = onUserChangedValues || setInternalUserChangedValues;
+  
+  // Add key to force re-renders when needed
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const handlePromptChange = (index: number, promptId: string) => {
-    console.log('Prompt template changed:', promptId);
-    onUpdateStep(index, 'prompt_template_id', promptId);
-    
-    // Reset user changes for this step when prompt template changes
-    setUserChangedValues(prev => ({
-      ...prev,
-      [index]: { model: false, persona: false }
-    }));
-    
-    // Find the selected prompt template
-    const template = promptTemplates.find(t => t.id === promptId);
-    console.log('Found template:', template);
-    
-    // Only update if template exists and has defaults
-    if (template) {
-      // Update model if it has a default
-      onUpdateStep(index, 'chat_model_id', template.default_chat_model_id || '');
-      
-      // Update persona if it has a default
-      onUpdateStep(index, 'persona_id', template.default_persona_id || '');
-    }
+  // Function to force a refresh of the component
+  const forceRefresh = () => {
+    setRefreshKey(prev => prev + 1);
   };
 
   const handleModelChange = (index: number, modelId: string) => {
     console.log('Model changed:', modelId);
     const finalValue = modelId === 'none' ? '' : modelId;
     console.log('Setting model to:', finalValue);
-    onUpdateStep(index, 'chat_model_id', finalValue);
+    
+    // Update the state to track that the user changed this value
     setUserChangedValues(prev => ({
       ...prev,
-      [index]: { ...prev[index], model: true }
+      [index]: { ...(prev[index] || { persona: false }), model: true }
     }));
+    
+    // Pass the change up to the parent
+    onUpdateStep(index, 'chat_model_id', finalValue);
   };
 
   const handlePersonaChange = (index: number, personaId: string) => {
     console.log('Persona changed:', personaId);
     const finalValue = personaId === 'none' ? '' : personaId;
     console.log('Setting persona to:', finalValue);
-    onUpdateStep(index, 'persona_id', finalValue);
+    
+    // Update the state to track that the user changed this value
     setUserChangedValues(prev => ({
       ...prev,
-      [index]: { ...prev[index], persona: true }
+      [index]: { ...(prev[index] || { model: false }), persona: true }
     }));
+    
+    // Pass the change up to the parent
+    onUpdateStep(index, 'persona_id', finalValue);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" key={refreshKey}>
       {steps.map((step, index) => (
         <div key={index} className="flex gap-4 items-start p-4 border rounded-lg bg-slate-50">
           <div className="space-y-4 flex-1">
@@ -93,14 +93,37 @@ export function WorkflowSteps({
                       templates={promptTemplates}
                       value={step.prompt_template_id || null}
                       onSelect={(template) => {
-                        onUpdateStep(index, 'prompt_template_id', template.id);
+                        console.log('Selected template in WorkflowSteps:', template);
+                        console.log('Current step values:', step);
                         
-                        // Set default persona and chat model if available
-                        if (template.default_persona_id && !step.persona_id) {
-                          onUpdateStep(index, 'persona_id', template.default_persona_id);
-                        }
-                        if (template.default_chat_model_id && !step.chat_model_id) {
-                          onUpdateStep(index, 'chat_model_id', template.default_chat_model_id);
+                        if (template) {
+                          // First update the prompt template id
+                          onUpdateStep(index, 'prompt_template_id', template.id);
+                          
+                          // Reset user changes when selecting a template - this is critical
+                          console.log('Resetting user changed values for step', index);
+                          setUserChangedValues(prev => ({
+                            ...prev,
+                            [index]: { model: false, persona: false }
+                          }));
+                        } else if (template === null) {
+                          // This is a special case for re-selection of the same template
+                          // We don't want to clear the template ID in this case, but we still want to reset user changes
+                          console.log('Received null template - this is for re-selection, not clearing');
+                          console.log('Re-selecting current template ID:', step.prompt_template_id);
+                          
+                          // Force a re-selection by updating with the same value
+                          if (step.prompt_template_id) {
+                            onUpdateStep(index, 'prompt_template_id', step.prompt_template_id);
+                            
+                            // Also reset user changes
+                            setUserChangedValues(prev => ({
+                              ...prev,
+                              [index]: { model: false, persona: false }
+                            }));
+                          }
+                        } else {
+                          onUpdateStep(index, 'prompt_template_id', '');
                         }
                       }}
                     />
@@ -136,7 +159,7 @@ export function WorkflowSteps({
                     <ComboboxPersonas
                       personas={personas as unknown as Persona[]}
                       value={step.persona_id || null}
-                      onSelect={(persona) => onUpdateStep(index, 'persona_id', persona ? persona.id.toString() : '')}
+                      onSelect={(persona) => handlePersonaChange(index, persona ? persona.id.toString() : '')}
                     />
                   </div>
                   {step.persona_id && (
@@ -180,7 +203,7 @@ export function WorkflowSteps({
                         temperature: 0.7
                       }))}
                       value={step.chat_model_id || null}
-                      onSelect={(model) => onUpdateStep(index, 'chat_model_id', model ? model.id.toString() : '')}
+                      onSelect={(model) => handleModelChange(index, model ? model.id.toString() : '')}
                     />
                   </div>
                   {step.chat_model_id && (

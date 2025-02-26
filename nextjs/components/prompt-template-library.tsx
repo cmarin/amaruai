@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,6 +24,8 @@ import {
 import { PromptTemplate } from '@/utils/prompt-template-service'
 import type { PromptContent } from '@/components/complex-prompt-editor'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { PromptTemplateFilters } from './prompt-template-filters'
+import { useSession } from '@/app/utils/session/session'
 
 type PromptTemplateLibraryProps = {
   prompts: PromptTemplate[];
@@ -233,10 +235,12 @@ export default function PromptTemplateLibrary({
   onFavoriteToggle,
   onUpdateFilters
 }: PromptTemplateLibraryProps) {
+  const { session } = useSession();
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedSort, setSelectedSort] = useState<string>('created_desc')
   const [showFavorited, setShowFavorited] = useState(false)
+  const [showMyPrompts, setShowMyPrompts] = useState(false)
   const itemsPerPage = 10
 
   const totalPages = Math.ceil(prompts.length / itemsPerPage)
@@ -263,6 +267,15 @@ export default function PromptTemplateLibrary({
       favorited_by: checked ? 'current_user' : undefined,
     })
   }
+
+  // Add this effect to update filters when showMyPrompts changes
+  useEffect(() => {
+    if (showMyPrompts && session?.user?.id) {
+      onUpdateFilters({ created_by: session.user.id });
+    } else {
+      onUpdateFilters({ created_by: undefined });
+    }
+  }, [showMyPrompts, session?.user?.id]);
 
   return (
     <div className="flex flex-col h-full">
@@ -300,7 +313,7 @@ export default function PromptTemplateLibrary({
         </div>
       </div>
       <div className="p-4 bg-white border-b">
-        <div className="flex gap-4 items-center">
+        <div className="flex flex-col gap-4">
           <Input
             type="search"
             placeholder="Search prompts..."
@@ -308,45 +321,17 @@ export default function PromptTemplateLibrary({
             onChange={(e) => onSearchChange(e.target.value)}
             className="max-w-sm"
           />
-          <Select
-            value={selectedCategory || 'all'}
-            onValueChange={(value) => onCategoryChange(value === 'all' ? null : value)}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={selectedSort} onValueChange={handleSortChange}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Sort by..." />
-            </SelectTrigger>
-            <SelectContent>
-              {sortOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showFavorited}
-                onChange={(e) => handleFavoritesChange(e.target.checked)}
-                className="form-checkbox h-4 w-4 text-blue-600"
-              />
-              <span>Show Favorites Only</span>
-            </label>
-          </div>
+          <PromptTemplateFilters
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onCategoryChange={onCategoryChange}
+            showFavorites={showFavorited}
+            onFavoritesChange={handleFavoritesChange}
+            showMyPrompts={showMyPrompts}
+            onMyPromptsChange={setShowMyPrompts}
+            filters={{}}
+            onUpdateFilters={onUpdateFilters}
+          />
         </div>
       </div>
       <ScrollArea className="flex-grow">

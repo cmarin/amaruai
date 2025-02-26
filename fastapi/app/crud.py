@@ -27,6 +27,7 @@ def create_persona(db: Session, persona: schemas.PersonaCreate):
             "verbose": persona.verbose,
             "memory": persona.memory,
             "avatar": persona.avatar,
+            "created_by": persona.created_by
         }
         
         # Only add temperature if it's provided
@@ -395,17 +396,33 @@ def get_default_chat_model(db: Session) -> models.ChatModel:
     return db.query(models.ChatModel).filter(models.ChatModel.default == True).first()
 
 def get_workflows(db: Session, skip: int = 0, limit: int = 100):
-    """Get all workflows with their relationships."""
-    return db.query(models.Workflow)\
-        .options(
-            joinedload(models.Workflow.steps),
-            joinedload(models.Workflow.assets),
-            joinedload(models.Workflow.knowledge_bases)
-        )\
-        .order_by(models.Workflow.created_at.desc())\
-        .offset(skip)\
-        .limit(limit)\
-        .all()
+    try:
+        # Query workflows with all relationships in a single query
+        workflows = db.query(models.Workflow).options(
+            joinedload(models.Workflow.steps)
+        ).order_by(
+            models.Workflow.id
+        ).offset(skip).limit(limit).all()
+        
+        # Load relationships separately to avoid type casting issues
+        for workflow in workflows:
+            for step in workflow.steps:
+                db.query(models.PromptTemplate).filter(
+                    models.PromptTemplate.id == step.prompt_template_id
+                ).first()
+                db.query(models.ChatModel).filter(
+                    models.ChatModel.id == step.chat_model_id
+                ).first()
+                db.query(models.Persona).filter(
+                    models.Persona.id == step.persona_id
+                ).first()
+        
+        return workflows
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error getting workflows: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 def get_workflow(db: Session, workflow_id: UUID):
     try:
@@ -528,21 +545,18 @@ def get_workflow_steps(db: Session, workflow_id: UUID):
 
 def create_workflow_step(db: Session, workflow_id: UUID, step: schemas.WorkflowStepCreate):
     try:
-        # Get all existing steps for this workflow
-        existing_steps = db.query(models.WorkflowStep).filter(
+        # Get the current max position for this workflow
+        max_position = db.query(func.max(models.WorkflowStep.position)).filter(
             models.WorkflowStep.workflow_id == workflow_id
-        ).order_by(models.WorkflowStep.position).all()
-        
-        # Calculate next position if not provided
-        position = step.position if step.position is not None else len(existing_steps)
-        
-        # Create new step
+        ).scalar() or 0
+
+        # Create the step with validated data
         db_step = models.WorkflowStep(
             workflow_id=workflow_id,
-            prompt_template_id=step.prompt_template_id,
-            chat_model_id=step.chat_model_id,
-            persona_id=step.persona_id,
-            position=position
+            prompt_template_id=step.prompt_template_id if step.prompt_template_id else None,
+            chat_model_id=step.chat_model_id if step.chat_model_id else None,
+            persona_id=step.persona_id if step.persona_id else None,
+            position=step.position if step.position is not None else max_position + 1
         )
         
         db.add(db_step)
@@ -712,23 +726,31 @@ def get_knowledge_bases(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.KnowledgeBase).offset(skip).limit(limit).all()
 
 def create_knowledge_base(db: Session, knowledge_base: schemas.KnowledgeBaseCreate):
-    db_knowledge_base = models.KnowledgeBase(
-        title=knowledge_base.title,
-        description=knowledge_base.description
-    )
-    db.add(db_knowledge_base)
-    db.commit()
-    db.refresh(db_knowledge_base)
-    
-    # Add associated assets
-    for asset_id in knowledge_base.asset_ids:
-        asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
-        if asset:
-            db_knowledge_base.assets.append(asset)
-    
-    db.commit()
-    db.refresh(db_knowledge_base)
-    return db_knowledge_base
+    try:
+        # Create the knowledge base with basic info
+        db_knowledge_base = models.KnowledgeBase(
+            title=knowledge_base.title,
+            description=knowledge_base.description,
+            token_count=0,  # Default value
+            created_by=knowledge_base.created_by  # Add this line
+        )
+        db.add(db_knowledge_base)
+        db.flush()  # Get the ID without committing
+        
+        # Add associated assets
+        for asset_id in knowledge_base.asset_ids:
+            asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+            if asset:
+                db_knowledge_base.assets.append(asset)
+        
+        db.commit()
+        db.refresh(db_knowledge_base)
+        return db_knowledge_base
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating knowledge base: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 def update_knowledge_base(db: Session, knowledge_base_id: UUID, knowledge_base: schemas.KnowledgeBaseUpdate):
     db_knowledge_base = db.query(models.KnowledgeBase).filter(models.KnowledgeBase.id == knowledge_base_id).first()

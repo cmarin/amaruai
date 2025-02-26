@@ -13,12 +13,14 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from urllib.parse import unquote
 
 from app.schemas import ChatMessage, Message, FileInfo
 from app.api.v1.router import create_protected_router
 from app.database import get_db
 from app import crud
 from app.utils import format_openai_message, log_chat_request
+from app.config.asset_utils import resolve_file_url_to_asset
 
 # Existing utility imports
 from app.config.chat_utils import (
@@ -135,6 +137,27 @@ async def chat_endpoint(
 
             # File & knowledge processing
             process_attached_files(db, chat_data, local_messages)
+            
+            # Auto-include attached file assets in asset_ids if they're not already there
+            if chat_data.files and not chat_data.asset_ids:
+                logger.info("Attempting to auto-include attached file assets")
+                attached_asset_ids = []
+                for file in chat_data.files:
+                    # Use the centralized utility function
+                    result = resolve_file_url_to_asset(db, file.url, file.name)
+                    if result and result["asset"]:
+                        asset = result["asset"]
+                        attached_asset_ids.append(asset.id)
+                        logger.info(f"Auto-including asset {asset.id} for file {file.name}")
+                
+                if attached_asset_ids:
+                    # Create a new list if chat_data.asset_ids is None, otherwise extend existing
+                    if chat_data.asset_ids is None:
+                        chat_data.asset_ids = attached_asset_ids
+                    else:
+                        chat_data.asset_ids.extend(attached_asset_ids)
+                    logger.info(f"Auto-included {len(attached_asset_ids)} assets from attached files")
+            
             process_referenced_knowledge(db, chat_data, local_messages, chat_model)
 
             # Memory
@@ -149,6 +172,27 @@ async def chat_endpoint(
             logger.info("Messages:")
             for msg in local_messages:
                 logger.info(f"Role: {msg['role']} => {len(str(msg['content']))} chars")
+            logger.info("=" * 50)
+            
+            # Add detailed debug logging of the final messages
+            logger.info("DETAILED MESSAGE CONTENT BEING SENT TO MODEL:")
+            for i, msg in enumerate(local_messages):
+                logger.info(f"Message #{i+1} Role: {msg['role']}")
+                if isinstance(msg['content'], str):
+                    logger.info(f"Content preview: {msg['content'][:500]}...")
+                    if len(msg['content']) > 500:
+                        logger.info(f"... (truncated, total length: {len(msg['content'])} chars)")
+                else:
+                    for j, content_item in enumerate(msg['content']):
+                        content_type = content_item.get('type', 'unknown')
+                        logger.info(f"  Content part #{j+1} Type: {content_type}")
+                        if content_type == 'text':
+                            text_content = content_item.get('text', '')
+                            logger.info(f"  Text preview: {text_content[:500]}...")
+                            if len(text_content) > 500:
+                                logger.info(f"  ... (truncated, total length: {len(text_content)} chars)")
+                        elif content_type == 'image_url':
+                            logger.info(f"  Image URL: {content_item.get('image_url', {}).get('url', 'unknown')}")
             logger.info("=" * 50)
 
             if provider == "openrouter":

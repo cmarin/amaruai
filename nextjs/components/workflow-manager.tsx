@@ -153,41 +153,99 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   };
 
   const updateStep = (index: number, field: keyof WorkflowStep, value: string) => {
+    console.log(`Updating step ${index}, field ${field} to value:`, value);
+    
+    // Create a new array of steps
     const updatedSteps = [...workflow.steps];
+    
+    // Update the step with the new value
     updatedSteps[index] = { ...updatedSteps[index], [field]: value };
+    
+    // First update the workflow with the basic change
+    setWorkflow(prevWorkflow => ({
+      ...prevWorkflow,
+      steps: updatedSteps
+    }));
 
-    // If updating prompt template, check for defaults
+    // If updating prompt template, handle defaults
     if (field === 'prompt_template_id') {
       const template = promptTemplates.find(t => t.id === value);
-      const stepChanges = userChangedValues[index] || { model: false, persona: false };
+      
+      // Always reset the user changed values when selecting a template
+      setUserChangedValues(prev => ({
+        ...prev,
+        [index]: { model: false, persona: false }
+      }));
 
       if (template) {
-        // Update model if it has a default and user hasn't changed it
-        if (!stepChanges.model && template.default_chat_model_id) {
-          updatedSteps[index].chat_model_id = template.default_chat_model_id;
-        }
+        console.log('Selected template:', template);
+        console.log('Template defaults:', {
+          default_persona_id: template.default_persona_id,
+          default_chat_model_id: template.default_chat_model_id
+        });
         
-        // Update persona if it has a default and user hasn't changed it
-        if (!stepChanges.persona && template.default_persona_id) {
-          updatedSteps[index].persona_id = template.default_persona_id;
-        }
+        // Store the template ID for reference in the setTimeout
+        const selectedTemplateId = value;
+        
+        // Use setTimeout to ensure the prompt_template_id update happens first
+        setTimeout(() => {
+          console.log('Applying template defaults after delay');
+          // Get fresh copy of steps to ensure we're working with the latest state
+          // Careful: We need to preserve the prompt_template_id that was just set
+          setWorkflow(prevWorkflow => {
+            const currentSteps = [...prevWorkflow.steps];
+            let hasUpdates = false;
+            
+            // Make sure the prompt_template_id is still set correctly
+            if (currentSteps[index].prompt_template_id !== selectedTemplateId) {
+              console.log('Warning: prompt_template_id was lost, restoring it');
+              currentSteps[index].prompt_template_id = selectedTemplateId;
+              hasUpdates = true;
+            }
+            
+            // Apply defaults
+            if (template.default_chat_model_id) {
+              console.log('Applying default chat model:', template.default_chat_model_id);
+              currentSteps[index].chat_model_id = template.default_chat_model_id;
+              hasUpdates = true;
+            }
+            
+            if (template.default_persona_id) {
+              console.log('Applying default persona:', template.default_persona_id);
+              currentSteps[index].persona_id = template.default_persona_id;
+              hasUpdates = true;
+            }
+            
+            console.log('Step after applying defaults:', currentSteps[index]);
+            
+            // Only update if needed
+            if (hasUpdates) {
+              return {
+                ...prevWorkflow,
+                steps: currentSteps
+              };
+            }
+            
+            // No changes needed
+            return prevWorkflow;
+          });
+        }, 100); // Delay to ensure prompt_template_id is set first
       }
-    } else {
-      // Track when user manually changes model or persona
-      if (field === 'chat_model_id') {
-        setUserChangedValues(prev => ({
-          ...prev,
-          [index]: { ...prev[index], model: true }
-        }));
-      } else if (field === 'persona_id') {
-        setUserChangedValues(prev => ({
-          ...prev,
-          [index]: { ...prev[index], persona: true }
-        }));
-      }
+    } else if (field === 'chat_model_id') {
+      // Track when user manually changes model
+      setUserChangedValues(prev => ({
+        ...prev,
+        [index]: { ...(prev[index] || { persona: false }), model: true }
+      }));
+    } else if (field === 'persona_id') {
+      // Track when user manually changes persona
+      setUserChangedValues(prev => ({
+        ...prev,
+        [index]: { ...(prev[index] || { model: false }), persona: true }
+      }));
     }
 
-    setWorkflow({ ...workflow, steps: updatedSteps });
+    console.log('Updated step:', updatedSteps[index]);
   };
 
   const removeStep = (index: number) => {
@@ -430,6 +488,8 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
               id: String(p.id),
               role: p.role
             }))}
+            userChangedValues={userChangedValues}
+            onUserChangedValues={setUserChangedValues}
           />
         </CardContent>
       </Card>

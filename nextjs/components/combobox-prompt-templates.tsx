@@ -11,14 +11,46 @@ import type { PromptTemplateOption } from "@/types"
 interface ComboboxPromptTemplatesProps {
   templates: PromptTemplateOption[]
   value?: string | number | null
-  onSelect: (template: PromptTemplateOption) => void
+  onSelect: (template: PromptTemplateOption | null) => void
 }
 
 export function ComboboxPromptTemplates({ templates, value, onSelect }: ComboboxPromptTemplatesProps) {
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
+  
+  // Keep track of the last selected template to prevent flicker
+  const [lastSelectedTemplate, setLastSelectedTemplate] = React.useState<PromptTemplateOption | null>(null)
+  
+  // Convert value to string for comparison
+  const valueString = value ? value.toString() : null;
 
-  const selectedTemplate = templates.find(t => t.id.toString() === value?.toString())
+  // Debug the incoming value and available templates
+  React.useEffect(() => {
+    console.log('ComboboxPromptTemplates props:', { value, valueString, templatesCount: templates.length });
+    const found = templates.find(t => t.id.toString() === valueString);
+    console.log('SelectedTemplate:', found);
+    if (valueString && !found) {
+      console.warn('Template with ID', value, 'not found in available templates');
+    }
+    
+    // Update lastSelectedTemplate when we have a valid template
+    if (found) {
+      setLastSelectedTemplate(found);
+    }
+  }, [templates, value, valueString]);
+
+  // Find the selected template
+  const selectedTemplate = React.useMemo(() => {
+    // First try to find by value
+    const found = templates.find(t => t.id.toString() === valueString);
+    
+    // If not found but we have a lastSelectedTemplate and the value is null,
+    // this might be a temporary state update - use the last known template
+    const result = found || (valueString === null && lastSelectedTemplate) || null;
+    
+    console.log('Recalculated selected template:', result?.title || null);
+    return result;
+  }, [templates, valueString, lastSelectedTemplate]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -26,7 +58,11 @@ export function ComboboxPromptTemplates({ templates, value, onSelect }: Combobox
         variant="outline" 
         role="combobox" 
         aria-expanded={open}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          console.log('Opening template dialog with value:', value);
+          console.log('Selected template before opening:', selectedTemplate);
+          setOpen(true);
+        }}
         className="w-full justify-between"
       >
         <span>{selectedTemplate ? selectedTemplate.title : "Select template..."}</span>
@@ -52,14 +88,30 @@ export function ComboboxPromptTemplates({ templates, value, onSelect }: Combobox
                     key={template.id}
                     value={template.title}
                     onSelect={() => {
-                      onSelect(template)
-                      setOpen(false)
+                      console.log('Template selected in ComboboxPromptTemplates:', template);
+                      
+                      // Save this as the last selected template
+                      setLastSelectedTemplate(template);
+                      
+                      // Explicitly compare the template ID with the current value
+                      if (template.id.toString() === valueString) {
+                        console.log('Template already selected - forcing re-selection');
+                        // Force a re-selection to ensure UI updates
+                        onSelect(null); // Clear first
+                        setTimeout(() => {
+                          onSelect(template); // Then set again
+                        }, 50);
+                      } else {
+                        onSelect(template);
+                      }
+                      
+                      setOpen(false);
                     }}
                   >
                     <CheckIcon
                       className={cn(
                         "mr-2 h-4 w-4",
-                        selectedTemplate?.id === template.id ? "opacity-100" : "opacity-0"
+                        valueString === template.id.toString() ? "opacity-100" : "opacity-0"
                       )}
                     />
                     {template.title}

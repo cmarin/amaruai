@@ -72,28 +72,50 @@ class CrewAIService:
                 self._streams[stream_token]['error'] = 'Workflow not found'
                 return
 
+            # Get default chat model
+            default_chat_model = db.query(models.ChatModel).filter(
+                models.ChatModel.default == True
+            ).first()
+
+            if not default_chat_model:
+                self._streams[stream_token]['status'] = 'error'
+                self._streams[stream_token]['error'] = 'No default chat model configured'
+                return
+
             agents = []
             tasks = []
 
             for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.position)):
                 prompt_template = step.prompt_template
-                chat_model = step.chat_model
+                chat_model = step.chat_model or default_chat_model
                 persona = step.persona
 
-                # Create agent
+                # Create agent with default values if no persona specified
                 llm = LLM(
                     model=f"openrouter/{chat_model.model}",
                     api_key=self.api_key,
                     base_url=self.base_url
                 )
-                agent = Agent(
-                    role=persona.role,
-                    goal=persona.goal,
-                    backstory=persona.backstory,
-                    allow_delegation=persona.allow_delegation,
-                    verbose=persona.verbose,
-                    llm=llm
-                )
+
+                if persona:
+                    agent = Agent(
+                        role=persona.role,
+                        goal=persona.goal,
+                        backstory=persona.backstory,
+                        allow_delegation=persona.allow_delegation,
+                        verbose=persona.verbose,
+                        llm=llm
+                    )
+                else:
+                    # Default agent configuration when no persona is specified
+                    agent = Agent(
+                        role="Assistant",
+                        goal="Help complete the task effectively",
+                        backstory="I am an AI assistant focused on completing tasks accurately.",
+                        allow_delegation=False,
+                        verbose=True,
+                        llm=llm
+                    )
                 agents.append(agent)
 
                 # Build prompt with RAG content
@@ -123,22 +145,29 @@ class CrewAIService:
                 )
                 tasks.append(task)
 
-                # Stream step start
-                self._update_stream_data(stream_token, {
+                # Stream step start with optional persona info
+                step_info = {
                     "step": str(i + 1),
                     "prompt": description,
                     "status": "starting",
-                    "persona": {
-                        "id": str(persona.id),
-                        "role": persona.role,
-                        "goal": persona.goal
-                    },
                     "chat_model": {
                         "id": str(chat_model.id),
                         "name": chat_model.name,
                         "model": chat_model.model
                     }
-                })
+                }
+
+                # Only include persona info if it exists
+                if persona:
+                    step_info["persona"] = {
+                        "id": str(persona.id),
+                        "role": persona.role,
+                        "goal": persona.goal
+                    }
+                else:
+                    step_info["persona"] = None
+
+                self._update_stream_data(stream_token, step_info)
 
             # Execute workflow
             crew = Crew(

@@ -5,8 +5,6 @@ from app import crud, schemas, models
 from app.database import get_db
 from app.api.v1.router import create_protected_router, create_public_router
 from app.schemas import ChatMessage, WorkflowExecuteInput
-from app.api.v1.dependencies import get_current_user_id
-from uuid import UUID
 from crewai import Agent, Task, Crew, Process, LLM
 import logging
 import os
@@ -15,6 +13,8 @@ import asyncio
 from sse_starlette.sse import EventSourceResponse
 from app.config.crewai_service import crew_service, CrewAIError
 import json
+from uuid import UUID
+from app.api.v1.dependencies import get_current_user, get_current_user_id
 from uuid import uuid4
 from llama_index.storage.chat_store.postgres import PostgresChatStore
 from llama_index.core.memory import ChatMemoryBuffer
@@ -41,12 +41,17 @@ workflow_results = {}
 logger = logging.getLogger(__name__)
 
 @router.post("/", response_model=schemas.Workflow)
-def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_db)):
+def create_workflow(
+    workflow: schemas.WorkflowCreate, 
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user_id)
+):
     try:
         # Set default values for empty lists
         workflow_dict = workflow.dict()
         workflow_dict["asset_ids"] = workflow_dict.get("asset_ids", []) or []
         workflow_dict["knowledge_base_ids"] = workflow_dict.get("knowledge_base_ids", []) or []
+        workflow_dict["created_by"] = current_user
         
         # Create the workflow with basic info first
         db_workflow = models.Workflow(
@@ -55,7 +60,8 @@ def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_
             process_type=workflow_dict.get("process_type", models.ProcessType.SEQUENTIAL.value),
             manager_chat_model_id=workflow_dict.get("manager_chat_model_id"),
             manager_persona_id=workflow_dict.get("manager_persona_id"),
-            max_iterations=workflow_dict.get("max_iterations", 1)
+            max_iterations=workflow_dict.get("max_iterations", 1),
+            created_by=workflow_dict["created_by"]
         )
         db.add(db_workflow)
         db.flush()  # Get the ID without committing
@@ -99,27 +105,28 @@ def create_workflow(workflow: schemas.WorkflowCreate, db: Session = Depends(get_
         )
 
 
-@router.get("/", response_model=List[schemas.WorkflowResponse])
+@router.get("/", response_model=List[schemas.Workflow])
 def read_workflows(
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = 0, 
+    limit: int = 100, 
     db: Session = Depends(get_db),
-    current_user: UUID = Depends(get_current_user_id)
+    current_user: str = Depends(get_current_user)
 ):
-    """Get all workflows."""
-    return crud.get_workflows(db, skip=skip, limit=limit)
+    workflows = crud.get_workflows(db, skip=skip, limit=limit)
+    return workflows
 
 
-@router.get("/{workflow_id}", response_model=schemas.WorkflowResponse)
-def read_workflow(
-    workflow_id: UUID,
-    db: Session = Depends(get_db)
-):
-    """Get a specific workflow by ID."""
-    workflow = crud.get_workflow(db, workflow_id)
-    if not workflow:
+@router.get("/{workflow_id}", response_model=schemas.Workflow)
+def get_workflow(workflow_id: UUID, db: Session = Depends(get_db)):
+    db_workflow = crud.get_workflow(db, workflow_id=workflow_id)
+    if db_workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    return workflow
+    
+    # Ensure max_iterations is a valid integer
+    if db_workflow.max_iterations is None:
+        db_workflow.max_iterations = 1  # Set a default value if None
+
+    return db_workflow
 
 
 @router.put("/{workflow_id}", response_model=schemas.Workflow)
@@ -153,7 +160,7 @@ async def execute_workflow(
     db: Session = Depends(get_db)
 ):
     try:
-        # Use the same eager loading as the GET endpoint
+        # Use eager loading to get workflow with all relationships
         workflow = db.query(models.Workflow).options(
             joinedload(models.Workflow.steps),
             joinedload(models.Workflow.assets),
@@ -167,6 +174,29 @@ async def execute_workflow(
 
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
+
+        # Get default chat model if needed
+        default_chat_model = db.query(models.ChatModel).filter(
+            models.ChatModel.default == True
+        ).first()
+        
+        if not default_chat_model:
+            raise HTTPException(status_code=400, detail="No default chat model configured")
+
+        # Validate each step has required components
+        for step in workflow.steps:
+            if not step.prompt_template:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Step {step.position} is missing a prompt template"
+                )
+                
+            # Use default chat model if none specified
+            if not step.chat_model:
+                step.chat_model = default_chat_model
+
+            # Persona is optional, can be None
+            # No need to validate persona
 
         # Debug logging
         logger.info(f"Workflow {workflow_id} loaded for execution with:")

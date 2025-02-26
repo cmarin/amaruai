@@ -14,6 +14,8 @@ export interface ChatModel {
   created_at?: string;
   updated_at?: string;
   is_favorite?: boolean;
+  default?: boolean;
+  position?: number | null;
 }
 
 export async function fetchChatModels(headers: ApiHeaders): Promise<ChatModel[]> {
@@ -32,7 +34,8 @@ export async function fetchChatModels(headers: ApiHeaders): Promise<ChatModel[]>
     return data.map((model: any) => ({
       ...model,
       id: model.id.toString(),
-      is_favorite: model.is_favorite || false
+      is_favorite: model.is_favorite || model.is_favorited || false,
+      position: model.position !== undefined ? model.position : null
     }));
   });
 }
