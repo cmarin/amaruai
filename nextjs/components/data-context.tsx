@@ -15,6 +15,7 @@ export interface ChatModel extends Omit<BaseChatModel, 'id'> {
   created_at: string;
   updated_at: string;
   is_favorite: boolean;
+  position?: number | null;
 }
 
 type DataContextType = {
@@ -58,7 +59,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         default: model.model?.toLowerCase().includes('gpt-4') || false,
         created_at: now,
         updated_at: now,
-        is_favorite: false
+        is_favorite: model.is_favorite || false,
+        // Preserve the position value if it exists
+        position: model.position !== undefined ? model.position : null
       };
     });
   };

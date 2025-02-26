@@ -105,11 +105,32 @@ export const resetSelectedModels = (mode: ChatMode, allChatModels: ChatModel[] |
     return { chat1: '' };
   }
 
-  // First, check for models with default:true property
-  const defaultModel = allChatModels.find(model => model.default === true);
+  // First, sort models by position (null positions go to the end)
+  const sortedModels = [...allChatModels].sort((a, b) => {
+    // If both have position values, compare them
+    if (a.position !== undefined && a.position !== null && b.position !== undefined && b.position !== null) {
+      return a.position - b.position;
+    }
+    // If only a has position, a comes first
+    if (a.position !== undefined && a.position !== null) {
+      return -1;
+    }
+    // If only b has position, b comes first
+    if (b.position !== undefined && b.position !== null) {
+      return 1;
+    }
+    // If neither has position, maintain original order
+    return 0;
+  });
+
+  // Get the first 4 positioned models (or fewer if not enough)
+  const firstFourModels = sortedModels.slice(0, 4);
+  
+  // Fallback to traditional selections if we didn't get positioned models
+  const explicitDefaultModel = allChatModels.find(model => model.default === true);
   
   // Find default models based on providers if no explicit default is set
-  const defaultOpenAIModel = defaultModel?.id || allChatModels.find(model => 
+  const defaultOpenAIModel = explicitDefaultModel?.id || allChatModels.find(model => 
     model.provider === 'openai' && model.name.includes('4'))?.id || allChatModels[0]?.id;
   
   const defaultAnthropicModel = allChatModels.find(model => 
@@ -121,23 +142,29 @@ export const resetSelectedModels = (mode: ChatMode, allChatModels: ChatModel[] |
   const defaultMetaModel = allChatModels.find(model => 
     model.provider === 'meta')?.id || allChatModels[3]?.id;
 
+  // Use positioned models if available, otherwise fall back to provider-based defaults
+  const model1 = firstFourModels[0]?.id || explicitDefaultModel?.id || defaultOpenAIModel || allChatModels[0]?.id || '';
+  const model2 = firstFourModels[1]?.id || defaultAnthropicModel || allChatModels[1]?.id || '';
+  const model3 = firstFourModels[2]?.id || defaultGeminiModel || allChatModels[2]?.id || '';
+  const model4 = firstFourModels[3]?.id || defaultMetaModel || allChatModels[3]?.id || '';
+
   switch (mode) {
     case 'single':
-      return { chat1: defaultModel?.id || defaultOpenAIModel || allChatModels[0]?.id || '' };
+      return { chat1: model1 };
     case 'dual':
       return { 
-        chat1: defaultModel?.id || defaultOpenAIModel || allChatModels[0]?.id || '',
-        chat2: defaultAnthropicModel || allChatModels[1]?.id || ''
+        chat1: model1,
+        chat2: model2
       };
     case 'quad':
       return {
-        chat1: defaultModel?.id || defaultOpenAIModel || allChatModels[0]?.id || '',
-        chat2: defaultAnthropicModel || allChatModels[1]?.id || '',
-        chat3: defaultGeminiModel || allChatModels[2]?.id || '',
-        chat4: defaultMetaModel || allChatModels[3]?.id || ''
+        chat1: model1,
+        chat2: model2,
+        chat3: model3,
+        chat4: model4
       };
     default:
-      return { chat1: defaultModel?.id || defaultOpenAIModel || allChatModels[0]?.id || '' };
+      return { chat1: model1 };
   }
 };
 
@@ -465,12 +492,23 @@ export const handleModeChange = (
  * @param modelId The model ID to switch to
  * @param router Next.js router
  * @param setSelectedModels State setter for selected models
+ * @param allChatModels All available chat models
  */
 export const handleToggleChatbot = (
   modelId: string,
   router: any,
-  setSelectedModels: React.Dispatch<React.SetStateAction<{ [key: string]: string }>>
+  setSelectedModels: React.Dispatch<React.SetStateAction<{ [key: string]: string }>>,
+  allChatModels?: ChatModel[]
 ) => {
+  // Find the selected model
+  const selectedModel = allChatModels?.find(m => m.id === modelId);
+  console.log('Switching to model:', {
+    id: selectedModel?.id,
+    name: selectedModel?.name,
+    position: selectedModel?.position,
+    provider: selectedModel?.provider
+  });
+  
   // Update the URL
   router.push(`/chat?model=${modelId}`, { scroll: false });
   // Update the selected model
