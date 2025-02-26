@@ -75,77 +75,6 @@ import '@uppy/dashboard/dist/style.min.css'
 // Add import for chat service
 import { prepareChatSubmission, handleChatSubmission } from '@/utils/chat-service';
 
-// Add a style to force scrolling to be enabled at all times
-const ChatScrollStyles = () => (
-  <style jsx global>{`
-    /* Force scrolling to be enabled at all times */
-    [data-chat-id] > div[data-scroll-container] {
-      overflow-y: auto !important;
-      height: 100% !important;
-      position: relative !important;
-      z-index: 1 !important;
-      pointer-events: auto !important;
-    }
-    
-    /* Ensure all parent elements allow scrolling */
-    [data-chat-id] * {
-      overflow: visible !important;
-    }
-    
-    /* Ensure the chat container itself is scrollable */
-    .flex-1.p-4.relative.overflow-y-auto {
-      overflow-y: auto !important;
-      pointer-events: auto !important;
-    }
-    
-    /* Ensure the chat message content is visible */
-    .space-y-4 {
-      overflow: visible !important;
-    }
-  `}</style>
-);
-
-// Component to ensure scrolling is always enabled
-const ScrollEnabler = () => {
-  useEffect(() => {
-    // Function to ensure scrolling is enabled
-    const enableScrolling = () => {
-      const chatWindows = document.querySelectorAll('[data-chat-id]');
-      chatWindows.forEach(chatWindow => {
-        const chatId = chatWindow.getAttribute('data-chat-id');
-        const scrollContainer = chatWindow.querySelector(`div[data-scroll-container="${chatId}"]`);
-        
-        if (scrollContainer) {
-          (scrollContainer as HTMLElement).style.overflowY = 'auto';
-          (scrollContainer as HTMLElement).style.pointerEvents = 'auto';
-        }
-      });
-    };
-    
-    // Run immediately
-    enableScrolling();
-    
-    // Set up a MutationObserver to ensure scrolling stays enabled
-    const observer = new MutationObserver(() => {
-      enableScrolling();
-    });
-    
-    // Observe the entire document for changes
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true
-    });
-    
-    // Clean up
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-  
-  return null;
-};
-
 function ChatContent() {
   const { sidebarOpen } = useSidebar()
   const { promptTemplates: prompts, categories, chatModels: allChatModels, personas } = useData()
@@ -247,46 +176,12 @@ function ChatContent() {
   const messagesEndRef3 = useRef<HTMLDivElement>(null);
   const messagesEndRef4 = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const chatContainerRefs = useRef<{[key: string]: HTMLDivElement | null}>({
-    chat1: null,
-    chat2: null,
-    chat3: null,
-    chat4: null
-  });
-  // Use individual streaming refs for each chat window
   const isStreamingRef = useRef<boolean>(false);
-  const isStreamingRefs = useRef<{[key: string]: boolean}>({
-    chat1: false,
-    chat2: false,
-    chat3: false,
-    chat4: false
-  });
   const wasAtBottomRef = useRef<boolean>(true);
 
-  // Track user scroll state for each chat window
-  const userScrollStateRef = useRef<{[key: string]: boolean}>({
-    chat1: false,
-    chat2: false,
-    chat3: false,
-    chat4: false
-  });
-
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>, chatWindowId: string) => {
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const container = e.target as HTMLDivElement;
-    const atBottom = isAtBottom(container);
-    
-    // If we're at the bottom, reset the user scroll state
-    if (atBottom) {
-      userScrollStateRef.current[chatWindowId] = false;
-      container.setAttribute('data-user-scrolled', 'false');
-    } else {
-      // If we're not at the bottom and the user is actively scrolling, mark as user-scrolled
-      userScrollStateRef.current[chatWindowId] = true;
-      container.setAttribute('data-user-scrolled', 'true');
-    }
-    
-    // For global tracking
-    wasAtBottomRef.current = atBottom;
+    wasAtBottomRef.current = isAtBottom(container);
   }, []);
 
   const handleModelChange = (chatWindowId: string, modelId: string) => {
@@ -342,7 +237,6 @@ function ChatContent() {
         setError,
         isStreamingRef,
         chatContainerRef,
-        chatContainerRefs,
         personas,
         messages,
         messages2,
@@ -353,9 +247,7 @@ function ChatContent() {
         setMessages3,
         setMessages4,
         setConversationIds,
-        setMultiConversationId,
-        isStreamingRefs,
-        userScrollStateRef
+        setMultiConversationId
       });
       
       // Clear input field after submission
@@ -451,13 +343,12 @@ function ChatContent() {
     isCopied,
     chatWindowId
   }: ChatWindowProps) => {
-    // Use individual streaming state for each chat window
-    const isStreaming = isStreamingRefs.current[chatWindowId] || isStreamingRef.current;
+    const isStreaming = isStreamingRef.current;
     const selectedPersona = personas?.find(p => p.id.toString() === selectedPersonas[chatWindowId]);
     
     return (
       <TooltipProvider>
-        <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden" data-chat-id={chatWindowId}>
+        <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
           {/* Top header (title, copy, clear) */}
           <div className="flex items-center justify-between p-3 border-b">
             <div className="flex items-center gap-4">
@@ -528,14 +419,11 @@ function ChatContent() {
             </div>
           </div>
 
-          {/* Chat messages area - Using a simple div with overflow-y: auto */}
-          <div 
-            className="flex-1 p-4 relative overflow-y-auto"
-            onScroll={(e) => handleScroll(e, chatWindowId)}
-            ref={(el) => { chatContainerRefs.current[chatWindowId] = el; }}
-            data-scroll-container={chatWindowId}
-            data-user-scrolled={userScrollStateRef.current[chatWindowId] ? 'true' : 'false'}
-            style={{ height: '100%', scrollBehavior: 'auto' }}
+          {/* Chat messages area */}
+          <ScrollArea 
+            className="flex-1 p-4 relative" 
+            onScroll={handleScroll}
+            ref={chatContainerRef}
           >
             <div className="space-y-4">
               {messages.map((message, index) => (
@@ -556,7 +444,7 @@ function ChatContent() {
                 </div>
               </div>
             )}
-          </div>
+          </ScrollArea>
         </div>
       </TooltipProvider>
     );
@@ -579,8 +467,6 @@ function ChatContent() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      <ChatScrollStyles />
-      <ScrollEnabler />
       {/* LEFT COLUMN (sidebar) */}
       <div className="w-64 h-full border-r border-gray-200">
         <AppSidebar toggleChatbot={handleToggleChatbot} />

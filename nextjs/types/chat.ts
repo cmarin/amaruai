@@ -3,14 +3,6 @@ import { ReactNode, RefObject } from 'react';
 import type { UploadedFile } from '@/utils/upload-service';
 import type { KnowledgeBase } from '@/utils/knowledge-base-service';
 import type { ChatModel } from '@/components/data-context';
-import type { Session } from '@supabase/supabase-js';
-
-// Define Persona type locally since it's not exported from data-context
-interface Persona {
-  id: string | number;
-  role?: string;
-  avatar?: string;
-}
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -99,8 +91,8 @@ export interface ApiCallParams {
   chatId: string;
   isRetry?: boolean;
   newMessage: Message;
-  session: Session | null;
-  getApiHeaders: () => Promise<Record<string, string> | null>;
+  session: any;
+  getApiHeaders: () => any;
   uploadedFiles: UploadedFile[];
   selectedModels: { [key: string]: string };
   selectedPersonas: { [key: string]: string };
@@ -111,13 +103,10 @@ export interface ApiCallParams {
   setRetryAttempts: React.Dispatch<React.SetStateAction<{ [key: string]: number }>>;
   setError: React.Dispatch<React.SetStateAction<Error | null>>;
   isStreamingRef: React.MutableRefObject<boolean>;
-  chatContainerRef: React.RefObject<HTMLDivElement>;
-  chatContainerRefs: React.MutableRefObject<{ [key: string]: HTMLDivElement | null }>;
+  chatContainerRef: RefObject<HTMLDivElement>;
   selectedKnowledgeBases: KnowledgeBase[];
   selectedAssets: Asset[];
-  allChatModels?: ChatModel[];
-  personas?: Persona[];
-  isWebSearchEnabled?: boolean;
-  isStreamingRefs?: React.MutableRefObject<{ [key: string]: boolean }>;
-  userScrollStateRef?: React.MutableRefObject<{ [key: string]: boolean }>;
-}
+  allChatModels: ChatModel[] | undefined;
+  personas: any[] | undefined;
+  isWebSearchEnabled: boolean;
+} 

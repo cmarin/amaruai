@@ -26,19 +26,14 @@ export const isAtBottom = (containerRef: HTMLElement): boolean => {
 
 /**
  * Maintains scroll position based on whether we were at the bottom before
- * Returns whether the scroll was maintained at the bottom
  */
-export const maintainScroll = (containerRef: HTMLElement, wasAtBottom: boolean): boolean => {
-  if (!containerRef) return wasAtBottom;
+export const maintainScroll = (containerRef: HTMLElement, wasAtBottom: boolean): void => {
+  if (!containerRef) return;
   
   // If we were at the bottom before the update, scroll to bottom
   if (wasAtBottom) {
     containerRef.scrollTop = containerRef.scrollHeight;
-    return true;
   }
-  
-  // Otherwise, maintain the current scroll position
-  return false;
 };
 
 /**
@@ -169,14 +164,11 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
     setError,
     isStreamingRef,
     chatContainerRef,
-    chatContainerRefs,
     selectedKnowledgeBases,
     selectedAssets,
     allChatModels,
     personas,
-    isWebSearchEnabled,
-    isStreamingRefs,
-    userScrollStateRef
+    isWebSearchEnabled
   } = params;
 
   // Don't allow more than one retry per chat window
@@ -194,12 +186,7 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
   }
 
   try {
-    // Track streaming state for this specific chat window
     isStreamingRef.current = true;
-    if (isStreamingRefs) {
-      isStreamingRefs.current[chatId] = true;
-    }
-    
     // Get or create conversation_id for this chat window
     let currentConversationId = conversationIds[chatId];
     if (!currentConversationId) {
@@ -214,7 +201,7 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
     const modelId = isRetry ? undefined : (selectedModels[chatId] || allChatModels?.[0]?.id);
     const personaId = selectedPersonas[chatId];
     const selectedModel = modelId ? allChatModels?.find(model => model.id === modelId) : undefined;
-    const selectedPersona = personas?.find(p => p.id?.toString() === personaId);
+    const selectedPersona = personas?.find(p => p.id.toString() === personaId);
 
     let streamStartTime: number | null = null;
     let receivedFirstChunk = false;
@@ -232,7 +219,7 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
       messages: [...prevMessagesLocal, newMessage],
       userId: session?.user?.id,
       modelId: selectedModel?.id,
-      personaId: selectedPersona?.id?.toString(),
+      personaId: selectedPersona?.id,
       files: uploadedFiles.map(f => ({ name: f.name, url: f.uploadURL })),
       conversationId: currentConversationId,
       multiConversationId: currentMultiConversationId,
@@ -254,12 +241,6 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
 
     streamStartTime = Date.now();
 
-    // Get the specific scroll container for this chat window
-    const scrollContainer = document.querySelector(`[data-chat-id="${chatId}"] div[data-scroll-container="${chatId}"]`) as HTMLElement | null;
-    
-    // Debug logging
-    console.log(`Chat ${chatId} - Found scroll container:`, scrollContainer);
-
     while (true) {
       const timeElapsed = Date.now() - streamStartTime;
       if (timeElapsed > 10000 && (!receivedFirstChunk || (chunkCount === 1 && !hasReceivedContent))) {
@@ -271,28 +252,10 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
         if (chunkCount > 0 && !hasReceivedContent) {
           throw new Error('Stream completed with only empty chunks');
         }
-        
-        // This specific chat window is done streaming
-        const currentChatWindow = document.querySelector(`[data-chat-id="${chatId}"]`);
-        if (currentChatWindow) {
-          currentChatWindow.setAttribute('data-streaming-complete', 'true');
-          currentChatWindow.removeAttribute('data-streaming');
-          
-          console.log(`Chat ${chatId} - Streaming completed, scrolling should be enabled by default`);
+        isStreamingRef.current = false;
+        if (chatContainerRef.current) {
+          chatContainerRef.current.style.overflowY = 'auto';
         }
-        
-        // Mark this specific chat window as no longer streaming
-        if (isStreamingRefs) {
-          isStreamingRefs.current[chatId] = false;
-        }
-        
-        // Check if all chat windows are done streaming
-        const activeChats = document.querySelectorAll('[data-streaming="true"]');
-        console.log('Active streaming chats remaining:', activeChats.length);
-        if (activeChats.length === 0) {
-          isStreamingRef.current = false;
-        }
-        
         break;
       }
 
@@ -327,14 +290,6 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
               if (!hasCreatedAssistantMessage) {
                 hasCreatedAssistantMessage = true;
                 setMessagesFunction(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
-                
-                // Mark this chat window as streaming
-                const chatWindow = document.querySelector(`[data-chat-id="${chatId}"]`);
-                if (chatWindow) {
-                  chatWindow.setAttribute('data-streaming', 'true');
-                  chatWindow.removeAttribute('data-streaming-complete');
-                  console.log(`Chat ${chatId} - Started streaming`);
-                }
               } else {
                 setMessagesFunction(prev => {
                   const updated = [...prev];
@@ -342,23 +297,9 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
                     role: 'assistant',
                     content: assistantMessage,
                   };
-                  
-                  // Get the specific scroll container for this chat window
-                  const scrollContainer = chatContainerRefs.current[chatId];
-                  
-                  // Check if the user has manually scrolled
-                  const userHasScrolled = userScrollStateRef?.current?.[chatId] || false;
-                  
-                  // Only auto-scroll if the user hasn't manually scrolled
-                  if (scrollContainer && !userHasScrolled) {
-                    // Delay the scroll to allow the content to render
-                    setTimeout(() => {
-                      if (scrollContainer) {
-                        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-                      }
-                    }, 0);
+                  if (chatContainerRef.current) {
+                    chatContainerRef.current.style.overflowY = 'auto';
                   }
-                  
                   return updated;
                 });
               }
@@ -372,23 +313,10 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
       }
     }
   } catch (err: any) {
-    // Mark this chat window as done streaming
-    const errorChatWindow = document.querySelector(`[data-chat-id="${chatId}"]`);
-    if (errorChatWindow) {
-      errorChatWindow.removeAttribute('data-streaming');
+    isStreamingRef.current = false;
+    if (chatContainerRef.current) {
+      chatContainerRef.current.style.overflowY = 'auto';
     }
-    
-    // Mark this specific chat window as no longer streaming
-    if (isStreamingRefs) {
-      isStreamingRefs.current[chatId] = false;
-    }
-    
-    // Check if all chat windows are done streaming
-    const activeChats = document.querySelectorAll('[data-streaming="true"]');
-    if (activeChats.length === 0) {
-      isStreamingRef.current = false;
-    }
-    
     console.error('Error in API call:', err);
 
     // If this is a timeout error or empty chunk error, retry without model_id
@@ -515,4 +443,4 @@ export const handleToggleChatbot = (
     ...prev,
     chat1: modelId
   }));
-};
+}; 
