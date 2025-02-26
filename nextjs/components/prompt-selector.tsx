@@ -42,45 +42,52 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
     const favoritePrompts = prompts.filter(prompt => 
       prompt.is_favorite || (hasFavoritedProps && (prompt as any).is_favorited)
     );
+    
     console.log('Total favorites identified:', favoritePrompts.length);
     
+    // Create a Set of favorite prompt IDs for quickly checking
+    const favoriteIds = new Set(favoritePrompts.map(p => p.id));
+    
     // Add Favorites category ALWAYS to the top (even if empty)
-    newGroupedPrompts['Favorites'] = favoritePrompts
+    newGroupedPrompts['Favorites'] = favoritePrompts;
     
-    // Get all category names and sort alphabetically
-    const categoryNames = categories
-      .map(category => category.name)
-      .sort((a, b) => a.localeCompare(b))
+    // Process all categories from the categories prop
+    // This ensures we have ALL categories, not just ones with prompts
+    categories.forEach(category => {
+      newGroupedPrompts[category.name] = [];
+    });
     
-    // Initialize categories in alphabetical order
-    categoryNames.forEach(name => {
-      newGroupedPrompts[name] = []
-    })
+    // Create Uncategorized category
+    newGroupedPrompts['Uncategorized'] = [];
     
-    // Create Uncategorized category (rename from 'All Prompts')
-    newGroupedPrompts['Uncategorized'] = []
-    
-    // Group prompts by category - IMPORTANT: Don't skip favorites in regular categories
-    // We want favorites to appear in both Favorites AND their original categories
+    // Group prompts by category - IMPORTANT: Skip favorites in regular categories
     prompts.forEach(prompt => {
+      // Skip this prompt in regular categories if it's a favorite
+      if (favoriteIds.has(prompt.id)) {
+        return; // Skip to next prompt
+      }
+      
       if (!prompt.categories || prompt.categories.length === 0) {
         // If prompt has no categories, add to 'Uncategorized'
-        newGroupedPrompts['Uncategorized'].push(prompt)
+        newGroupedPrompts['Uncategorized'].push(prompt);
       } else {
         prompt.categories.forEach(category => {
           if (newGroupedPrompts[category.name]) {
-            newGroupedPrompts[category.name].push(prompt)
+            newGroupedPrompts[category.name].push(prompt);
+          } else {
+            // Create category if it doesn't exist (shouldn't happen, but just in case)
+            newGroupedPrompts[category.name] = [prompt];
           }
-        })
+        });
       }
-    })
+    });
     
     // Remove empty categories except Favorites (keep it even if empty)
     Object.keys(newGroupedPrompts).forEach(key => {
-      if (newGroupedPrompts[key].length === 0 && key !== 'Favorites' && key !== 'Uncategorized') {
-        delete newGroupedPrompts[key]
+      if (newGroupedPrompts[key].length === 0 && key !== 'Favorites') {
+        delete newGroupedPrompts[key];
       }
-    })
+    });
     
     // Log the result to help debug
     console.log('Grouped prompts categories:', Object.keys(newGroupedPrompts));
@@ -88,8 +95,8 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
     console.log('All categories with counts:', Object.entries(newGroupedPrompts).map(([key, val]) => 
       `${key}: ${val.length}`).join(', '));
     
-    setGroupedPrompts(newGroupedPrompts)
-  }, [prompts, categories])
+    setGroupedPrompts(newGroupedPrompts);
+  }, [prompts, categories]);
 
   // Filter categories based on search term
   const filteredCategories = Object.entries(groupedPrompts).reduce((acc, [category, categoryPrompts]) => {
@@ -123,6 +130,8 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
       console.log('Ordered categories:', orderedCategories.map(([name]) => name).join(', '));
       console.log('Category counts:', orderedCategories.map(([name, prompts]) => 
         `${name}: ${prompts.length}`).join(', '));
+      console.log('Total prompts displayed:', orderedCategories.reduce((total, [_, prompts]) => 
+        total + prompts.length, 0));
     }
   }, [orderedCategories]);
 
