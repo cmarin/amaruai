@@ -168,7 +168,9 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
     selectedAssets,
     allChatModels,
     personas,
-    isWebSearchEnabled
+    isWebSearchEnabled,
+    mode = 'single',
+    activeStreamsRef
   } = params;
 
   // Don't allow more than one retry per chat window
@@ -187,6 +189,12 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
 
   try {
     isStreamingRef.current = true;
+    
+    // Add this chat to active streams if in multi-chat mode
+    if (mode !== 'single' && activeStreamsRef?.current) {
+      activeStreamsRef.current.add(chatId);
+    }
+    
     // Get or create conversation_id for this chat window
     let currentConversationId = conversationIds[chatId];
     if (!currentConversationId) {
@@ -252,9 +260,23 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
         if (chunkCount > 0 && !hasReceivedContent) {
           throw new Error('Stream completed with only empty chunks');
         }
-        isStreamingRef.current = false;
-        if (chatContainerRef.current) {
-          chatContainerRef.current.style.overflowY = 'auto';
+        
+        // If in multi-chat mode, only set streaming false when all active streams are done
+        if (mode !== 'single' && activeStreamsRef?.current) {
+          activeStreamsRef.current.delete(chatId);
+          // Only set streaming to false if all streams are complete
+          if (activeStreamsRef.current.size === 0) {
+            isStreamingRef.current = false;
+            if (chatContainerRef.current) {
+              chatContainerRef.current.style.overflowY = 'auto';
+            }
+          }
+        } else {
+          // Single chat mode - set streaming false immediately
+          isStreamingRef.current = false;
+          if (chatContainerRef.current) {
+            chatContainerRef.current.style.overflowY = 'auto';
+          }
         }
         break;
       }
@@ -313,10 +335,23 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
       }
     }
   } catch (err: any) {
-    isStreamingRef.current = false;
-    if (chatContainerRef.current) {
-      chatContainerRef.current.style.overflowY = 'auto';
+    // If in multi-chat mode, update active streams count
+    if (mode !== 'single' && activeStreamsRef?.current) {
+      activeStreamsRef.current.delete(chatId);
+      // Only set streaming to false if all streams are complete
+      if (activeStreamsRef.current.size === 0) {
+        isStreamingRef.current = false;
+        if (chatContainerRef.current) {
+          chatContainerRef.current.style.overflowY = 'auto';
+        }
+      }
+    } else {
+      isStreamingRef.current = false;
+      if (chatContainerRef.current) {
+        chatContainerRef.current.style.overflowY = 'auto';
+      }
     }
+    
     console.error('Error in API call:', err);
 
     // If this is a timeout error or empty chunk error, retry without model_id

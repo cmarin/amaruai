@@ -120,6 +120,15 @@ function ChatContent() {
 
   const uppyRef = useRef<Uppy | null>(null)
 
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef2 = useRef<HTMLDivElement>(null);
+  const messagesEndRef3 = useRef<HTMLDivElement>(null);
+  const messagesEndRef4 = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const isStreamingRef = useRef<boolean>(false);
+  const activeStreamsRef = useRef<Set<string>>(new Set());
+  const wasAtBottomRef = useRef<boolean>(true);
+
   useEffect(() => {
     // Use the utility function to initialize uploader
     const cleanupUploader = initializeChatUploader(
@@ -171,14 +180,6 @@ function ChatContent() {
     }
   }, [searchParams, allChatModels])
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef2 = useRef<HTMLDivElement>(null);
-  const messagesEndRef3 = useRef<HTMLDivElement>(null);
-  const messagesEndRef4 = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-  const isStreamingRef = useRef<boolean>(false);
-  const wasAtBottomRef = useRef<boolean>(true);
-
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const container = e.target as HTMLDivElement;
     wasAtBottomRef.current = isAtBottom(container);
@@ -215,9 +216,12 @@ function ChatContent() {
     setError(null)
     // Reset retry attempts for new chat
     resetRetryAttempts()
+    
+    // Reset active streams tracking
+    activeStreamsRef.current.clear();
 
     try {
-      // Use the handleChatSubmission function from chat-service.ts
+      // Use the modified chat-service to pass the mode and activeStreamsRef
       await handleChatSubmission({
         input,
         uploadedFiles,
@@ -247,7 +251,8 @@ function ChatContent() {
         setMessages3,
         setMessages4,
         setConversationIds,
-        setMultiConversationId
+        setMultiConversationId,
+        activeStreamsRef
       });
       
       // Clear input field after submission
