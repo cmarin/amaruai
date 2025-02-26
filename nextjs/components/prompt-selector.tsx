@@ -25,20 +25,27 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
   const { getApiHeaders } = useSession()
 
   useEffect(() => {
-    // Log for debugging
-    console.log('Prompts received in selector:', prompts.length, 'favorites:', prompts.filter(p => p.is_favorite).length);
+    // Enhanced logging for debugging
+    console.log('Prompts received in selector:', prompts.length);
+    console.log('Favorites count (is_favorite):', prompts.filter(p => p.is_favorite).length);
+    
+    // Check if any prompts have an is_favorited property (API might return this)
+    const hasFavoritedProps = prompts.some(p => (p as any).is_favorited);
+    if (hasFavoritedProps) {
+      console.log('Favorites count (is_favorited):', prompts.filter(p => (p as any).is_favorited).length);
+    }
     
     // Initialize with special categories in a specific order
     const newGroupedPrompts: { [key: string]: PromptTemplate[] } = {}
     
-    // Identify favorites
-    const favoritePrompts = prompts.filter(prompt => prompt.is_favorite)
-    console.log('Favorites identified:', favoritePrompts.length);
+    // Identify favorites - check is_favorite and possibly is_favorited property
+    const favoritePrompts = prompts.filter(prompt => 
+      prompt.is_favorite || (hasFavoritedProps && (prompt as any).is_favorited)
+    );
+    console.log('Total favorites identified:', favoritePrompts.length);
     
-    // Add Favorites category only if there are favorited prompts
-    if (favoritePrompts.length > 0) {
-      newGroupedPrompts['Favorites'] = favoritePrompts
-    }
+    // Add Favorites category ALWAYS to the top (even if empty)
+    newGroupedPrompts['Favorites'] = favoritePrompts
     
     // Get all category names and sort alphabetically
     const categoryNames = categories
@@ -53,8 +60,15 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
     // Create Uncategorized category (rename from 'All Prompts')
     newGroupedPrompts['Uncategorized'] = []
     
-    // Group prompts by category
+    // Group prompts by category - avoid duplicating favorites in other categories
+    const favoriteIds = new Set(favoritePrompts.map(p => p.id))
+    
     prompts.forEach(prompt => {
+      // Skip favorites - they're already in the Favorites category
+      if (favoriteIds.has(prompt.id)) {
+        return;
+      }
+      
       if (!prompt.categories || prompt.categories.length === 0) {
         // If prompt has no categories, add to 'Uncategorized'
         newGroupedPrompts['Uncategorized'].push(prompt)
@@ -67,12 +81,16 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
       }
     })
     
-    // Remove empty categories
+    // Remove empty categories except Favorites (keep it even if empty)
     Object.keys(newGroupedPrompts).forEach(key => {
-      if (newGroupedPrompts[key].length === 0 && key !== 'Uncategorized') {
+      if (newGroupedPrompts[key].length === 0 && key !== 'Favorites' && key !== 'Uncategorized') {
         delete newGroupedPrompts[key]
       }
     })
+    
+    // Log the result to help debug
+    console.log('Grouped prompts categories:', Object.keys(newGroupedPrompts));
+    console.log('Favorites category count:', newGroupedPrompts['Favorites']?.length || 0);
     
     setGroupedPrompts(newGroupedPrompts)
   }, [prompts, categories])
@@ -85,7 +103,7 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
       prompt.categories.some(cat => cat.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       prompt.tags.some(tag => tag.name && tag.name.toLowerCase().includes(searchTerm.toLowerCase()))
     )
-    if (filteredPrompts.length > 0) {
+    if (filteredPrompts.length > 0 || category === 'Favorites') {
       acc[category] = filteredPrompts
     }
     return acc
@@ -102,6 +120,13 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
     // Everything else alphabetically
     return a[0].localeCompare(b[0]);
   });
+
+  // Log the ordered categories to help debug
+  useEffect(() => {
+    if (orderedCategories.length > 0) {
+      console.log('Ordered categories:', orderedCategories.map(([name]) => name).join(', '));
+    }
+  }, [orderedCategories]);
 
   const handleLoadMore = async () => {
     if (isLoadingMore) return; // Prevent duplicate calls
