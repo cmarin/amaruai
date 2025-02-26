@@ -497,8 +497,17 @@ function ChatContent() {
     
     console.log(`Adding ${uniqueNewPrompts.length} unique new prompts`);
     
+    // Separate existing prompts into favorites and others
+    const existingFavorites = prompts.filter(p => p.is_favorite);
+    const existingNonFavorites = prompts.filter(p => !p.is_favorite);
+    
+    // Merge in the new prompts with existing non-favorites
+    const combined = [...existingFavorites, ...existingNonFavorites, ...uniqueNewPrompts];
+    
+    console.log(`New total: ${combined.length} prompts (${existingFavorites.length} favorites + ${existingNonFavorites.length + uniqueNewPrompts.length} others)`);
+    
     setData({
-      promptTemplates: [...prompts, ...uniqueNewPrompts]
+      promptTemplates: combined
     });
   }, [prompts, setData, isLoading]);
 

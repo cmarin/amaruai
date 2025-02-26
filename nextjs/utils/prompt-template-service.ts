@@ -336,26 +336,55 @@ export async function fetchInitialPromptTemplates(
   }
 
   try {
-    // Only make one request for recent templates
-    console.log('Fetching initial prompt templates');
+    // Step 1: Fetch favorites first
+    console.log('Fetching initial prompt templates - step 1: favorites');
+    
+    const favoriteFilters: PromptTemplateFilters = {
+      favorited_by: userId,
+      sort_by: 'created_at',
+      sort_order: 'desc',
+      limit: 10
+    };
+    
+    // Construct URL for logging only
+    const favoritesUrl = `${getApiUrl()}/prompt_templates/?favorited_by=${userId}&sort_by=created_at&sort_order=desc&limit=10`;
+    console.log('Fetching favorites from:', favoritesUrl);
+    
+    const favorites = await fetchPromptTemplates(headers, favoriteFilters);
+    console.log(`Fetched ${favorites.length} favorite prompt templates`);
+    
+    // Make sure all favorites have is_favorite set to true
+    const favoritesWithFlag = favorites.map(fav => ({
+      ...fav,
+      is_favorite: true
+    }));
+    
+    // Step 2: Fetch recent templates
+    console.log('Fetching initial prompt templates - step 2: recent');
     
     const recentFilters: PromptTemplateFilters = {
       sort_by: 'created_at',
       sort_order: 'desc',
-      limit: 30
+      limit: 20
     };
+
+    // Construct URL for logging only  
+    const recentUrl = `${getApiUrl()}/prompt_templates/?sort_by=created_at&sort_order=desc&limit=20`;
+    console.log('Fetching recent from:', recentUrl);
     
-    const templates = await fetchPromptTemplates(headers, recentFilters);
-    console.log(`Fetched ${templates.length} initial prompt templates`);
+    const recent = await fetchPromptTemplates(headers, recentFilters);
+    console.log(`Fetched ${recent.length} recent prompt templates`);
     
-    // Mark favorites
-    templates.forEach(template => {
-      if (template.is_favorite) {
-        console.log(`Template marked as favorite: ${template.id} - ${template.title}`);
-      }
-    });
+    // Remove duplicates from recent that already exist in favorites
+    const favoriteIds = new Set(favoritesWithFlag.map(f => f.id));
+    const uniqueRecent = recent.filter(template => !favoriteIds.has(template.id));
+    console.log(`After filtering duplicates: ${uniqueRecent.length} unique recent templates`);
     
-    return templates;
+    // Combine favorites and non-duplicate recent items
+    const combined = [...favoritesWithFlag, ...uniqueRecent];
+    console.log(`Returning ${combined.length} total templates (${favoritesWithFlag.length} favorites + ${uniqueRecent.length} non-duplicated recent)`);
+    
+    return combined;
   } catch (error) {
     console.error('Error fetching initial prompt templates:', error);
     return [];

@@ -190,9 +190,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     
     if (data.promptTemplates) {
       setPromptTemplates(prev => {
+        // Check if this update has different content than the current state
         if (JSON.stringify(prev) !== JSON.stringify(data.promptTemplates)) {
-          console.log(`Updating promptTemplates: ${prev.length} -> ${data.promptTemplates!.length}`);
-          return data.promptTemplates!;
+          // Log information about the favorites to help debug
+          const prevFavorites = prev.filter(p => p.is_favorite).length;
+          const newFavorites = data.promptTemplates!.filter(p => p.is_favorite).length;
+          
+          console.log(`Updating promptTemplates: ${prev.length} -> ${data.promptTemplates!.length} (Favorites: ${prevFavorites} -> ${newFavorites})`);
+          
+          // Ensure favorites are properly marked
+          const templates = data.promptTemplates!.map(template => ({
+            ...template,
+            // Ensure is_favorite flag is explicitly set 
+            is_favorite: !!template.is_favorite
+          }));
+          
+          return templates;
         }
         return prev;
       });
