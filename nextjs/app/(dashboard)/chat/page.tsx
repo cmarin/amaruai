@@ -472,9 +472,15 @@ function ChatContent() {
   }, [loadAssets]);
 
   // Function to handle loading more prompts
-  const handleLoadMorePrompts = useCallback((newPrompts: PromptTemplate[]) => {
+  const handleLoadMorePrompts = useCallback((newPrompts: PromptTemplate[], offset?: number) => {
     if (!newPrompts || newPrompts.length === 0) {
       console.log('No new prompts to add');
+      return;
+    }
+
+    // Prevent duplicate state updates if we're already updating
+    if (isLoading) {
+      console.log('Already loading, skipping state update');
       return;
     }
 
@@ -494,7 +500,7 @@ function ChatContent() {
     setData({
       promptTemplates: [...prompts, ...uniqueNewPrompts]
     });
-  }, [prompts, setData]);
+  }, [prompts, setData, isLoading]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">

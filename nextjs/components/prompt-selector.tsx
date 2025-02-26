@@ -117,6 +117,9 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
 
       console.log(`Loading more prompts starting from offset ${offset}`);
       
+      // Add a delay to prevent rapid fire requests
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       // Fetch next batch of prompts
       const additionalPrompts = await fetchPromptTemplates(headers, {
         skip: offset,
@@ -141,7 +144,10 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
     } catch (error) {
       console.error('Error loading more prompts:', error)
     } finally {
-      setIsLoadingMore(false)
+      // Add a small delay before allowing more loads to prevent accidental double-clicks
+      setTimeout(() => {
+        setIsLoadingMore(false)
+      }, 500);
     }
   }
 

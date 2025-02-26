@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { ChatModel as BaseChatModel, fetchChatModels, fetchFavoriteChatModels } from '../utils/chat-model-service';
 import { Persona, fetchPersonas } from '../utils/persona-service';
 import { PromptTemplate, fetchPromptTemplates, fetchInitialPromptTemplates } from '@/utils/prompt-template-service';
@@ -63,8 +63,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Use a ref for more reliable fetch lock tracking
+  const fetchLockRef = useRef(false);
+
   const fetchData = useCallback(async () => {
-    if (!initialized || isFetching) return;
+    // Guard against uninitialized session
+    if (!initialized) {
+      console.log('Session not initialized, skipping fetch');
+      return;
+    }
+
+    // Check if we're already fetching using the ref
+    if (fetchLockRef.current) {
+      console.log('Fetch already in progress, skipping duplicate fetch');
+      return;
+    }
 
     const headers = getApiHeaders();
     if (!headers) {
@@ -72,70 +85,91 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Set the lock
+    fetchLockRef.current = true;
     setIsLoading(true);
     setIsFetching(true);
     setError(null);
 
+    // Log which user is being fetched for
+    const userId = session?.user?.id;
+    console.log('Fetching data for user:', userId);
+
     try {
-      const userId = session?.user?.id;
-      console.log('Fetching prompt templates for user:', userId);
-
-      const fetchResults = await Promise.allSettled([
-        fetchChatModels(headers),
-        fetchFavoriteChatModels(headers),
-        fetchPersonas(headers),
-        fetchInitialPromptTemplates(headers, userId),
-        fetchCategories(headers),
-      ]);
-
-      console.log('Fetch results:', fetchResults);
-
-      fetchResults.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          switch (index) {
-            case 0: // chatModels
-              setChatModels(transformChatModels(result.value as BaseChatModel[]));
-              break;
-
-            case 1: // favoriteChatModels
-              setFavoriteChatModels(
-                transformChatModels(result.value as BaseChatModel[]).map(model => ({
-                  ...model,
-                  is_favorite: true
-                }))
-              );
-              break;
-
-            case 2: // personas
-              setPersonas(result.value as Persona[]);
-              break;
-
-            case 3: // promptTemplates
-              const templates = result.value as PromptTemplate[];
-              console.log('Fetched prompt templates:', templates.length, 'favorites:', templates.filter(t => t.is_favorite).length);
-              setPromptTemplates(templates);
-              break;
-
-            case 4: // categories
-              setCategories(result.value as Category[]);
-              break;
-          }
-        } else {
-          console.error(`Failed to fetch data for index ${index}:`, result.reason);
+      // Sequential fetches instead of parallel to reduce server load
+      console.log('Starting sequential data fetches...');
+      
+      // 1. Fetch chat models
+      let models: BaseChatModel[] = [];
+      try {
+        models = await fetchChatModels(headers);
+        setChatModels(transformChatModels(models));
+      } catch (err) {
+        console.error('Error fetching chat models:', err);
+      }
+      
+      // 2. Fetch favorite chat models
+      try {
+        const favModels = await fetchFavoriteChatModels(headers);
+        setFavoriteChatModels(
+          transformChatModels(favModels).map(model => ({
+            ...model,
+            is_favorite: true
+          }))
+        );
+      } catch (err) {
+        console.error('Error fetching favorite chat models:', err);
+      }
+      
+      // 3. Fetch personas
+      try {
+        const personaData = await fetchPersonas(headers);
+        setPersonas(personaData);
+      } catch (err) {
+        console.error('Error fetching personas:', err);
+      }
+      
+      // 4. Fetch categories
+      try {
+        const categoryData = await fetchCategories(headers);
+        setCategories(categoryData);
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+      }
+      
+      // 5. Fetch prompt templates last
+      try {
+        if (userId) {
+          const templates = await fetchInitialPromptTemplates(headers, userId);
+          console.log('Fetched prompt templates:', templates.length, 'favorites:', templates.filter(t => t.is_favorite).length);
+          setPromptTemplates(templates);
         }
-      });
+      } catch (err) {
+        console.error('Error fetching prompt templates:', err);
+      }
+      
+      console.log('All data fetched successfully');
     } catch (err) {
       console.error('Error in fetchData:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
       setIsLoading(false);
       setIsFetching(false);
+      
+      // Clear the fetch lock after a delay to prevent rapid successive calls
+      setTimeout(() => {
+        fetchLockRef.current = false;
+      }, 2000);
     }
-  }, [getApiHeaders, initialized, isFetching, session]);
+  }, [getApiHeaders, initialized, session]);
 
+  // Use a stable dependency array to prevent unnecessary re-renders
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (initialized && session?.user?.id) {
+      console.log('Session initialized and user ID available, fetching data');
+      fetchData();
+    }
+  }, [initialized, session?.user?.id]);  // Only depend on these essential variables
 
   const setData = useCallback((data: {
     chatModels?: ChatModel[];
@@ -144,15 +178,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     promptTemplates?: PromptTemplate[];
     categories?: Category[];
   }) => {
-    if (data.chatModels) setChatModels(data.chatModels);
-    if (data.favoriteChatModels) setFavoriteChatModels(data.favoriteChatModels);
-    if (data.personas) setPersonas(data.personas);
-    if (data.promptTemplates) setPromptTemplates(data.promptTemplates);
-    if (data.categories) setCategories(data.categories);
+    // Only update states that actually change
+    if (data.chatModels) setChatModels(prev => 
+      JSON.stringify(prev) !== JSON.stringify(data.chatModels) ? data.chatModels! : prev);
+    
+    if (data.favoriteChatModels) setFavoriteChatModels(prev => 
+      JSON.stringify(prev) !== JSON.stringify(data.favoriteChatModels) ? data.favoriteChatModels! : prev);
+    
+    if (data.personas) setPersonas(prev => 
+      JSON.stringify(prev) !== JSON.stringify(data.personas) ? data.personas! : prev);
+    
+    if (data.promptTemplates) {
+      setPromptTemplates(prev => {
+        if (JSON.stringify(prev) !== JSON.stringify(data.promptTemplates)) {
+          console.log(`Updating promptTemplates: ${prev.length} -> ${data.promptTemplates!.length}`);
+          return data.promptTemplates!;
+        }
+        return prev;
+      });
+    }
+    
+    if (data.categories) setCategories(prev => 
+      JSON.stringify(prev) !== JSON.stringify(data.categories) ? data.categories! : prev);
   }, []);
 
   const refetchData = useCallback(async () => {
-    await fetchData();
+    // Only refetch if not currently fetching
+    if (!fetchLockRef.current) {
+      await fetchData();
+    } else {
+      console.log('Skipping refetch - fetch already in progress');
+    }
   }, [fetchData]);
 
   return (
