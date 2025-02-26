@@ -60,15 +60,9 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
     // Create Uncategorized category (rename from 'All Prompts')
     newGroupedPrompts['Uncategorized'] = []
     
-    // Group prompts by category - avoid duplicating favorites in other categories
-    const favoriteIds = new Set(favoritePrompts.map(p => p.id))
-    
+    // Group prompts by category - IMPORTANT: Don't skip favorites in regular categories
+    // We want favorites to appear in both Favorites AND their original categories
     prompts.forEach(prompt => {
-      // Skip favorites - they're already in the Favorites category
-      if (favoriteIds.has(prompt.id)) {
-        return;
-      }
-      
       if (!prompt.categories || prompt.categories.length === 0) {
         // If prompt has no categories, add to 'Uncategorized'
         newGroupedPrompts['Uncategorized'].push(prompt)
@@ -91,6 +85,8 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
     // Log the result to help debug
     console.log('Grouped prompts categories:', Object.keys(newGroupedPrompts));
     console.log('Favorites category count:', newGroupedPrompts['Favorites']?.length || 0);
+    console.log('All categories with counts:', Object.entries(newGroupedPrompts).map(([key, val]) => 
+      `${key}: ${val.length}`).join(', '));
     
     setGroupedPrompts(newGroupedPrompts)
   }, [prompts, categories])
@@ -125,6 +121,8 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
   useEffect(() => {
     if (orderedCategories.length > 0) {
       console.log('Ordered categories:', orderedCategories.map(([name]) => name).join(', '));
+      console.log('Category counts:', orderedCategories.map(([name, prompts]) => 
+        `${name}: ${prompts.length}`).join(', '));
     }
   }, [orderedCategories]);
 
