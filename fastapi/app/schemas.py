@@ -96,6 +96,7 @@ class ChatModelBase(BaseModel):
     api_key: str | None = None
     default: bool = False
     max_tokens: int | None = None
+    position: int | None = None
 
     @validator('description', pre=True, always=True)
     def set_default_description(cls, v, values):
@@ -120,9 +121,24 @@ class ChatModelUpdate(BaseModel):
     api_key: str | None = None
     default: bool | None = None
     max_tokens: int | None = None
+    position: int | None = None
 
 class ChatModel(ChatModelBase):
     id: UUID
+    is_favorited: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ChatModelResponse(BaseModel):
+    """Response model for ChatModel that excludes the api_key field"""
+    id: UUID
+    name: str
+    model: str
+    provider: str | None = None
+    description: str = ""
+    default: bool = False
+    max_tokens: int | None = None
+    position: int | None = None
     is_favorited: bool = False
 
     model_config = ConfigDict(from_attributes=True)
@@ -140,7 +156,7 @@ class PromptTemplate(PromptTemplateBase):
     categories: List[Category] = []
     tags: List[Tag] = []
     default_persona: Optional["Persona"] = None
-    default_chat_model: Optional["ChatModel"] = None
+    default_chat_model: Optional["ChatModelResponse"] = None
     is_favorited: Optional[bool] = False
     favorite_count: Optional[int] = 0
 
@@ -306,7 +322,7 @@ class WorkflowStepResponse(BaseModel):
     id: UUID
     prompt_template: Optional[PromptTemplateSimple] = None
     persona: Optional[PersonaBase] = None
-    chat_model: Optional[ChatModel] = None
+    chat_model: Optional[ChatModelResponse] = None
     position: int
 
     model_config = ConfigDict(from_attributes=True)
@@ -330,7 +346,7 @@ class WorkflowStep(BaseModel):
     position: int
     prompt_template: Optional[PromptTemplateSimple] = None
     persona: Optional[PersonaBase] = None
-    chat_model: Optional[ChatModel] = None
+    chat_model: Optional[ChatModelResponse] = None
 
     model_config = ConfigDict(from_attributes=True)
 
