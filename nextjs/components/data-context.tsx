@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { ChatModel as BaseChatModel, fetchChatModels, fetchFavoriteChatModels } from '../utils/chat-model-service';
 import { Persona, fetchPersonas } from '../utils/persona-service';
-import { PromptTemplate, fetchPromptTemplates } from '@/utils/prompt-template-service';
+import { PromptTemplate, fetchPromptTemplates, fetchInitialPromptTemplates } from '@/utils/prompt-template-service';
 import { Category, fetchCategories } from '../utils/category-service';
 import { useSession } from '@/app/utils/session/session';
 
@@ -45,7 +45,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { getApiHeaders, initialized } = useSession();
+  const { getApiHeaders, initialized, session } = useSession();
 
   // Transform function defined outside the loop to avoid hoisting issues
   const transformChatModels = (models: BaseChatModel[]): ChatModel[] => {
@@ -80,7 +80,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         fetchChatModels(headers),
         fetchFavoriteChatModels(headers),
         fetchPersonas(headers),
-        fetchPromptTemplates(headers),
+        fetchInitialPromptTemplates(headers, session?.user?.id),
         fetchCategories(headers),
       ]);
 
@@ -126,7 +126,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [getApiHeaders, initialized]);
+  }, [getApiHeaders, initialized, session]);
 
   useEffect(() => {
     fetchData();

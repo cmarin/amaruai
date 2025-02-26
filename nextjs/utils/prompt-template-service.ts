@@ -39,7 +39,7 @@ export interface PromptTemplate {
   category?: string;  // For form handling
   default_persona_id?: string | null;
   default_chat_model_id?: string | null;
-  is_favorite?: boolean;
+  is_favorite: boolean;
 }
 
 export interface CreatePromptTemplateRequest {
@@ -196,6 +196,7 @@ export async function fetchPromptTemplates(
       category_id: template.category_id?.toString(),
       default_persona_id: template.default_persona_id?.toString(),
       default_chat_model_id: template.default_chat_model_id?.toString(),
+      is_favorite: template.is_favorite || false,
       tags: template.tags?.map((tag: any) => ({
         ...tag,
         id: tag.id?.toString() || ''
@@ -223,6 +224,7 @@ export async function fetchPromptTemplate(promptTemplateId: string, headers: Api
       category_id: data.category_id?.toString(),
       default_persona_id: data.default_persona_id?.toString(),
       default_chat_model_id: data.default_chat_model_id?.toString(),
+      is_favorite: data.is_favorite || false,
       tags: data.tags?.map((tag: any) => ({
         ...tag,
         id: tag.id?.toString() || ''
@@ -280,10 +282,50 @@ export async function fetchFavoritePromptTemplates(headers: ApiHeaders): Promise
       category_id: template.category_id?.toString(),
       default_persona_id: template.default_persona_id?.toString(),
       default_chat_model_id: template.default_chat_model_id?.toString(),
+      is_favorite: template.is_favorite || false,
       tags: template.tags?.map((tag: any) => ({
         ...tag,
         id: tag.id?.toString() || ''
       })) || []
     }));
   });
+}
+
+export async function fetchInitialPromptTemplates(
+  headers: ApiHeaders | null,
+  userId?: string
+): Promise<PromptTemplate[]> {
+  // If no headers or userId, return empty array
+  if (!headers || !userId) {
+    return [];
+  }
+
+  try {
+    // Step 1: Fetch up to 10 favorites
+    const favoriteFilters: PromptTemplateFilters = {
+      favorited_by: userId,
+      sort_by: 'created_at',
+      sort_order: 'desc',
+      limit: 10
+    };
+    const favorites = await fetchPromptTemplates(headers, favoriteFilters);
+    
+    // Step 2: Fetch up to 20 additional prompts
+    const recentFilters: PromptTemplateFilters = {
+      sort_by: 'created_at',
+      sort_order: 'desc',
+      limit: 20
+    };
+    const recent = await fetchPromptTemplates(headers, recentFilters);
+    
+    // Step 3: Remove duplicates from recent that already exist in favorites
+    const favoriteIds = new Set(favorites.map(f => f.id));
+    const uniqueRecent = recent.filter(template => !favoriteIds.has(template.id));
+    
+    // Combine favorites and non-duplicate recent items
+    return [...favorites, ...uniqueRecent];
+  } catch (error) {
+    console.error('Error fetching initial prompt templates:', error);
+    return [];
+  }
 }

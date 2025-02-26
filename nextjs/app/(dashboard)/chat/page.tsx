@@ -44,6 +44,7 @@ import ChatMessage from '@/components/chat-message'
 
 // Import the types and utilities
 import { Message, ChatMode, ChatWindowProps } from '@/types/chat'
+import { PromptTemplate } from '@/utils/prompt-template-service'
 import { 
   isAtBottom, 
   maintainScroll, 
@@ -77,7 +78,7 @@ import { prepareChatSubmission, handleChatSubmission } from '@/utils/chat-servic
 
 function ChatContent() {
   const { sidebarOpen } = useSidebar()
-  const { promptTemplates: prompts, categories, chatModels: allChatModels, personas } = useData()
+  const { promptTemplates: prompts, setData, categories, chatModels: allChatModels, personas } = useData()
   const { session, getApiHeaders } = useSession()
   const supabase = useSupabase()
   const searchParams = useSearchParams()
@@ -470,6 +471,19 @@ function ChatContent() {
     loadAssets();
   }, [loadAssets]);
 
+  // Function to handle loading more prompts
+  const handleLoadMorePrompts = useCallback((newPrompts: PromptTemplate[]) => {
+    // Add new prompts to the existing ones, avoiding duplicates
+    setData({
+      promptTemplates: [
+        ...prompts,
+        ...newPrompts.filter(newPrompt => 
+          !prompts.some(existingPrompt => existingPrompt.id === newPrompt.id)
+        )
+      ]
+    });
+  }, [prompts, setData]);
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       {/* LEFT COLUMN (sidebar) */}
@@ -561,7 +575,12 @@ function ChatContent() {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
+                <PromptSelector 
+                  prompts={prompts} 
+                  categories={categories} 
+                  onSelectPrompt={handlePromptSelect}
+                  onLoad={handleLoadMorePrompts}
+                >
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     <BookOpen className="h-4 w-4" />
                   </Button>

@@ -3,36 +3,57 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { PromptTemplate } from '@/utils/prompt-template-service'
+import { PromptTemplate, fetchPromptTemplates } from '@/utils/prompt-template-service'
 import { Category } from '@/utils/category-service'
+import { Star, Plus } from 'lucide-react'
+import { useSession } from '@/app/utils/session/session'
 
 type PromptSelectorProps = {
   prompts: PromptTemplate[]
   categories: Category[]
   onSelectPrompt: (prompt: PromptTemplate) => void
   children: ReactNode
+  onLoad?: (newPrompts: PromptTemplate[]) => void
 }
 
-export function PromptSelector({ prompts, categories, onSelectPrompt, children }: PromptSelectorProps) {
+export function PromptSelector({ prompts, categories, onSelectPrompt, children, onLoad }: PromptSelectorProps) {
   const [groupedPrompts, setGroupedPrompts] = useState<{ [key: string]: PromptTemplate[] }>({})
   const [searchTerm, setSearchTerm] = useState('')
   const [isOpen, setIsOpen] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [offset, setOffset] = useState(30) // Initial load is ~30 prompts
+  const { getApiHeaders } = useSession()
 
   useEffect(() => {
-    const newGroupedPrompts: { [key: string]: PromptTemplate[] } = {
-      'All Prompts': [] // Default category for prompts without a category
+    // Initialize with special categories 
+    const newGroupedPrompts: { [key: string]: PromptTemplate[] } = {}
+    
+    // Identify favorites
+    const favoritePrompts = prompts.filter(prompt => prompt.is_favorite)
+    
+    // Add Favorites category only if there are favorited prompts
+    if (favoritePrompts.length > 0) {
+      newGroupedPrompts['Favorites'] = favoritePrompts
     }
     
-    // Initialize categories
-    categories.forEach(category => {
-      newGroupedPrompts[category.name] = []
+    // Get all category names and sort alphabetically
+    const categoryNames = categories
+      .map(category => category.name)
+      .sort((a, b) => a.localeCompare(b))
+    
+    // Initialize categories in alphabetical order
+    categoryNames.forEach(name => {
+      newGroupedPrompts[name] = []
     })
-
+    
+    // Create Uncategorized category (rename from 'All Prompts')
+    newGroupedPrompts['Uncategorized'] = []
+    
     // Group prompts by category
     prompts.forEach(prompt => {
       if (!prompt.categories || prompt.categories.length === 0) {
-        // If prompt has no categories, add to 'All Prompts'
-        newGroupedPrompts['All Prompts'].push(prompt)
+        // If prompt has no categories, add to 'Uncategorized'
+        newGroupedPrompts['Uncategorized'].push(prompt)
       } else {
         prompt.categories.forEach(category => {
           if (newGroupedPrompts[category.name]) {
@@ -41,7 +62,14 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children }
         })
       }
     })
-
+    
+    // Remove empty categories
+    Object.keys(newGroupedPrompts).forEach(key => {
+      if (newGroupedPrompts[key].length === 0 && key !== 'Uncategorized') {
+        delete newGroupedPrompts[key]
+      }
+    })
+    
     setGroupedPrompts(newGroupedPrompts)
   }, [prompts, categories])
 
@@ -62,6 +90,40 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children }
     // ... existing code
   }
 
+  const handleLoadMore = async () => {
+    setIsLoadingMore(true)
+    try {
+      const headers = getApiHeaders()
+      if (!headers) {
+        console.error('No valid headers available')
+        setIsLoadingMore(false)
+        return
+      }
+
+      // Fetch next batch of prompts
+      const additionalPrompts = await fetchPromptTemplates(headers, {
+        skip: offset,
+        limit: 20,
+        sort_by: 'created_at',
+        sort_order: 'desc'
+      })
+
+      if (additionalPrompts.length > 0) {
+        // Increment the offset for next load
+        setOffset(prev => prev + additionalPrompts.length)
+        
+        // Notify parent component about new prompts
+        if (onLoad) {
+          onLoad(additionalPrompts)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading more prompts:', error)
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }
+
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
@@ -79,24 +141,44 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children }
         </div>
         <ScrollArea className="h-[300px]">
           {Object.entries(filteredCategories).length > 0 ? (
-            Object.entries(filteredCategories).map(([category, categoryPrompts]) => (
-              <div key={category} className="p-2">
-                <h3 className="font-semibold mb-2">{category}</h3>
-                {categoryPrompts.map(prompt => (
-                  <Button
-                    key={prompt.id}
-                    variant="ghost"
-                    className="w-full justify-start text-left"
-                    onClick={() => {
-                      onSelectPrompt(prompt)
-                      setIsOpen(false)
-                    }}
-                  >
-                    {prompt.title}
-                  </Button>
-                ))}
+            <>
+              {Object.entries(filteredCategories).map(([category, categoryPrompts]) => (
+                <div key={category} className="p-2">
+                  <h3 className="font-semibold mb-2 flex items-center">
+                    {category === 'Favorites' && <Star className="h-4 w-4 mr-1 text-yellow-400" />}
+                    {category}
+                  </h3>
+                  {categoryPrompts.map(prompt => (
+                    <Button
+                      key={prompt.id}
+                      variant="ghost"
+                      className="w-full justify-start text-left"
+                      onClick={() => {
+                        onSelectPrompt(prompt)
+                        setIsOpen(false)
+                      }}
+                    >
+                      {prompt.title}
+                    </Button>
+                  ))}
+                </div>
+              ))}
+              <div className="p-2 border-t">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-center text-blue-600 hover:text-blue-800"
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                >
+                  {isLoadingMore ? 'Loading...' : (
+                    <>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Load More
+                    </>
+                  )}
+                </Button>
               </div>
-            ))
+            </>
           ) : (
             <div className="p-4 text-center text-gray-500">
               No prompts found
