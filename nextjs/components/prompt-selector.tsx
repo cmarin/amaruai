@@ -1,11 +1,11 @@
-import { useState, useEffect, ReactNode } from 'react'
+import { useState, useEffect, ReactNode, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { PromptTemplate, fetchPromptTemplates } from '@/utils/prompt-template-service'
 import { Category } from '@/utils/category-service'
-import { Star, Plus } from 'lucide-react'
+import { Star, Plus, Loader2 } from 'lucide-react'
 import { useSession } from '@/app/utils/session/session'
 
 type PromptSelectorProps = {
@@ -16,30 +16,43 @@ type PromptSelectorProps = {
   onLoad?: (newPrompts: PromptTemplate[]) => void
 }
 
+// Simple debounce function
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | null = null;
+  
+  return function(...args: Parameters<T>) {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
 export function PromptSelector({ prompts, categories, onSelectPrompt, children, onLoad }: PromptSelectorProps) {
   const [groupedPrompts, setGroupedPrompts] = useState<{ [key: string]: PromptTemplate[] }>({})
   const [searchTerm, setSearchTerm] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchResults, setSearchResults] = useState<PromptTemplate[]>([])
   const [offset, setOffset] = useState(30) // Initial load is ~30 prompts
   const { getApiHeaders } = useSession()
 
-  useEffect(() => {
+  // Group the prompts into categories
+  const groupPromptsByCategory = useCallback((promptsToGroup: PromptTemplate[], useSearchResults = false) => {
     // Enhanced logging for debugging
-    console.log('Prompts received in selector:', prompts.length);
-    console.log('Favorites count (is_favorite):', prompts.filter(p => p.is_favorite).length);
+    console.log('Grouping prompts:', promptsToGroup.length);
+    console.log('Favorites count (is_favorite):', promptsToGroup.filter(p => p.is_favorite).length);
     
     // Check if any prompts have an is_favorited property (API might return this)
-    const hasFavoritedProps = prompts.some(p => (p as any).is_favorited);
+    const hasFavoritedProps = promptsToGroup.some(p => (p as any).is_favorited);
     if (hasFavoritedProps) {
-      console.log('Favorites count (is_favorited):', prompts.filter(p => (p as any).is_favorited).length);
+      console.log('Favorites count (is_favorited):', promptsToGroup.filter(p => (p as any).is_favorited).length);
     }
     
     // Initialize with special categories in a specific order
     const newGroupedPrompts: { [key: string]: PromptTemplate[] } = {}
     
     // Identify favorites - check is_favorite and possibly is_favorited property
-    const favoritePrompts = prompts.filter(prompt => 
+    const favoritePrompts = promptsToGroup.filter(prompt => 
       prompt.is_favorite || (hasFavoritedProps && (prompt as any).is_favorited)
     );
     
@@ -51,17 +64,20 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
     // Add Favorites category ALWAYS to the top (even if empty)
     newGroupedPrompts['Favorites'] = favoritePrompts;
     
-    // Process all categories from the categories prop
-    // This ensures we have ALL categories, not just ones with prompts
-    categories.forEach(category => {
-      newGroupedPrompts[category.name] = [];
-    });
+    // When in search mode, we don't need to add empty categories
+    if (!useSearchResults) {
+      // Process all categories from the categories prop
+      // This ensures we have ALL categories, not just ones with prompts
+      categories.forEach(category => {
+        newGroupedPrompts[category.name] = [];
+      });
+    }
     
     // Create Uncategorized category
     newGroupedPrompts['Uncategorized'] = [];
     
     // Group prompts by category - IMPORTANT: Skip favorites in regular categories
-    prompts.forEach(prompt => {
+    promptsToGroup.forEach(prompt => {
       // Skip this prompt in regular categories if it's a favorite
       if (favoriteIds.has(prompt.id)) {
         return; // Skip to next prompt
@@ -75,7 +91,7 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
           if (newGroupedPrompts[category.name]) {
             newGroupedPrompts[category.name].push(prompt);
           } else {
-            // Create category if it doesn't exist (shouldn't happen, but just in case)
+            // Create category if it doesn't exist
             newGroupedPrompts[category.name] = [prompt];
           }
         });
@@ -95,25 +111,77 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
     console.log('All categories with counts:', Object.entries(newGroupedPrompts).map(([key, val]) => 
       `${key}: ${val.length}`).join(', '));
     
-    setGroupedPrompts(newGroupedPrompts);
-  }, [prompts, categories]);
+    return newGroupedPrompts;
+  }, [categories]);
 
-  // Filter categories based on search term
-  const filteredCategories = Object.entries(groupedPrompts).reduce((acc, [category, categoryPrompts]) => {
-    const filteredPrompts = categoryPrompts.filter(prompt =>
-      prompt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (prompt.prompt && typeof prompt.prompt === 'string' && prompt.prompt.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      prompt.categories.some(cat => cat.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      prompt.tags.some(tag => tag.name && tag.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
-    if (filteredPrompts.length > 0 || category === 'Favorites') {
-      acc[category] = filteredPrompts
+  // Handle initial grouping of prompts
+  useEffect(() => {
+    setGroupedPrompts(groupPromptsByCategory(prompts));
+  }, [prompts, groupPromptsByCategory]);
+
+  // Search API function
+  const searchPromptTemplates = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      // If search is cleared, reset to show original prompts
+      setSearchResults([]);
+      setGroupedPrompts(groupPromptsByCategory(prompts));
+      setIsSearching(false);
+      return;
     }
-    return acc
-  }, {} as { [key: string]: PromptTemplate[] })
+    
+    setIsSearching(true);
+    try {
+      const headers = getApiHeaders();
+      if (!headers) {
+        console.error('No valid headers available');
+        setIsSearching(false);
+        return;
+      }
+      
+      console.log(`Searching for: "${query}"`);
+      
+      // Call the API with the query parameter
+      const results = await fetchPromptTemplates(headers, {
+        query: query,
+        limit: 20,
+        sort_by: 'created_at',
+        sort_order: 'desc'
+      });
+      
+      console.log(`Found ${results.length} search results for "${query}"`);
+      
+      // Update search results
+      setSearchResults(results);
+      
+      // Group the search results into categories
+      if (results.length > 0) {
+        setGroupedPrompts(groupPromptsByCategory(results, true));
+      } else {
+        // If no results, show empty state but keep 'Favorites' category
+        setGroupedPrompts({ 'Favorites': [] });
+      }
+    } catch (error) {
+      console.error('Error searching prompt templates:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [getApiHeaders, prompts, groupPromptsByCategory]);
+  
+  // Create a debounced version of the search function
+  const debouncedSearch = useCallback(
+    debounce((query: string) => searchPromptTemplates(query), 500),
+    [searchPromptTemplates]
+  );
+
+  // Handle search input changes
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchTerm(query);
+    debouncedSearch(query);
+  };
 
   // Ensure categories are displayed in the correct order
-  const orderedCategories = Object.entries(filteredCategories).sort((a, b) => {
+  const orderedCategories = Object.entries(groupedPrompts).sort((a, b) => {
     // Favorites always first
     if (a[0] === 'Favorites') return -1;
     if (b[0] === 'Favorites') return 1;
@@ -136,7 +204,7 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
   }, [orderedCategories]);
 
   const handleLoadMore = async () => {
-    if (isLoadingMore) return; // Prevent duplicate calls
+    if (isLoadingMore || searchTerm) return; // Don't load more if we're searching
     
     setIsLoadingMore(true)
     try {
@@ -189,14 +257,19 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
         {children}
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0">
-        <div className="p-2">
+        <div className="p-2 relative">
           <Input
             type="text"
             placeholder="Search prompts..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             className="mb-2"
           />
+          {isSearching && (
+            <div className="absolute right-4 top-4">
+              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+            </div>
+          )}
         </div>
         <ScrollArea className="h-[300px]">
           {orderedCategories.length > 0 ? (
@@ -207,40 +280,48 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
                     {category === 'Favorites' && <Star className="h-4 w-4 mr-1 text-yellow-400" />}
                     {category}
                   </h3>
-                  {categoryPrompts.map(prompt => (
-                    <Button
-                      key={prompt.id}
-                      variant="ghost"
-                      className="w-full justify-start text-left"
-                      onClick={() => {
-                        onSelectPrompt(prompt)
-                        setIsOpen(false)
-                      }}
-                    >
-                      {prompt.title}
-                    </Button>
-                  ))}
+                  {categoryPrompts.length > 0 ? (
+                    categoryPrompts.map(prompt => (
+                      <Button
+                        key={prompt.id}
+                        variant="ghost"
+                        className="w-full justify-start text-left"
+                        onClick={() => {
+                          onSelectPrompt(prompt)
+                          setIsOpen(false)
+                        }}
+                      >
+                        {prompt.title}
+                      </Button>
+                    ))
+                  ) : (
+                    <div className="text-sm text-gray-500 py-1 px-2">
+                      No prompts in this category
+                    </div>
+                  )}
                 </div>
               ))}
-              <div className="p-2 border-t">
-                <Button
-                  variant="ghost"
-                  className="w-full justify-center text-blue-600 hover:text-blue-800"
-                  onClick={handleLoadMore}
-                  disabled={isLoadingMore}
-                >
-                  {isLoadingMore ? 'Loading...' : (
-                    <>
-                      <Plus className="h-4 w-4 mr-1" />
-                      Load More
-                    </>
-                  )}
-                </Button>
-              </div>
+              {!searchTerm && (
+                <div className="p-2 border-t">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-center text-blue-600 hover:text-blue-800"
+                    onClick={handleLoadMore}
+                    disabled={isLoadingMore}
+                  >
+                    {isLoadingMore ? 'Loading...' : (
+                      <>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Load More
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </>
           ) : (
             <div className="p-4 text-center text-gray-500">
-              No prompts found
+              {searchTerm ? 'No prompts found for your search' : 'No prompts found'}
             </div>
           )}
         </ScrollArea>

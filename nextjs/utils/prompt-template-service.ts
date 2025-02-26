@@ -70,6 +70,7 @@ export interface PromptTemplateFilters {
   favorited_by?: string;
   has_favorites?: boolean;
   created_by?: string;
+  query?: string; // Add text search parameter
 }
 
 // Simple in-memory request tracker to prevent duplicate calls
