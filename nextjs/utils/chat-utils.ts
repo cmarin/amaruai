@@ -26,14 +26,19 @@ export const isAtBottom = (containerRef: HTMLElement): boolean => {
 
 /**
  * Maintains scroll position based on whether we were at the bottom before
+ * Returns whether the scroll was maintained at the bottom
  */
-export const maintainScroll = (containerRef: HTMLElement, wasAtBottom: boolean): void => {
-  if (!containerRef) return;
+export const maintainScroll = (containerRef: HTMLElement, wasAtBottom: boolean): boolean => {
+  if (!containerRef) return wasAtBottom;
   
   // If we were at the bottom before the update, scroll to bottom
   if (wasAtBottom) {
     containerRef.scrollTop = containerRef.scrollHeight;
+    return true;
   }
+  
+  // Otherwise, maintain the current scroll position
+  return false;
 };
 
 /**
@@ -342,8 +347,22 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
                     content: assistantMessage,
                   };
                   
-                  // With our new approach, scrolling is already enabled
-                  console.log(`Chat ${chatId} - Scrolling should be enabled during streaming`);
+                  // Get the specific scroll container for this chat window
+                  const scrollContainer = chatContainerRefs.current[chatId];
+                  
+                  // Check if the user has manually scrolled
+                  const chatWindow = document.querySelector(`[data-chat-id="${chatId}"]`);
+                  const userHasScrolled = chatWindow?.getAttribute('data-user-scrolled') === 'true';
+                  
+                  // Only auto-scroll if the user hasn't manually scrolled
+                  if (scrollContainer && !userHasScrolled) {
+                    // Delay the scroll to allow the content to render
+                    setTimeout(() => {
+                      if (scrollContainer) {
+                        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                      }
+                    }, 0);
+                  }
                   
                   return updated;
                 });
