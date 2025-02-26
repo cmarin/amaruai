@@ -25,11 +25,15 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
   const { getApiHeaders } = useSession()
 
   useEffect(() => {
-    // Initialize with special categories 
+    // Log for debugging
+    console.log('Prompts received in selector:', prompts.length, 'favorites:', prompts.filter(p => p.is_favorite).length);
+    
+    // Initialize with special categories in a specific order
     const newGroupedPrompts: { [key: string]: PromptTemplate[] } = {}
     
     // Identify favorites
     const favoritePrompts = prompts.filter(prompt => prompt.is_favorite)
+    console.log('Favorites identified:', favoritePrompts.length);
     
     // Add Favorites category only if there are favorited prompts
     if (favoritePrompts.length > 0) {
@@ -73,6 +77,7 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
     setGroupedPrompts(newGroupedPrompts)
   }, [prompts, categories])
 
+  // Filter categories based on search term
   const filteredCategories = Object.entries(groupedPrompts).reduce((acc, [category, categoryPrompts]) => {
     const filteredPrompts = categoryPrompts.filter(prompt =>
       prompt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -86,11 +91,21 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
     return acc
   }, {} as { [key: string]: PromptTemplate[] })
 
-  const handleCategoryClick = (category: Category) => {
-    // ... existing code
-  }
+  // Ensure categories are displayed in the correct order
+  const orderedCategories = Object.entries(filteredCategories).sort((a, b) => {
+    // Favorites always first
+    if (a[0] === 'Favorites') return -1;
+    if (b[0] === 'Favorites') return 1;
+    // Uncategorized always last
+    if (a[0] === 'Uncategorized') return 1;
+    if (b[0] === 'Uncategorized') return -1;
+    // Everything else alphabetically
+    return a[0].localeCompare(b[0]);
+  });
 
   const handleLoadMore = async () => {
+    if (isLoadingMore) return; // Prevent duplicate calls
+    
     setIsLoadingMore(true)
     try {
       const headers = getApiHeaders()
@@ -100,6 +115,8 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
         return
       }
 
+      console.log(`Loading more prompts starting from offset ${offset}`);
+      
       // Fetch next batch of prompts
       const additionalPrompts = await fetchPromptTemplates(headers, {
         skip: offset,
@@ -109,6 +126,8 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
       })
 
       if (additionalPrompts.length > 0) {
+        console.log(`Loaded ${additionalPrompts.length} additional prompts`);
+        
         // Increment the offset for next load
         setOffset(prev => prev + additionalPrompts.length)
         
@@ -116,6 +135,8 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
         if (onLoad) {
           onLoad(additionalPrompts)
         }
+      } else {
+        console.log('No additional prompts found');
       }
     } catch (error) {
       console.error('Error loading more prompts:', error)
@@ -140,9 +161,9 @@ export function PromptSelector({ prompts, categories, onSelectPrompt, children, 
           />
         </div>
         <ScrollArea className="h-[300px]">
-          {Object.entries(filteredCategories).length > 0 ? (
+          {orderedCategories.length > 0 ? (
             <>
-              {Object.entries(filteredCategories).map(([category, categoryPrompts]) => (
+              {orderedCategories.map(([category, categoryPrompts]) => (
                 <div key={category} className="p-2">
                   <h3 className="font-semibold mb-2 flex items-center">
                     {category === 'Favorites' && <Star className="h-4 w-4 mr-1 text-yellow-400" />}

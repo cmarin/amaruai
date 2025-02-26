@@ -72,6 +72,23 @@ export interface PromptTemplateFilters {
   created_by?: string;
 }
 
+// Add cache for API responses
+const templateCache: {
+  [key: string]: {
+    data: PromptTemplate[];
+    timestamp: number;
+  }
+} = {};
+
+// Cache TTL in milliseconds (5 minutes)
+const CACHE_TTL = 5 * 60 * 1000;
+
+// Helper to generate a cache key from API parameters
+const getCacheKey = (filters?: PromptTemplateFilters): string => {
+  if (!filters) return 'all';
+  return JSON.stringify(filters);
+};
+
 export async function createPromptTemplate(
   promptTemplate: CreatePromptTemplateRequest,
   headers: ApiHeaders
@@ -165,6 +182,18 @@ export async function fetchPromptTemplates(
   headers: ApiHeaders | null,
   filters?: PromptTemplateFilters
 ): Promise<PromptTemplate[]> {
+  // Generate cache key from the filters
+  const cacheKey = getCacheKey(filters);
+  
+  // Check if we have a valid cached response
+  const cached = templateCache[cacheKey];
+  const now = Date.now();
+  
+  if (cached && (now - cached.timestamp < CACHE_TTL)) {
+    console.log(`Using cached prompt templates for key: ${cacheKey}`);
+    return cached.data;
+  }
+
   return await fetchWithRetry(async () => {
     // Construct query parameters
     const queryParams = new URLSearchParams();
@@ -178,6 +207,7 @@ export async function fetchPromptTemplates(
 
     const queryString = queryParams.toString();
     const url = `${getApiUrl()}/prompt_templates/${queryString ? `?${queryString}` : ''}`;
+    console.log(`Fetching prompt templates from: ${url}`);
 
     const response = await fetch(url, {
       headers: headers || {},
@@ -190,7 +220,7 @@ export async function fetchPromptTemplates(
     }
 
     const data = await response.json();
-    return data.map((template: any) => ({
+    const templates = data.map((template: any) => ({
       ...template,
       id: template.id?.toString() || '',
       category_id: template.category_id?.toString(),
@@ -202,6 +232,14 @@ export async function fetchPromptTemplates(
         id: tag.id?.toString() || ''
       })) || []
     }));
+    
+    // Cache the response
+    templateCache[cacheKey] = {
+      data: templates,
+      timestamp: now
+    };
+    
+    return templates;
   });
 }
 
@@ -297,10 +335,17 @@ export async function fetchInitialPromptTemplates(
 ): Promise<PromptTemplate[]> {
   // If no headers or userId, return empty array
   if (!headers || !userId) {
+    console.warn('No headers or userId provided for fetchInitialPromptTemplates');
     return [];
   }
 
   try {
+    // Construct both request URLs for debugging
+    const favoritesUrl = `${getApiUrl()}/prompt_templates/?favorited_by=${userId}&sort_by=created_at&sort_order=desc&limit=10`;
+    const recentUrl = `${getApiUrl()}/prompt_templates/?sort_by=created_at&sort_order=desc&limit=20`;
+    console.log('Fetching favorites from:', favoritesUrl);
+    console.log('Fetching recent from:', recentUrl);
+
     // Step 1: Fetch up to 10 favorites
     const favoriteFilters: PromptTemplateFilters = {
       favorited_by: userId,
@@ -309,6 +354,13 @@ export async function fetchInitialPromptTemplates(
       limit: 10
     };
     const favorites = await fetchPromptTemplates(headers, favoriteFilters);
+    console.log(`Fetched ${favorites.length} favorite prompt templates`);
+    
+    // Make sure all favorites have is_favorite set to true
+    const favoritesWithFlag = favorites.map(fav => ({
+      ...fav,
+      is_favorite: true
+    }));
     
     // Step 2: Fetch up to 20 additional prompts
     const recentFilters: PromptTemplateFilters = {
@@ -317,13 +369,18 @@ export async function fetchInitialPromptTemplates(
       limit: 20
     };
     const recent = await fetchPromptTemplates(headers, recentFilters);
+    console.log(`Fetched ${recent.length} recent prompt templates`);
     
     // Step 3: Remove duplicates from recent that already exist in favorites
-    const favoriteIds = new Set(favorites.map(f => f.id));
+    const favoriteIds = new Set(favoritesWithFlag.map(f => f.id));
     const uniqueRecent = recent.filter(template => !favoriteIds.has(template.id));
+    console.log(`After filtering duplicates: ${uniqueRecent.length} unique recent templates`);
     
     // Combine favorites and non-duplicate recent items
-    return [...favorites, ...uniqueRecent];
+    const combined = [...favoritesWithFlag, ...uniqueRecent];
+    console.log(`Returning ${combined.length} total templates (${favoritesWithFlag.length} favorites + ${uniqueRecent.length} non-duplicated recent)`);
+    
+    return combined;
   } catch (error) {
     console.error('Error fetching initial prompt templates:', error);
     return [];

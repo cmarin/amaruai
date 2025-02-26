@@ -473,14 +473,26 @@ function ChatContent() {
 
   // Function to handle loading more prompts
   const handleLoadMorePrompts = useCallback((newPrompts: PromptTemplate[]) => {
+    if (!newPrompts || newPrompts.length === 0) {
+      console.log('No new prompts to add');
+      return;
+    }
+
+    console.log(`Adding ${newPrompts.length} new prompts to existing ${prompts.length} prompts`);
+    
     // Add new prompts to the existing ones, avoiding duplicates
+    const existingIds = new Set(prompts.map(p => p.id));
+    const uniqueNewPrompts = newPrompts.filter(newPrompt => !existingIds.has(newPrompt.id));
+    
+    if (uniqueNewPrompts.length === 0) {
+      console.log('All new prompts are duplicates, not updating state');
+      return;
+    }
+    
+    console.log(`Adding ${uniqueNewPrompts.length} unique new prompts`);
+    
     setData({
-      promptTemplates: [
-        ...prompts,
-        ...newPrompts.filter(newPrompt => 
-          !prompts.some(existingPrompt => existingPrompt.id === newPrompt.id)
-        )
-      ]
+      promptTemplates: [...prompts, ...uniqueNewPrompts]
     });
   }, [prompts, setData]);
 

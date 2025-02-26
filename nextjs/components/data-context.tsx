@@ -45,6 +45,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isFetching, setIsFetching] = useState(false);
   const { getApiHeaders, initialized, session } = useSession();
 
   // Transform function defined outside the loop to avoid hoisting issues
@@ -63,7 +64,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const fetchData = useCallback(async () => {
-    if (!initialized) return;
+    if (!initialized || isFetching) return;
 
     const headers = getApiHeaders();
     if (!headers) {
@@ -72,21 +73,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
 
     setIsLoading(true);
+    setIsFetching(true);
     setError(null);
 
     try {
-      // Fetch each resource independently to handle partial failures
+      const userId = session?.user?.id;
+      console.log('Fetching prompt templates for user:', userId);
+
       const fetchResults = await Promise.allSettled([
         fetchChatModels(headers),
         fetchFavoriteChatModels(headers),
         fetchPersonas(headers),
-        fetchInitialPromptTemplates(headers, session?.user?.id),
+        fetchInitialPromptTemplates(headers, userId),
         fetchCategories(headers),
       ]);
 
       console.log('Fetch results:', fetchResults);
 
-      // Process each result individually with proper type handling
       fetchResults.forEach((result, index) => {
         if (result.status === 'fulfilled') {
           switch (index) {
@@ -104,12 +107,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               break;
 
             case 2: // personas
-              console.log('Setting personas:', result.value);
               setPersonas(result.value as Persona[]);
               break;
 
             case 3: // promptTemplates
-              setPromptTemplates(result.value as PromptTemplate[]);
+              const templates = result.value as PromptTemplate[];
+              console.log('Fetched prompt templates:', templates.length, 'favorites:', templates.filter(t => t.is_favorite).length);
+              setPromptTemplates(templates);
               break;
 
             case 4: // categories
@@ -125,8 +129,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
       setIsLoading(false);
+      setIsFetching(false);
     }
-  }, [getApiHeaders, initialized, session]);
+  }, [getApiHeaders, initialized, isFetching, session]);
 
   useEffect(() => {
     fetchData();
