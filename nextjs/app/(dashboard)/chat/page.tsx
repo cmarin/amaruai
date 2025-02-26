@@ -528,136 +528,34 @@ function ChatContent() {
             </div>
           </div>
 
-          {/* Chat messages area - Using an iframe to ensure scrolling works independently */}
+          {/* Chat messages area - Using a simple div with overflow-y: auto */}
           <div 
-            className="flex-1 relative"
-            style={{ height: '100%' }}
+            className="flex-1 p-4 relative overflow-y-auto"
+            onScroll={(e) => handleScroll(e, chatWindowId)}
+            ref={(el) => { chatContainerRefs.current[chatWindowId] = el; }}
+            data-scroll-container={chatWindowId}
+            data-user-scrolled={userScrollStateRef.current[chatWindowId] ? 'true' : 'false'}
+            style={{ height: '100%', scrollBehavior: 'auto' }}
           >
-            <iframe
-              className="w-full h-full border-0"
-              ref={(el) => { 
-                if (el) {
-                  chatContainerRefs.current[chatWindowId] = el.contentDocument?.body as any;
-                  
-                  // Initialize the iframe content
-                  if (el.contentDocument) {
-                    // Add styles to the iframe
-                    const style = el.contentDocument.createElement('style');
-                    style.textContent = `
-                      body {
-                        margin: 0;
-                        padding: 16px;
-                        font-family: sans-serif;
-                        overflow-y: auto;
-                        height: 100%;
-                        background-color: white;
-                      }
-                      .message-container {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 16px;
-                      }
-                      .message {
-                        padding: 12px;
-                        border-radius: 8px;
-                        max-width: 80%;
-                      }
-                      .user {
-                        align-self: flex-end;
-                        background-color: #f0f0f0;
-                      }
-                      .assistant {
-                        align-self: flex-start;
-                        background-color: #e6f7ff;
-                      }
-                      .loading {
-                        position: sticky;
-                        bottom: 16px;
-                        width: 100%;
-                        display: flex;
-                        justify-content: center;
-                      }
-                      .loading-indicator {
-                        background-color: rgba(255, 255, 255, 0.8);
-                        backdrop-filter: blur(4px);
-                        border-radius: 9999px;
-                        padding: 8px 16px;
-                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                        font-size: 14px;
-                        color: #666;
-                      }
-                      @keyframes spin {
-                        to { transform: rotate(360deg); }
-                      }
-                      .spinner {
-                        width: 16px;
-                        height: 16px;
-                        border: 2px solid #ccc;
-                        border-top-color: #666;
-                        border-radius: 50%;
-                        animation: spin 1s linear infinite;
-                      }
-                    `;
-                    el.contentDocument.head.appendChild(style);
-                    
-                    // Create container for messages
-                    const container = el.contentDocument.createElement('div');
-                    container.className = 'message-container';
-                    el.contentDocument.body.appendChild(container);
-                    
-                    // Add scroll event listener
-                    el.contentDocument.addEventListener('scroll', (e) => {
-                      const doc = el.contentDocument;
-                      if (doc) {
-                        const atBottom = (doc.body.scrollHeight - doc.body.scrollTop - doc.body.clientHeight) < 100;
-                        userScrollStateRef.current[chatWindowId] = !atBottom;
-                      }
-                    });
-                  }
-                }
-              }}
-              srcDoc={`<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body></body></html>`}
-              onLoad={(e) => {
-                const iframe = e.currentTarget;
-                const doc = iframe.contentDocument;
-                if (!doc) return;
-                
-                // Clear existing content
-                const container = doc.querySelector('.message-container');
-                if (container) {
-                  container.innerHTML = '';
-                  
-                  // Add messages
-                  messages.forEach(message => {
-                    const messageEl = doc.createElement('div');
-                    messageEl.className = `message ${message.role}`;
-                    messageEl.textContent = message.content;
-                    container.appendChild(messageEl);
-                  });
-                  
-                  // Add loading indicator if streaming
-                  if (isStreaming) {
-                    const loadingEl = doc.createElement('div');
-                    loadingEl.className = 'loading';
-                    loadingEl.innerHTML = `
-                      <div class="loading-indicator">
-                        <div class="spinner"></div>
-                        <span>Generating response...</span>
-                      </div>
-                    `;
-                    container.appendChild(loadingEl);
-                  }
-                  
-                  // Scroll to bottom if not user scrolled
-                  if (!userScrollStateRef.current[chatWindowId]) {
-                    doc.body.scrollTop = doc.body.scrollHeight;
-                  }
-                }
-              }}
-            />
+            <div className="space-y-4">
+              {messages.map((message, index) => (
+                <ChatMessage
+                  key={index}
+                  role={message.role}
+                  content={message.content}
+                  avatar={message.role === 'assistant' ? selectedPersona?.avatar : null}
+                />
+              ))}
+              <div ref={messagesEndRef} className="h-4" />
+            </div>
+            {isStreaming && (
+              <div className="sticky bottom-4 w-full flex justify-center">
+                <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Generating response...</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </TooltipProvider>
