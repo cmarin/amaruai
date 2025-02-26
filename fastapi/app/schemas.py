@@ -106,6 +106,7 @@ class ChatModelBase(BaseModel):
     api_key: str | None = None
     default: bool = False
     max_tokens: int | None = None
+    position: int | None = None
 
     @validator('description', pre=True, always=True)
     def set_default_description(cls, v, values):
@@ -130,40 +131,53 @@ class ChatModelUpdate(BaseModel):
     api_key: str | None = None
     default: bool | None = None
     max_tokens: int | None = None
+    position: int | None = None
 
 class ChatModel(ChatModelBase):
     id: UUID
-    is_favorited: bool = False  # Will be computed based on current user
+    is_favorited: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
-class PersonaBase(BaseModel):
-    role: str
-    goal: str
-    backstory: str
-    allow_delegation: bool
-    verbose: bool
-    memory: bool
-    avatar: Optional[str] = None
-    temperature: Optional[float] = Field(
-        None, 
-        ge=0.0, 
-        le=1.0, 
-        description="Temperature value between 0 and 1"
-    )
+class PromptTemplate(PromptTemplateBase):
+    id: UUID
+    title: str
+    prompt: str
+    is_complex: bool = False
+    default_persona_id: Optional[UUID] = None
+    default_chat_model_id: Optional[UUID] = None
+    created_by: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+    categories: List[Category] = []
+    tags: List[Tag] = []
+    default_persona: Optional["Persona"] = None
+    default_chat_model: Optional["ChatModel"] = None
+    is_favorited: Optional[bool] = False
+    favorite_count: Optional[int] = 0
 
-    @validator('temperature')
-    def validate_temperature(cls, v):
-        if v is not None:
-            try:
-                v = float(v)  # Convert to float if possible
-                if v < 0.0 or v > 1.0:
-                    raise ValueError("Temperature must be between 0 and 1")
-                return v
-            except (TypeError, ValueError):
-                raise ValueError("Temperature must be a valid number between 0 and 1")
-        return v
+    model_config = ConfigDict(from_attributes=True)
+
+class PromptTemplateUpdate(BaseModel):
+    title: Optional[str] = None
+    prompt: Optional[str] = None
+    is_complex: Optional[bool] = None
+    default_persona_id: Optional[UUID] = None
+    default_chat_model_id: Optional[UUID] = None
+    category_ids: Optional[List[Optional[UUID]]] = None
+    tags: Optional[List[str]] = None
+
+    @validator('category_ids', pre=True)
+    def validate_category_ids(cls, v):
+        if v is None:
+            return []
+        # Filter out empty strings and None values
+        return [
+            UUID(cat_id) if isinstance(cat_id, str) and cat_id 
+            else cat_id 
+            for cat_id in v 
+            if cat_id not in (None, "")
+        ]
 
 class PersonaCreate(PersonaBase):
     category_ids: List[Optional[UUID]] = []  
@@ -333,25 +347,40 @@ class WorkflowBase(BaseModel):
             return v
         return v
 
-class WorkflowCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    process_type: str
-    manager_chat_model_id: Optional[UUID] = None
-    manager_persona_id: Optional[UUID] = None
-    max_iterations: Optional[int] = None
-    asset_ids: Optional[List[UUID]] = None
-    knowledge_base_ids: Optional[List[UUID]] = None
-    created_by: Optional[UUID] = None
+class WorkflowStepResponse(BaseModel):
+    """Response model for workflow steps with simplified relationships"""
+    id: UUID
+    prompt_template: Optional[PromptTemplateSimple] = None
+    persona: Optional[PersonaBase] = None
+    chat_model: Optional[ChatModel] = None
+    position: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
-class WorkflowUpdate(WorkflowBase):
-    steps: Optional[List[WorkflowStepUpdate]] = None
-    asset_ids: Optional[List[UUID]] = None
-    knowledge_base_ids: Optional[List[UUID]] = None
+class WorkflowResponse(WorkflowBase):
+    """Response model for workflows with simplified relationships"""
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+    steps: List[WorkflowStepResponse] = []
+    is_favorited: Optional[bool] = False
 
+    model_config = ConfigDict(from_attributes=True)
+
+class WorkflowStep(BaseModel):
+    id: UUID
+    workflow_id: UUID
+    prompt_template_id: UUID
+    chat_model_id: Optional[UUID] = None
+    persona_id: Optional[UUID] = None
+    position: int
+    prompt_template: Optional[PromptTemplateSimple] = None
+    persona: Optional[PersonaBase] = None
+    chat_model: Optional[ChatModel] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+# Move these classes before Workflow
 class AssetBase(BaseModel):
     title: str
     file_name: str

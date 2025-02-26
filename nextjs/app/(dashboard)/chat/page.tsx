@@ -167,6 +167,30 @@ function ChatContent() {
 
   useEffect(() => {
     if (allChatModels?.length > 0) {
+      console.log('Available chat models:', allChatModels.map(m => ({
+        id: m.id,
+        name: m.name,
+        position: m.position,
+        provider: m.provider
+      })));
+      
+      // Sort models by position to show them in the console
+      const sortedByPosition = [...allChatModels].sort((a, b) => {
+        if (a.position !== undefined && a.position !== null && b.position !== undefined && b.position !== null) {
+          return a.position - b.position;
+        }
+        if (a.position !== undefined && a.position !== null) return -1;
+        if (b.position !== undefined && b.position !== null) return 1;
+        return 0;
+      });
+      
+      console.log('Models sorted by position:', sortedByPosition.map(m => ({
+        id: m.id,
+        name: m.name,
+        position: m.position,
+        provider: m.provider
+      })));
+      
       setSelectedModels(resetSelectedModels(mode, allChatModels));
     }
   }, [allChatModels, mode])
@@ -334,7 +358,7 @@ function ChatContent() {
 
   // Add toggleChatbot handler
   const handleToggleChatbot = (modelId: string) => {
-    handleToggleChatbotUtil(modelId, router, setSelectedModels);
+    handleToggleChatbotUtil(modelId, router, setSelectedModels, allChatModels);
   }
 
   // ChatWindow sub-component

@@ -9,7 +9,7 @@ from app.api.v1.dependencies import get_current_user_id
 
 router = create_protected_router(prefix="chat_models", tags=["chat_models"])
 
-@router.get("/favorites", response_model=List[schemas.ChatModel])
+@router.get("/favorites", response_model=List[schemas.ChatModelResponse])
 def get_favorite_chat_models(
     db: Session = Depends(get_db),
     current_user: UUID = Depends(get_current_user_id)
@@ -17,11 +17,11 @@ def get_favorite_chat_models(
     """Get all chat models favorited by the current user."""
     return crud.get_favorite_chat_models(db=db, user_id=current_user)
 
-@router.post("", response_model=schemas.ChatModel)
+@router.post("", response_model=schemas.ChatModelResponse)
 def create_chat_model(chat_model: schemas.ChatModelCreate, db: Session = Depends(get_db)):
     return crud.create_chat_model(db=db, chat_model=chat_model)
 
-@router.get("", response_model=List[schemas.ChatModel])
+@router.get("", response_model=List[schemas.ChatModelResponse])
 def read_chat_models(
     skip: int = 0,
     limit: int = 100,
@@ -32,14 +32,16 @@ def read_chat_models(
     chat_models = crud.get_chat_models(db, user_id=current_user, skip=skip, limit=limit)
     return chat_models
 
-@router.get("/{chat_model_id}", response_model=schemas.ChatModel)
+@router.get("/{chat_model_id}", response_model=schemas.ChatModelResponse)
 def read_chat_model(chat_model_id: UUID, db: Session = Depends(get_db)):
     db_chat_model = crud.get_chat_model(db, chat_model_id=chat_model_id)
     if db_chat_model is None:
         raise HTTPException(status_code=404, detail="Chat model not found")
+    # Exclude api_key from the response
+    setattr(db_chat_model, 'api_key', None)
     return db_chat_model
 
-@router.put("/{chat_model_id}", response_model=schemas.ChatModel)
+@router.put("/{chat_model_id}", response_model=schemas.ChatModelResponse)
 def update_chat_model(
     chat_model_id: UUID,
     chat_model: schemas.ChatModelUpdate,
@@ -48,53 +50,66 @@ def update_chat_model(
     db_chat_model = crud.update_chat_model(db, chat_model_id=chat_model_id, chat_model=chat_model)
     if db_chat_model is None:
         raise HTTPException(status_code=404, detail="Chat model not found")
+    # Exclude api_key from the response
+    setattr(db_chat_model, 'api_key', None)
     return db_chat_model
 
-@router.delete("/{chat_model_id}", response_model=schemas.ChatModel)
+@router.delete("/{chat_model_id}", response_model=schemas.ChatModelResponse)
 def delete_chat_model(chat_model_id: UUID, db: Session = Depends(get_db)):
     db_chat_model = crud.delete_chat_model(db, chat_model_id=chat_model_id)
     if db_chat_model is None:
         raise HTTPException(status_code=404, detail="Chat model not found")
+    # Exclude api_key from the response
+    setattr(db_chat_model, 'api_key', None)
     return db_chat_model
 
-@router.post("/{chat_model_id}/favorite", response_model=schemas.ChatModel)
+@router.post("/{chat_model_id}/favorite", response_model=schemas.ChatModelResponse)
 def favorite_chat_model(
     chat_model_id: UUID,
     db: Session = Depends(get_db),
     current_user: UUID = Depends(get_current_user_id)
 ):
     """Add a chat model to user's favorites."""
-    return crud.toggle_chat_model_favorite(
+    model = crud.toggle_chat_model_favorite(
         db=db,
         chat_model_id=chat_model_id,
         user_id=current_user,
         favorite=True
     )
+    # Exclude api_key from the response
+    setattr(model, 'api_key', None)
+    return model
 
-@router.delete("/{chat_model_id}/favorite", response_model=schemas.ChatModel)
+@router.delete("/{chat_model_id}/favorite", response_model=schemas.ChatModelResponse)
 def unfavorite_chat_model(
     chat_model_id: UUID,
     db: Session = Depends(get_db),
     current_user: UUID = Depends(get_current_user_id)
 ):
     """Remove a chat model from user's favorites."""
-    return crud.toggle_chat_model_favorite(
+    model = crud.toggle_chat_model_favorite(
         db=db,
         chat_model_id=chat_model_id,
         user_id=current_user,
         favorite=False
     )
+    # Exclude api_key from the response
+    setattr(model, 'api_key', None)
+    return model
 
-@router.post("/{chat_model_id}/unfavorite", response_model=schemas.ChatModel)
+@router.post("/{chat_model_id}/unfavorite", response_model=schemas.ChatModelResponse)
 def unfavorite_chat_model_post(
     chat_model_id: UUID,
     db: Session = Depends(get_db),
     current_user: UUID = Depends(get_current_user_id)
 ):
     """Remove a chat model from user's favorites (POST method)."""
-    return crud.toggle_chat_model_favorite(
+    model = crud.toggle_chat_model_favorite(
         db=db,
         chat_model_id=chat_model_id,
         user_id=current_user,
         favorite=False
     )
+    # Exclude api_key from the response
+    setattr(model, 'api_key', None)
+    return model
