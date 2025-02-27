@@ -51,7 +51,8 @@ export default function SettingsPage() {
     model: '',
     provider: 'openrouter',
     max_tokens: 1,
-    description: '' 
+    description: '',
+    position: 0
   });
   const { toast } = useToast();
 
@@ -205,7 +206,7 @@ export default function SettingsPage() {
     try {
       await createChatModel(newChatModel, headers);
       setIsNewChatModelDialogOpen(false);
-      setNewChatModel({ name: '', model: '', provider: '', max_tokens: 1, description: '' });
+      setNewChatModel({ name: '', model: '', provider: 'openrouter', max_tokens: 1, description: '', position: 0 });
       loadData();
       toast({
         title: "Success",
@@ -439,6 +440,21 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div>
+                        <Label>Position</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={newChatModel.position}
+                          onChange={(e) =>
+                            setNewChatModel({
+                              ...newChatModel,
+                              position: parseInt(e.target.value),
+                            })
+                          }
+                          placeholder="Display order position (0 = default)"
+                        />
+                      </div>
+                      <div>
                         <Label>Description</Label>
                         <Textarea
                           value={newChatModel.description}
@@ -506,6 +522,9 @@ export default function SettingsPage() {
                         </div>
                         <div>
                           <Label>Max Tokens: {(model.max_tokens ?? 0).toLocaleString('en-US')}</Label>
+                        </div>
+                        <div>
+                          <Label>Position: {model.position !== null ? model.position : 0}</Label>
                         </div>
                       </div>
                     </CardContent>
@@ -619,6 +638,21 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
+                    <Label>Position</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={selectedChatModel.position !== null ? selectedChatModel.position : 0}
+                      onChange={(e) =>
+                        setSelectedChatModel({
+                          ...selectedChatModel,
+                          position: parseInt(e.target.value),
+                        })
+                      }
+                      placeholder="Display order position (0 = default)"
+                    />
+                  </div>
+                  <div>
                     <Label>Description</Label>
                     <Textarea
                       value={selectedChatModel.description}
@@ -638,6 +672,7 @@ export default function SettingsPage() {
                         provider: selectedChatModel.provider,
                         max_tokens: selectedChatModel.max_tokens,
                         description: selectedChatModel.description,
+                        position: selectedChatModel.position,
                       });
                       setSelectedChatModel(null);
                     }}
