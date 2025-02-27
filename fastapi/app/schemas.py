@@ -106,6 +106,7 @@ class ChatModelBase(BaseModel):
     api_key: str | None = None
     default: bool = False
     max_tokens: int | None = None
+    position: int | None = None
 
     @validator('description', pre=True, always=True)
     def set_default_description(cls, v, values):
@@ -130,9 +131,12 @@ class ChatModelUpdate(BaseModel):
     api_key: str | None = None
     default: bool | None = None
     max_tokens: int | None = None
+    position: int | None = None
 
 class ChatModel(ChatModelBase):
     id: UUID
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     is_favorited: bool = False  # Will be computed based on current user
 
     class Config:

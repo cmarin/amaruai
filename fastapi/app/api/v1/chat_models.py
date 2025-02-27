@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
@@ -98,3 +98,32 @@ def unfavorite_chat_model_post(
         user_id=current_user,
         favorite=False
     )
+
+@router.patch("/{chat_model_id}/position", response_model=schemas.ChatModel)
+def update_chat_model_position(
+    chat_model_id: UUID,
+    position: int = Body(..., embed=True),
+    db: Session = Depends(get_db)
+):
+    """Update the position of a chat model for ordering purposes."""
+    db_chat_model = crud.update_chat_model_position(db, chat_model_id=chat_model_id, position=position)
+    if db_chat_model is None:
+        raise HTTPException(status_code=404, detail="Chat model not found")
+    return db_chat_model
+
+@router.patch("/positions", response_model=List[schemas.ChatModel])
+def bulk_update_chat_model_positions(
+    positions: dict = Body(...),
+    db: Session = Depends(get_db)
+):
+    """Bulk update positions of multiple chat models at once.
+    
+    Example request body:
+    {
+        "model_id1": 1,
+        "model_id2": 2,
+        "model_id3": 3
+    }
+    """
+    updated_models = crud.bulk_update_chat_model_positions(db, positions)
+    return updated_models

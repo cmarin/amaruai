@@ -347,8 +347,12 @@ def get_chat_models(db: Session, user_id: UUID, skip: int = 0, limit: int = 100)
         model.id for model in user.favorite_chat_models
     }
 
-    # Get all chat models
-    chat_models = db.query(models.ChatModel).offset(skip).limit(limit).all()
+    # Get all chat models, sorted by position if available, then by name
+    chat_models = db.query(models.ChatModel).order_by(
+        # Sort nulls last, then by position
+        asc(func.coalesce(models.ChatModel.position, 9999999)),
+        models.ChatModel.name
+    ).offset(skip).limit(limit).all()
 
     # Mark favorites
     for model in chat_models:
@@ -1055,3 +1059,42 @@ def get_assets_by_ids(db: Session, asset_ids: List[UUID], context: str = "chat")
                     asset.file_url = f"batch-flow/{user_path}/{asset.id}/{asset.file_name}"
                     
     return assets
+
+def update_chat_model_position(db: Session, chat_model_id: UUID, position: int):
+    """Update the position of a chat model"""
+    db_chat_model = db.query(models.ChatModel).filter(models.ChatModel.id == chat_model_id).first()
+    if db_chat_model:
+        db_chat_model.position = position
+        db.commit()
+        db.refresh(db_chat_model)
+    return db_chat_model
+
+def bulk_update_chat_model_positions(db: Session, positions: dict):
+    """Update positions for multiple chat models at once
+    
+    Args:
+        db: Database session
+        positions: Dictionary mapping chat model IDs to their new positions
+        
+    Returns:
+        List of updated chat models
+    """
+    updated_models = []
+    
+    for model_id, position in positions.items():
+        try:
+            model_id = UUID(model_id) if isinstance(model_id, str) else model_id
+            db_chat_model = db.query(models.ChatModel).filter(models.ChatModel.id == model_id).first()
+            if db_chat_model:
+                db_chat_model.position = position
+                updated_models.append(db_chat_model)
+        except ValueError:
+            # Skip invalid UUIDs
+            continue
+    
+    if updated_models:
+        db.commit()
+        for model in updated_models:
+            db.refresh(model)
+            
+    return updated_models
