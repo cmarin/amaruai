@@ -347,17 +347,12 @@ def get_chat_models(db: Session, user_id: UUID, skip: int = 0, limit: int = 100)
         model.id for model in user.favorite_chat_models
     }
 
-    # Get all chat models, ordered by position (nulls last) then by name
-    chat_models = db.query(models.ChatModel).order_by(
-        func.coalesce(models.ChatModel.position, 9999),  # Sort nulls last
-        models.ChatModel.name
-    ).offset(skip).limit(limit).all()
+    # Get all chat models
+    chat_models = db.query(models.ChatModel).offset(skip).limit(limit).all()
 
-    # Mark favorites and exclude api_key
+    # Mark favorites
     for model in chat_models:
         setattr(model, 'is_favorited', model.id in favorite_model_ids)
-        # Exclude api_key from the response
-        setattr(model, 'api_key', None)
 
     return chat_models
 
@@ -1023,13 +1018,12 @@ def get_favorite_chat_models(db: Session, user_id: UUID) -> List[models.ChatMode
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Mark all models as favorited and exclude api_key
-    for model in user.favorite_chat_models:
-        setattr(model, 'is_favorited', True)
-        # Exclude api_key from the response
-        setattr(model, 'api_key', None)
-    
-    return user.favorite_chat_models
+    return (
+        db.query(models.ChatModel)
+        .join(models.chat_model_favorites)
+        .filter(models.chat_model_favorites.c.user_id == user_id)
+        .all()
+    )
 
 def get_assets_by_ids(db: Session, asset_ids: List[UUID], context: str = "chat") -> List[models.Asset]:
     """
