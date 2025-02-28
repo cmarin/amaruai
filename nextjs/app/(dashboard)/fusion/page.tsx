@@ -477,7 +477,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       {/* LEFT COLUMN (sidebar) */}
-      <div className="w-64 h-full border-r border-gray-200">
+      <div className="w-64 h-full border-r border-gray-200 dark:border-gray-700">
         <AppSidebar />
       </div>
 

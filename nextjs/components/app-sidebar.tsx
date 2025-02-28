@@ -135,6 +135,7 @@ export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps
                 width={36}
                 height={36}
                 style={{ width: 'auto', height: '36px' }}
+                className="dark:invert"
               />
               <h1 className="text-xl font-bold dark:text-white">AmaruAI</h1>
             </div>
@@ -145,7 +146,7 @@ export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps
               width={16}
               height={16}
               style={{ width: 'auto', height: '16px' }}
-              className="ml-[-5px]"
+              className="ml-[-5px] dark:invert"
             />
           )}
           <Button

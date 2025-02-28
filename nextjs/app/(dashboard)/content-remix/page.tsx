@@ -441,7 +441,7 @@ function ContentRemixContent() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      <div className="w-64 h-full border-r border-gray-200">
+      <div className="w-64 h-full border-r border-gray-200 dark:border-gray-700">
         <AppSidebar />
       </div>
 
