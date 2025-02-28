@@ -1,0 +1,14 @@
+{
+  "css.lint.unknownAtRules": "ignore",
+  "css.validate": false,
+  "editor.quickSuggestions": {
+    "strings": true
+  },
+  "tailwindCSS.includeLanguages": {
+    "html": "html",
+    "javascript": "javascript",
+    "css": "css",
+    "typescript": "typescript",
+    "typescriptreact": "typescriptreact"
+  }
+} 
