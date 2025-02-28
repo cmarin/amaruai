@@ -82,11 +82,11 @@ export function WorkflowSteps({
   return (
     <div className="space-y-6" key={refreshKey}>
       {steps.map((step, index) => (
-        <div key={index} className="flex gap-4 items-start p-4 border rounded-lg bg-slate-50">
+        <div key={index} className="flex gap-4 items-start p-4 border rounded-lg bg-slate-50 dark:bg-background dark:border-gray-700">
           <div className="space-y-4 flex-1">
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Prompt Template</label>
+                <label className="block text-sm font-medium mb-2 dark:text-gray-300">Prompt Template</label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
                     <ComboboxPromptTemplates
@@ -136,10 +136,10 @@ export function WorkflowSteps({
                             <EyeIcon className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="right" align="center" className="max-w-sm">
+                        <TooltipContent side="right" align="center" className="max-w-sm bg-white dark:bg-gray-900">
                           <div className="space-y-2">
-                            <p className="font-medium">Template</p>
-                            <p className="text-sm whitespace-pre-wrap">
+                            <p className="font-medium dark:text-white">Template</p>
+                            <p className="text-sm whitespace-pre-wrap dark:text-gray-300">
                               {typeof promptTemplates.find(t => t.id === step.prompt_template_id)?.prompt === 'string' 
                                 ? promptTemplates.find(t => t.id === step.prompt_template_id)?.prompt as string 
                                 : 'No prompt defined'}
@@ -153,7 +153,7 @@ export function WorkflowSteps({
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Persona</label>
+                <label className="block text-sm font-medium mb-2 dark:text-gray-300">Persona</label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
                     <ComboboxPersonas
@@ -170,10 +170,10 @@ export function WorkflowSteps({
                             <EyeIcon className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="right" align="center" className="max-w-sm">
+                        <TooltipContent side="right" align="center" className="max-w-sm bg-white dark:bg-gray-900">
                           <div className="space-y-2">
-                            <p className="font-medium">Persona</p>
-                            <p className="text-sm whitespace-pre-wrap">
+                            <p className="font-medium dark:text-white">Persona</p>
+                            <p className="text-sm whitespace-pre-wrap dark:text-gray-300">
                               {personas.find(p => p.id === step.persona_id)?.role || 'No role defined'}
                             </p>
                           </div>
@@ -185,7 +185,7 @@ export function WorkflowSteps({
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Chat Model</label>
+                <label className="block text-sm font-medium mb-2 dark:text-gray-300">Chat Model</label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
                     <ComboboxChatModels
@@ -214,10 +214,10 @@ export function WorkflowSteps({
                             <EyeIcon className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="right" align="center" className="max-w-sm">
+                        <TooltipContent side="right" align="center" className="max-w-sm bg-white dark:bg-gray-900">
                           <div className="space-y-2">
-                            <p className="font-medium">Chat Model</p>
-                            <p className="text-sm whitespace-pre-wrap">
+                            <p className="font-medium dark:text-white">Chat Model</p>
+                            <p className="text-sm whitespace-pre-wrap dark:text-gray-300">
                               {chatModels.find(m => m.id === step.chat_model_id)?.name || 'No model defined'}
                             </p>
                           </div>
@@ -235,7 +235,7 @@ export function WorkflowSteps({
             size="icon"
             onClick={() => onRemoveStep(index)}
             disabled={steps.length === 1}
-            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+            className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 dark:hover:text-red-400"
           >
             <Trash2Icon className="h-4 w-4" />
           </Button>
@@ -245,7 +245,7 @@ export function WorkflowSteps({
       <Button
         variant="outline"
         onClick={onAddStep}
-        className="mt-4"
+        className="mt-4 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
       >
         Add Step
       </Button>

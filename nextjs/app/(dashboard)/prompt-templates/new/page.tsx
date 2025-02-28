@@ -59,7 +59,7 @@ export default function NewPromptTemplatePage() {
   return (
     <div className="flex h-full w-full overflow-hidden bg-white dark:bg-background">
       <AppSidebar />
-      <div className="flex-1 transition-all duration-300">
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-[250px]' : 'ml-16'}`}>
         {isComplex ? (
           <ComplexPromptTemplateEditor
             categories={categories}
