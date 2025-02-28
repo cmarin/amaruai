@@ -78,7 +78,7 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
       {prompts.map((prompt) => (
-        <Card key={prompt.id} className="flex flex-col dark:bg-gray-800 dark:border-gray-700">
+        <Card key={prompt.id} className="flex flex-col dark:bg-background dark:border-gray-700">
           <CardContent className="pt-6 flex-grow">
             <div className="flex flex-col">
               <div className="flex justify-between items-start mb-2">

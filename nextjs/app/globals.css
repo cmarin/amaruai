@@ -126,6 +126,39 @@ html, body {
   border-radius: 0.5rem !important;
 }
 
+/* Dark mode overrides for Uppy Dashboard */
+:root[class~="dark"] .uppy-Dashboard-inner,
+:root[class~="dark"] .uppy-Dashboard-AddFiles,
+:root[class~="dark"] .uppy-StatusBar,
+:root[class~="dark"] .uppy-DashboardContent-bar,
+:root[class~="dark"] .uppy-DashboardContent-panel,
+:root[class~="dark"] .uppy-Dashboard-Item-previewInnerWrap {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+:root[class~="dark"] .uppy-Dashboard-AddFiles {
+  border: 2px dashed #333 !important;
+}
+
+:root[class~="dark"] .uppy-Dashboard-Item {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+:root[class~="dark"] .uppy-Dashboard-Item-name,
+:root[class~="dark"] .uppy-Dashboard-Item-status,
+:root[class~="dark"] .uppy-Dashboard-Item-size {
+  color: hsl(var(--foreground)) !important;
+}
+
+:root[class~="dark"] .uppy-StatusBar {
+  border-top: 1px solid hsl(var(--border)) !important;
+}
+
+:root[class~="dark"] .uppy-StatusBar-actionBtn--upload {
+  background-color: hsl(var(--primary)) !important;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
