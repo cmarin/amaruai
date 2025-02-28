@@ -137,6 +137,14 @@ html, body {
   color: hsl(var(--foreground)) !important;
 }
 
+:root[class~="dark"] .uppy-Dashboard-AddFiles-title,
+:root[class~="dark"] .uppy-Dashboard-note,
+:root[class~="dark"] .uppy-Dashboard-poweredBy,
+:root[class~="dark"] .uppy-Dashboard-dropFilesTitle,
+:root[class~="dark"] .uppy-Dashboard-dropFilesHereHint {
+  color: hsl(var(--foreground)) !important;
+}
+
 :root[class~="dark"] .uppy-Dashboard-AddFiles {
   border: 2px dashed #333 !important;
 }

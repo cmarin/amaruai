@@ -78,7 +78,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
   const renderGridView = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
       {paginatedPersonas.map((persona) => (
-        <Card key={persona.id} className="flex flex-col dark:bg-gray-800 dark:border-gray-700">
+        <Card key={persona.id} className="flex flex-col dark:bg-background dark:border-gray-700">
           <CardContent className="flex-grow p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
