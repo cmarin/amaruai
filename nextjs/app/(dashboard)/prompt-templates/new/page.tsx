@@ -54,7 +54,7 @@ export default function NewPromptTemplatePage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto py-6 bg-white dark:bg-background h-full">
       {isComplex ? (
         <ComplexPromptTemplateEditor
           categories={categories}

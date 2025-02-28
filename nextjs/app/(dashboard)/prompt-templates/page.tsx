@@ -293,7 +293,7 @@ export default function PromptTemplatesPage() {
 
           {/* New Simple Prompt Dialog */}
           <Dialog open={isNewSimplePromptDialogOpen} onOpenChange={setIsNewSimplePromptDialogOpen}>
-            <DialogContent className="bg-white dark:bg-gray-900" style={{ zIndex: 50 }}>
+            <DialogContent className="bg-white dark:bg-background" style={{ zIndex: 50 }}>
               <DialogHeader>
                 <DialogTitle className="text-gray-900 dark:text-gray-100">New Prompt Template</DialogTitle>
                 <DialogDescription className="text-gray-600 dark:text-gray-400">Create a new prompt template</DialogDescription>
@@ -362,7 +362,7 @@ export default function PromptTemplatesPage() {
 
           {/* Delete Confirmation Dialog */}
           <AlertDialog open={isDeletePromptDialogOpen} onOpenChange={setIsDeletePromptDialogOpen}>
-            <AlertDialogContent className="bg-white dark:bg-gray-900">
+            <AlertDialogContent className="bg-white dark:bg-background">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-gray-900 dark:text-gray-100">Are you sure you want to delete this prompt template?</AlertDialogTitle>
                 <AlertDialogDescription className="text-gray-600 dark:text-gray-400">

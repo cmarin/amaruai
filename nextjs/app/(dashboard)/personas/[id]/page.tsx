@@ -38,7 +38,7 @@ export default function PersonaPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-white dark:bg-gray-900">
+      <div className="flex h-full w-full overflow-hidden bg-white dark:bg-background">
         <AppSidebar />
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <PersonaManager

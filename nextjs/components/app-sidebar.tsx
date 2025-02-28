@@ -123,7 +123,7 @@ export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps
   const chatModels = favoriteChatModels;
 
   return (
-    <div className={`fixed top-0 left-0 h-full bg-gray-100 dark:bg-gray-900 transition-all duration-300 ${sidebarOpen ? 'w-56' : 'w-14'} overflow-hidden`}>
+    <div className={`fixed top-0 left-0 h-full bg-gray-100 dark:bg-background transition-all duration-300 ${sidebarOpen ? 'w-56' : 'w-14'} overflow-hidden`}>
       <div className="h-full flex flex-col">
         {/* Header */}
         <div className="flex justify-between items-center p-3">

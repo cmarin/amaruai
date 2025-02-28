@@ -216,7 +216,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-900 dark:border-gray-700">
+      <div className="flex items-center justify-between p-4 border-b bg-white dark:bg-background dark:border-gray-700">
         <h1 className="text-2xl font-bold dark:text-white">Persona Library</h1>
         <div className="flex gap-4">
           <div className="flex border rounded-lg dark:border-gray-700">
@@ -243,7 +243,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
           </Button>
         </div>
       </div>
-      <div className="p-4 bg-white dark:bg-gray-900">
+      <div className="p-4 bg-white dark:bg-background">
         <Input
           type="search"
           placeholder="Search personas..."
@@ -252,7 +252,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
           className="mb-4"
         />
       </div>
-      <ScrollArea className="flex-grow bg-white dark:bg-gray-900">
+      <ScrollArea className="flex-grow bg-white dark:bg-background">
         {viewMode === 'grid' ? renderGridView() : renderTableView()}
       </ScrollArea>
     </div>

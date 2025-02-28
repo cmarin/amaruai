@@ -378,7 +378,7 @@ function ChatContent() {
     
     return (
       <TooltipProvider>
-        <div className="flex flex-col h-full border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-700 overflow-hidden">
+        <div className="flex flex-col h-full border rounded-lg bg-white dark:bg-background dark:border-gray-700 overflow-hidden">
           {/* Top header (title, copy, clear) */}
           <div className="flex items-center justify-between p-3 border-b dark:border-gray-700">
             <div className="flex items-center gap-4">
@@ -468,7 +468,7 @@ function ChatContent() {
             </div>
             {isStreaming && (
               <div className="sticky bottom-4 w-full flex justify-center">
-                <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="bg-white/80 dark:bg-background/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Generating response...</span>
                 </div>
@@ -678,7 +678,7 @@ function ChatContent() {
                   }}
                 />
               </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-gray-900">
+              <TooltipContent className="bg-white dark:bg-background">
                 <p>Add Knowledge Base or Asset</p>
               </TooltipContent>
             </Tooltip>
@@ -697,7 +697,7 @@ function ChatContent() {
                     <Globe2 className="h-5 w-5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent className="bg-white dark:bg-gray-900">
+                <TooltipContent className="bg-white dark:bg-background">
                   <p>Enable Web Search</p>
                 </TooltipContent>
               </Tooltip>

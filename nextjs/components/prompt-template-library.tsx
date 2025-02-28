@@ -278,7 +278,7 @@ export default function PromptTemplateLibrary({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-900 dark:border-gray-700">
+      <div className="flex items-center justify-between p-4 border-b bg-white dark:bg-background dark:border-gray-700">
         <h1 className="text-2xl font-bold dark:text-white">Prompt Templates</h1>
         <div className="flex items-center gap-4">
           <div className="flex border rounded-lg dark:border-gray-700">
@@ -311,7 +311,7 @@ export default function PromptTemplateLibrary({
           </div>
         </div>
       </div>
-      <div className="p-4 bg-white dark:bg-gray-900 dark:border-gray-700 border-b">
+      <div className="p-4 bg-white dark:bg-background dark:border-gray-700 border-b">
         <div className="flex flex-col gap-4">
           <Input
             type="search"
@@ -333,7 +333,7 @@ export default function PromptTemplateLibrary({
           />
         </div>
       </div>
-      <ScrollArea className="flex-grow bg-white dark:bg-gray-900">
+      <ScrollArea className="flex-grow bg-white dark:bg-background">
         {viewMode === 'grid' ? <GridView prompts={paginatedPrompts} onEdit={onEdit} onDelete={onDelete} onFavoriteToggle={onFavoriteToggle} /> : <TableView prompts={paginatedPrompts} onEdit={onEdit} onDelete={onDelete} onFavoriteToggle={onFavoriteToggle} />}
         {viewMode === 'table' && totalPages > 1 && (
           <div className="mt-4 flex justify-center">

@@ -621,14 +621,10 @@ const ComplexPromptEditor = ({
 
   return (
     <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-white dark:bg-gray-900">
+      <div className="flex h-full w-full overflow-hidden bg-white dark:bg-background">
         <AppSidebar />
-        <main className={`flex-1 flex flex-col ${
-          mode === 'create'
-            ? useSidebarSidebarOpen ? 'ml-56' : 'ml-14'
-            : ''
-        }`}>
-          <div className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-900 dark:border-gray-700">
+        <main className={`flex-1 flex flex-col overflow-hidden ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+          <div className="flex items-center justify-between p-4 border-b bg-white dark:bg-background dark:border-gray-700">
             <h1 className="text-2xl font-bold">Template Editor</h1>
             <div className="flex gap-2">
               <Button onClick={onCancel} variant="outline">Close</Button>
@@ -640,12 +636,12 @@ const ComplexPromptEditor = ({
               </Button>
             </div>
           </div>
-          <div className="bg-white dark:bg-gray-900 px-4 py-3 border-b dark:border-gray-700">
+          <div className="bg-white dark:bg-background px-4 py-3 border-b dark:border-gray-700">
             <h2 className="text-gray-600 dark:text-gray-300 text-lg text-center">
               {currentTitle || 'Untitled Template'}
             </h2>
           </div>
-          <div className="flex-grow overflow-auto bg-white dark:bg-gray-900">
+          <div className="flex-grow overflow-auto bg-white dark:bg-background">
             <CardContent className="pt-8">
               {renderStepIndicator()}
               {renderStepContent()}

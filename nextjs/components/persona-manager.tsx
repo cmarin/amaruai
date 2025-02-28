@@ -155,7 +155,7 @@ export default function PersonaManager({ persona, onSave, onClose }: PersonaMana
   }
 
   return (
-    <div className="absolute inset-0 bg-white dark:bg-gray-900 z-50">
+    <div className="absolute inset-0 bg-white dark:bg-background z-50">
       <div className="h-full w-full overflow-y-auto p-6">
         <div className="max-w-2xl mx-auto">
           <div className="flex justify-between items-center mb-4">

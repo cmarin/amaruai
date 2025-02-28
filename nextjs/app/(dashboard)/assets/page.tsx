@@ -39,6 +39,7 @@ import { formatFileSize, getFileExtension } from '@/lib/utils';
 import { Input } from "@/components/ui/input";
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { AlertDialogContent } from "@/components/ui/alert-dialog";
 
 function getAssetIcon(type: string) {
   const extension = getFileExtension(type);
@@ -341,7 +342,7 @@ export default function AssetsPage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden">
+        <div className="bg-white dark:bg-background rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>

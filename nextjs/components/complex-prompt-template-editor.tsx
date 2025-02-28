@@ -80,7 +80,7 @@ export default function ComplexPromptTemplateEditor({ promptTemplate, categories
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 bg-white dark:bg-background h-full">
       <ComplexPromptEditor
         title={promptTemplate?.title}
         initialContent={promptTemplate?.prompt as PromptContent}

@@ -129,7 +129,7 @@ export default function WorkflowsPage() {
         />
 
         <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
-          <AlertDialogContent className="bg-white dark:bg-gray-900">
+          <AlertDialogContent className="bg-white dark:bg-background">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-gray-900 dark:text-gray-100">Are you sure you want to delete this workflow?</AlertDialogTitle>
               <AlertDialogDescription className="text-gray-600 dark:text-gray-400">

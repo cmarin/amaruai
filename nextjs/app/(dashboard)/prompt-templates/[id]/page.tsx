@@ -72,29 +72,33 @@ export default function PromptTemplatePage({ params }: { params: { id: string } 
   }
 
   return (
-    <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-white dark:bg-gray-900">
-        <AppSidebar />
-        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-          <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+    <div>
+      {loading ? (
+        <div className="flex items-center justify-center h-screen">Loading...</div>
+      ) : promptTemplate ? (
+        <div className="flex h-full w-full overflow-hidden bg-white dark:bg-background">
+          <AppSidebar />
+          <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
             {promptTemplate.is_complex ? (
               <ComplexPromptTemplateEditor
                 promptTemplate={promptTemplate}
                 categories={categories}
                 onSave={handleSave}
-                onClose={handleClose}
+                onClose={() => router.push('/prompt-templates')}
               />
             ) : (
               <PromptTemplateEditor
                 promptTemplate={promptTemplate}
                 categories={categories}
                 onSave={handleSave}
-                onClose={handleClose}
+                onClose={() => router.push('/prompt-templates')}
               />
             )}
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center justify-center h-screen">Prompt template not found</div>
+      )}
     </div>
   );
 }
