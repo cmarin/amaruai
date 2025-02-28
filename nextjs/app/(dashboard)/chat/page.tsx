@@ -378,13 +378,13 @@ function ChatContent() {
     
     return (
       <TooltipProvider>
-        <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
+        <div className="flex flex-col h-full border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-700 overflow-hidden">
           {/* Top header (title, copy, clear) */}
-          <div className="flex items-center justify-between p-3 border-b">
+          <div className="flex items-center justify-between p-3 border-b dark:border-gray-700">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 {React.createElement(getModelIcon(chatWindowId, selectedModels, allChatModels), { className: "w-5 h-5" })}
-                <span className="font-medium">{getModelName(chatWindowId, selectedModels, allChatModels)}</span>
+                <span className="font-medium dark:text-white">{getModelName(chatWindowId, selectedModels, allChatModels)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Select value={selectedPersonas[chatWindowId]} onValueChange={(value) => handlePersonaChange(chatWindowId, value)}>
@@ -468,7 +468,7 @@ function ChatContent() {
             </div>
             {isStreaming && (
               <div className="sticky bottom-4 w-full flex justify-center">
-                <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Generating response...</span>
                 </div>

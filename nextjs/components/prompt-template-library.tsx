@@ -78,19 +78,20 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
       {prompts.map((prompt) => (
-        <Card key={prompt.id} className="flex flex-col">
+        <Card key={prompt.id} className="flex flex-col dark:bg-gray-800 dark:border-gray-700">
           <CardContent className="pt-6 flex-grow">
             <div className="flex flex-col">
               <div className="flex justify-between items-start mb-2">
                 <div className="flex-grow">
-                  <h3 className="text-lg font-semibold">{prompt.title}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{prompt.description}</p>
+                  <h3 className="text-lg font-semibold dark:text-white">{prompt.title}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{prompt.description}</p>
                 </div>
                 <div className="flex gap-2 ml-4">
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => onFavoriteToggle(prompt)}
+                    className="dark:hover:bg-gray-700"
                   >
                     <Star className={prompt.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"} size={20} />
                   </Button>
@@ -98,7 +99,7 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-blue-500 hover:text-blue-700"
+                      className="text-blue-500 hover:text-blue-700 dark:hover:bg-gray-700"
                     >
                       <Edit size={20} />
                     </Button>
@@ -107,30 +108,30 @@ const GridView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
                     variant="ghost"
                     size="icon"
                     onClick={() => onDelete(prompt)}
-                    className="text-red-500 hover:text-red-700"
+                    className="text-red-500 hover:text-red-700 dark:hover:bg-gray-700"
                   >
                     <Trash2 size={20} />
                   </Button>
                 </div>
               </div>
               {!prompt.is_complex && (
-                <p className="text-sm text-gray-600 mt-2">
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
                   {getPromptPreview(prompt.prompt)}
                 </p>
               )}
               <div className="flex flex-wrap gap-2 mt-4">
                 {prompt.categories.map((category, index) => (
-                  <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800">
+                  <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                     {category.name}
                   </Badge>
                 ))}
                 {prompt.tags.map((tag, index) => (
-                  <Badge key={`tag-${index}`} variant="outline">
+                  <Badge key={`tag-${index}`} variant="outline" className="dark:border-gray-600 dark:text-gray-300">
                     {tag.name}
                   </Badge>
                 ))}
                 {prompt.is_complex && (
-                  <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
                     Form Template
                   </Badge>
                 )}
@@ -152,65 +153,63 @@ const TableView = ({ prompts, onEdit, onDelete, onFavoriteToggle }: {
   return (
     <Table>
       <TableHeader>
-        <TableRow>
+        <TableRow className="dark:border-gray-700">
           <TableHead>Title</TableHead>
+          <TableHead>Description</TableHead>
           <TableHead>Categories & Tags</TableHead>
           <TableHead className="w-[100px]">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {prompts.map((prompt) => (
-          <TableRow key={prompt.id}>
-            <TableCell>
+          <TableRow key={prompt.id} className="dark:border-gray-700">
+            <TableCell className="font-medium dark:text-white">
               <div className="flex items-center gap-2">
-                <span className="font-medium">{prompt.title}</span>
-                {prompt.is_complex && (
-                  <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                    Form Template
-                  </Badge>
-                )}
+                {prompt.title}
+                {prompt.is_complex && <Code className="text-purple-600 dark:text-purple-400" size={16} />}
               </div>
             </TableCell>
+            <TableCell className="dark:text-gray-300">{prompt.description || 'No description'}</TableCell>
             <TableCell>
               <div className="flex flex-wrap gap-1">
                 {prompt.categories.map((category, index) => (
-                  <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800">
+                  <Badge key={index} variant="secondary" className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                     {category.name}
                   </Badge>
                 ))}
                 {prompt.tags.map((tag, index) => (
-                  <Badge key={`tag-${index}`} variant="outline">
+                  <Badge key={`tag-${index}`} variant="outline" className="text-xs dark:border-gray-600 dark:text-gray-300">
                     {tag.name}
                   </Badge>
                 ))}
               </div>
             </TableCell>
             <TableCell>
-              <div className="flex gap-2 justify-end">
+              <div className="flex gap-2">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => onFavoriteToggle(prompt)}
-                  className={prompt.is_favorite ? "text-yellow-500" : ""}
+                  className="dark:hover:bg-gray-700"
                 >
-                  <Star className="h-4 w-4" />
+                  <Star className={prompt.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"} size={16} />
                 </Button>
                 <Link href={`/prompt-templates/${prompt.id}`} passHref>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-blue-500 hover:text-blue-700"
+                    className="text-blue-500 hover:text-blue-700 dark:hover:bg-gray-700"
                   >
-                    <Edit size={20} />
+                    <Edit size={16} />
                   </Button>
                 </Link>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => onDelete(prompt)}
-                  className="text-red-500 hover:text-red-700"
+                  className="text-red-500 hover:text-red-700 dark:hover:bg-gray-700"
                 >
-                  <Trash2 size={20} />
+                  <Trash2 size={16} />
                 </Button>
               </div>
             </TableCell>
@@ -279,10 +278,10 @@ export default function PromptTemplateLibrary({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b bg-white">
-        <h1 className="text-2xl font-bold">Prompt Templates</h1>
+      <div className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-900 dark:border-gray-700">
+        <h1 className="text-2xl font-bold dark:text-white">Prompt Templates</h1>
         <div className="flex items-center gap-4">
-          <div className="flex border rounded-lg">
+          <div className="flex border rounded-lg dark:border-gray-700">
             <Button
               variant={viewMode === 'grid' ? 'default' : 'ghost'}
               size="icon"
@@ -312,7 +311,7 @@ export default function PromptTemplateLibrary({
           </div>
         </div>
       </div>
-      <div className="p-4 bg-white border-b">
+      <div className="p-4 bg-white dark:bg-gray-900 dark:border-gray-700 border-b">
         <div className="flex flex-col gap-4">
           <Input
             type="search"
@@ -334,7 +333,7 @@ export default function PromptTemplateLibrary({
           />
         </div>
       </div>
-      <ScrollArea className="flex-grow">
+      <ScrollArea className="flex-grow bg-white dark:bg-gray-900">
         {viewMode === 'grid' ? <GridView prompts={paginatedPrompts} onEdit={onEdit} onDelete={onDelete} onFavoriteToggle={onFavoriteToggle} /> : <TableView prompts={paginatedPrompts} onEdit={onEdit} onDelete={onDelete} onFavoriteToggle={onFavoriteToggle} />}
         {viewMode === 'table' && totalPages > 1 && (
           <div className="mt-4 flex justify-center">

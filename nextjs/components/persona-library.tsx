@@ -78,7 +78,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
   const renderGridView = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
       {paginatedPersonas.map((persona) => (
-        <Card key={persona.id} className="flex flex-col">
+        <Card key={persona.id} className="flex flex-col dark:bg-gray-800 dark:border-gray-700">
           <CardContent className="flex-grow p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -86,16 +86,16 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
                   avatar={persona.avatar}
                   size={40}
                   alt={persona.role}
-                  className="border-2 border-gray-200"
+                  className="border-2 border-gray-200 dark:border-gray-700"
                 />
-                <h3 className="text-lg font-semibold">{persona.role}</h3>
+                <h3 className="text-lg font-semibold dark:text-white">{persona.role}</h3>
               </div>
               <div className="flex gap-2">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => handleEditPersona(persona)}
-                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900 dark:hover:text-blue-400"
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
@@ -103,13 +103,13 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
                   variant="ghost"
                   size="icon"
                   onClick={() => handleDeletePersona(String(persona.id))}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                  className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900 dark:hover:text-red-400"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-            <p className="text-sm text-gray-600 mb-4">{persona.goal}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">{persona.goal}</p>
             <div className="flex flex-wrap gap-2">
               {persona.tags.map((tag, index) => (
                 <Badge key={index} variant="secondary">
@@ -127,7 +127,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
     <div className="p-4">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="dark:border-gray-700">
             <TableHead>Role</TableHead>
             <TableHead>Goal</TableHead>
             <TableHead>Tags</TableHead>
@@ -136,9 +136,9 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
         </TableHeader>
         <TableBody>
           {paginatedPersonas.map((persona) => (
-            <TableRow key={persona.id}>
-              <TableCell className="font-medium">{persona.role}</TableCell>
-              <TableCell>{persona.goal}</TableCell>
+            <TableRow key={persona.id} className="dark:border-gray-700">
+              <TableCell className="font-medium dark:text-white">{persona.role}</TableCell>
+              <TableCell className="dark:text-gray-300">{persona.goal}</TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1">
                   {persona.tags.map((tag, index) => (
@@ -154,7 +154,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
                     variant="ghost"
                     size="icon"
                     onClick={() => handleEditPersona(persona)}
-                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900 dark:hover:text-blue-400"
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -162,7 +162,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
                     variant="ghost"
                     size="icon"
                     onClick={() => handleDeletePersona(String(persona.id))}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                    className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900 dark:hover:text-red-400"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -216,10 +216,10 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b bg-white">
-        <h1 className="text-2xl font-bold">Persona Library</h1>
+      <div className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-900 dark:border-gray-700">
+        <h1 className="text-2xl font-bold dark:text-white">Persona Library</h1>
         <div className="flex gap-4">
-          <div className="flex border rounded-lg">
+          <div className="flex border rounded-lg dark:border-gray-700">
             <Button
               variant={viewMode === 'grid' ? 'default' : 'ghost'}
               size="icon"
@@ -243,7 +243,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
           </Button>
         </div>
       </div>
-      <div className="p-4">
+      <div className="p-4 bg-white dark:bg-gray-900">
         <Input
           type="search"
           placeholder="Search personas..."
@@ -252,7 +252,7 @@ export default function PersonaLibrary({ personas, onUpdatePersonas }: PersonaLi
           className="mb-4"
         />
       </div>
-      <ScrollArea className="flex-grow">
+      <ScrollArea className="flex-grow bg-white dark:bg-gray-900">
         {viewMode === 'grid' ? renderGridView() : renderTableView()}
       </ScrollArea>
     </div>

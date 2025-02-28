@@ -82,14 +82,27 @@ export default function PromptTemplatesPage() {
   }, [getApiHeaders, filters]);
 
   const handleUpdateFilters = (newFilters: Partial<PromptTemplateFilters>) => {
-    // If setting favorited_by, use actual user ID from session
-    if ('favorited_by' in newFilters && newFilters.favorited_by === 'current_user') {
-      newFilters.favorited_by = session?.user?.id || undefined;
+    // Prevent unnecessary filter updates if values are the same
+    let hasChanged = false;
+    
+    Object.entries(newFilters).forEach(([key, value]) => {
+      if (filters[key as keyof PromptTemplateFilters] !== value) {
+        hasChanged = true;
+      }
+    });
+
+    // Only update filters if something has actually changed
+    if (hasChanged) {
+      // If setting favorited_by, use actual user ID from session
+      if ('favorited_by' in newFilters && newFilters.favorited_by === 'current_user') {
+        newFilters.favorited_by = session?.user?.id || undefined;
+      }
+      
+      setFilters(prev => ({
+        ...prev,
+        ...newFilters,
+      }));
     }
-    setFilters(prev => ({
-      ...prev,
-      ...newFilters,
-    }));
   };
 
   useEffect(() => {
@@ -102,6 +115,7 @@ export default function PromptTemplatesPage() {
         }
 
         try {
+          setIsLoading(true);
           const [fetchedPrompts, fetchedCategories, fetchedFavorites] = await Promise.all([
             fetchPromptTemplates(headers, filters),
             fetchCategories(headers),
