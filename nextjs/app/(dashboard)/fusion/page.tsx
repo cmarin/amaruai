@@ -491,7 +491,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
               { messages: messages2, chatId: 'chat2' },
               { messages: messages3, chatId: 'chat3' },
             ].map((chat, index) => (
-              <div key={index} className="h-full border rounded-lg bg-white overflow-hidden">
+              <div key={index} className="h-full border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-700 overflow-hidden">
                 <div className="flex items-center justify-between p-3 border-b">
                   <div className="flex items-center gap-2">
                     <div className="flex gap-2">
@@ -527,7 +527,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
           </div>
 
           {/* Bottom synthesized response window */}
-          <div className="flex-1 border rounded-lg bg-white overflow-hidden relative">
+          <div className="flex-1 border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-700 overflow-hidden relative">
             <div className="flex items-center justify-between p-3 border-b">
               <div className="flex items-center gap-2">
                 <span className="font-medium">Synthesized Response</span>
@@ -592,7 +592,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
             </div>
             <ScrollArea className="h-[calc(100%-60px)] p-4">
               {isSynthesizing && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+                <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="h-8 w-8 animate-spin" />
                     <span className="text-sm text-muted-foreground">Generating synthesis...</span>
@@ -752,7 +752,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
       {/* File upload modal */}
       {showUploadModal && uppyRef.current && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg max-w-2xl w-full">
+          <div className="bg-white dark:bg-gray-900 p-4 rounded-lg max-w-2xl w-full">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold">Upload Files</h2>
               <Button variant="ghost" size="icon" onClick={handleCloseUploadModal}>

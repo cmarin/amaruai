@@ -41,7 +41,7 @@ export default function ScratchPadPage() {
 
   return (
     <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-white">
+      <div className="flex h-full w-full overflow-hidden bg-white dark:bg-gray-900">
         <AppSidebar toggleChatbot={toggleChatbot} />
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <div className="flex justify-between items-center p-4 border-b">

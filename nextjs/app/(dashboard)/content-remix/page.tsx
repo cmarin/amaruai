@@ -454,7 +454,7 @@ function ContentRemixContent() {
               { messages: messages3, chatId: 'chat3' },
               { messages: messages4, chatId: 'chat4' },
             ].map((chat, index) => (
-              <div key={index} className="h-full border rounded-lg bg-white overflow-hidden">
+              <div key={index} className="h-full border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-700 overflow-hidden">
                 <div className="flex items-center justify-between p-3 border-b">
                   <div className="flex items-center gap-2">
                     <div className="flex gap-2">
@@ -658,7 +658,7 @@ function ContentRemixContent() {
 
         {showUploadModal && uppyRef.current && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white p-4 rounded-lg max-w-2xl w-full">
+            <div className="bg-white dark:bg-gray-900 p-4 rounded-lg max-w-2xl w-full">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Upload Files</h2>
                 <Button variant="ghost" size="icon" onClick={handleCloseUploadModal}>

@@ -678,7 +678,7 @@ function ChatContent() {
                   }}
                 />
               </TooltipTrigger>
-              <TooltipContent className="bg-white">
+              <TooltipContent className="bg-white dark:bg-gray-900">
                 <p>Add Knowledge Base or Asset</p>
               </TooltipContent>
             </Tooltip>
@@ -697,7 +697,7 @@ function ChatContent() {
                     <Globe2 className="h-5 w-5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent className="bg-white">
+                <TooltipContent className="bg-white dark:bg-gray-900">
                   <p>Enable Web Search</p>
                 </TooltipContent>
               </Tooltip>

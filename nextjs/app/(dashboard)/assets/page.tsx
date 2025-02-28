@@ -341,7 +341,7 @@ export default function AssetsPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>

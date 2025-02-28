@@ -226,7 +226,7 @@ export function KnowledgeBaseLibrary({ knowledgeBases, onUpdateKnowledgeBases }:
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b bg-white">
+      <div className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-900 dark:border-gray-700">
         <h1 className="text-2xl font-bold">Knowledge Bases</h1>
         <div className="flex items-center justify-end w-[500px] gap-4">
           <div className="flex border rounded-lg">

@@ -129,15 +129,15 @@ export default function WorkflowsPage() {
         />
 
         <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
-          <AlertDialogContent className="bg-white">
+          <AlertDialogContent className="bg-white dark:bg-gray-900">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-gray-900">Are you sure you want to delete this workflow?</AlertDialogTitle>
-              <AlertDialogDescription className="text-gray-600">
+              <AlertDialogTitle className="text-gray-900 dark:text-gray-100">Are you sure you want to delete this workflow?</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-600 dark:text-gray-400">
                 This action cannot be undone. The workflow will be permanently deleted.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel className="bg-gray-100 text-gray-900 hover:bg-gray-200">Cancel</AlertDialogCancel>
+              <AlertDialogCancel className="bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700">Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDeleteConfirm}
                 className="bg-red-600 text-white hover:bg-red-700"
