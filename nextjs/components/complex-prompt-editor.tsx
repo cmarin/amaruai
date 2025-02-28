@@ -621,14 +621,14 @@ const ComplexPromptEditor = ({
 
   return (
     <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-white">
+      <div className="flex h-full w-full overflow-hidden bg-white dark:bg-gray-900">
         <AppSidebar />
         <main className={`flex-1 flex flex-col ${
           mode === 'create'
             ? useSidebarSidebarOpen ? 'ml-56' : 'ml-14'
             : ''
         }`}>
-          <div className="flex items-center justify-between p-4 border-b bg-white">
+          <div className="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-900 dark:border-gray-700">
             <h1 className="text-2xl font-bold">Template Editor</h1>
             <div className="flex gap-2">
               <Button onClick={onCancel} variant="outline">Close</Button>
@@ -645,7 +645,7 @@ const ComplexPromptEditor = ({
               {currentTitle || 'Untitled Template'}
             </h2>
           </div>
-          <div className="flex-grow overflow-auto bg-white">
+          <div className="flex-grow overflow-auto bg-white dark:bg-gray-900">
             <CardContent className="pt-8">
               {renderStepIndicator()}
               {renderStepContent()}

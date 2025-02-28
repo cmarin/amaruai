@@ -73,7 +73,7 @@ export default function PromptTemplatePage({ params }: { params: { id: string } 
 
   return (
     <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-white">
+      <div className="flex h-full w-full overflow-hidden bg-white dark:bg-gray-900">
         <AppSidebar />
         <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
