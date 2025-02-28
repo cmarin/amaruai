@@ -28,6 +28,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { AppSidebar } from '@/components/app-sidebar';
 import { useSidebar } from '@/components/sidebar-context';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { useTheme } from 'next-themes';
 import {
   Select,
   SelectContent,
@@ -55,6 +57,7 @@ export default function SettingsPage() {
     position: 0
   });
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     if (initialized && !sessionLoading) {
@@ -298,6 +301,7 @@ export default function SettingsPage() {
             <TabsList>
               <TabsTrigger value="categories">Categories</TabsTrigger>
               <TabsTrigger value="chat-models">Chat Models</TabsTrigger>
+              <TabsTrigger value="preferences">Preferences</TabsTrigger>
             </TabsList>
 
             <TabsContent value="categories" className="mt-6">
@@ -530,6 +534,47 @@ export default function SettingsPage() {
                     </CardContent>
                   </Card>
                 ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="preferences" className="mt-6">
+              <div className="max-w-3xl mx-auto">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>User Interface</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Customize the appearance of the application
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-medium">Theme</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Select your preferred color theme
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <Select
+                            value={theme}
+                            onValueChange={(value) => setTheme(value)}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue placeholder="Select theme" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="light">Light</SelectItem>
+                              <SelectItem value="dark">Dark</SelectItem>
+                              <SelectItem value="system">System</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <ThemeToggle />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
           </Tabs>

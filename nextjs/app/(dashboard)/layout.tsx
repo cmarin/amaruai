@@ -21,7 +21,7 @@ export default function DashboardLayout({
         <DataProvider>
           <SidebarProvider>
             <AuthGuard>
-              <div className="flex min-h-screen w-full">
+              <div className="flex min-h-screen w-full bg-background dark:bg-background">
                 {children}
               </div>
             </AuthGuard>
