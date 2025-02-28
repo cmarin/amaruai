@@ -539,7 +539,7 @@ export default function SettingsPage() {
 
             <TabsContent value="preferences" className="mt-6">
               <div className="max-w-3xl mx-auto">
-                <Card>
+                <Card className="mb-6">
                   <CardHeader>
                     <CardTitle>User Interface</CardTitle>
                     <p className="text-sm text-muted-foreground">
@@ -548,28 +548,33 @@ export default function SettingsPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      <div className="flex items-center justify-between">
+                      <div className="space-y-4">
                         <div>
                           <h3 className="font-medium">Theme</h3>
                           <p className="text-sm text-muted-foreground">
-                            Select your preferred color theme
+                            Select your preferred color theme for the interface
                           </p>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <Select
-                            value={theme}
-                            onValueChange={(value) => setTheme(value)}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue placeholder="Select theme" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="light">Light</SelectItem>
-                              <SelectItem value="dark">Dark</SelectItem>
-                              <SelectItem value="system">System</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <ThemeToggle />
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                          <div className="w-full sm:w-auto">
+                            <Select
+                              value={theme}
+                              onValueChange={(value) => setTheme(value)}
+                            >
+                              <SelectTrigger className="w-full sm:w-[180px]">
+                                <SelectValue placeholder="Select theme" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="light">Light</SelectItem>
+                                <SelectItem value="dark">Dark</SelectItem>
+                                <SelectItem value="system">System</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground hidden sm:inline">Quick toggle:</span>
+                            <ThemeToggle />
+                          </div>
                         </div>
                       </div>
                     </div>
