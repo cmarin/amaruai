@@ -6,7 +6,6 @@ import { DataProvider } from '@/components/data-context'
 import { createClient } from '@supabase/supabase-js'
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider"
-import { UserStatusSync } from "@/components/user-status-sync";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -35,7 +34,6 @@ export default function RootLayout({
         >
           <SupabaseProvider>
             <DataProvider>
-              <UserStatusSync />
               {children}
             </DataProvider>
           </SupabaseProvider>
