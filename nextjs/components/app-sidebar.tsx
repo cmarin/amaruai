@@ -108,8 +108,20 @@ export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps
   }, [supabase.auth])
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push('/auth/login')
+    try {
+      // Call the server-side sign-out route
+      await fetch('/auth/signout', { method: 'POST' })
+      
+      // Then sign out on the client side
+      await supabase.auth.signOut()
+      
+      // Force the page to reload to clear any cached state
+      window.location.href = '/auth/login'
+    } catch (error) {
+      console.error('Error signing out:', error)
+      // Still try to redirect even if there's an error
+      window.location.href = '/auth/login'
+    }
   }
 
   const handleToggleChatbot = (modelId: string) => {
