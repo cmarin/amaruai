@@ -642,7 +642,7 @@ const ComplexPromptEditor = ({
             </h2>
           </div>
           <div className="flex-grow overflow-auto bg-white dark:bg-background">
-            <CardContent className="pt-8">
+            <CardContent className="p-8 pt-10">
               {renderStepIndicator()}
               {renderStepContent()}
               {renderNavigation()}

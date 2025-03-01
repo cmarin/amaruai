@@ -79,21 +79,23 @@ export default function PromptTemplatePage({ params }: { params: { id: string } 
         <div className="flex h-full w-full overflow-hidden bg-white dark:bg-background">
           <AppSidebar />
           <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-            {promptTemplate.is_complex ? (
-              <ComplexPromptTemplateEditor
-                promptTemplate={promptTemplate}
-                categories={categories}
-                onSave={handleSave}
-                onClose={() => router.push('/prompt-templates')}
-              />
-            ) : (
-              <PromptTemplateEditor
-                promptTemplate={promptTemplate}
-                categories={categories}
-                onSave={handleSave}
-                onClose={() => router.push('/prompt-templates')}
-              />
-            )}
+            <div className="p-8 pt-12">
+              {promptTemplate.is_complex ? (
+                <ComplexPromptTemplateEditor
+                  promptTemplate={promptTemplate}
+                  categories={categories}
+                  onSave={handleSave}
+                  onClose={() => router.push('/prompt-templates')}
+                />
+              ) : (
+                <PromptTemplateEditor
+                  promptTemplate={promptTemplate}
+                  categories={categories}
+                  onSave={handleSave}
+                  onClose={() => router.push('/prompt-templates')}
+                />
+              )}
+            </div>
           </div>
         </div>
       ) : (
