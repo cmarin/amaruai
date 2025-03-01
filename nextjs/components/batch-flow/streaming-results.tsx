@@ -210,7 +210,7 @@ export function StreamingResults({
       {isProcessing && <GeneratingButton isGenerating={isProcessing} />}
       
       {error ? (
-        <div className="text-red-500 p-4 rounded-lg bg-red-50">
+        <div className="text-red-500 dark:text-red-400 p-4 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800">
           Error: {error}
         </div>
       ) : (
@@ -220,21 +220,21 @@ export function StreamingResults({
             const stepContent = getStepResults(stepIndex);
             
             return (
-              <div key={stepIndex} className="border rounded-lg p-4">
+              <div key={stepIndex} className="border rounded-lg p-4 dark:border-gray-700">
                 <div className="flex justify-between items-center mb-4">
                   <div className="space-y-2">
-                    <div className="font-medium">Step {stepIndex + 1}</div>
-                    <div className="grid grid-cols-3 gap-4 text-sm text-gray-600">
+                    <div className="font-medium dark:text-gray-200">Step {stepIndex + 1}</div>
+                    <div className="grid grid-cols-3 gap-4 text-sm text-gray-600 dark:text-gray-400">
                       <div>
-                        <div className="font-semibold">Model</div>
+                        <div className="font-semibold dark:text-gray-300">Model</div>
                         <div>{config.model}</div>
                       </div>
                       <div>
-                        <div className="font-semibold">Persona</div>
+                        <div className="font-semibold dark:text-gray-300">Persona</div>
                         <div>{config.persona}</div>
                       </div>
                       <div>
-                        <div className="font-semibold">Template</div>
+                        <div className="font-semibold dark:text-gray-300">Template</div>
                         <div>{config.template}</div>
                       </div>
                     </div>
@@ -279,14 +279,14 @@ export function StreamingResults({
                 </div>
                 
                 {stepIndex === currentStepIndex && isProcessing && (
-                  <div className="text-blue-500 flex items-center">
+                  <div className="text-blue-500 dark:text-blue-400 flex items-center">
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Processing...
                   </div>
                 )}
                 
-                <ScrollArea className="h-[200px] w-full rounded border p-4 bg-gray-50">
-                  <ReactMarkdown>
+                <ScrollArea className="h-[200px] w-full rounded border p-4 bg-gray-50 dark:bg-gray-900 dark:border-gray-700">
+                  <ReactMarkdown className="text-gray-900 dark:text-gray-200">
                     {stepContent}
                   </ReactMarkdown>
                 </ScrollArea>

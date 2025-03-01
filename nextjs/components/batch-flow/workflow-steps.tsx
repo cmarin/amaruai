@@ -136,7 +136,7 @@ export function WorkflowSteps({
                             <EyeIcon className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="right" align="center" className="max-w-sm bg-white dark:bg-gray-900">
+                        <TooltipContent side="right" align="center" className="max-w-sm bg-white dark:bg-gray-800 border dark:border-gray-700">
                           <div className="space-y-2">
                             <p className="font-medium dark:text-white">Template</p>
                             <p className="text-sm whitespace-pre-wrap dark:text-gray-300">
@@ -170,7 +170,7 @@ export function WorkflowSteps({
                             <EyeIcon className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="right" align="center" className="max-w-sm bg-white dark:bg-gray-900">
+                        <TooltipContent side="right" align="center" className="max-w-sm bg-white dark:bg-gray-800 border dark:border-gray-700">
                           <div className="space-y-2">
                             <p className="font-medium dark:text-white">Persona</p>
                             <p className="text-sm whitespace-pre-wrap dark:text-gray-300">
@@ -214,7 +214,7 @@ export function WorkflowSteps({
                             <EyeIcon className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="right" align="center" className="max-w-sm bg-white dark:bg-gray-900">
+                        <TooltipContent side="right" align="center" className="max-w-sm bg-white dark:bg-gray-800 border dark:border-gray-700">
                           <div className="space-y-2">
                             <p className="font-medium dark:text-white">Chat Model</p>
                             <p className="text-sm whitespace-pre-wrap dark:text-gray-300">

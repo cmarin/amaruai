@@ -60,7 +60,8 @@ origins = [
     "https://localhost:8000",
     "http://amaruai.vercel.app",
     "https://amaruai.vercel.app",
-    "https://amaruai-l2117eld6-cmarins-projects.vercel.app",
+    "https://amaruai.com",
+    "https://www.amaruai.com",
     "https://accurate-courtesy-production.up.railway.app"
 ]
 
