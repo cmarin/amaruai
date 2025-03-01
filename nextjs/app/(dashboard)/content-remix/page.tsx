@@ -441,11 +441,11 @@ function ContentRemixContent() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      <div className={`w-16 flex-shrink-0 ${sidebarOpen ? 'w-64' : 'w-16'}`}>
+      <div className={`${sidebarOpen ? 'w-64' : 'w-16'} flex-shrink-0 h-full border-r border-gray-200 dark:border-gray-700`}>
         <AppSidebar />
       </div>
 
-      <div className={`flex-1 flex flex-col h-full relative transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+      <div className="flex-1 flex flex-col h-full relative transition-all duration-300">
         <div className="flex-1 overflow-auto p-4">
           <div className="grid grid-cols-2 grid-rows-2 gap-4 h-full">
             {[

@@ -537,13 +537,11 @@ function ChatContent() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      {/* LEFT COLUMN (sidebar) */}
-      <div className={`w-16 flex-shrink-0 ${sidebarOpen ? 'w-64' : 'w-16'}`}>
-        <AppSidebar toggleChatbot={handleToggleChatbot} />
+      <div className={`${sidebarOpen ? 'w-64' : 'w-16'} flex-shrink-0 h-full border-r border-gray-200 dark:border-gray-700`}>
+        <AppSidebar />
       </div>
 
-      {/* RIGHT COLUMN (main content) */}
-      <div className={`flex-1 flex flex-col h-full relative transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+      <div className="flex-1 flex flex-col h-full relative transition-all duration-300">
         {/* Body/Chat section (scrollable) */}
         <div className="flex-1 overflow-auto p-4">
           {/* Single/dual/quad chat windows */}
