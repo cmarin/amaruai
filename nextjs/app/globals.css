@@ -265,3 +265,34 @@ html, body {
   pointer-events: auto !important;
   z-index: 9999 !important;
 }
+
+/* Fix for Uppy close button in dark mode */
+:root[class~="dark"] .uppy-Dashboard-close,
+:root[class~="dark"] button.uppy-Dashboard-close {
+  background-color: #374151 !important;
+  color: #f3f4f6 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  border-color: #4b5563 !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+  padding: 8px !important;
+  margin: 8px !important;
+}
+
+:root[class~="dark"] .uppy-Dashboard-close:hover,
+:root[class~="dark"] button.uppy-Dashboard-close:hover {
+  background-color: #4b5563 !important;
+  color: #ffffff !important;
+}
+
+:root[class~="dark"] .uppy-Dashboard-close svg {
+  fill: #f3f4f6 !important;
+  stroke: #f3f4f6 !important;
+}
+
+:root[class~="dark"] .uppy-Dashboard-close svg path,
+:root[class~="dark"] .uppy-Dashboard-close svg line,
+:root[class~="dark"] .uppy-Dashboard-close svg circle {
+  fill: #f3f4f6 !important;
+  stroke: #f3f4f6 !important;
+}

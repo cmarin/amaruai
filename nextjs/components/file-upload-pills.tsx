@@ -13,15 +13,15 @@ export function FileUploadPills({ files, onRemove }: FileUploadPillsProps) {
   return (
     <div className="flex flex-wrap gap-2 mb-2">
       {files.map((file, index) => (
-        <div key={index} className="flex items-center bg-gray-100 rounded-full px-3 py-1">
+        <div key={index} className="flex items-center bg-gray-100 dark:bg-gray-700 dark:text-gray-200 rounded-full px-3 py-1">
           <span className="text-sm truncate max-w-[150px]">{file.name}</span>
           <Button
             variant="ghost"
             size="sm"
-            className="ml-2 h-auto p-0"
+            className="ml-2 h-auto p-0 dark:hover:bg-gray-600"
             onClick={() => onRemove(file)}
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4 dark:text-gray-200" />
           </Button>
         </div>
       ))}
