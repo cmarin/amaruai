@@ -776,7 +776,7 @@ function ChatContent() {
 
         {/* File upload pills */}
         {uploadedFiles.length > 0 && (
-          <div className="absolute bottom-[72px] left-0 right-0 p-2 bg-background border-t">
+          <div className="absolute bottom-0 left-0 right-0 p-2 bg-background border-t">
             <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
           </div>
         )}
