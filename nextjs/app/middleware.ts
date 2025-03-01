@@ -28,46 +28,62 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   const supabase = createMiddlewareClient({ req, res })
   
-  // Get user session server-side
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+  // Check for Google OAuth flow in progress
+  const hasGoogleAuthParams = req.nextUrl.searchParams.has('code') && 
+                              req.nextUrl.searchParams.has('state')
   
-  if (sessionError) {
-    console.error('Error getting session in middleware:', sessionError)
-    return NextResponse.redirect(new URL('/auth/login', req.url))
+  if (hasGoogleAuthParams) {
+    console.log('Google OAuth flow in progress, allowing access')
+    return res
   }
   
-  // If no user session for a protected route, redirect to login
-  if (!session?.user) {
-    console.log(`No session, redirecting to login from: ${req.nextUrl.pathname}`)
-    return NextResponse.redirect(new URL('/auth/login', req.url))
-  }
-  
-  // User is logged in, now check if they're active
   try {
-    console.log(`Checking active status for user: ${session.user.id}`)
+    // Get user session server-side
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
-    // Query the users table to check the active status
-    const { data: dbUser, error: dbError } = await supabase
-      .from('users')
-      .select('active')
-      .eq('id', session.user.id)
-      .single()
-    
-    if (dbError) {
-      console.error('Error checking user active status:', dbError)
-      // On error, still allow access but log the error
-      return res
+    if (sessionError) {
+      console.error('Error getting session in middleware:', sessionError)
+      return NextResponse.redirect(new URL('/auth/login', req.url))
     }
     
-    console.log(`User active status: ${JSON.stringify(dbUser)}`)
-    
-    // Explicitly check if active is false
-    if (dbUser && dbUser.active === false) {
-      console.log(`Redirecting inactive user to /inactive from: ${req.nextUrl.pathname}`)
-      return NextResponse.redirect(new URL('/inactive', req.url))
+    // If no user session for a protected route, redirect to login
+    if (!session?.user) {
+      console.log(`No session, redirecting to login from: ${req.nextUrl.pathname}`)
+      return NextResponse.redirect(new URL('/auth/login', req.url))
     }
-  } catch (error) {
-    console.error('Unexpected error in middleware:', error)
+    
+    // User is logged in, now check if they're active
+    try {
+      console.log(`Checking active status for user: ${session.user.id}`)
+      
+      // Query the users table to check the active status
+      const { data: dbUser, error: dbError } = await supabase
+        .from('users')
+        .select('active')
+        .eq('id', session.user.id)
+        .single()
+      
+      if (dbError) {
+        console.error('Error checking user active status:', dbError)
+        // On error, still allow access but log the error
+        return res
+      }
+      
+      console.log(`User active status: ${JSON.stringify(dbUser)}`)
+      
+      // Explicitly check if active is false
+      if (dbUser && dbUser.active === false) {
+        console.log(`Redirecting inactive user to /inactive from: ${req.nextUrl.pathname}`)
+        return NextResponse.redirect(new URL('/inactive', req.url))
+      }
+    } catch (error) {
+      console.error('Unexpected error in middleware:', error)
+    }
+  } catch (err) {
+    console.error('Fatal error in middleware:', err)
+    // On critical error, let the request proceed
+    // The server-side or client-side auth checks will handle it
+    return res
   }
   
   return res
