@@ -6,58 +6,88 @@ export async function middleware(req: NextRequest) {
   // Debugging - log the current path
   console.log(`Middleware running for path: ${req.nextUrl.pathname}`)
   
+  // Skip check for public routes and static assets
+  const isPublicRoute = 
+    req.nextUrl.pathname.startsWith('/auth') || 
+    req.nextUrl.pathname === '/inactive' ||
+    req.nextUrl.pathname === '/' ||
+    req.nextUrl.pathname === '/unauthorized' ||
+    req.nextUrl.pathname.startsWith('/_next') ||
+    req.nextUrl.pathname.startsWith('/images') ||
+    req.nextUrl.pathname === '/favicon.ico' ||
+    req.nextUrl.pathname.startsWith('/api/webhooks')
+  
+  if (isPublicRoute) {
+    console.log(`Skipping middleware check for public route: ${req.nextUrl.pathname}`)
+    return NextResponse.next()
+  }
+  
+  // This is a protected route - check authentication and active status
+  console.log(`Protected route check: ${req.nextUrl.pathname}`)
+  
   const res = NextResponse.next()
   const supabase = createMiddlewareClient({ req, res })
   
-  // Get the user's session
+  // Get user session server-side
   const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-  
-  // Skip the check for public routes and the inactive page itself
-  const isPublicRoute = req.nextUrl.pathname.startsWith('/auth') || 
-                        req.nextUrl.pathname === '/inactive' ||
-                        req.nextUrl.pathname === '/'
   
   if (sessionError) {
     console.error('Error getting session in middleware:', sessionError)
-    return res
+    return NextResponse.redirect(new URL('/auth/login', req.url))
   }
   
-  // Only run the active check for protected routes and for authenticated users
-  if (session?.user?.id && !isPublicRoute) {
-    try {
-      console.log(`Checking active status for user: ${session.user.id}`)
-      
-      // Query the users table to check the active status
-      const { data: dbUser, error: dbError } = await supabase
-        .from('users')
-        .select('active')
-        .eq('id', session.user.id)
-        .single()
-      
-      if (dbError) {
-        console.error('Error checking user active status:', dbError)
-        return res
-      }
-      
-      console.log(`User active status: ${dbUser?.active}`)
-      
-      // Specifically check if active is false (not undefined or null)
-      if (dbUser && dbUser.active === false) {
-        console.log(`Redirecting inactive user to /inactive`)
-        return NextResponse.redirect(new URL('/inactive', req.url))
-      }
-    } catch (error) {
-      console.error('Unexpected error in middleware:', error)
+  // If no user session for a protected route, redirect to login
+  if (!session?.user) {
+    console.log(`No session, redirecting to login from: ${req.nextUrl.pathname}`)
+    return NextResponse.redirect(new URL('/auth/login', req.url))
+  }
+  
+  // User is logged in, now check if they're active
+  try {
+    console.log(`Checking active status for user: ${session.user.id}`)
+    
+    // Query the users table to check the active status
+    const { data: dbUser, error: dbError } = await supabase
+      .from('users')
+      .select('active')
+      .eq('id', session.user.id)
+      .single()
+    
+    if (dbError) {
+      console.error('Error checking user active status:', dbError)
+      // On error, still allow access but log the error
+      return res
     }
+    
+    console.log(`User active status: ${JSON.stringify(dbUser)}`)
+    
+    // Explicitly check if active is false
+    if (dbUser && dbUser.active === false) {
+      console.log(`Redirecting inactive user to /inactive from: ${req.nextUrl.pathname}`)
+      return NextResponse.redirect(new URL('/inactive', req.url))
+    }
+  } catch (error) {
+    console.error('Unexpected error in middleware:', error)
   }
   
   return res
 }
 
-// Ensure the matcher includes all routes we want to protect
+// Explicitly list protected routes that need authentication checks
 export const config = {
   matcher: [
-    // Match all paths except next static files, images, and other public assets
-    '/((?!_next/static|_next/image|favicon.ico|images|api/webhooks).*)',
+    '/chat/:path*',
+    '/account/:path*',
+    '/settings/:path*',
+    '/admin/:path*',
+    '/dashboard/:path*',
+    '/batch-flow/:path*', 
+    '/knowledge-bases/:path*',
+    '/prompt-templates/:path*',
+    '/personas/:path*',
+    '/workflows/:path*',
+    '/fusion/:path*',
+    '/content-remix/:path*',
+    '/scratch-pad/:path*'
   ],
 }
