@@ -62,6 +62,18 @@ async def get_current_user_id(
     """
     return get_user_id(current_user, db)
 
+async def admin_required(current_user: dict = Depends(get_current_user)):
+    """
+    Ensures that the current user has role = 'admin'.
+    """
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required"
+        )
+    return current_user
+
+
 async def get_current_user_old(authorization: Optional[str] = Header(None)) -> str:
     """
     Get the current authenticated user from the JWT token.

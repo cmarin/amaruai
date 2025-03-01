@@ -16,7 +16,35 @@ export async function GET(request: Request) {
     const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error && session) {
-      // Successful login - redirect to the return URL or default to /chat
+      // Check if this is a new user by looking for their entry in the users table
+      const { data: existingUser, error: userCheckError } = await supabase
+        .from('users')
+        .select('id, active')
+        .eq('id', session.user.id)
+        .single()
+      
+      if (!existingUser) {
+        // If user doesn't exist in the users table, add them with active=false
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert([{ 
+            id: session.user.id, 
+            email: session.user.email,
+            active: false 
+          }])
+        
+        if (insertError) {
+          console.error('Error setting user as inactive:', insertError)
+        }
+        
+        // Redirect new users to the inactive page
+        return NextResponse.redirect(`${requestUrl.origin}/inactive`)
+      } else if (existingUser.active === false) {
+        // If user exists but is inactive, redirect to inactive page
+        return NextResponse.redirect(`${requestUrl.origin}/inactive`)
+      }
+      
+      // Active user - redirect to the return URL or default to /chat
       return NextResponse.redirect(`${requestUrl.origin}${returnTo}`)
     }
   }
