@@ -477,12 +477,12 @@ Please synthesize these responses into a comprehensive answer that combines the 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       {/* LEFT COLUMN (sidebar) */}
-      <div className="w-64 h-full border-r border-gray-200 dark:border-gray-700">
+      <div className={`w-16 flex-shrink-0 ${sidebarOpen ? 'w-64' : 'w-16'}`}>
         <AppSidebar />
       </div>
 
       {/* RIGHT COLUMN (main content) */}
-      <div className="flex-1 flex flex-col h-full relative">
+      <div className={`flex-1 flex flex-col h-full relative transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         {/* Top row with three chat windows */}
         <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
           <div className="grid grid-cols-3 gap-4 h-[300px]">
