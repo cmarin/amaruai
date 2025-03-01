@@ -1,20 +1,24 @@
 import { createClient } from '@/app/utils/supabase/server'
 import { redirect } from 'next/navigation'
 
-// This is a server component that will check user status before rendering the chat page
-export async function UserStatusChecker() {
+export default async function ChatLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const supabase = createClient()
   
   // Get user session server-side
   const { data: { session }, error: sessionError } = await supabase.auth.getSession()
   
   if (sessionError) {
-    console.error('Error checking session:', sessionError)
+    console.error('Error checking session in chat layout:', sessionError)
     redirect('/auth/login')
   }
   
   // If no session, redirect to login
   if (!session?.user) {
+    console.log('No session in chat layout, redirecting to login')
     redirect('/auth/login')
   }
   
@@ -26,27 +30,14 @@ export async function UserStatusChecker() {
     .single()
   
   if (dbError) {
-    console.error('Error checking user status:', dbError)
+    console.error('Error checking user status in chat layout:', dbError)
   }
   
   // If user is inactive, redirect to inactive page
   if (dbUser?.active === false) {
-    console.log(`User ${session.user.id} is inactive, redirecting to /inactive`)
+    console.log(`User ${session.user.id} is inactive, redirecting to /inactive from chat layout`)
     redirect('/inactive')
   }
   
-  return null
-}
-
-export default async function ChatPage() {
-  // Check user status before rendering anything
-  await UserStatusChecker()
-  
-  // Your existing chat page content goes here...
-  return (
-    <div>
-      <h1>Chat Page</h1>
-      {/* Rest of your chat interface */}
-    </div>
-  )
+  return <>{children}</>
 } 
