@@ -19,7 +19,20 @@ export async function fetchCategories(headers: ApiHeaders): Promise<Category[]> 
   // Check if we're already making this exact request
   if (requestTracker[requestKey]) {
     console.log(`Duplicate request prevented: ${requestKey}`);
-    return [];
+    // Return a promise that never resolves during the lock period
+    // This will prevent the state from being updated with an empty array
+    return new Promise((resolve) => {
+      const checkLock = () => {
+        if (!requestTracker[requestKey]) {
+          // When the lock is released, try again
+          fetchCategories(headers).then(resolve);
+        } else {
+          // Check again after a short delay
+          setTimeout(checkLock, 100);
+        }
+      };
+      setTimeout(checkLock, 100);
+    });
   }
   
   // Mark this request as in progress

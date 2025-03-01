@@ -30,7 +30,20 @@ export async function fetchChatModels(headers: ApiHeaders): Promise<ChatModel[]>
   // Check if we're already making this exact request
   if (requestTracker[requestKey]) {
     console.log(`Duplicate request prevented: ${requestKey}`);
-    return [];
+    // Return a promise that never resolves during the lock period
+    // This will prevent the state from being updated with an empty array
+    return new Promise((resolve) => {
+      const checkLock = () => {
+        if (!requestTracker[requestKey]) {
+          // When the lock is released, try again
+          fetchChatModels(headers).then(resolve);
+        } else {
+          // Check again after a short delay
+          setTimeout(checkLock, 100);
+        }
+      };
+      setTimeout(checkLock, 100);
+    });
   }
   
   // Mark this request as in progress
@@ -183,7 +196,20 @@ export async function fetchFavoriteChatModels(headers: ApiHeaders): Promise<Chat
   // Check if we're already making this exact request
   if (requestTracker[requestKey]) {
     console.log(`Duplicate request prevented: ${requestKey}`);
-    return [];
+    // Return a promise that never resolves during the lock period
+    // This will prevent the state from being updated with an empty array
+    return new Promise((resolve) => {
+      const checkLock = () => {
+        if (!requestTracker[requestKey]) {
+          // When the lock is released, try again
+          fetchFavoriteChatModels(headers).then(resolve);
+        } else {
+          // Check again after a short delay
+          setTimeout(checkLock, 100);
+        }
+      };
+      setTimeout(checkLock, 100);
+    });
   }
   
   // Mark this request as in progress
