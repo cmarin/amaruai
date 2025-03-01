@@ -566,7 +566,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
                         )}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>
+                    <TooltipContent className="bg-white dark:bg-gray-800">
                       {copiedStates[synthesizedMessages.map(m => `${m.role}: ${m.content}`).join('\n')] 
                         ? "Copied!" 
                         : "Copy chat content"}
@@ -585,7 +585,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
                         <FileText className="w-4 h-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Add to Scratch Pad</TooltipContent>
+                    <TooltipContent className="bg-white dark:bg-gray-800">Add to Scratch Pad</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </div>
@@ -622,7 +622,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
                   </Button>
                 </PromptSelector>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Select Prompt</p>
               </TooltipContent>
             </Tooltip>
@@ -635,7 +635,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
                   <Paperclip className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Add Attachment</p>
               </TooltipContent>
             </Tooltip>
@@ -653,7 +653,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
                   <Database className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Knowledge Base</p>
               </TooltipContent>
             </Tooltip>
@@ -672,7 +672,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
                     <Globe2 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-800">
                   <p>Enable Web Search</p>
                 </TooltipContent>
               </Tooltip>
@@ -691,7 +691,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
                   <Settings className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Edit Synthesis Prompt</p>
               </TooltipContent>
             </Tooltip>

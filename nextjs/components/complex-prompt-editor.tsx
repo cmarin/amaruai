@@ -304,7 +304,7 @@ const ComplexPromptEditor = ({
                     onChange={(e) => handleVariableChange(index, 'defaultValue', parseInt(e.target.value, 10))}
                   />
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-800">
                   <p>Default value for this number field</p>
                 </TooltipContent>
               </Tooltip>
@@ -320,7 +320,7 @@ const ComplexPromptEditor = ({
                       onChange={(e) => handleVariableChange(index, 'validation', { min: parseInt(e.target.value, 10) })}
                     />
                   </TooltipTrigger>
-                  <TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-800">
                     <p>Minimum allowed value</p>
                   </TooltipContent>
                 </Tooltip>
@@ -335,7 +335,7 @@ const ComplexPromptEditor = ({
                       onChange={(e) => handleVariableChange(index, 'validation', { max: parseInt(e.target.value, 10) })}
                     />
                   </TooltipTrigger>
-                  <TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-800">
                     <p>Maximum allowed value</p>
                   </TooltipContent>
                 </Tooltip>
@@ -350,7 +350,7 @@ const ComplexPromptEditor = ({
                       onChange={(e) => handleVariableChange(index, 'validation', { step: parseInt(e.target.value, 10) })}
                     />
                   </TooltipTrigger>
-                  <TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-800">
                     <p>Step size for incrementing/decrementing</p>
                   </TooltipContent>
                 </Tooltip>
@@ -370,7 +370,7 @@ const ComplexPromptEditor = ({
                     onChange={(e) => handleVariableChange(index, 'defaultValue', e.target.value)}
                   />
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-800">
                   <p>Default date for this field</p>
                 </TooltipContent>
               </Tooltip>
@@ -387,7 +387,7 @@ const ComplexPromptEditor = ({
                 className="mt-4"
               />
             </TooltipTrigger>
-            <TooltipContent>
+            <TooltipContent className="bg-white dark:bg-gray-800">
               <p>Error message to display when validation fails</p>
             </TooltipContent>
           </Tooltip>
@@ -402,7 +402,7 @@ const ComplexPromptEditor = ({
                 className="mt-4"
               />
             </TooltipTrigger>
-            <TooltipContent>
+            <TooltipContent className="bg-white dark:bg-gray-800">
               <p>Tooltip to display for this variable</p>
             </TooltipContent>
           </Tooltip>

@@ -491,7 +491,7 @@ function ContentRemixContent() {
                             )}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>
+                        <TooltipContent className="bg-white dark:bg-gray-800">
                           {copiedStates[chat.messages.map(m => `${m.role}: ${m.content}`).join('\n')] 
                             ? "Copied!" 
                             : "Copy chat content"}
@@ -510,7 +510,7 @@ function ContentRemixContent() {
                             <FileText className="w-4 h-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Add to Scratch Pad</TooltipContent>
+                        <TooltipContent className="bg-white dark:bg-gray-800">Add to Scratch Pad</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </div>
@@ -543,7 +543,7 @@ function ContentRemixContent() {
                   </Button>
                 </PromptSelector>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Select Prompt</p>
               </TooltipContent>
             </Tooltip>
@@ -556,7 +556,7 @@ function ContentRemixContent() {
                   <Paperclip className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Add Attachment</p>
               </TooltipContent>
             </Tooltip>
@@ -574,7 +574,7 @@ function ContentRemixContent() {
                   <Database className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Knowledge Base</p>
               </TooltipContent>
             </Tooltip>
@@ -593,7 +593,7 @@ function ContentRemixContent() {
                     <Globe2 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-800">
                   <p>Enable Web Search</p>
                 </TooltipContent>
               </Tooltip>
@@ -612,7 +612,7 @@ function ContentRemixContent() {
                   <Settings className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Edit Remix Settings</p>
               </TooltipContent>
             </Tooltip>

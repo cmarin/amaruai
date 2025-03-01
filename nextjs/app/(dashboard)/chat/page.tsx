@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Copy, Trash2, Send, BookOpen, Grid2X2, Columns, Square, MessageSquare,
-  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Globe2
+  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Globe2, Database
 } from 'lucide-react'
 import {
   Select,
@@ -426,7 +426,7 @@ function ChatContent() {
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-800">
                   {isCopied ? "Copied!" : "Copy chat content"}
                 </TooltipContent>
               </Tooltip>
@@ -436,7 +436,7 @@ function ChatContent() {
                     <FileText className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Add to Scratch Pad</TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-800">Add to Scratch Pad</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -444,7 +444,7 @@ function ChatContent() {
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Clear Conversation</TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-800">Clear Conversation</TooltipContent>
               </Tooltip>
             </div>
           </div>
@@ -637,7 +637,7 @@ function ChatContent() {
                   </Button>
                 </PromptSelector>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Prompts</p>
               </TooltipContent>
             </Tooltip>
@@ -650,7 +650,7 @@ function ChatContent() {
                   <Paperclip className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Add Attachment</p>
               </TooltipContent>
             </Tooltip>
@@ -659,6 +659,30 @@ function ChatContent() {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={`h-8 w-8 ${selectedKnowledgeBases.length > 0 || selectedAssets.length > 0 ? "text-green-500" : ""}`}
+                  onClick={() => {
+                    // Open the Knowledge Base selector
+                    const selector = document.querySelector('[data-kb-selector="true"]') as HTMLElement;
+                    if (selector) {
+                      selector.click();
+                    }
+                  }}
+                >
+                  <Database className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="bg-white dark:bg-gray-800">
+                <p>Knowledge Base</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild data-kb-selector="true">
                 <KnowledgeBaseSelector
                   knowledgeBases={knowledgeBases}
                   isLoadingKnowledgeBases={isLoadingKnowledgeBases}
@@ -678,7 +702,7 @@ function ChatContent() {
                   }}
                 />
               </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-background">
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Add Knowledge Base or Asset</p>
               </TooltipContent>
             </Tooltip>
@@ -697,7 +721,7 @@ function ChatContent() {
                     <Globe2 className="h-5 w-5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent className="bg-white dark:bg-background">
+                <TooltipContent className="bg-white dark:bg-gray-800">
                   <p>Enable Web Search</p>
                 </TooltipContent>
               </Tooltip>

@@ -253,7 +253,7 @@ export function StreamingResults({
                             <Copy className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>
+                        <TooltipContent className="bg-white dark:bg-gray-800">
                           <p>Copy</p>
                         </TooltipContent>
                       </Tooltip>
@@ -270,7 +270,7 @@ export function StreamingResults({
                             <BookMarked className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>
+                        <TooltipContent className="bg-white dark:bg-gray-800">
                           <p>Add to scratch pad</p>
                         </TooltipContent>
                       </Tooltip>

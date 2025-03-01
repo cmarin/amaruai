@@ -120,6 +120,8 @@ html, body {
 
 .uppy-Dashboard-browse {
   color: #2563eb !important;
+  text-decoration: underline !important;
+  cursor: pointer !important;
 }
 
 .uppy-Dashboard-dropFilesHereHint {
@@ -164,9 +166,18 @@ html, body {
   border-top: 1px solid hsl(var(--border)) !important;
 }
 
-:root[class~="dark"] .uppy-StatusBar-actionBtn--upload {
-  background-color: hsl(var(--primary)) !important;
+:root[class~="dark"] .uppy-StatusBar-actionBtn--upload,
+:root[class~="dark"] button.uppy-StatusBar-actionBtn--upload {
+  background-color: #10b981 !important;
   color: white !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  border-color: #059669 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  pointer-events: auto !important;
+  display: inline-block !important;
+  position: relative !important;
+  z-index: 100 !important;
 }
 
 :root[class~="dark"] .uppy-StatusBar-actionBtn--retry {
@@ -197,7 +208,10 @@ html, body {
 }
 
 :root[class~="dark"] .uppy-Dashboard-browse {
-  color: hsl(var(--primary)) !important;
+  color: #3b82f6 !important;
+  text-decoration: underline !important;
+  cursor: pointer !important;
+  font-weight: bold !important;
 }
 
 :root[class~="dark"] .uppy-Dashboard-dropFilesHereHint {
@@ -218,45 +232,36 @@ html, body {
 }
 
 /* More specific Uppy button styling */
-:root[class~="dark"] .uppy-StatusBar-actionBtn {
-  background-color: hsl(var(--primary)) !important;
-  color: white !important;
-  border-color: transparent !important;
-}
-
-:root[class~="dark"] .uppy-StatusBar-content {
-  color: hsl(var(--foreground)) !important;
-}
-
-:root[class~="dark"] .uppy-c-btn {
-  background-color: hsl(var(--primary)) !important;
-  color: white !important;
-}
-
-:root[class~="dark"] .uppy-Dashboard-AddFiles-info {
-  border-color: hsl(var(--border)) !important;
-  color: hsl(var(--foreground)) !important;
-}
-
-/* Ensure upload buttons are visible */
-:root[class~="dark"] .uppy-StatusBar-actions .uppy-c-btn {
-  background-color: hsl(var(--primary)) !important;
-  color: white !important;
+:root[class~="dark"] .uppy-StatusBar-content,
+:root[class~="dark"] .uppy-StatusBar-actions,
+:root[class~="dark"] .uppy-StatusBar-status {
   opacity: 1 !important;
   visibility: visible !important;
-  border: none !important;
+  display: flex !important;
 }
 
-:root[class~="dark"] .uppy-StatusBar-actions button[type="button"] {
-  background-color: hsl(var(--primary)) !important;
-  color: white !important;
-  opacity: 1 !important;
-  visibility: visible !important;
+:root[class~="dark"] .uppy-c-btn:not(.uppy-StatusBar-actionBtn--upload) {
+  background-color: transparent !important;
+  color: inherit !important;
 }
 
-:root[class~="dark"] .uppy-u-reset.uppy-c-btn.uppy-StatusBar-actionBtn--upload {
-  background-color: hsl(var(--primary)) !important;
-  color: white !important;
+/* Tooltip styling fixes for dark mode */
+:root[class~="dark"] [data-radix-tooltip-content-wrapper] {
+  z-index: 9999 !important;
+}
+
+:root[class~="dark"] [role="tooltip"] {
+  background-color: #1f2937 !important; /* dark gray background */
+  color: #f3f4f6 !important; /* light text */
+  border-color: #374151 !important;
+  z-index: 9999 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Ensure tooltips are always visible */
+[data-radix-tooltip-content-wrapper] {
   opacity: 1 !important;
   visibility: visible !important;
+  pointer-events: auto !important;
+  z-index: 9999 !important;
 }

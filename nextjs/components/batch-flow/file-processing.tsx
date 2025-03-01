@@ -135,7 +135,7 @@ export function FileProcessing({
                         )}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>
+                    <TooltipContent className="bg-white dark:bg-gray-800">
                       <p>Copy transcript</p>
                     </TooltipContent>
                   </Tooltip>
