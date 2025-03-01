@@ -3,6 +3,11 @@ import { createTag, fetchTags, Tag } from './tag-service';
 import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl, getFetchOptions } from './api-utils';
 
+// Simple in-memory request tracker to prevent duplicate calls
+const requestTracker: {
+  [key: string]: boolean
+} = {};
+
 export type Persona = {
   id: string | number;
   role: string;
@@ -41,28 +46,47 @@ export type PersonaCreate = {
 export type PersonaUpdate = Omit<PersonaCreate, 'prompt_templates'>;
 
 export async function fetchPersonas(headers: ApiHeaders): Promise<Persona[]> {
-  return fetchWithRetry(async () => {
-    const apiUrl = getApiUrl();
-    if (!apiUrl) {
-      throw new Error('API_BASE_URL is not defined');
-    }
+  // Create a request key
+  const requestKey = 'personas';
+  
+  // Check if we're already making this exact request
+  if (requestTracker[requestKey]) {
+    console.log(`Duplicate request prevented: ${requestKey}`);
+    return [];
+  }
+  
+  // Mark this request as in progress
+  requestTracker[requestKey] = true;
 
-    console.log('Fetching personas from:', `${apiUrl}/personas/`);
-    const response = await fetch(`${apiUrl}/personas/`, getFetchOptions({
-      method: 'GET',
-      headers
-    }));
+  try {
+    return await fetchWithRetry(async () => {
+      const apiUrl = getApiUrl();
+      if (!apiUrl) {
+        throw new Error('API_BASE_URL is not defined');
+      }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Failed to fetch personas:', response.status, errorText);
-      throw new Error('Failed to fetch personas');
-    }
+      console.log('Fetching personas from:', `${apiUrl}/personas/?limit=30`);
+      const response = await fetch(`${apiUrl}/personas/?limit=30`, getFetchOptions({
+        method: 'GET',
+        headers
+      }));
 
-    const data = await response.json();
-    console.log('Personas fetch response:', data);
-    return data;
-  });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch personas:', response.status, errorText);
+        throw new Error('Failed to fetch personas');
+      }
+
+      const data = await response.json();
+      console.log('Personas fetch response:', data);
+      return data;
+    });
+  } finally {
+    // Clear the request tracker after a delay
+    setTimeout(() => {
+      delete requestTracker[requestKey];
+    }, 2000);
+  }
 }
 
 export async function fetchPersona(id: string, headers: Record<string, string>): Promise<Persona> {
