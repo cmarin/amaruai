@@ -52,12 +52,16 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         ? submittedPrompt 
         : message.prompt;
 
+      // Get the corresponding workflow step to get chat model and persona info
+      const stepNumber = typeof message.step === 'string' ? parseInt(message.step) - 1 : (message.step as number) - 1;
+      const workflowStep = workflow?.steps[stepNumber];
+      
       const newResult: WorkflowResult = {
         step: message.step!.toString(),
         prompt: promptToShow,
         response: message.response,
-        chat_model: message.chat_model,
-        persona: message.persona
+        chat_model: workflowStep?.chat_model,
+        persona: workflowStep?.persona
       };
 
       setResults(prev => {
@@ -73,7 +77,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         }
       }, 0);
     }
-  }, [submittedPrompt]);
+  }, [submittedPrompt, workflow]);
 
   const executeWorkflowStream = useCallback(async (message?: string) => {
     if (cleanupRef.current) {
