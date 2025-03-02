@@ -523,7 +523,8 @@ export function streamWorkflow(
   onMessage: (message: WorkflowStreamMessage) => void,
   onError: (error: Error) => void,
   onComplete: () => void,
-  message?: string
+  message?: string,
+  cachedWorkflow?: Workflow
 ): () => void {
   const initUrl = `${getApiUrl()}/workflows/${workflowId}/stream`;
   let eventSource: EventSource | null = null;
@@ -596,25 +597,67 @@ export function streamWorkflow(
               chatModel: data.chat_model,
               persona: data.persona,
               step: data.step,
-              type: data.type
+              type: data.type,
+              step_data: data.step_data
             });
 
-            // Extract chat model and persona from the step data if available
+            // Extract chat model and persona information
+            // First check if they're directly in the data object
             let chatModel = data.chat_model;
             let persona = data.persona;
 
-            // If the data comes from the workflow step object
+            // If not found directly, check in step_data
             if (data.step_data) {
               console.log('Step data available:', data.step_data);
+              
+              // Check if step_data has chat_model
               if (!chatModel && data.step_data.chat_model) {
                 chatModel = data.step_data.chat_model;
+                console.log('Using chat_model from step_data:', chatModel);
               }
+              
+              // Check if step_data has persona
               if (!persona && data.step_data.persona) {
                 persona = data.step_data.persona;
+                console.log('Using persona from step_data:', persona);
               }
             }
 
-            // Ensure chat_model and persona information is included
+            // If we have a step number, try to get the model and persona from the workflow steps
+            if (!chatModel || !persona) {
+              const stepIndex = typeof data.step === 'number' ? data.step - 1 : 0;
+              
+              // Try to get from the cached workflow if available
+              if (cachedWorkflow && cachedWorkflow.steps && cachedWorkflow.steps[stepIndex]) {
+                const step = cachedWorkflow.steps[stepIndex];
+                
+                // For chat model, we need to fetch it using the ID from the step
+                if (!chatModel && step.chat_model_id) {
+                  // Since we don't have the actual chat model object here,
+                  // we'll create a placeholder with the ID and let the UI handle it
+                  chatModel = {
+                    id: parseInt(step.chat_model_id),
+                    name: `Model ${step.chat_model_id}`,
+                    model: ''
+                  };
+                  console.log('Created placeholder chat_model from step ID:', chatModel);
+                }
+                
+                // For persona, we need to fetch it using the ID from the step
+                if (!persona && step.persona_id) {
+                  // Since we don't have the actual persona object here,
+                  // we'll create a placeholder with the ID and let the UI handle it
+                  persona = {
+                    id: parseInt(step.persona_id),
+                    role: `Persona ${step.persona_id}`,
+                    goal: ''
+                  };
+                  console.log('Created placeholder persona from step ID:', persona);
+                }
+              }
+            }
+
+            // Create a properly formatted message with all required fields
             const streamMessage: WorkflowStreamMessage = {
               ...data,
               chat_model: chatModel ? {
