@@ -47,7 +47,7 @@ function LoginContent() {
               alt="AmaruAI Logo"
               fill
               sizes="80px"
-              className="object-contain dark:invert"
+              className="object-contain"
             />
           </div>
           <h1 className="text-3xl font-bold text-gray-800">AmaruAI</h1>
