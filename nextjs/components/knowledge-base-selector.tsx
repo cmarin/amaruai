@@ -80,7 +80,7 @@ export function KnowledgeBaseSelector({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`sm:max-w-[425px] ${className} dark:bg-gray-900 dark:border-gray-800`}>
+      <DialogContent className={`sm:max-w-[425px] ${className}`}>
         <DialogHeader>
           <DialogTitle>Select Knowledge Bases & Assets</DialogTitle>
         </DialogHeader>
@@ -91,12 +91,12 @@ export function KnowledgeBaseSelector({
             placeholder="Search..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="mb-2 dark:bg-gray-800 dark:border-gray-700"
+            className="mb-2"
           />
           
           <div className="flex flex-wrap gap-1 min-h-[32px]">
             {selectedKnowledgeBases.map(kb => (
-              <Badge key={kb.id} variant="secondary" className="gap-1 pr-1 dark:bg-gray-800 dark:text-gray-200">
+              <Badge key={kb.id} variant="secondary" className="gap-1 pr-1">
                 {kb.title}
                 <Button
                   variant="ghost"
@@ -109,7 +109,7 @@ export function KnowledgeBaseSelector({
               </Badge>
             ))}
             {selectedAssets.map(asset => (
-              <Badge key={asset.id} variant="secondary" className="gap-1 pr-1 dark:bg-gray-800 dark:text-gray-200">
+              <Badge key={asset.id} variant="secondary" className="gap-1 pr-1">
                 {asset.title}
                 <Button
                   variant="ghost"
@@ -124,18 +124,18 @@ export function KnowledgeBaseSelector({
           </div>
         </div>
 
-        <Tabs defaultValue="knowledge-bases" className="w-full dark:text-white" value={activeTab} onValueChange={handleTabChange}>
-          <div className="border-t border-b px-2 py-1 dark:border-gray-700">
-            <TabsList className="grid w-full grid-cols-2 bg-transparent dark:bg-transparent dark:border-gray-700 !p-0">
+        <Tabs defaultValue="knowledge-bases" className="w-full" value={activeTab} onValueChange={handleTabChange}>
+          <div className="border-t border-b px-2 py-1">
+            <TabsList className="grid w-full grid-cols-2 bg-transparent">
               <TabsTrigger 
                 value="knowledge-bases" 
-                className="data-[state=active]:bg-gray-100 dark:data-[state=active]:!bg-gray-800 data-[state=active]:text-black dark:data-[state=active]:text-white dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white rounded-none border-0 shadow-none focus:!ring-0 focus:!ring-offset-0 !bg-transparent"
+                className="data-[state=active]:bg-gray-100 data-[state=active]:text-black rounded-none border-0 shadow-none focus:!ring-0 focus:!ring-offset-0 !bg-transparent"
               >
                 Knowledge Bases
               </TabsTrigger>
               <TabsTrigger 
                 value="assets" 
-                className="data-[state=active]:bg-gray-100 dark:data-[state=active]:!bg-gray-800 data-[state=active]:text-black dark:data-[state=active]:text-white dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white rounded-none border-0 shadow-none focus:!ring-0 focus:!ring-offset-0 !bg-transparent"
+                className="data-[state=active]:bg-gray-100 data-[state=active]:text-black rounded-none border-0 shadow-none focus:!ring-0 focus:!ring-offset-0 !bg-transparent"
               >
                 Assets
               </TabsTrigger>
@@ -158,7 +158,7 @@ export function KnowledgeBaseSelector({
                     <Button
                       key={kb.id}
                       variant="outline"
-                      className="w-full justify-start text-left h-auto py-3 px-4 border-muted hover:bg-muted/5 transition-colors mb-2 dark:border-gray-700 dark:hover:bg-gray-800 dark:bg-transparent"
+                      className="w-full justify-start text-left h-auto py-3 px-4 border-muted hover:bg-muted/5 transition-colors mb-2"
                       onClick={() => onSelectKnowledgeBase(kb)}
                     >
                       <div>
@@ -190,7 +190,7 @@ export function KnowledgeBaseSelector({
                     <Button
                       key={asset.id}
                       variant="outline"
-                      className="w-full justify-start text-left h-auto py-3 px-4 border-muted hover:bg-muted/5 transition-colors mb-2 dark:border-gray-700 dark:hover:bg-gray-800 dark:bg-transparent"
+                      className="w-full justify-start text-left h-auto py-3 px-4 border-muted hover:bg-muted/5 transition-colors mb-2"
                       onClick={() => onSelectAsset(asset)}
                     >
                       <div>

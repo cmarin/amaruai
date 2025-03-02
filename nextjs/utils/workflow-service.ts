@@ -29,12 +29,12 @@ export interface WorkflowResult {
   prompt: string;
   response: string;
   chat_model?: {
-    id: number;
+    id: string;
     name: string;
     model: string;
   };
   persona?: {
-    id: number;
+    id: string;
     role: string;
     goal: string;
   };
@@ -49,12 +49,12 @@ export interface WorkflowStreamMessage {
   content?: string;
   message?: string;
   chat_model?: {
-    id: number;
+    id: string;
     name: string;
     model: string;
   };
   persona?: {
-    id: number;
+    id: string;
     role: string;
     goal: string;
   };
