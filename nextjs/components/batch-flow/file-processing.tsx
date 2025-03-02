@@ -76,15 +76,15 @@ export function FileProcessing({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="text-sm font-medium">
+        <div className="text-sm font-medium dark:text-white">
           Token Usage: {totalTokens.toLocaleString()} of {maxTokens.toLocaleString()}
         </div>
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-gray-500 dark:text-gray-400">
           {tokenPercentage.toFixed(0)}% used
         </div>
       </div>
       
-      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
         <div 
           className="h-full bg-blue-500 transition-all duration-500"
           style={{ width: `${tokenPercentage}%` }}
@@ -94,16 +94,16 @@ export function FileProcessing({
       <div className="space-y-6">
         {uploadedFiles.length > 0 && (
           <div className="space-y-3">
-            <div className="text-lg font-semibold">Processing Files:</div>
+            <div className="text-lg font-semibold dark:text-white">Processing Files:</div>
             {uploadedFiles.map((file: BatchFlowFile, index) => (
           <div 
             key={file.uploadURL || index}
-            className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
+            className="flex items-center space-x-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
           >
             <FileVideo className="w-5 h-5 text-blue-500" />
             <div className="flex-1">
-              <div className="font-medium">{file.file_name}</div>
-              <div className="flex items-center space-x-2 text-sm">
+              <div className="font-medium dark:text-white">{file.file_name}</div>
+              <div className="flex items-center space-x-2 text-sm dark:text-gray-300">
                 <span>Status: </span>
                 <span className={
                   file.status.status === 'completed' ? 'text-green-500' :
@@ -143,9 +143,9 @@ export function FileProcessing({
               )}
               <button
                 onClick={() => onRemoveFile(file)}
-                className="p-1 hover:bg-gray-200 rounded-full"
+                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
               >
-                <X className="w-4 h-4 text-gray-500" />
+                <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
           </div>
@@ -155,24 +155,24 @@ export function FileProcessing({
 
         {selectedKnowledgeBases.length > 0 && (
           <div className="space-y-3">
-            <div className="text-lg font-semibold">Selected Knowledge Bases:</div>
+            <div className="text-lg font-semibold dark:text-white">Selected Knowledge Bases:</div>
             {selectedKnowledgeBases.map((kb) => (
               <div 
                 key={kb.id}
-                className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
+                className="flex items-center space-x-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
               >
                 <Database className="w-5 h-5 text-blue-500" />
                 <div className="flex-1">
-                  <div className="font-medium">{kb.title}</div>
+                  <div className="font-medium dark:text-white">{kb.title}</div>
                   {kb.description && (
-                    <div className="text-sm text-muted-foreground line-clamp-2">{kb.description}</div>
+                    <div className="text-sm text-muted-foreground line-clamp-2 dark:text-gray-300">{kb.description}</div>
                   )}
                 </div>
                 <button
                   onClick={() => onRemoveKnowledgeBase(kb)}
-                  className="p-1 hover:bg-gray-200 rounded-full"
+                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
                 >
-                  <X className="w-4 h-4 text-gray-500" />
+                  <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                 </button>
               </div>
             ))}
@@ -181,21 +181,21 @@ export function FileProcessing({
 
         {selectedAssets.length > 0 && (
           <div className="space-y-3">
-            <div className="text-lg font-semibold">Selected Assets:</div>
+            <div className="text-lg font-semibold dark:text-white">Selected Assets:</div>
             {selectedAssets.map((asset) => (
               <div 
                 key={asset.id}
-                className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
+                className="flex items-center space-x-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
               >
                 <FileText className="w-5 h-5 text-blue-500" />
                 <div className="flex-1">
-                  <div className="font-medium">{asset.title}</div>
+                  <div className="font-medium dark:text-white">{asset.title}</div>
                 </div>
                 <button
                   onClick={() => onRemoveAsset(asset)}
-                  className="p-1 hover:bg-gray-200 rounded-full"
+                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full"
                 >
-                  <X className="w-4 h-4 text-gray-500" />
+                  <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                 </button>
               </div>
             ))}
