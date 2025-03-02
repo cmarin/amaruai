@@ -20,7 +20,8 @@ from app.api.v1 import (
     assets,
     knowledge_bases,
     batch_flow,
-    rag
+    rag,
+    users
 )
 from app.database import engine, Base
 from dotenv import load_dotenv
@@ -95,7 +96,8 @@ protected_routes = [
     assets.router,
     batch_flow.router,
     workflows.router,  # Protected workflow routes
-    rag.router  # RAG routes
+    rag.router,  # RAG routes
+    users.router  # User routes
 ]
 
 for router in protected_routes:
