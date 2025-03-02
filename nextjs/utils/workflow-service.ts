@@ -591,11 +591,42 @@ export function streamWorkflow(
               }
             }
 
+            // Log the raw data to see what's coming from the API
+            console.log('Raw data from API:', {
+              chatModel: data.chat_model,
+              persona: data.persona,
+              step: data.step,
+              type: data.type
+            });
+
+            // Extract chat model and persona from the step data if available
+            let chatModel = data.chat_model;
+            let persona = data.persona;
+
+            // If the data comes from the workflow step object
+            if (data.step_data) {
+              console.log('Step data available:', data.step_data);
+              if (!chatModel && data.step_data.chat_model) {
+                chatModel = data.step_data.chat_model;
+              }
+              if (!persona && data.step_data.persona) {
+                persona = data.step_data.persona;
+              }
+            }
+
             // Ensure chat_model and persona information is included
             const streamMessage: WorkflowStreamMessage = {
               ...data,
-              chat_model: data.chat_model || undefined,
-              persona: data.persona || undefined
+              chat_model: chatModel ? {
+                id: chatModel.id,
+                name: chatModel.name || '',
+                model: chatModel.model || ''
+              } : undefined,
+              persona: persona ? {
+                id: persona.id,
+                role: persona.role || '',
+                goal: persona.goal || ''
+              } : undefined
             };
             
             console.log('Dispatching step message to handler:', streamMessage);

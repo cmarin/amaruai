@@ -60,6 +60,16 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         persona: message.persona
       };
 
+      console.log('Creating new result with chat_model and persona:', {
+        chat_model: message.chat_model,
+        persona: message.persona,
+        newResult,
+        message
+      });
+
+      console.log('chat_model:', message.chat_model);
+      console.log('persona:', message.persona);
+
       setResults(prev => {
         if (prev.some(r => r.step === newResult.step)) {
           return prev;
@@ -265,14 +275,19 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
               >
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
                   Step {result.step}
-                  {result.chat_model && (
+                  {result.chat_model && result.persona && (
                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                      using {result.chat_model.name}
+                      using <span className="font-medium">{result.chat_model.name}</span> as <span className="font-medium">{result.persona.role}</span>
                     </span>
                   )}
-                  {result.persona && (
+                  {result.chat_model && !result.persona && (
                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                      as {result.persona.role}
+                      using <span className="font-medium">{result.chat_model.name}</span>
+                    </span>
+                  )}
+                  {!result.chat_model && result.persona && (
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      as <span className="font-medium">{result.persona.role}</span>
                     </span>
                   )}
                 </h3>
