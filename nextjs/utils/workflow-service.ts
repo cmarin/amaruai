@@ -620,9 +620,7 @@ export function streamWorkflow(
             };
             
             console.log('Dispatching step message to handler:', streamMessage);
-            window.requestAnimationFrame(() => {
-              onMessage(streamMessage);
-            });
+            onMessage(streamMessage);
           }
         } catch (error) {
           console.error('Error parsing message:', error);

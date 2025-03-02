@@ -65,17 +65,34 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       };
 
       setResults(prev => {
-        if (prev.some(r => r.step === newResult.step)) {
-          return prev;
+        // Check if we already have this step
+        const existingStepIndex = prev.findIndex(r => r.step === newResult.step);
+        
+        // If step exists and content is the same, don't update
+        if (existingStepIndex !== -1) {
+          const existingStep = prev[existingStepIndex];
+          if (existingStep.response === newResult.response &&
+              existingStep.prompt === newResult.prompt) {
+            return prev;
+          }
+          // If content is different, update the existing step
+          const newResults = [...prev];
+          newResults[existingStepIndex] = newResult;
+          return newResults;
         }
+        
+        // If it's a new step, add it
         return [...prev, newResult];
       });
 
-      setTimeout(() => {
+      // Debounce the scroll update
+      const scrollTimeout = setTimeout(() => {
         if (resultsContainerRef.current) {
           resultsContainerRef.current.scrollTop = resultsContainerRef.current.scrollHeight;
         }
-      }, 0);
+      }, 100);
+
+      return () => clearTimeout(scrollTimeout);
     }
   }, [submittedPrompt, workflow]);
 
