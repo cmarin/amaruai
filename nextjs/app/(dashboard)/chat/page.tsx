@@ -659,13 +659,7 @@ function ChatContent() {
                   variant="ghost" 
                   size="icon" 
                   className={`h-8 w-8 ${selectedKnowledgeBases.length > 0 || selectedAssets.length > 0 ? "text-green-500" : ""}`}
-                  onClick={() => {
-                    // Open the Knowledge Base selector
-                    const selector = document.querySelector('[data-kb-selector="true"]') as HTMLElement;
-                    if (selector) {
-                      selector.click();
-                    }
-                  }}
+                  onClick={() => setShowKnowledgeBaseModal(true)}
                 >
                   <Database className="h-4 w-4" />
                 </Button>
@@ -696,6 +690,8 @@ function ChatContent() {
                   onDeselectAsset={(asset: Asset) => {
                     setSelectedAssets(selectedAssets.filter(a => a.id !== asset.id));
                   }}
+                  open={showKnowledgeBaseModal}
+                  onOpenChange={setShowKnowledgeBaseModal}
                 />
               </TooltipTrigger>
               <TooltipContent className="bg-white dark:bg-gray-800">
