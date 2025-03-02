@@ -10,10 +10,8 @@ import {
   Workflow, 
   WorkflowResult,
   streamWorkflow,
-  WorkflowStreamMessage
+  WorkflowStreamMessage 
 } from '@/utils/workflow-service'
-import { fetchChatModel, ChatModel } from '@/utils/chat-model-service'
-import { fetchPersona, Persona } from '@/utils/persona-service'
 import { fetchPromptTemplate, PromptTemplate } from '@/utils/prompt-template-service'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 import ReactMarkdown from 'react-markdown'
@@ -41,7 +39,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const [hasSubmittedComplexPrompt, setHasSubmittedComplexPrompt] = useState(false);
   const [submittedPrompt, setSubmittedPrompt] = useState<string | undefined>(undefined);
 
-  const handleStreamMessage = useCallback(async (message: WorkflowStreamMessage) => {
+  const handleStreamMessage = useCallback((message: WorkflowStreamMessage) => {
     if (message.type === 'error') {
       setError(message.error || 'Unknown error occurred');
       setIsExecuting(false);
@@ -54,85 +52,13 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         ? submittedPrompt 
         : message.prompt;
 
-      // Log the incoming message data in detail
-      console.log('Received step message with data:', {
-        step: message.step,
-        chat_model: message.chat_model ? {
-          id: message.chat_model.id,
-          name: message.chat_model.name,
-          model: message.chat_model.model
-        } : 'undefined',
-        persona: message.persona ? {
-          id: message.persona.id,
-          role: message.persona.role,
-          goal: message.persona.goal
-        } : 'undefined'
-      });
-
-      let chatModel = message.chat_model;
-      let persona = message.persona;
-
-      // If we have a workflow and step number, try to get complete model and persona data
-      if (workflow && typeof message.step === 'number') {
-        const stepIndex = message.step - 1;
-        if (workflow.steps && workflow.steps[stepIndex]) {
-          const step = workflow.steps[stepIndex];
-          
-          // If we don't have chat_model data but have the step, try to get it
-          if ((!chatModel || chatModel.name.startsWith('Model ')) && step.chat_model_id) {
-            try {
-              const headers = getApiHeaders();
-              if (headers) {
-                const modelData = await fetchChatModel(step.chat_model_id, headers);
-                if (modelData) {
-                  chatModel = {
-                    id: typeof modelData.id === 'string' ? parseInt(modelData.id) : modelData.id,
-                    name: modelData.name || 'Unknown Model',
-                    model: modelData.model || ''
-                  };
-                  console.log('Fetched complete chat model data:', chatModel);
-                }
-              }
-            } catch (err) {
-              console.error('Error fetching chat model data:', err);
-            }
-          }
-          
-          // If we don't have persona data but have the step, try to get it
-          if ((!persona || persona.role.startsWith('Persona ')) && step.persona_id) {
-            try {
-              const headers = getApiHeaders();
-              if (headers) {
-                const personaData = await fetchPersona(step.persona_id, headers);
-                if (personaData) {
-                  persona = {
-                    id: typeof personaData.id === 'string' ? parseInt(personaData.id) : personaData.id,
-                    role: personaData.role || 'Unknown Persona',
-                    goal: personaData.goal || ''
-                  };
-                  console.log('Fetched complete persona data:', persona);
-                }
-              }
-            } catch (err) {
-              console.error('Error fetching persona data:', err);
-            }
-          }
-        }
-      }
-
       const newResult: WorkflowResult = {
         step: message.step!.toString(),
         prompt: promptToShow,
         response: message.response,
-        chat_model: chatModel,
-        persona: persona
+        chat_model: message.chat_model,
+        persona: message.persona
       };
-
-      console.log('Creating new result with chat_model and persona:', {
-        chat_model: chatModel,
-        persona: persona,
-        newResult
-      });
 
       setResults(prev => {
         if (prev.some(r => r.step === newResult.step)) {
@@ -147,7 +73,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         }
       }, 0);
     }
-  }, [submittedPrompt, workflow, getApiHeaders]);
+  }, [submittedPrompt]);
 
   const executeWorkflowStream = useCallback(async (message?: string) => {
     if (cleanupRef.current) {
@@ -181,13 +107,12 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         setShowRunAgain(true);
         cleanupRef.current = null;
       },
-      message || initialMessage,
-      workflow || undefined
+      message || initialMessage
     );
 
     cleanupRef.current = cleanup;
     return cleanup;
-  }, [params.workflowId, getApiHeaders, handleStreamMessage, initialMessage, workflow]);
+  }, [params.workflowId, getApiHeaders, handleStreamMessage, initialMessage]);
 
   const checkFirstStep = useCallback(async (workflow: Workflow) => {
     if (workflow.steps.length > 0 && !hasSubmittedComplexPrompt) {
@@ -340,19 +265,14 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
               >
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
                   Step {result.step}
-                  {result.chat_model && result.persona && (
-                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-2 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md">
-                      <span className="font-medium">{result.chat_model.name}</span> as <span className="font-medium">{result.persona.role}</span>
+                  {result.chat_model && (
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      using {result.chat_model.name}
                     </span>
                   )}
-                  {result.chat_model && !result.persona && (
-                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-2 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md">
-                      <span className="font-medium">{result.chat_model.name}</span>
-                    </span>
-                  )}
-                  {!result.chat_model && result.persona && (
-                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-2 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md">
-                      <span className="font-medium">{result.persona.role}</span>
+                  {result.persona && (
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      as {result.persona.role}
                     </span>
                   )}
                 </h3>
