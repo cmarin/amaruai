@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -38,8 +38,9 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const [hasSubmittedComplexPrompt, setHasSubmittedComplexPrompt] = useState(false);
   const [submittedPrompt, setSubmittedPrompt] = useState<string | undefined>(undefined);
+  const stepInfoRef = useRef<Map<number, { chat_model: any, persona: any }>>(new Map());
 
-  const handleStreamMessage = useCallback((message: WorkflowStreamMessage) => {
+  function handleStreamMessage(message: WorkflowStreamMessage) {
     if (message.type === 'error') {
       setError(message.error || 'Unknown error occurred');
       setIsExecuting(false);
@@ -52,51 +53,33 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         ? submittedPrompt 
         : message.prompt;
 
-      // Get the corresponding workflow step to get chat model and persona info
       const stepNumber = typeof message.step === 'string' ? parseInt(message.step) - 1 : (message.step as number) - 1;
-      const workflowStep = workflow?.steps[stepNumber];
+      const stepInfo = stepInfoRef.current.get(stepNumber);
       
       const newResult: WorkflowResult = {
         step: message.step!.toString(),
         prompt: promptToShow,
         response: message.response,
-        chat_model: workflowStep?.chat_model,
-        persona: workflowStep?.persona
+        chat_model: stepInfo?.chat_model,
+        persona: stepInfo?.persona
       };
 
       setResults(prev => {
-        // Check if we already have this step
-        const existingStepIndex = prev.findIndex(r => r.step === newResult.step);
-        
-        // If step exists and content is the same, don't update
-        if (existingStepIndex !== -1) {
-          const existingStep = prev[existingStepIndex];
-          if (existingStep.response === newResult.response &&
-              existingStep.prompt === newResult.prompt) {
-            return prev;
-          }
-          // If content is different, update the existing step
-          const newResults = [...prev];
-          newResults[existingStepIndex] = newResult;
-          return newResults;
+        if (prev.some(r => r.step === newResult.step)) {
+          return prev;
         }
-        
-        // If it's a new step, add it
         return [...prev, newResult];
       });
 
-      // Debounce the scroll update
-      const scrollTimeout = setTimeout(() => {
+      setTimeout(() => {
         if (resultsContainerRef.current) {
           resultsContainerRef.current.scrollTop = resultsContainerRef.current.scrollHeight;
         }
-      }, 100);
-
-      return () => clearTimeout(scrollTimeout);
+      }, 0);
     }
-  }, [submittedPrompt, workflow]);
+  }
 
-  const executeWorkflowStream = useCallback(async (message?: string) => {
+  async function executeWorkflowStream(message?: string) {
     if (cleanupRef.current) {
       console.log('Cleaning up previous EventSource before starting new one');
       cleanupRef.current();
@@ -133,9 +116,9 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
 
     cleanupRef.current = cleanup;
     return cleanup;
-  }, [params.workflowId, getApiHeaders, handleStreamMessage, initialMessage]);
+  }
 
-  const checkFirstStep = useCallback(async (workflow: Workflow) => {
+  async function checkFirstStep(workflow: Workflow) {
     if (workflow.steps.length > 0 && !hasSubmittedComplexPrompt) {
       const firstStep = workflow.steps[0];
       try {
@@ -158,9 +141,9 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         setError('Failed to fetch prompt template');
       }
     }
-  }, [getApiHeaders, executeWorkflowStream, hasSubmittedComplexPrompt]);
+  }
 
-  const loadWorkflow = useCallback(async () => {
+  async function loadWorkflow() {
     const headers = getApiHeaders();
     if (!headers) {
       console.error('No valid headers available');
@@ -171,13 +154,65 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       console.log('Fetching workflow...');
       const fetchedWorkflow = await fetchWorkflow(params.workflowId, headers);
       console.log('Fetched workflow:', fetchedWorkflow);
+      
+      // Store step information in the ref
+      stepInfoRef.current.clear();
+      fetchedWorkflow.steps.forEach((step, index) => {
+        stepInfoRef.current.set(index, {
+          chat_model: step.chat_model,
+          persona: step.persona
+        });
+      });
+      
       setWorkflow(fetchedWorkflow);
       await checkFirstStep(fetchedWorkflow);
     } catch (error) {
       console.error('Error loading workflow:', error);
       setError('Failed to load workflow');
     }
-  }, [params.workflowId, getApiHeaders, checkFirstStep]);
+  }
+
+  function handleComplexPromptSubmit(generatedPrompt: string) {
+    console.log('Complex prompt submitted:', generatedPrompt);
+    setShowComplexPromptModal(false);
+    setInitialMessage(generatedPrompt);
+    setSubmittedPrompt(generatedPrompt);
+    setHasSubmittedComplexPrompt(true);
+    executeWorkflowStream(generatedPrompt);
+  }
+
+  function handleRunAgain() {
+    setHasSubmittedComplexPrompt(false);
+    if (complexPromptTemplate && !hasSubmittedComplexPrompt) {
+      setShowComplexPromptModal(true);
+    } else {
+      executeWorkflowStream();
+    }
+  }
+
+  function toggleChatbot(modelId: string) {
+    router.push(`/chat?model=${modelId}`);
+  }
+
+  function handleCopyToClipboard() {
+    const content = results.map(result => 
+      `Step ${result.step}:\nPrompt: ${result.prompt}\nResponse: ${result.response}`
+    ).join('\n\n');
+    
+    navigator.clipboard.writeText(content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(err => {
+      console.error('Failed to copy text: ', err);
+    });
+  }
+
+  function handleAddToScratchPad() {
+    const content = `Workflow: ${workflow?.name}\n\n` + results.map(result => 
+      `Step ${result.step}:\nPrompt: ${result.prompt}\nResponse: ${result.response}`
+    ).join('\n\n');
+    addToScratchPad(content);
+  }
 
   useEffect(() => {
     console.log('Component mounted, loading workflow...');
@@ -190,49 +225,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         cleanupRef.current = null;
       }
     };
-  }, [loadWorkflow]);
-
-  const handleComplexPromptSubmit = (generatedPrompt: string) => {
-    console.log('Complex prompt submitted:', generatedPrompt);
-    setShowComplexPromptModal(false);
-    setInitialMessage(generatedPrompt);
-    setSubmittedPrompt(generatedPrompt);
-    setHasSubmittedComplexPrompt(true);
-    executeWorkflowStream(generatedPrompt);
-  };
-
-  const toggleChatbot = useCallback((modelId: string) => {
-    router.push(`/chat?model=${modelId}`);
-  }, [router]);
-
-  const handleCopyToClipboard = useCallback(() => {
-    const content = results.map(result => 
-      `Step ${result.step}:\nPrompt: ${result.prompt}\nResponse: ${result.response}`
-    ).join('\n\n');
-    
-    navigator.clipboard.writeText(content).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(err => {
-      console.error('Failed to copy text: ', err);
-    });
-  }, [results]);
-
-  const handleAddToScratchPad = () => {
-    const content = `Workflow: ${workflow?.name}\n\n` + results.map(result => 
-      `Step ${result.step}:\nPrompt: ${result.prompt}\nResponse: ${result.response}`
-    ).join('\n\n');
-    addToScratchPad(content);
-  };
-
-  const handleRunAgain = () => {
-    setHasSubmittedComplexPrompt(false);
-    if (complexPromptTemplate && !hasSubmittedComplexPrompt) {
-      setShowComplexPromptModal(true);
-    } else {
-      executeWorkflowStream();
-    }
-  };
+  }, []);
 
   return (
     <div className="flex min-h-screen w-full">
