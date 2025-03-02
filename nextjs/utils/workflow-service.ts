@@ -9,27 +9,6 @@ export interface WorkflowStep {
   chat_model_id: string;
   persona_id: string;
   position: number;
-  prompt_template?: {
-    id: string;
-    title: string;
-    prompt: string;
-    is_complex: boolean;
-  };
-  chat_model?: {
-    id: string;
-    name: string;
-    model: string;
-    provider: string;
-    description: string;
-    max_tokens: number;
-    position: number;
-  };
-  persona?: {
-    id: string;
-    role: string;
-    goal: string;
-    backstory: string;
-  };
 }
 
 export interface Workflow {
@@ -620,7 +599,9 @@ export function streamWorkflow(
             };
             
             console.log('Dispatching step message to handler:', streamMessage);
-            onMessage(streamMessage);
+            window.requestAnimationFrame(() => {
+              onMessage(streamMessage);
+            });
           }
         } catch (error) {
           console.error('Error parsing message:', error);
