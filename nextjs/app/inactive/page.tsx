@@ -24,7 +24,7 @@ export default function InactivePage() {
               alt="AmaruAI Logo"
               fill
               sizes="80px"
-              className="object-contain"
+              className="object-contain dark:invert"
             />
           </div>
           <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Account Inactive</h1>
@@ -33,12 +33,8 @@ export default function InactivePage() {
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 p-8">
           <div className="space-y-6">
             <p className="text-gray-700 dark:text-gray-200">
-              Your account has been deactivated. This might be due to:
+            Your account is not active.
             </p>
-            
-            <ul className="list-disc pl-5 text-gray-700 dark:text-gray-200">
-              <li>Your account is not active</li>
-            </ul>
             
             <p className="text-gray-700 dark:text-gray-200">
               Please contact your administrator or support team to resolve this issue.
