@@ -28,6 +28,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { AppSidebar } from '@/components/app-sidebar';
 import { useSidebar } from '@/components/sidebar-context';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { useTheme } from 'next-themes';
 import {
   Select,
   SelectContent,
@@ -51,9 +53,11 @@ export default function SettingsPage() {
     model: '',
     provider: 'openrouter',
     max_tokens: 1,
-    description: '' 
+    description: '',
+    position: 0
   });
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     if (initialized && !sessionLoading) {
@@ -205,7 +209,7 @@ export default function SettingsPage() {
     try {
       await createChatModel(newChatModel, headers);
       setIsNewChatModelDialogOpen(false);
-      setNewChatModel({ name: '', model: '', provider: '', max_tokens: 1, description: '' });
+      setNewChatModel({ name: '', model: '', provider: 'openrouter', max_tokens: 1, description: '', position: 0 });
       loadData();
       toast({
         title: "Success",
@@ -297,6 +301,7 @@ export default function SettingsPage() {
             <TabsList>
               <TabsTrigger value="categories">Categories</TabsTrigger>
               <TabsTrigger value="chat-models">Chat Models</TabsTrigger>
+              <TabsTrigger value="preferences">Preferences</TabsTrigger>
             </TabsList>
 
             <TabsContent value="categories" className="mt-6">
@@ -308,26 +313,28 @@ export default function SettingsPage() {
                       New Category
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="dark:bg-gray-900 dark:border-gray-800">
                     <DialogHeader>
-                      <DialogTitle>Create New Category</DialogTitle>
-                      <DialogDescription>Add a new category to organize your content</DialogDescription>
+                      <DialogTitle className="dark:text-white">Create New Category</DialogTitle>
+                      <DialogDescription className="dark:text-gray-400">Add a new category to organize your content</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label>Name</Label>
+                        <Label className="dark:text-gray-300">Name</Label>
                         <Input
                           value={newCategory.name}
                           onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
                           placeholder="Category name"
+                          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                         />
                       </div>
                       <div>
-                        <Label>Description</Label>
+                        <Label className="dark:text-gray-300">Description</Label>
                         <Textarea
                           value={newCategory.description}
                           onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
                           placeholder="Category description"
+                          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                         />
                       </div>
                       <Button onClick={handleCreateCategory}>Create Category</Button>
@@ -376,22 +383,23 @@ export default function SettingsPage() {
                       New Chat Model
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="dark:bg-gray-900 dark:border-gray-800">
                     <DialogHeader>
-                      <DialogTitle>Create New Chat Model</DialogTitle>
-                      <DialogDescription>Add a new chat model to generate text</DialogDescription>
+                      <DialogTitle className="dark:text-white">Create New Chat Model</DialogTitle>
+                      <DialogDescription className="dark:text-gray-400">Add a new chat model to generate text</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label>Name</Label>
+                        <Label className="dark:text-gray-300">Name</Label>
                         <Input
                           value={newChatModel.name}
                           onChange={(e) => setNewChatModel({ ...newChatModel, name: e.target.value })}
                           placeholder="Chat model name"
+                          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                         />
                       </div>
                       <div>
-                        <Label>Model</Label>
+                        <Label className="dark:text-gray-300">Model</Label>
                         <Input
                           value={newChatModel.model}
                           onChange={(e) =>
@@ -401,10 +409,11 @@ export default function SettingsPage() {
                             })
                           }
                           placeholder="Model identifier (e.g. gpt-4)"
+                          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                         />
                       </div>
                       <div>
-                        <Label>Provider</Label>
+                        <Label className="dark:text-gray-300">Provider</Label>
                         <Select
                           value={newChatModel.provider}
                           onValueChange={(value) =>
@@ -414,18 +423,18 @@ export default function SettingsPage() {
                             })
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="dark:bg-gray-800 dark:border-gray-700 dark:text-white">
                             <SelectValue placeholder="Select a provider" />
                           </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="openrouter">OpenRouter</SelectItem>
-                            <SelectItem value="openai">OpenAI</SelectItem>
-                            <SelectItem value="openai-assistant">OpenAI Assistant</SelectItem>
+                          <SelectContent className="dark:bg-gray-900 dark:border-gray-800">
+                            <SelectItem value="openrouter" className="dark:text-white dark:focus:bg-gray-800 dark:hover:bg-gray-800">OpenRouter</SelectItem>
+                            <SelectItem value="openai" className="dark:text-white dark:focus:bg-gray-800 dark:hover:bg-gray-800">OpenAI</SelectItem>
+                            <SelectItem value="openai-assistant" className="dark:text-white dark:focus:bg-gray-800 dark:hover:bg-gray-800">OpenAI Assistant</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
-                        <Label>Max Tokens</Label>
+                        <Label className="dark:text-gray-300">Max Tokens</Label>
                         <Input
                           type="number"
                           min="1"
@@ -436,10 +445,27 @@ export default function SettingsPage() {
                               max_tokens: parseInt(e.target.value),
                             })
                           }
+                          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                         />
                       </div>
                       <div>
-                        <Label>Description</Label>
+                        <Label className="dark:text-gray-300">Position</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={newChatModel.position}
+                          onChange={(e) =>
+                            setNewChatModel({
+                              ...newChatModel,
+                              position: parseInt(e.target.value),
+                            })
+                          }
+                          placeholder="Display order position (0 = default)"
+                          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="dark:text-gray-300">Description</Label>
                         <Textarea
                           value={newChatModel.description}
                           onChange={(e) =>
@@ -449,6 +475,7 @@ export default function SettingsPage() {
                             })
                           }
                           placeholder="Model description"
+                          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                         />
                       </div>
                       <Button onClick={handleCreateChatModel}>Create Chat Model</Button>
@@ -507,39 +534,90 @@ export default function SettingsPage() {
                         <div>
                           <Label>Max Tokens: {(model.max_tokens ?? 0).toLocaleString('en-US')}</Label>
                         </div>
+                        <div>
+                          <Label>Position: {model.position !== null ? model.position : 0}</Label>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
             </TabsContent>
+
+            <TabsContent value="preferences" className="mt-6">
+              <div className="max-w-3xl mx-auto">
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>User Interface</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Customize the appearance of the application
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="font-medium">Theme</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Select your preferred color theme for the interface
+                          </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                          <div className="w-full sm:w-auto">
+                            <Select
+                              value={theme}
+                              onValueChange={(value) => setTheme(value)}
+                            >
+                              <SelectTrigger className="w-full sm:w-[180px]">
+                                <SelectValue placeholder="Select theme" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="light">Light</SelectItem>
+                                <SelectItem value="dark">Dark</SelectItem>
+                                <SelectItem value="system">System</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground hidden sm:inline">Quick toggle:</span>
+                            <ThemeToggle />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
           </Tabs>
 
           {/* Edit Category Dialog */}
           <Dialog open={!!selectedCategory} onOpenChange={() => setSelectedCategory(null)}>
-            <DialogContent>
+            <DialogContent className="dark:bg-gray-900 dark:border-gray-800">
               <DialogHeader>
-                <DialogTitle>Edit Category</DialogTitle>
-                <DialogDescription>Update category details</DialogDescription>
+                <DialogTitle className="dark:text-white">Edit Category</DialogTitle>
+                <DialogDescription className="dark:text-gray-400">Update category details</DialogDescription>
               </DialogHeader>
               {selectedCategory && (
                 <div className="space-y-4">
                   <div>
-                    <Label>Name</Label>
+                    <Label className="dark:text-gray-300">Name</Label>
                     <Input
                       value={selectedCategory.name}
                       onChange={(e) =>
                         setSelectedCategory({ ...selectedCategory, name: e.target.value })
                       }
+                      className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                     />
                   </div>
                   <div>
-                    <Label>Description</Label>
+                    <Label className="dark:text-gray-300">Description</Label>
                     <Textarea
                       value={selectedCategory.description}
                       onChange={(e) =>
                         setSelectedCategory({ ...selectedCategory, description: e.target.value })
                       }
+                      className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                     />
                   </div>
                   <Button
@@ -560,52 +638,54 @@ export default function SettingsPage() {
 
           {/* Edit Chat Model Dialog */}
           <Dialog open={!!selectedChatModel} onOpenChange={() => setSelectedChatModel(null)}>
-            <DialogContent>
+            <DialogContent className="dark:bg-gray-900 dark:border-gray-800">
               <DialogHeader>
-                <DialogTitle>Edit Chat Model</DialogTitle>
-                <DialogDescription>Update chat model details</DialogDescription>
+                <DialogTitle className="dark:text-white">Edit Chat Model</DialogTitle>
+                <DialogDescription className="dark:text-gray-400">Update chat model details</DialogDescription>
               </DialogHeader>
               {selectedChatModel && (
                 <div className="space-y-4">
                   <div>
-                    <Label>Name</Label>
+                    <Label className="dark:text-gray-300">Name</Label>
                     <Input
                       value={selectedChatModel.name}
                       onChange={(e) =>
                         setSelectedChatModel({ ...selectedChatModel, name: e.target.value })
                       }
+                      className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                     />
                   </div>
                   <div>
-                    <Label>Model</Label>
+                    <Label className="dark:text-gray-300">Model</Label>
                     <Input
                       value={selectedChatModel.model}
                       onChange={(e) =>
                         setSelectedChatModel({ ...selectedChatModel, model: e.target.value })
                       }
                       placeholder="Model identifier (e.g. gpt-4)"
+                      className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                     />
                   </div>
                   <div>
-                    <Label>Provider</Label>
+                    <Label className="dark:text-gray-300">Provider</Label>
                     <Select
                       value={selectedChatModel.provider}
                       onValueChange={(value) =>
                         setSelectedChatModel({ ...selectedChatModel, provider: value })
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="dark:bg-gray-800 dark:border-gray-700 dark:text-white">
                         <SelectValue placeholder="Select a provider" />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="openrouter">OpenRouter</SelectItem>
-                        <SelectItem value="openai">OpenAI</SelectItem>
-                        <SelectItem value="openai-assistant">OpenAI Assistant</SelectItem>
+                      <SelectContent className="dark:bg-gray-900 dark:border-gray-800">
+                        <SelectItem value="openrouter" className="dark:text-white dark:focus:bg-gray-800 dark:hover:bg-gray-800">OpenRouter</SelectItem>
+                        <SelectItem value="openai" className="dark:text-white dark:focus:bg-gray-800 dark:hover:bg-gray-800">OpenAI</SelectItem>
+                        <SelectItem value="openai-assistant" className="dark:text-white dark:focus:bg-gray-800 dark:hover:bg-gray-800">OpenAI Assistant</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <Label>Max Tokens</Label>
+                    <Label className="dark:text-gray-300">Max Tokens</Label>
                     <Input
                       type="number"
                       min="1"
@@ -616,10 +696,27 @@ export default function SettingsPage() {
                           max_tokens: parseInt(e.target.value),
                         })
                       }
+                      className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                     />
                   </div>
                   <div>
-                    <Label>Description</Label>
+                    <Label className="dark:text-gray-300">Position</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={selectedChatModel.position !== null ? selectedChatModel.position : 0}
+                      onChange={(e) =>
+                        setSelectedChatModel({
+                          ...selectedChatModel,
+                          position: parseInt(e.target.value),
+                        })
+                      }
+                      placeholder="Display order position (0 = default)"
+                      className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="dark:text-gray-300">Description</Label>
                     <Textarea
                       value={selectedChatModel.description}
                       onChange={(e) =>
@@ -628,6 +725,7 @@ export default function SettingsPage() {
                           description: e.target.value,
                         })
                       }
+                      className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                     />
                   </div>
                   <Button
@@ -638,6 +736,7 @@ export default function SettingsPage() {
                         provider: selectedChatModel.provider,
                         max_tokens: selectedChatModel.max_tokens,
                         description: selectedChatModel.description,
+                        position: selectedChatModel.position,
                       });
                       setSelectedChatModel(null);
                     }}

@@ -41,9 +41,9 @@ export default function ScratchPadPage() {
 
   return (
     <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-white">
+      <div className="flex h-full w-full overflow-hidden bg-white dark:bg-background">
         <AppSidebar toggleChatbot={toggleChatbot} />
-        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 bg-white dark:bg-background ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <div className="flex justify-between items-center p-4 border-b">
             <h1 className="text-2xl font-bold">Scratch Pad</h1>
             <Button
@@ -61,7 +61,7 @@ export default function ScratchPadPage() {
               <span className="sr-only">{copied ? "Copied" : "Copy to clipboard"}</span>
             </Button>
           </div>
-          <ScrollArea className="flex-grow p-4">
+          <ScrollArea className="flex-grow p-4 bg-white dark:bg-background">
             <Textarea
               value={content}
               onChange={handleContentChange}

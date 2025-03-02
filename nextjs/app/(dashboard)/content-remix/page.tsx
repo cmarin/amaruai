@@ -96,7 +96,7 @@ const RemixSettingsModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] bg-white dark:bg-background">
         <DialogHeader>
           <DialogTitle>Edit Remix Settings</DialogTitle>
           <DialogDescription>
@@ -441,11 +441,9 @@ function ContentRemixContent() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      <div className="w-64 h-full border-r border-gray-200">
-        <AppSidebar />
-      </div>
+      <AppSidebar />
 
-      <div className="flex-1 flex flex-col h-full relative">
+      <div className={`flex-1 flex flex-col h-full relative transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
         <div className="flex-1 overflow-auto p-4">
           <div className="grid grid-cols-2 grid-rows-2 gap-4 h-full">
             {[
@@ -454,7 +452,7 @@ function ContentRemixContent() {
               { messages: messages3, chatId: 'chat3' },
               { messages: messages4, chatId: 'chat4' },
             ].map((chat, index) => (
-              <div key={index} className="h-full border rounded-lg bg-white overflow-hidden">
+              <div key={index} className="h-full border rounded-lg bg-white dark:bg-background dark:border-gray-700 overflow-hidden">
                 <div className="flex items-center justify-between p-3 border-b">
                   <div className="flex items-center gap-2">
                     <div className="flex gap-2">
@@ -491,7 +489,7 @@ function ContentRemixContent() {
                             )}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>
+                        <TooltipContent className="bg-white dark:bg-gray-800">
                           {copiedStates[chat.messages.map(m => `${m.role}: ${m.content}`).join('\n')] 
                             ? "Copied!" 
                             : "Copy chat content"}
@@ -510,7 +508,7 @@ function ContentRemixContent() {
                             <FileText className="w-4 h-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Add to Scratch Pad</TooltipContent>
+                        <TooltipContent className="bg-white dark:bg-gray-800">Add to Scratch Pad</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </div>
@@ -543,7 +541,7 @@ function ContentRemixContent() {
                   </Button>
                 </PromptSelector>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Select Prompt</p>
               </TooltipContent>
             </Tooltip>
@@ -556,7 +554,7 @@ function ContentRemixContent() {
                   <Paperclip className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Add Attachment</p>
               </TooltipContent>
             </Tooltip>
@@ -574,7 +572,7 @@ function ContentRemixContent() {
                   <Database className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Knowledge Base</p>
               </TooltipContent>
             </Tooltip>
@@ -593,7 +591,7 @@ function ContentRemixContent() {
                     <Globe2 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-800">
                   <p>Enable Web Search</p>
                 </TooltipContent>
               </Tooltip>
@@ -612,7 +610,7 @@ function ContentRemixContent() {
                   <Settings className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Edit Remix Settings</p>
               </TooltipContent>
             </Tooltip>
@@ -658,7 +656,7 @@ function ContentRemixContent() {
 
         {showUploadModal && uppyRef.current && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white p-4 rounded-lg max-w-2xl w-full">
+            <div className="bg-white dark:bg-background p-4 rounded-lg max-w-2xl w-full">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Upload Files</h2>
                 <Button variant="ghost" size="icon" onClick={handleCloseUploadModal}>
@@ -671,7 +669,7 @@ function ContentRemixContent() {
         )}
 
         {uploadedFiles.length > 0 && (
-          <div className="absolute bottom-[72px] left-0 right-0 p-2 bg-background border-t">
+          <div className="absolute bottom-0 left-0 right-0 p-2 bg-background border-t">
             <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
           </div>
         )}

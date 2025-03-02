@@ -1,5 +1,6 @@
 from fastapi import Depends, HTTPException, Security, Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from grpc import Status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app import crud, models
@@ -61,6 +62,18 @@ async def get_current_user_id(
     Use this dependency when you need the UUID instead of email.
     """
     return get_user_id(current_user, db)
+
+async def admin_required(current_user: dict = Depends(get_current_user)):
+    """
+    Ensures that the current user has role = 'admin'.
+    """
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=Status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required"
+        )
+    return current_user
+
 
 async def get_current_user_old(authorization: Optional[str] = Header(None)) -> str:
     """

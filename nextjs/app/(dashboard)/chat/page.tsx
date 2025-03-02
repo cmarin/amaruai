@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Copy, Trash2, Send, BookOpen, Grid2X2, Columns, Square, MessageSquare,
-  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Globe2
+  Loader2, Timer, Bot, Sparkles, SmilePlus, Check, FileText, Paperclip, X, Globe2, Database
 } from 'lucide-react'
 import {
   Select,
@@ -378,13 +378,13 @@ function ChatContent() {
     
     return (
       <TooltipProvider>
-        <div className="flex flex-col h-full border rounded-lg bg-white overflow-hidden">
+        <div className="flex flex-col h-full border rounded-lg bg-white dark:bg-background dark:border-gray-700 overflow-hidden">
           {/* Top header (title, copy, clear) */}
-          <div className="flex items-center justify-between p-3 border-b">
+          <div className="flex items-center justify-between p-3 border-b dark:border-gray-700">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 {React.createElement(getModelIcon(chatWindowId, selectedModels, allChatModels), { className: "w-5 h-5" })}
-                <span className="font-medium">{getModelName(chatWindowId, selectedModels, allChatModels)}</span>
+                <span className="font-medium dark:text-white">{getModelName(chatWindowId, selectedModels, allChatModels)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Select value={selectedPersonas[chatWindowId]} onValueChange={(value) => handlePersonaChange(chatWindowId, value)}>
@@ -426,7 +426,7 @@ function ChatContent() {
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
                   {isCopied ? "Copied!" : "Copy chat content"}
                 </TooltipContent>
               </Tooltip>
@@ -436,7 +436,7 @@ function ChatContent() {
                     <FileText className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Add to Scratch Pad</TooltipContent>
+                <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">Add to Scratch Pad</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -444,7 +444,7 @@ function ChatContent() {
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Clear Conversation</TooltipContent>
+                <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">Clear Conversation</TooltipContent>
               </Tooltip>
             </div>
           </div>
@@ -468,7 +468,7 @@ function ChatContent() {
             </div>
             {isStreaming && (
               <div className="sticky bottom-4 w-full flex justify-center">
-                <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="bg-white/80 dark:bg-background/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Generating response...</span>
                 </div>
@@ -537,13 +537,9 @@ function ChatContent() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      {/* LEFT COLUMN (sidebar) */}
-      <div className="w-64 h-full border-r border-gray-200">
-        <AppSidebar toggleChatbot={handleToggleChatbot} />
-      </div>
+      <AppSidebar />
 
-      {/* RIGHT COLUMN (main content) */}
-      <div className="flex-1 flex flex-col h-full relative">
+      <div className={`flex-1 flex flex-col h-full relative transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
         {/* Body/Chat section (scrollable) */}
         <div className="flex-1 overflow-auto p-4">
           {/* Single/dual/quad chat windows */}
@@ -637,7 +633,7 @@ function ChatContent() {
                   </Button>
                 </PromptSelector>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
                 <p>Prompts</p>
               </TooltipContent>
             </Tooltip>
@@ -650,7 +646,7 @@ function ChatContent() {
                   <Paperclip className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
                 <p>Add Attachment</p>
               </TooltipContent>
             </Tooltip>
@@ -659,6 +655,24 @@ function ChatContent() {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={`h-8 w-8 ${selectedKnowledgeBases.length > 0 || selectedAssets.length > 0 ? "text-green-500" : ""}`}
+                  onClick={() => setShowKnowledgeBaseModal(true)}
+                >
+                  <Database className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
+                <p>Knowledge Base</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild data-kb-selector="true">
                 <KnowledgeBaseSelector
                   knowledgeBases={knowledgeBases}
                   isLoadingKnowledgeBases={isLoadingKnowledgeBases}
@@ -676,9 +690,11 @@ function ChatContent() {
                   onDeselectAsset={(asset: Asset) => {
                     setSelectedAssets(selectedAssets.filter(a => a.id !== asset.id));
                   }}
+                  open={showKnowledgeBaseModal}
+                  onOpenChange={setShowKnowledgeBaseModal}
                 />
               </TooltipTrigger>
-              <TooltipContent className="bg-white">
+              <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
                 <p>Add Knowledge Base or Asset</p>
               </TooltipContent>
             </Tooltip>
@@ -697,7 +713,7 @@ function ChatContent() {
                     <Globe2 className="h-5 w-5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent className="bg-white">
+                <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
                   <p>Enable Web Search</p>
                 </TooltipContent>
               </Tooltip>
@@ -756,7 +772,7 @@ function ChatContent() {
 
         {/* File upload pills */}
         {uploadedFiles.length > 0 && (
-          <div className="absolute bottom-[72px] left-0 right-0 p-2 bg-background border-t">
+          <div className="absolute bottom-0 left-0 right-0 p-2 bg-background border-t">
             <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
           </div>
         )}

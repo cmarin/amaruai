@@ -346,7 +346,7 @@ export function PromptLibrary({ onBack, onSelectPrompt, prompts, onUpdatePrompts
                           <Eye className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-[300px] p-2 break-words">
+                      <TooltipContent side="top" className="max-w-[300px] p-2 break-words bg-white dark:bg-gray-800">
                         <p className="text-sm">{prompt.is_complex ? "Complex prompt structure" : prompt.prompt as string}</p>
                       </TooltipContent>
                     </Tooltip>

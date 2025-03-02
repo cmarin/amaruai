@@ -218,8 +218,8 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       <AppSidebar toggleChatbot={toggleChatbot} />
       <main className={`flex-1 min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
         {isExecuting && <GeneratingButton isGenerating={isExecuting} />}
-        <div className="h-full w-full p-4">
-          <div className="flex items-center justify-between p-4 border-b">
+        <div className="h-full w-full p-6">
+          <div className="flex items-center justify-between mb-6 p-4 border-b">
             <h1 className="text-2xl font-bold">{workflow?.name || 'Loading...'}</h1>
             <div className="flex space-x-2">
               <Button
@@ -244,52 +244,61 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
           </div>
           <div 
             ref={resultsContainerRef}
-            className="flex-grow p-4 overflow-auto"
+            className="flex-grow p-6 mt-4 overflow-auto"
           >
             {error && (
-              <div className="text-red-500 mb-4">{error}</div>
+              <div className="text-red-500 dark:text-red-400 mb-6 p-4 border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                <p className="font-medium">Error:</p>
+                <p>{error}</p>
+              </div>
             )}
             {isExecuting && (
-              <div className="text-blue-500 mb-4">
-                Executing workflow... ({results.length} steps completed)
+              <div className="text-blue-600 dark:text-blue-400 mb-6 p-4 border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <p className="font-medium">Executing workflow...</p>
+                <p>({results.length} steps completed)</p>
               </div>
             )}
             {results.map((result) => (
               <div 
                 key={`result-${result.step}`}
-                className="mb-6 p-4 border rounded-lg"
+                className="mb-8 p-6 border rounded-lg shadow-sm dark:bg-background dark:border-gray-700"
               >
-                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                <h3 className="font-semibold mb-4 flex items-center gap-2">
                   Step {result.step}
                   {result.chat_model && (
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
                       using {result.chat_model.name}
                     </span>
                   )}
                   {result.persona && (
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
                       as {result.persona.role}
                     </span>
                   )}
                 </h3>
-                <div className="mb-2">
-                  <strong>Prompt:</strong>
-                  <ReactMarkdown>{result.prompt}</ReactMarkdown>
+                <div className="mb-4">
+                  <strong className="block mb-2">Prompt:</strong>
+                  <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
+                    <ReactMarkdown>{result.prompt}</ReactMarkdown>
+                  </div>
                 </div>
                 <div>
-                  <strong>Response:</strong>
-                  <ReactMarkdown>{result.response}</ReactMarkdown>
+                  <strong className="block mb-2">Response:</strong>
+                  <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
+                    <ReactMarkdown>{result.response}</ReactMarkdown>
+                  </div>
                 </div>
               </div>
             ))}
             {showRunAgain && (
-              <div className="mt-6 flex justify-center">
+              <div className="mt-8 mb-4 flex justify-center">
                 <Button
                   onClick={handleRunAgain}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-700 dark:hover:bg-blue-800"
                   disabled={isExecuting}
+                  size="lg"
                 >
-                  <RefreshCw className="mr-2 h-4 w-4" />
+                  <RefreshCw className="mr-2 h-5 w-5" />
                   Run Again
                 </Button>
               </div>

@@ -304,7 +304,7 @@ const ComplexPromptEditor = ({
                     onChange={(e) => handleVariableChange(index, 'defaultValue', parseInt(e.target.value, 10))}
                   />
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-800">
                   <p>Default value for this number field</p>
                 </TooltipContent>
               </Tooltip>
@@ -320,7 +320,7 @@ const ComplexPromptEditor = ({
                       onChange={(e) => handleVariableChange(index, 'validation', { min: parseInt(e.target.value, 10) })}
                     />
                   </TooltipTrigger>
-                  <TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-800">
                     <p>Minimum allowed value</p>
                   </TooltipContent>
                 </Tooltip>
@@ -335,7 +335,7 @@ const ComplexPromptEditor = ({
                       onChange={(e) => handleVariableChange(index, 'validation', { max: parseInt(e.target.value, 10) })}
                     />
                   </TooltipTrigger>
-                  <TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-800">
                     <p>Maximum allowed value</p>
                   </TooltipContent>
                 </Tooltip>
@@ -350,7 +350,7 @@ const ComplexPromptEditor = ({
                       onChange={(e) => handleVariableChange(index, 'validation', { step: parseInt(e.target.value, 10) })}
                     />
                   </TooltipTrigger>
-                  <TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-800">
                     <p>Step size for incrementing/decrementing</p>
                   </TooltipContent>
                 </Tooltip>
@@ -370,7 +370,7 @@ const ComplexPromptEditor = ({
                     onChange={(e) => handleVariableChange(index, 'defaultValue', e.target.value)}
                   />
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-800">
                   <p>Default date for this field</p>
                 </TooltipContent>
               </Tooltip>
@@ -387,7 +387,7 @@ const ComplexPromptEditor = ({
                 className="mt-4"
               />
             </TooltipTrigger>
-            <TooltipContent>
+            <TooltipContent className="bg-white dark:bg-gray-800">
               <p>Error message to display when validation fails</p>
             </TooltipContent>
           </Tooltip>
@@ -402,7 +402,7 @@ const ComplexPromptEditor = ({
                 className="mt-4"
               />
             </TooltipTrigger>
-            <TooltipContent>
+            <TooltipContent className="bg-white dark:bg-gray-800">
               <p>Tooltip to display for this variable</p>
             </TooltipContent>
           </Tooltip>
@@ -435,12 +435,12 @@ const ComplexPromptEditor = ({
           >
             <div className={`
               w-10 h-10 rounded-full flex items-center justify-center
-              ${currentStep === step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}
+              ${currentStep === step ? 'bg-blue-500 dark:bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}
               ${currentStep > step ? 'bg-green-500 text-white' : ''}
             `}>
               {step}
             </div>
-            <div className={`ml-2 ${currentStep === step ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>
+            <div className={`ml-2 ${currentStep === step ? 'text-blue-500 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400'}`}>
               {step === 1 ? 'Metadata' : 
                step === 2 ? 'Persona & Model' : 
                step === 3 ? 'Form' : 'Prompt'}
@@ -621,32 +621,28 @@ const ComplexPromptEditor = ({
 
   return (
     <div className="h-full w-full">
-      <div className="flex h-full w-full overflow-hidden bg-white">
+      <div className="flex h-full w-full overflow-hidden bg-white dark:bg-background">
         <AppSidebar />
-        <main className={`flex-1 flex flex-col ${
-          mode === 'create'
-            ? useSidebarSidebarOpen ? 'ml-56' : 'ml-14'
-            : ''
-        }`}>
-          <div className="flex items-center justify-between p-4 border-b bg-white">
+        <main className={`flex-1 flex flex-col overflow-hidden ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+          <div className="flex items-center justify-between p-4 border-b bg-white dark:bg-background dark:border-gray-700">
             <h1 className="text-2xl font-bold">Template Editor</h1>
             <div className="flex gap-2">
               <Button onClick={onCancel} variant="outline">Close</Button>
               <Button 
                 onClick={handleSave} 
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                variant="default"
               >
                 Save
               </Button>
             </div>
           </div>
-          <div className="bg-gray-50 px-4 py-3 border-b">
-            <h2 className="text-gray-600 text-lg text-center">
+          <div className="bg-white dark:bg-background px-4 py-3 border-b dark:border-gray-700">
+            <h2 className="text-gray-600 dark:text-gray-300 text-lg text-center">
               {currentTitle || 'Untitled Template'}
             </h2>
           </div>
-          <div className="flex-grow overflow-auto bg-white">
-            <CardContent className="pt-8">
+          <div className="flex-grow overflow-auto bg-white dark:bg-background">
+            <CardContent className="p-8 pt-10">
               {renderStepIndicator()}
               {renderStepContent()}
               {renderNavigation()}

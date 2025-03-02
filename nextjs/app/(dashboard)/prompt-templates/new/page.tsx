@@ -7,6 +7,8 @@ import PromptTemplateEditor from '@/components/prompt-template-editor';
 import ComplexPromptTemplateEditor from '@/components/complex-prompt-template-editor';
 import { useSession } from '@/app/utils/session/session';
 import { useToast } from '@/hooks/use-toast';
+import { AppSidebar } from '@/components/app-sidebar';
+import { useSidebar } from '@/components/sidebar-context';
 
 export default function NewPromptTemplatePage() {
   const router = useRouter();
@@ -16,6 +18,7 @@ export default function NewPromptTemplatePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const isComplex = searchParams.get('type') === 'complex';
+  const { sidebarOpen } = useSidebar();
 
   useEffect(() => {
     if (!initialized) return;
@@ -54,22 +57,25 @@ export default function NewPromptTemplatePage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
-      {isComplex ? (
-        <ComplexPromptTemplateEditor
-          categories={categories}
-          onSave={handleSave}
-          onClose={() => router.push('/prompt-templates')}
-          mode="create"
-        />
-      ) : (
-        <PromptTemplateEditor
-          categories={categories}
-          onSave={handleSave}
-          onClose={() => router.push('/prompt-templates')}
-          mode="create"
-        />
-      )}
+    <div className="flex h-full w-full overflow-hidden bg-white dark:bg-background">
+      <AppSidebar />
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-[250px]' : 'ml-16'}`}>
+        {isComplex ? (
+          <ComplexPromptTemplateEditor
+            categories={categories}
+            onSave={handleSave}
+            onClose={() => router.push('/prompt-templates')}
+            mode="create"
+          />
+        ) : (
+          <PromptTemplateEditor
+            categories={categories}
+            onSave={handleSave}
+            onClose={() => router.push('/prompt-templates')}
+            mode="create"
+          />
+        )}
+      </div>
     </div>
   );
 }

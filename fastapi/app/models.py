@@ -158,7 +158,9 @@ class ChatModel(Base):
     api_key = Column(String, nullable=True)
     default = Column(Boolean, default=False)
     max_tokens = Column(Integer, nullable=True)
-    position = Column(Integer, nullable=True)
+    position = Column(BigInteger, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('CURRENT_TIMESTAMP'))
     workflow_steps = relationship("WorkflowStep", back_populates="chat_model")
     # Add relationship to users who favorited this model
     favorited_by = relationship("User", secondary=chat_model_favorites, back_populates="favorite_chat_models")
@@ -263,6 +265,8 @@ class User(Base):
     name = Column(Text, nullable=False)
     email = Column(Text, nullable=False, unique=True)
     role = Column(Text, nullable=False, server_default=text("'regular'"))
+    active = Column(Boolean, nullable=False, server_default=text("false"))
+    organization = Column(Text, nullable=True)
     
     # Add relationship to favorited templates
     favorite_templates = relationship("PromptTemplate", secondary=prompt_template_favorites, back_populates="favorited_by")

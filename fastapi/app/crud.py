@@ -69,7 +69,7 @@ def update_persona(db: Session, persona_id: UUID, persona: schemas.PersonaUpdate
         if db_persona:
             # Update basic fields
             update_data = persona.dict(
-                exclude={'category_ids', 'tags', 'tools'}, 
+                exclude={'category_ids', 'tags', 'tools', 'prompt_templates'}, 
                 exclude_unset=True,
                 exclude_none=True
             )
@@ -102,6 +102,10 @@ def update_persona(db: Session, persona_id: UUID, persona: schemas.PersonaUpdate
                     tool = db.query(models.Tool).filter(models.Tool.id == tool_id).first()
                     if tool:
                         db_persona.tools.append(tool)
+            
+            # Handle prompt_templates if provided
+            # We don't directly update the relationship as it's a backref
+            # Instead, we update the default_persona_id on each prompt template
             
             db.commit()
             db.refresh(db_persona)
@@ -347,17 +351,16 @@ def get_chat_models(db: Session, user_id: UUID, skip: int = 0, limit: int = 100)
         model.id for model in user.favorite_chat_models
     }
 
-    # Get all chat models, ordered by position (nulls last) then by name
+    # Get all chat models, sorted by position if available, then by name
     chat_models = db.query(models.ChatModel).order_by(
-        func.coalesce(models.ChatModel.position, 9999),  # Sort nulls last
+        # Sort nulls last, then by position
+        asc(func.coalesce(models.ChatModel.position, 9999999)),
         models.ChatModel.name
     ).offset(skip).limit(limit).all()
 
-    # Mark favorites and exclude api_key
+    # Mark favorites
     for model in chat_models:
         setattr(model, 'is_favorited', model.id in favorite_model_ids)
-        # Exclude api_key from the response
-        setattr(model, 'api_key', None)
 
     return chat_models
 
@@ -1023,13 +1026,12 @@ def get_favorite_chat_models(db: Session, user_id: UUID) -> List[models.ChatMode
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Mark all models as favorited and exclude api_key
-    for model in user.favorite_chat_models:
-        setattr(model, 'is_favorited', True)
-        # Exclude api_key from the response
-        setattr(model, 'api_key', None)
-    
-    return user.favorite_chat_models
+    return (
+        db.query(models.ChatModel)
+        .join(models.chat_model_favorites)
+        .filter(models.chat_model_favorites.c.user_id == user_id)
+        .all()
+    )
 
 def get_assets_by_ids(db: Session, asset_ids: List[UUID], context: str = "chat") -> List[models.Asset]:
     """
@@ -1061,3 +1063,42 @@ def get_assets_by_ids(db: Session, asset_ids: List[UUID], context: str = "chat")
                     asset.file_url = f"batch-flow/{user_path}/{asset.id}/{asset.file_name}"
                     
     return assets
+
+def update_chat_model_position(db: Session, chat_model_id: UUID, position: int):
+    """Update the position of a chat model"""
+    db_chat_model = db.query(models.ChatModel).filter(models.ChatModel.id == chat_model_id).first()
+    if db_chat_model:
+        db_chat_model.position = position
+        db.commit()
+        db.refresh(db_chat_model)
+    return db_chat_model
+
+def bulk_update_chat_model_positions(db: Session, positions: dict):
+    """Update positions for multiple chat models at once
+    
+    Args:
+        db: Database session
+        positions: Dictionary mapping chat model IDs to their new positions
+        
+    Returns:
+        List of updated chat models
+    """
+    updated_models = []
+    
+    for model_id, position in positions.items():
+        try:
+            model_id = UUID(model_id) if isinstance(model_id, str) else model_id
+            db_chat_model = db.query(models.ChatModel).filter(models.ChatModel.id == model_id).first()
+            if db_chat_model:
+                db_chat_model.position = position
+                updated_models.append(db_chat_model)
+        except ValueError:
+            # Skip invalid UUIDs
+            continue
+    
+    if updated_models:
+        db.commit()
+        for model in updated_models:
+            db.refresh(model)
+            
+    return updated_models

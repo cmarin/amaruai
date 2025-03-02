@@ -414,7 +414,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
 
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-1-[600px]">
+        <DialogContent className="sm:max-1-[600px] bg-white dark:bg-background">
           <DialogHeader>
             <DialogTitle>Edit Synthesis Prompt</DialogTitle>
             <DialogDescription>
@@ -476,13 +476,9 @@ Please synthesize these responses into a comprehensive answer that combines the 
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      {/* LEFT COLUMN (sidebar) */}
-      <div className="w-64 h-full border-r border-gray-200">
-        <AppSidebar />
-      </div>
+      <AppSidebar />
 
-      {/* RIGHT COLUMN (main content) */}
-      <div className="flex-1 flex flex-col h-full relative">
+      <div className={`flex-1 flex flex-col h-full relative transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
         {/* Top row with three chat windows */}
         <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
           <div className="grid grid-cols-3 gap-4 h-[300px]">
@@ -491,7 +487,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
               { messages: messages2, chatId: 'chat2' },
               { messages: messages3, chatId: 'chat3' },
             ].map((chat, index) => (
-              <div key={index} className="h-full border rounded-lg bg-white overflow-hidden">
+              <div key={index} className="h-full border rounded-lg bg-white dark:bg-background dark:border-gray-700 overflow-hidden">
                 <div className="flex items-center justify-between p-3 border-b">
                   <div className="flex items-center gap-2">
                     <div className="flex gap-2">
@@ -527,7 +523,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
           </div>
 
           {/* Bottom synthesized response window */}
-          <div className="flex-1 border rounded-lg bg-white overflow-hidden relative">
+          <div className="flex-1 border rounded-lg bg-white dark:bg-background dark:border-gray-700 overflow-hidden relative">
             <div className="flex items-center justify-between p-3 border-b">
               <div className="flex items-center gap-2">
                 <span className="font-medium">Synthesized Response</span>
@@ -566,7 +562,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
                         )}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>
+                    <TooltipContent className="bg-white dark:bg-gray-800">
                       {copiedStates[synthesizedMessages.map(m => `${m.role}: ${m.content}`).join('\n')] 
                         ? "Copied!" 
                         : "Copy chat content"}
@@ -585,14 +581,14 @@ Please synthesize these responses into a comprehensive answer that combines the 
                         <FileText className="w-4 h-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Add to Scratch Pad</TooltipContent>
+                    <TooltipContent className="bg-white dark:bg-gray-800">Add to Scratch Pad</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </div>
             </div>
             <ScrollArea className="h-[calc(100%-60px)] p-4">
               {isSynthesizing && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+                <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-background/80 backdrop-blur-sm">
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="h-8 w-8 animate-spin" />
                     <span className="text-sm text-muted-foreground">Generating synthesis...</span>
@@ -622,7 +618,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
                   </Button>
                 </PromptSelector>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Select Prompt</p>
               </TooltipContent>
             </Tooltip>
@@ -635,7 +631,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
                   <Paperclip className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Add Attachment</p>
               </TooltipContent>
             </Tooltip>
@@ -653,7 +649,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
                   <Database className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Knowledge Base</p>
               </TooltipContent>
             </Tooltip>
@@ -672,7 +668,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
                     <Globe2 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-800">
                   <p>Enable Web Search</p>
                 </TooltipContent>
               </Tooltip>
@@ -691,7 +687,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
                   <Settings className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-800">
                 <p>Edit Synthesis Prompt</p>
               </TooltipContent>
             </Tooltip>
@@ -752,7 +748,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
       {/* File upload modal */}
       {showUploadModal && uppyRef.current && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg max-w-2xl w-full">
+          <div className="bg-white dark:bg-background p-4 rounded-lg max-w-2xl w-full">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold">Upload Files</h2>
               <Button variant="ghost" size="icon" onClick={handleCloseUploadModal}>
@@ -766,7 +762,7 @@ Please synthesize these responses into a comprehensive answer that combines the 
 
       {/* File upload pills */}
       {uploadedFiles.length > 0 && (
-        <div className="absolute bottom-[72px] left-0 right-0 p-2 bg-background border-t">
+        <div className="absolute bottom-0 left-0 right-0 p-2 bg-background border-t">
           <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
         </div>
       )}

@@ -192,7 +192,7 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-white">
+    <div className="flex flex-col h-full w-full bg-white dark:bg-background">
       <div className="flex-grow p-6 overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">
@@ -265,7 +265,7 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
         </div>
       </div>
 
-      <div className="border-t bg-white py-4 px-6">
+      <div className="border-t bg-white dark:bg-background py-4 px-6">
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button 

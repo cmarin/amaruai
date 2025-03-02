@@ -123,7 +123,7 @@ export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps
   const chatModels = favoriteChatModels;
 
   return (
-    <div className={`fixed top-0 left-0 h-full bg-gray-100 transition-all duration-300 ${sidebarOpen ? 'w-56' : 'w-14'} overflow-hidden`}>
+    <div className={`fixed top-0 left-0 h-full bg-gray-100 dark:bg-background transition-all duration-300 ${sidebarOpen ? 'w-56' : 'w-14'} overflow-hidden`}>
       <div className="h-full flex flex-col">
         {/* Header */}
         <div className="flex justify-between items-center p-3">
@@ -135,8 +135,9 @@ export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps
                 width={36}
                 height={36}
                 style={{ width: 'auto', height: '36px' }}
+                className="dark:invert"
               />
-              <h1 className="text-xl font-bold">AmaruAI</h1>
+              <h1 className="text-xl font-bold dark:text-white">AmaruAI</h1>
             </div>
           ) : (
             <Image 
@@ -145,14 +146,14 @@ export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps
               width={16}
               height={16}
               style={{ width: 'auto', height: '16px' }}
-              className="ml-[-5px]"
+              className="ml-[-5px] dark:invert"
             />
           )}
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleSidebar}
-            className={`hover:bg-gray-200 rounded-full ${sidebarOpen ? '' : 'ml-auto'}`}
+            className={`hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full ${sidebarOpen ? '' : 'ml-auto'}`}
           >
             {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
           </Button>
@@ -161,12 +162,12 @@ export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps
         {/* Main content */}
         <div className="flex-grow overflow-y-auto">
           <div className="space-y-1">
-            {sidebarOpen && <div className="px-3 py-2 text-xs font-semibold text-gray-500">AI Tools</div>}
+            {sidebarOpen && <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400">AI Tools</div>}
             {aiTools.map((item) => (
               <Button 
                 key={item.title}
                 variant="ghost"
-                className={`w-full justify-start ${sidebarOpen ? 'px-3' : 'px-2'} py-2`}
+                className={`w-full justify-start ${sidebarOpen ? 'px-3' : 'px-2'} py-2 dark:text-gray-200 dark:hover:text-white dark:hover:bg-gray-800`}
                 onClick={() => router.push(item.href)}
               >
                 <item.icon className={sidebarOpen ? "mr-2" : ""} size={16} />
@@ -175,14 +176,14 @@ export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps
             ))}
             {chatModels.length > 0 && (
               <>
-                {sidebarOpen && <div className="px-3 py-2 text-xs font-semibold text-gray-500">AI Models</div>}
+                {sidebarOpen && <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400">AI Models</div>}
                 {chatModels.map((model) => {
                   const IconComponent = getProviderIcon(model.id.toString(), model.name)
                   return (
                     <Button 
                       key={model.id}
                       variant="ghost"
-                      className={`w-full justify-start ${sidebarOpen ? 'px-3' : 'px-2'} py-2`}
+                      className={`w-full justify-start ${sidebarOpen ? 'px-3' : 'px-2'} py-2 dark:text-gray-200 dark:hover:text-white dark:hover:bg-gray-800`}
                       onClick={() => handleToggleChatbot(model.id.toString())}
                     >
                       <IconComponent className={sidebarOpen ? "mr-2" : ""} size={16} />
@@ -196,10 +197,10 @@ export function AppSidebar({ toggleChatbot: propToggleChatbot }: AppSidebarProps
         </div>
 
         {/* User footer section */}
-        <div className="border-t border-gray-200 p-2">
+        <div className="border-t border-gray-200 dark:border-gray-700 p-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="w-full justify-start gap-2">
+              <Button variant="ghost" className="w-full justify-start gap-2 dark:text-gray-200 dark:hover:text-white dark:hover:bg-gray-800">
                 <Avatar className="h-6 w-6">
                   <AvatarImage src={user?.user_metadata?.avatar_url} />
                   <AvatarFallback>

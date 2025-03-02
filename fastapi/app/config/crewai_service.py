@@ -91,11 +91,19 @@ class CrewAIService:
                 persona = step.persona
 
                 # Create agent with default values if no persona specified
-                llm = LLM(
-                    model=f"openrouter/{chat_model.model}",
-                    api_key=self.api_key,
-                    base_url=self.base_url
-                )
+                if persona and hasattr(persona, 'temperature') and persona.temperature is not None:
+                    llm = LLM(
+                        model=f"openrouter/{chat_model.model}",
+                        api_key=self.api_key,
+                        base_url=self.base_url,
+                        temperature=persona.temperature
+                    )
+                else:
+                    llm = LLM(
+                        model=f"openrouter/{chat_model.model}",
+                        api_key=self.api_key,
+                        base_url=self.base_url
+                    )
 
                 if persona:
                     agent = Agent(

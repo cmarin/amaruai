@@ -313,10 +313,10 @@ export default function BatchFlow() {
   }));
 
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen bg-white dark:bg-background">
       <AppSidebar toggleChatbot={(modelId: string) => {}} />
       
-      <div className={`flex-1 p-8 bg-white ${sidebarOpen ? 'ml-64' : ''}`}>
+      <div className={`flex-1 p-8 bg-white dark:bg-background ${sidebarOpen ? 'ml-64' : ''}`}>
         <div className="max-w-6xl mx-auto">
           <h1 className="text-2xl font-bold mb-8">Batch Flow</h1>
 

@@ -20,7 +20,8 @@ from app.api.v1 import (
     assets,
     knowledge_bases,
     batch_flow,
-    rag
+    rag,
+    users
 )
 from app.database import engine, Base
 from dotenv import load_dotenv
@@ -60,7 +61,8 @@ origins = [
     "https://localhost:8000",
     "http://amaruai.vercel.app",
     "https://amaruai.vercel.app",
-    "https://amaruai-l2117eld6-cmarins-projects.vercel.app",
+    "https://amaruai.com",
+    "https://www.amaruai.com",
     "https://accurate-courtesy-production.up.railway.app"
 ]
 
@@ -94,7 +96,8 @@ protected_routes = [
     assets.router,
     batch_flow.router,
     workflows.router,  # Protected workflow routes
-    rag.router  # RAG routes
+    rag.router,  # RAG routes
+    users.router  # User routes
 ]
 
 for router in protected_routes:

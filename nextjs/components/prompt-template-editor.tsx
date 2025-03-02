@@ -89,8 +89,8 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 bg-white dark:bg-background p-4 rounded-lg shadow-sm border dark:border-gray-800">
+      <div className="flex items-center justify-between pb-4 border-b dark:border-gray-800">
         <h2 className="text-3xl font-bold tracking-tight">{mode === 'create' ? 'Create Prompt Template' : 'Edit Prompt Template'}</h2>
         <div className="flex gap-2">
           <Button
@@ -108,26 +108,37 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6 mt-6">
         <div>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+            Title
+          </label>
           <Input
             placeholder="Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            className="bg-white dark:bg-gray-950"
           />
         </div>
 
         <div>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+            Prompt
+          </label>
           <Textarea
             placeholder="Prompt"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            rows={10}
+            rows={12}
+            className="bg-white dark:bg-gray-950"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="w-full">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+              Default Persona
+            </label>
             <ComboboxPersonas
               personas={personas || []}
               value={selectedPersonaId || undefined}
@@ -136,6 +147,9 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
           </div>
 
           <div className="w-full">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+              Default Chat Model
+            </label>
             <ComboboxChatModels
               models={chatModels || []}
               value={selectedChatModelId}
@@ -145,8 +159,11 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
         </div>
 
         <div>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+            Category
+          </label>
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger>
+            <SelectTrigger className="bg-white dark:bg-gray-950">
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
@@ -160,6 +177,9 @@ export default function PromptTemplateEditor({ promptTemplate, categories, onSav
         </div>
 
         <div>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+            Tags
+          </label>
           <TagSelector
             tags={tags}
             setTags={setTags}

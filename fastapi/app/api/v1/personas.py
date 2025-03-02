@@ -40,7 +40,7 @@ def read_persona(
         raise HTTPException(status_code=404, detail="Persona not found")
     return db_persona
 
-@router.put("/{persona_id}")
+@router.put("/{persona_id}", response_model=schemas.Persona)
 def update_persona(
     persona_id: UUID,
     persona: schemas.PersonaUpdate,

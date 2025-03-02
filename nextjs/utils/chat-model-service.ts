@@ -2,6 +2,11 @@ import { fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl } from './api-utils';
 
+// Simple in-memory request tracker to prevent duplicate calls
+const requestTracker: {
+  [key: string]: boolean
+} = {};
+
 export interface ChatModel {
   id: string;
   name: string;
@@ -19,25 +24,57 @@ export interface ChatModel {
 }
 
 export async function fetchChatModels(headers: ApiHeaders): Promise<ChatModel[]> {
-  return fetchWithRetry(async () => {
-    const response = await fetch(`${getApiUrl()}/chat_models`, {
-      method: 'GET',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
+  // Create a request key
+  const requestKey = 'chat_models';
+  
+  // Check if we're already making this exact request
+  if (requestTracker[requestKey]) {
+    console.log(`Duplicate request prevented: ${requestKey}`);
+    // Return a promise that never resolves during the lock period
+    // This will prevent the state from being updated with an empty array
+    return new Promise((resolve) => {
+      const checkLock = () => {
+        if (!requestTracker[requestKey]) {
+          // When the lock is released, try again
+          fetchChatModels(headers).then(resolve);
+        } else {
+          // Check again after a short delay
+          setTimeout(checkLock, 100);
+        }
+      };
+      setTimeout(checkLock, 100);
     });
-    if (!response.ok) {
-      throw new Error('Failed to fetch chat models');
-    }
-    const data = await response.json();
-    return data.map((model: any) => ({
-      ...model,
-      id: model.id.toString(),
-      is_favorite: model.is_favorite || model.is_favorited || false,
-      position: model.position !== undefined ? model.position : null
-    }));
-  });
+  }
+  
+  // Mark this request as in progress
+  requestTracker[requestKey] = true;
+
+  try {
+    return await fetchWithRetry(async () => {
+      const response = await fetch(`${getApiUrl()}/chat_models?limit=30`, {
+        method: 'GET',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch chat models');
+      }
+      const data = await response.json();
+      return data.map((model: any) => ({
+        ...model,
+        id: model.id.toString(),
+        is_favorite: model.is_favorite || model.is_favorited || false,
+        position: model.position !== undefined ? model.position : null
+      }));
+    });
+  } finally {
+    // Clear the request tracker after a delay
+    setTimeout(() => {
+      delete requestTracker[requestKey];
+    }, 2000);
+  }
 }
 
 export async function fetchChatModel(id: string, headers: ApiHeaders): Promise<ChatModel> {
@@ -153,22 +190,54 @@ export async function unfavoriteChatModel(chatModelId: string, headers: ApiHeade
 }
 
 export async function fetchFavoriteChatModels(headers: ApiHeaders): Promise<ChatModel[]> {
-  return await fetchWithRetry(async () => {
-    const response = await fetch(`${getApiUrl()}/chat_models/favorites`, {
-      headers,
+  // Create a request key
+  const requestKey = 'favorite_chat_models';
+  
+  // Check if we're already making this exact request
+  if (requestTracker[requestKey]) {
+    console.log(`Duplicate request prevented: ${requestKey}`);
+    // Return a promise that never resolves during the lock period
+    // This will prevent the state from being updated with an empty array
+    return new Promise((resolve) => {
+      const checkLock = () => {
+        if (!requestTracker[requestKey]) {
+          // When the lock is released, try again
+          fetchFavoriteChatModels(headers).then(resolve);
+        } else {
+          // Check again after a short delay
+          setTimeout(checkLock, 100);
+        }
+      };
+      setTimeout(checkLock, 100);
     });
+  }
+  
+  // Mark this request as in progress
+  requestTracker[requestKey] = true;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error fetching favorite chat models:', response.status, errorText);
-      throw new Error('Failed to fetch favorite chat models');
-    }
+  try {
+    return await fetchWithRetry(async () => {
+      const response = await fetch(`${getApiUrl()}/chat_models/favorites?limit=30`, {
+        headers,
+      });
 
-    const data = await response.json();
-    return data.map((model: any) => ({
-      ...model,
-      id: model.id.toString(),
-      is_favorite: true // These are from favorites endpoint, so they are all favorites
-    }));
-  });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error fetching favorite chat models:', response.status, errorText);
+        throw new Error('Failed to fetch favorite chat models');
+      }
+
+      const data = await response.json();
+      return data.map((model: any) => ({
+        ...model,
+        id: model.id.toString(),
+        is_favorite: true // These are from favorites endpoint, so they are all favorites
+      }));
+    });
+  } finally {
+    // Clear the request tracker after a delay
+    setTimeout(() => {
+      delete requestTracker[requestKey];
+    }, 2000);
+  }
 }
