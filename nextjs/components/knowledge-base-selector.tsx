@@ -127,8 +127,18 @@ export function KnowledgeBaseSelector({
         <Tabs defaultValue="knowledge-bases" className="w-full" value={activeTab} onValueChange={handleTabChange}>
           <div className="border-t border-b px-2 py-1 dark:border-gray-700">
             <TabsList className="grid w-full grid-cols-2 bg-transparent dark:bg-transparent">
-              <TabsTrigger value="knowledge-bases">Knowledge Bases</TabsTrigger>
-              <TabsTrigger value="assets">Assets</TabsTrigger>
+              <TabsTrigger 
+                value="knowledge-bases" 
+                className="data-[state=active]:bg-gray-100 dark:data-[state=active]:bg-gray-800 data-[state=active]:text-black dark:data-[state=active]:text-white dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+              >
+                Knowledge Bases
+              </TabsTrigger>
+              <TabsTrigger 
+                value="assets" 
+                className="data-[state=active]:bg-gray-100 dark:data-[state=active]:bg-gray-800 data-[state=active]:text-black dark:data-[state=active]:text-white dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+              >
+                Assets
+              </TabsTrigger>
             </TabsList>
           </div>
 
