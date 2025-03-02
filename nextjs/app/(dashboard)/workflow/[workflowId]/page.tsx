@@ -38,7 +38,12 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const [hasSubmittedComplexPrompt, setHasSubmittedComplexPrompt] = useState(false);
   const [submittedPrompt, setSubmittedPrompt] = useState<string | undefined>(undefined);
-  const stepInfoRef = useRef<Map<number, { chatModel: any, persona: any }>>(new Map());
+  const [workflowStepsInfo, setWorkflowStepsInfo] = useState<{
+    [position: number]: {
+      chatModel: { name: string; model: string; id: string };
+      persona: { role: string; goal: string; id: string };
+    };
+  }>({});
 
   const handleStreamMessage = useCallback((message: WorkflowStreamMessage) => {
     if (message.type === 'error') {
@@ -55,19 +60,19 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
 
       const stepNumber = typeof message.step === 'string' 
         ? parseInt(message.step, 10) 
-        : message.step as number;
+        : (message.step as number);
       
-      const stepInfo = stepInfoRef.current.get(stepNumber);
-      const chatModel = message.chat_model || (stepInfo ? stepInfo.chatModel : undefined);
-      const persona = message.persona || (stepInfo ? stepInfo.persona : undefined);
-
+      const stepInfo = workflowStepsInfo[stepNumber];
+      
       const newResult: WorkflowResult = {
         step: message.step!.toString(),
         prompt: promptToShow,
         response: message.response,
-        chat_model: chatModel,
-        persona: persona
+        chat_model: message.chat_model || (stepInfo ? stepInfo.chatModel : undefined),
+        persona: message.persona || (stepInfo ? stepInfo.persona : undefined)
       };
+
+      console.log(`Processing step ${stepNumber} with model: ${newResult.chat_model?.name || 'unknown'} and persona: ${newResult.persona?.role || 'unknown'}`);
 
       setResults(prev => {
         if (prev.some(r => r.step === newResult.step)) {
@@ -82,7 +87,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         }
       }, 0);
     }
-  }, [submittedPrompt]);
+  }, [submittedPrompt, workflowStepsInfo]);
 
   const executeWorkflowStream = useCallback(async (message?: string) => {
     if (cleanupRef.current) {
@@ -161,13 +166,34 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       console.log('Fetched workflow:', fetchedWorkflow);
       setWorkflow(fetchedWorkflow);
       
-      stepInfoRef.current.clear();
-      fetchedWorkflow.steps.forEach((step, index) => {
-        stepInfoRef.current.set(index + 1, {
-          chatModel: (step as any).chat_model,
-          persona: (step as any).persona
+      const stepsInfo: {
+        [position: number]: {
+          chatModel: { name: string; model: string; id: string };
+          persona: { role: string; goal: string; id: string };
+        };
+      } = {};
+      
+      if (fetchedWorkflow.steps && Array.isArray(fetchedWorkflow.steps)) {
+        fetchedWorkflow.steps.forEach((step: any, index) => {
+          if (step.chat_model && step.persona) {
+            stepsInfo[index + 1] = {
+              chatModel: {
+                name: step.chat_model.name,
+                model: step.chat_model.model,
+                id: step.chat_model.id.toString()
+              },
+              persona: {
+                role: step.persona.role,
+                goal: step.persona.goal,
+                id: step.persona.id.toString()
+              }
+            };
+          }
         });
-      });
+      }
+      
+      console.log('Cached workflow steps info:', stepsInfo);
+      setWorkflowStepsInfo(stepsInfo);
       
       await checkFirstStep(fetchedWorkflow);
     } catch (error) {
@@ -276,38 +302,43 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
                 <p>({results.length} steps completed)</p>
               </div>
             )}
-            {results.map((result) => (
-              <div 
-                key={`result-${result.step}`}
-                className="mb-8 p-6 border rounded-lg shadow-sm dark:bg-background dark:border-gray-700"
-              >
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  Step {result.step}
-                  {result.chat_model && (
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      using {result.chat_model.name}
-                    </span>
-                  )}
-                  {result.persona && (
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      as {result.persona.role}
-                    </span>
-                  )}
-                </h3>
-                <div className="mb-4">
-                  <strong className="block mb-2">Prompt:</strong>
-                  <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
-                    <ReactMarkdown>{result.prompt}</ReactMarkdown>
+            {results.map((result) => {
+              const stepNumber = parseInt(result.step, 10);
+              const stepInfo = workflowStepsInfo[stepNumber];
+              
+              return (
+                <div 
+                  key={`result-${result.step}`}
+                  className="mb-8 p-6 border rounded-lg shadow-sm dark:bg-background dark:border-gray-700"
+                >
+                  <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    Step {result.step}
+                    {(result.chat_model || (stepInfo && stepInfo.chatModel)) && (
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        using {result.chat_model?.name || stepInfo?.chatModel.name}
+                      </span>
+                    )}
+                    {(result.persona || (stepInfo && stepInfo.persona)) && (
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        as {result.persona?.role || stepInfo?.persona.role}
+                      </span>
+                    )}
+                  </h3>
+                  <div className="mb-4">
+                    <strong className="block mb-2">Prompt:</strong>
+                    <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
+                      <ReactMarkdown>{result.prompt}</ReactMarkdown>
+                    </div>
+                  </div>
+                  <div>
+                    <strong className="block mb-2">Response:</strong>
+                    <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
+                      <ReactMarkdown>{result.response}</ReactMarkdown>
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <strong className="block mb-2">Response:</strong>
-                  <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
-                    <ReactMarkdown>{result.response}</ReactMarkdown>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {showRunAgain && (
               <div className="mt-8 mb-4 flex justify-center">
                 <Button
