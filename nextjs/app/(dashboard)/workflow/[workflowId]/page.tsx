@@ -38,6 +38,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const [hasSubmittedComplexPrompt, setHasSubmittedComplexPrompt] = useState(false);
   const [submittedPrompt, setSubmittedPrompt] = useState<string | undefined>(undefined);
+  const stepInfoRef = useRef<Map<number, { chatModel: any, persona: any }>>(new Map());
 
   const handleStreamMessage = useCallback((message: WorkflowStreamMessage) => {
     if (message.type === 'error') {
@@ -52,12 +53,20 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         ? submittedPrompt 
         : message.prompt;
 
+      const stepNumber = typeof message.step === 'string' 
+        ? parseInt(message.step, 10) 
+        : message.step as number;
+      
+      const stepInfo = stepInfoRef.current.get(stepNumber);
+      const chatModel = message.chat_model || (stepInfo ? stepInfo.chatModel : undefined);
+      const persona = message.persona || (stepInfo ? stepInfo.persona : undefined);
+
       const newResult: WorkflowResult = {
         step: message.step!.toString(),
         prompt: promptToShow,
         response: message.response,
-        chat_model: message.chat_model,
-        persona: message.persona
+        chat_model: chatModel,
+        persona: persona
       };
 
       setResults(prev => {
@@ -151,6 +160,15 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       const fetchedWorkflow = await fetchWorkflow(params.workflowId, headers);
       console.log('Fetched workflow:', fetchedWorkflow);
       setWorkflow(fetchedWorkflow);
+      
+      stepInfoRef.current.clear();
+      fetchedWorkflow.steps.forEach((step, index) => {
+        stepInfoRef.current.set(index + 1, {
+          chatModel: (step as any).chat_model,
+          persona: (step as any).persona
+        });
+      });
+      
       await checkFirstStep(fetchedWorkflow);
     } catch (error) {
       console.error('Error loading workflow:', error);
