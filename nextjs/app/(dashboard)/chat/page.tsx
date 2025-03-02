@@ -426,7 +426,7 @@ function ChatContent() {
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent className="bg-white dark:bg-gray-800">
+                <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
                   {isCopied ? "Copied!" : "Copy chat content"}
                 </TooltipContent>
               </Tooltip>
@@ -436,7 +436,7 @@ function ChatContent() {
                     <FileText className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent className="bg-white dark:bg-gray-800">Add to Scratch Pad</TooltipContent>
+                <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">Add to Scratch Pad</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -444,7 +444,7 @@ function ChatContent() {
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent className="bg-white dark:bg-gray-800">Clear Conversation</TooltipContent>
+                <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">Clear Conversation</TooltipContent>
               </Tooltip>
             </div>
           </div>
@@ -633,7 +633,7 @@ function ChatContent() {
                   </Button>
                 </PromptSelector>
               </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-gray-800">
+              <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
                 <p>Prompts</p>
               </TooltipContent>
             </Tooltip>
@@ -646,7 +646,7 @@ function ChatContent() {
                   <Paperclip className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-gray-800">
+              <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
                 <p>Add Attachment</p>
               </TooltipContent>
             </Tooltip>
@@ -664,7 +664,7 @@ function ChatContent() {
                   <Database className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-gray-800">
+              <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
                 <p>Knowledge Base</p>
               </TooltipContent>
             </Tooltip>
@@ -694,7 +694,7 @@ function ChatContent() {
                   onOpenChange={setShowKnowledgeBaseModal}
                 />
               </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-gray-800">
+              <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
                 <p>Add Knowledge Base or Asset</p>
               </TooltipContent>
             </Tooltip>
@@ -713,7 +713,7 @@ function ChatContent() {
                     <Globe2 className="h-5 w-5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent className="bg-white dark:bg-gray-800">
+                <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
                   <p>Enable Web Search</p>
                 </TooltipContent>
               </Tooltip>

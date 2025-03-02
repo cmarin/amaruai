@@ -313,26 +313,28 @@ export default function SettingsPage() {
                       New Category
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="dark:bg-gray-900 dark:border-gray-800">
                     <DialogHeader>
-                      <DialogTitle>Create New Category</DialogTitle>
-                      <DialogDescription>Add a new category to organize your content</DialogDescription>
+                      <DialogTitle className="dark:text-white">Create New Category</DialogTitle>
+                      <DialogDescription className="dark:text-gray-400">Add a new category to organize your content</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label>Name</Label>
+                        <Label className="dark:text-gray-300">Name</Label>
                         <Input
                           value={newCategory.name}
                           onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
                           placeholder="Category name"
+                          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                         />
                       </div>
                       <div>
-                        <Label>Description</Label>
+                        <Label className="dark:text-gray-300">Description</Label>
                         <Textarea
                           value={newCategory.description}
                           onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
                           placeholder="Category description"
+                          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                         />
                       </div>
                       <Button onClick={handleCreateCategory}>Create Category</Button>
@@ -381,22 +383,23 @@ export default function SettingsPage() {
                       New Chat Model
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="dark:bg-gray-900 dark:border-gray-800">
                     <DialogHeader>
-                      <DialogTitle>Create New Chat Model</DialogTitle>
-                      <DialogDescription>Add a new chat model to generate text</DialogDescription>
+                      <DialogTitle className="dark:text-white">Create New Chat Model</DialogTitle>
+                      <DialogDescription className="dark:text-gray-400">Add a new chat model to generate text</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label>Name</Label>
+                        <Label className="dark:text-gray-300">Name</Label>
                         <Input
                           value={newChatModel.name}
                           onChange={(e) => setNewChatModel({ ...newChatModel, name: e.target.value })}
                           placeholder="Chat model name"
+                          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                         />
                       </div>
                       <div>
-                        <Label>Model</Label>
+                        <Label className="dark:text-gray-300">Model</Label>
                         <Input
                           value={newChatModel.model}
                           onChange={(e) =>
@@ -406,10 +409,11 @@ export default function SettingsPage() {
                             })
                           }
                           placeholder="Model identifier (e.g. gpt-4)"
+                          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                         />
                       </div>
                       <div>
-                        <Label>Provider</Label>
+                        <Label className="dark:text-gray-300">Provider</Label>
                         <Select
                           value={newChatModel.provider}
                           onValueChange={(value) =>
@@ -419,18 +423,18 @@ export default function SettingsPage() {
                             })
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="dark:bg-gray-800 dark:border-gray-700 dark:text-white">
                             <SelectValue placeholder="Select a provider" />
                           </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="openrouter">OpenRouter</SelectItem>
-                            <SelectItem value="openai">OpenAI</SelectItem>
-                            <SelectItem value="openai-assistant">OpenAI Assistant</SelectItem>
+                          <SelectContent className="dark:bg-gray-900 dark:border-gray-800">
+                            <SelectItem value="openrouter" className="dark:text-white dark:focus:bg-gray-800 dark:hover:bg-gray-800">OpenRouter</SelectItem>
+                            <SelectItem value="openai" className="dark:text-white dark:focus:bg-gray-800 dark:hover:bg-gray-800">OpenAI</SelectItem>
+                            <SelectItem value="openai-assistant" className="dark:text-white dark:focus:bg-gray-800 dark:hover:bg-gray-800">OpenAI Assistant</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
-                        <Label>Max Tokens</Label>
+                        <Label className="dark:text-gray-300">Max Tokens</Label>
                         <Input
                           type="number"
                           min="1"
@@ -441,10 +445,11 @@ export default function SettingsPage() {
                               max_tokens: parseInt(e.target.value),
                             })
                           }
+                          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                         />
                       </div>
                       <div>
-                        <Label>Position</Label>
+                        <Label className="dark:text-gray-300">Position</Label>
                         <Input
                           type="number"
                           min="0"
@@ -456,10 +461,11 @@ export default function SettingsPage() {
                             })
                           }
                           placeholder="Display order position (0 = default)"
+                          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                         />
                       </div>
                       <div>
-                        <Label>Description</Label>
+                        <Label className="dark:text-gray-300">Description</Label>
                         <Textarea
                           value={newChatModel.description}
                           onChange={(e) =>
@@ -469,6 +475,7 @@ export default function SettingsPage() {
                             })
                           }
                           placeholder="Model description"
+                          className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                         />
                       </div>
                       <Button onClick={handleCreateChatModel}>Create Chat Model</Button>
@@ -586,29 +593,31 @@ export default function SettingsPage() {
 
           {/* Edit Category Dialog */}
           <Dialog open={!!selectedCategory} onOpenChange={() => setSelectedCategory(null)}>
-            <DialogContent>
+            <DialogContent className="dark:bg-gray-900 dark:border-gray-800">
               <DialogHeader>
-                <DialogTitle>Edit Category</DialogTitle>
-                <DialogDescription>Update category details</DialogDescription>
+                <DialogTitle className="dark:text-white">Edit Category</DialogTitle>
+                <DialogDescription className="dark:text-gray-400">Update category details</DialogDescription>
               </DialogHeader>
               {selectedCategory && (
                 <div className="space-y-4">
                   <div>
-                    <Label>Name</Label>
+                    <Label className="dark:text-gray-300">Name</Label>
                     <Input
                       value={selectedCategory.name}
                       onChange={(e) =>
                         setSelectedCategory({ ...selectedCategory, name: e.target.value })
                       }
+                      className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                     />
                   </div>
                   <div>
-                    <Label>Description</Label>
+                    <Label className="dark:text-gray-300">Description</Label>
                     <Textarea
                       value={selectedCategory.description}
                       onChange={(e) =>
                         setSelectedCategory({ ...selectedCategory, description: e.target.value })
                       }
+                      className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                     />
                   </div>
                   <Button
@@ -629,52 +638,54 @@ export default function SettingsPage() {
 
           {/* Edit Chat Model Dialog */}
           <Dialog open={!!selectedChatModel} onOpenChange={() => setSelectedChatModel(null)}>
-            <DialogContent>
+            <DialogContent className="dark:bg-gray-900 dark:border-gray-800">
               <DialogHeader>
-                <DialogTitle>Edit Chat Model</DialogTitle>
-                <DialogDescription>Update chat model details</DialogDescription>
+                <DialogTitle className="dark:text-white">Edit Chat Model</DialogTitle>
+                <DialogDescription className="dark:text-gray-400">Update chat model details</DialogDescription>
               </DialogHeader>
               {selectedChatModel && (
                 <div className="space-y-4">
                   <div>
-                    <Label>Name</Label>
+                    <Label className="dark:text-gray-300">Name</Label>
                     <Input
                       value={selectedChatModel.name}
                       onChange={(e) =>
                         setSelectedChatModel({ ...selectedChatModel, name: e.target.value })
                       }
+                      className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                     />
                   </div>
                   <div>
-                    <Label>Model</Label>
+                    <Label className="dark:text-gray-300">Model</Label>
                     <Input
                       value={selectedChatModel.model}
                       onChange={(e) =>
                         setSelectedChatModel({ ...selectedChatModel, model: e.target.value })
                       }
                       placeholder="Model identifier (e.g. gpt-4)"
+                      className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                     />
                   </div>
                   <div>
-                    <Label>Provider</Label>
+                    <Label className="dark:text-gray-300">Provider</Label>
                     <Select
                       value={selectedChatModel.provider}
                       onValueChange={(value) =>
                         setSelectedChatModel({ ...selectedChatModel, provider: value })
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="dark:bg-gray-800 dark:border-gray-700 dark:text-white">
                         <SelectValue placeholder="Select a provider" />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="openrouter">OpenRouter</SelectItem>
-                        <SelectItem value="openai">OpenAI</SelectItem>
-                        <SelectItem value="openai-assistant">OpenAI Assistant</SelectItem>
+                      <SelectContent className="dark:bg-gray-900 dark:border-gray-800">
+                        <SelectItem value="openrouter" className="dark:text-white dark:focus:bg-gray-800 dark:hover:bg-gray-800">OpenRouter</SelectItem>
+                        <SelectItem value="openai" className="dark:text-white dark:focus:bg-gray-800 dark:hover:bg-gray-800">OpenAI</SelectItem>
+                        <SelectItem value="openai-assistant" className="dark:text-white dark:focus:bg-gray-800 dark:hover:bg-gray-800">OpenAI Assistant</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <Label>Max Tokens</Label>
+                    <Label className="dark:text-gray-300">Max Tokens</Label>
                     <Input
                       type="number"
                       min="1"
@@ -685,10 +696,11 @@ export default function SettingsPage() {
                           max_tokens: parseInt(e.target.value),
                         })
                       }
+                      className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                     />
                   </div>
                   <div>
-                    <Label>Position</Label>
+                    <Label className="dark:text-gray-300">Position</Label>
                     <Input
                       type="number"
                       min="0"
@@ -700,10 +712,11 @@ export default function SettingsPage() {
                         })
                       }
                       placeholder="Display order position (0 = default)"
+                      className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                     />
                   </div>
                   <div>
-                    <Label>Description</Label>
+                    <Label className="dark:text-gray-300">Description</Label>
                     <Textarea
                       value={selectedChatModel.description}
                       onChange={(e) =>
@@ -712,6 +725,7 @@ export default function SettingsPage() {
                           description: e.target.value,
                         })
                       }
+                      className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                     />
                   </div>
                   <Button

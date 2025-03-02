@@ -141,6 +141,7 @@ async def batch_flow_endpoint(
 
         # Retrieve persona (optional)
         system_message = ""
+        persona_temperature = None  # Initialize temperature variable
         if step.persona_id:
             persona = crud.get_persona(db, step.persona_id)
             if persona:
@@ -148,6 +149,9 @@ async def batch_flow_endpoint(
                     f"Role: {persona.role}\n"
                     f"Goal: {persona.goal}\n"
                 )
+                # Check if persona has temperature attribute and value
+                if hasattr(persona, 'temperature') and persona.temperature is not None:
+                    persona_temperature = persona.temperature
 
         # Build the initial prompt from template and custom instructions
         prompt_parts = [prompt_template.prompt]
@@ -243,7 +247,7 @@ async def batch_flow_endpoint(
                     model_name=model_name,
                     messages=local_messages,
                     max_tokens=chat_model.max_tokens if chat_model else None,
-                    temperature=0.7,
+                    temperature=persona_temperature if persona_temperature is not None else 0.7,
                     start_time=start_time,
                     web_search=False  # batch flow doesn't support web search currently
                 )
@@ -254,7 +258,7 @@ async def batch_flow_endpoint(
                     messages=local_messages,
                     thread_id=None,  # batch flow doesn't maintain threads currently
                     max_tokens=chat_model.max_tokens if chat_model else None,
-                    temperature=0.7,
+                    temperature=persona_temperature if persona_temperature is not None else 0.7,
                     start_time=start_time,
                     create_new_thread_if_missing=True,
                     title=None
@@ -264,7 +268,7 @@ async def batch_flow_endpoint(
                     model_name=model_name,
                     messages=local_messages,
                     max_tokens=chat_model.max_tokens if chat_model else None,
-                    temperature=0.7,
+                    temperature=persona_temperature if persona_temperature is not None else 0.7,
                     start_time=start_time
                 )
             else:
