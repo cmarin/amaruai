@@ -265,6 +265,8 @@ class User(Base):
     name = Column(Text, nullable=False)
     email = Column(Text, nullable=False, unique=True)
     role = Column(Text, nullable=False, server_default=text("'regular'"))
+    active = Column(Boolean, nullable=False, server_default=text("false"))
+    organization = Column(Text, nullable=True)
     
     # Add relationship to favorited templates
     favorite_templates = relationship("PromptTemplate", secondary=prompt_template_favorites, back_populates="favorited_by")

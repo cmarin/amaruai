@@ -561,3 +561,14 @@ class BatchFlowPayload(BaseModel):
                 "asset_ids": ["123e4567-e89b-12d3-a456-426614174005"]
             }
         }
+
+class UserInfo(BaseModel):
+    id: UUID
+    name: str
+    email: str
+    role: str
+    active: bool
+    organization: Optional[str] = None
+
+    class Config:
+        from_attributes = True
