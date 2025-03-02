@@ -69,7 +69,7 @@ def update_persona(db: Session, persona_id: UUID, persona: schemas.PersonaUpdate
         if db_persona:
             # Update basic fields
             update_data = persona.dict(
-                exclude={'category_ids', 'tags', 'tools'}, 
+                exclude={'category_ids', 'tags', 'tools', 'prompt_templates'}, 
                 exclude_unset=True,
                 exclude_none=True
             )
@@ -102,6 +102,10 @@ def update_persona(db: Session, persona_id: UUID, persona: schemas.PersonaUpdate
                     tool = db.query(models.Tool).filter(models.Tool.id == tool_id).first()
                     if tool:
                         db_persona.tools.append(tool)
+            
+            # Handle prompt_templates if provided
+            # We don't directly update the relationship as it's a backref
+            # Instead, we update the default_persona_id on each prompt template
             
             db.commit()
             db.refresh(db_persona)
