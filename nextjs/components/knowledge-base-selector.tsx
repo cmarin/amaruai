@@ -83,15 +83,6 @@ export function KnowledgeBaseSelector({
       <DialogContent className={`sm:max-w-[425px] ${className} dark:bg-gray-900`}>
         <DialogHeader>
           <DialogTitle>Select Knowledge Bases & Assets</DialogTitle>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-gray-700 dark:text-gray-300"
-            onClick={() => onOpenChange?.(false)}
-          >
-            <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
-          </Button>
         </DialogHeader>
         
         <div className="space-y-2">
@@ -135,7 +126,7 @@ export function KnowledgeBaseSelector({
 
         <Tabs defaultValue="knowledge-bases" className="w-full" value={activeTab} onValueChange={handleTabChange}>
           <div className="border-t border-b px-2 py-1 dark:border-gray-700">
-            <TabsList className="grid w-full grid-cols-2 dark:bg-gray-800">
+            <TabsList className="grid w-full grid-cols-2 bg-transparent dark:bg-transparent">
               <TabsTrigger value="knowledge-bases">Knowledge Bases</TabsTrigger>
               <TabsTrigger value="assets">Assets</TabsTrigger>
             </TabsList>
