@@ -252,9 +252,9 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
             Fill in the required fields to generate your prompt.
           </DialogDescription>
         </DialogHeader>
-        <div className="mt-4 max-h-[60vh]">
-          <ScrollArea className="h-full pr-4">
-            <div className="grid gap-4 py-4">
+        <div className="mt-4 max-h-[60vh] overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="grid gap-4 py-4 pr-4 w-full">
               {content.variables.map((variable: VariableType) => (
                 <div key={variable.fieldName} className="grid grid-cols-4 items-center gap-4">
                   <TooltipProvider>
