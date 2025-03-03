@@ -539,8 +539,8 @@ const ComplexPromptEditor = ({
       case 4:
         return (
           <div className="space-y-6">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-full">
-              <TabsList className="grid w-full grid-cols-2">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-[800px]">
+              <TabsList className="grid w-full grid-cols-2 max-w-[800px]">
                 <TabsTrigger value="visual">Visual Editor</TabsTrigger>
                 <TabsTrigger value="json">JSON Editor</TabsTrigger>
               </TabsList>
@@ -568,17 +568,17 @@ const ComplexPromptEditor = ({
                   </Select>
                 </div>
               </TabsContent>
-              <TabsContent value="json" className="mt-4">
-                <div className="w-full overflow-hidden" style={{ maxWidth: '100%' }}>
+              <TabsContent value="json" className="mt-4 max-w-[800px]">
+                <div className="w-full overflow-hidden" style={{ maxWidth: '800px' }}>
                   <CodeMirror
                     value={JSON.stringify(promptContent, null, 2)}
                     height="400px"
-                    width="100%"
+                    width="700px"
                     extensions={[json()]}
                     onChange={handleJsonChange}
                     theme={vscodeDark}
-                    className="border border-gray-300 rounded-md max-w-full overflow-auto"
-                    style={{ maxWidth: '100%', width: '100%' }}
+                    className="border border-gray-300 rounded-md overflow-auto"
+                    style={{ width: '700px', maxWidth: '100%' }}
                   />
                   {jsonError && (
                     <div className="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
