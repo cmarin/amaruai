@@ -11,6 +11,7 @@ import { PromptTemplate, VariableType } from '@/utils/prompt-template-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 type ComplexPromptModalProps = {
   prompt: PromptTemplate;
@@ -21,6 +22,27 @@ type ComplexPromptModalProps = {
 
 export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: ComplexPromptModalProps) {
   const [values, setValues] = useState<{ [key: string]: string | string[] | number }>({});
+  const [darkMode, setDarkMode] = useState(false);
+
+  // Detect dark mode
+  useEffect(() => {
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    setDarkMode(isDarkMode);
+    
+    // Optional: Listen for changes to dark mode
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          const isDarkMode = document.documentElement.classList.contains('dark');
+          setDarkMode(isDarkMode);
+        }
+      });
+    });
+    
+    observer.observe(document.documentElement, { attributes: true });
+    
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     console.log('Prompt object:', prompt);
@@ -136,10 +158,16 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
   }
 
   const renderField = (variable: VariableType) => {
+    // Use dynamic classes based on dark mode
+    const inputClassName = cn(
+      "col-span-3",
+      darkMode ? "bg-gray-800 text-white border-gray-600" : "bg-white text-black border-gray-300"
+    );
+
     const commonProps = {
       id: variable.fieldName,
       placeholder: variable.placeholder,
-      className: "col-span-3 bg-white text-black border-gray-300",
+      className: inputClassName,
       required: variable.required,
       value: values[variable.fieldName] || '',
       onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => 
@@ -155,12 +183,12 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
             value={values[variable.fieldName] as string}
             onValueChange={(value) => handleInputChange(variable.fieldName, value)}
           >
-            <SelectTrigger className="col-span-3 bg-white text-black border-gray-300">
+            <SelectTrigger className={inputClassName}>
               <SelectValue placeholder="Select an option" />
             </SelectTrigger>
-            <SelectContent className="bg-white text-black">
+            <SelectContent className={darkMode ? "bg-gray-800 text-white" : "bg-white text-black"}>
               {variable.options?.map((option: string) => (
-                <SelectItem key={option} value={option} className="text-black">
+                <SelectItem key={option} value={option} className={darkMode ? "text-white" : "text-black"}>
                   {option}
                 </SelectItem>
               ))}
@@ -183,7 +211,12 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
                     handleInputChange(variable.fieldName, newValues);
                   }}
                 />
-                <Label htmlFor={`${variable.fieldName}-${option}`}>{option}</Label>
+                <Label 
+                  htmlFor={`${variable.fieldName}-${option}`}
+                  className={darkMode ? "text-white" : "text-black"}
+                >
+                  {option}
+                </Label>
               </div>
             ))}
           </div>
@@ -207,10 +240,15 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] bg-white text-black">
+      <DialogContent className={cn(
+        "sm:max-w-[425px]",
+        darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"
+      )}>
         <DialogHeader>
-          <DialogTitle className="text-black">{prompt.title || 'Default Title'}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className={darkMode ? "text-white" : "text-black"}>
+            {prompt.title || 'Default Title'}
+          </DialogTitle>
+          <DialogDescription className={darkMode ? "text-gray-300" : "text-gray-600"}>
             Fill in the required fields to generate your prompt.
           </DialogDescription>
         </DialogHeader>
@@ -221,7 +259,13 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Label htmlFor={variable.fieldName} className="text-right text-black">
+                      <Label 
+                        htmlFor={variable.fieldName} 
+                        className={cn(
+                          "text-right",
+                          darkMode ? "text-white" : "text-black"
+                        )}
+                      >
                         {variable.fieldName}
                         {variable.required && <span className="text-red-500 ml-1">*</span>}
                       </Label>
@@ -239,7 +283,13 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
           </div>
         </ScrollArea>
         <DialogFooter>
-          <Button type="submit" onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700 text-white">Done</Button>
+          <Button 
+            type="submit" 
+            onClick={handleSubmit} 
+            className={darkMode ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"}
+          >
+            Done
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
