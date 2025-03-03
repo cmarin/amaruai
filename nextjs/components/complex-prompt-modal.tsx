@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { PromptTemplate, VariableType } from '@/utils/prompt-template-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
@@ -252,9 +252,9 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
             Fill in the required fields to generate your prompt.
           </DialogDescription>
         </DialogHeader>
-        <div className="mt-4 max-h-[60vh] overflow-hidden">
-          <ScrollArea className="h-full">
-            <div className="grid gap-4 py-4 pr-4 w-full">
+        <div className="mt-4 max-h-[60vh] flex">
+          <ScrollArea type="always" className="flex-1 w-1">
+            <div className="grid gap-4 py-4 pr-4">
               {content.variables.map((variable: VariableType) => (
                 <div key={variable.fieldName} className="grid grid-cols-4 items-center gap-4">
                   <TooltipProvider>
@@ -282,6 +282,7 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
                 </div>
               ))}
             </div>
+            <ScrollBar orientation="horizontal" className="w-full" />
           </ScrollArea>
         </div>
         <DialogFooter className="mt-4">
