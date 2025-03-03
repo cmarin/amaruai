@@ -73,7 +73,7 @@ import {
 import '@uppy/core/dist/style.min.css'
 import '@uppy/dashboard/dist/style.min.css'
 
-// Add import for chat service
+// Import chat service
 import { prepareChatSubmission, handleChatSubmission } from '@/utils/chat-service';
 
 function ChatContent() {
