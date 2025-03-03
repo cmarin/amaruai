@@ -160,7 +160,7 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
   const renderField = (variable: VariableType) => {
     // Use dynamic classes based on dark mode
     const inputClassName = cn(
-      "col-span-3",
+      "col-span-3 w-full",
       darkMode ? "bg-gray-800 text-white border-gray-600" : "bg-white text-black border-gray-300"
     );
 
@@ -197,7 +197,7 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
         );
       case 'multiselect':
         return (
-          <div className="col-span-3 space-y-2">
+          <div className="col-span-3 space-y-2 w-full">
             {variable.options?.map((option: string) => (
               <div key={option} className="flex items-center space-x-2">
                 <Checkbox
@@ -241,7 +241,7 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={cn(
-        "sm:max-w-[425px]",
+        "max-w-md w-[95vw] overflow-hidden",
         darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"
       )}>
         <DialogHeader>
@@ -252,8 +252,8 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
             Fill in the required fields to generate your prompt.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="mt-8 max-h-[60vh]">
-          <div className="grid gap-4 py-4">
+        <ScrollArea className="mt-4 max-h-[60vh] pr-4">
+          <div className="grid gap-4 py-4 pr-4">
             {content.variables.map((variable: VariableType) => (
               <div key={variable.fieldName} className="grid grid-cols-4 items-center gap-4">
                 <TooltipProvider>
@@ -262,7 +262,7 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
                       <Label 
                         htmlFor={variable.fieldName} 
                         className={cn(
-                          "text-right",
+                          "text-right truncate",
                           darkMode ? "text-white" : "text-black"
                         )}
                       >
@@ -282,7 +282,7 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
             ))}
           </div>
         </ScrollArea>
-        <DialogFooter>
+        <DialogFooter className="mt-4">
           <Button 
             type="submit" 
             onClick={handleSubmit} 
