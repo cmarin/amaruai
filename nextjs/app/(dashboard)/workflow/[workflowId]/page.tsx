@@ -38,6 +38,14 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const [hasSubmittedComplexPrompt, setHasSubmittedComplexPrompt] = useState(false);
   const [submittedPrompt, setSubmittedPrompt] = useState<string | undefined>(undefined);
+  
+  // Store step information in a ref to avoid re-renders
+  const stepInfoRef = useRef<{
+    [position: number]: {
+      chatModel: { name: string; model: string; id: string };
+      persona: { role: string; goal: string; id: string };
+    };
+  }>({});
 
   const handleStreamMessage = useCallback((message: WorkflowStreamMessage) => {
     if (message.type === 'error') {
@@ -52,12 +60,31 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         ? submittedPrompt 
         : message.prompt;
 
+      // Get step number as a number for lookup
+      const stepNumber = typeof message.step === 'string' 
+        ? parseInt(message.step, 10) 
+        : (message.step as number);
+      
+      // Get the cached step info
+      const stepInfo = stepInfoRef.current[stepNumber];
+      
+      if (!stepInfo) {
+        console.warn(`No cached info found for step ${stepNumber}`);
+      } else {
+        console.log(`Using cached info for step ${stepNumber}:`, {
+          model: stepInfo.chatModel.name,
+          persona: stepInfo.persona.role
+        });
+      }
+      
+      // Create a new result with the cached information
       const newResult: WorkflowResult = {
         step: message.step!.toString(),
         prompt: promptToShow,
         response: message.response,
-        chat_model: message.chat_model,
-        persona: message.persona
+        // Use cached data that was prepared before streaming started
+        chat_model: stepInfo?.chatModel,
+        persona: stepInfo?.persona
       };
 
       setResults(prev => {
@@ -151,6 +178,45 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       const fetchedWorkflow = await fetchWorkflow(params.workflowId, headers);
       console.log('Fetched workflow:', fetchedWorkflow);
       setWorkflow(fetchedWorkflow);
+      
+      // Cache step information from the API response
+      const stepsInfo: {
+        [position: number]: {
+          chatModel: { name: string; model: string; id: string };
+          persona: { role: string; goal: string; id: string };
+        };
+      } = {};
+      
+      // Extract and store the chat model and persona information
+      if (fetchedWorkflow.steps && Array.isArray(fetchedWorkflow.steps)) {
+        fetchedWorkflow.steps.forEach((step: any, index) => {
+          if (step.chat_model && step.persona) {
+            stepsInfo[index + 1] = {
+              chatModel: {
+                name: step.chat_model.name,
+                model: step.chat_model.model,
+                id: step.chat_model.id.toString()
+              },
+              persona: {
+                role: step.persona.role,
+                goal: step.persona.goal,
+                id: step.persona.id.toString()
+              }
+            };
+            console.log(`Cached step ${index + 1} info:`, {
+              model: step.chat_model.name,
+              persona: step.persona.role
+            });
+          } else {
+            console.warn(`Step ${index + 1} is missing chat_model or persona information`);
+          }
+        });
+      }
+      
+      console.log('Cached workflow steps info:', stepsInfo);
+      // Store in ref to avoid re-renders
+      stepInfoRef.current = stepsInfo;
+      
       await checkFirstStep(fetchedWorkflow);
     } catch (error) {
       console.error('Error loading workflow:', error);
