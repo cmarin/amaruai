@@ -38,7 +38,9 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const [hasSubmittedComplexPrompt, setHasSubmittedComplexPrompt] = useState(false);
   const [submittedPrompt, setSubmittedPrompt] = useState<string | undefined>(undefined);
-  const [workflowStepsInfo, setWorkflowStepsInfo] = useState<{
+  
+  // Store step information in a ref to avoid re-renders
+  const stepInfoRef = useRef<{
     [position: number]: {
       chatModel: { name: string; model: string; id: string };
       persona: { role: string; goal: string; id: string };
@@ -58,21 +60,32 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         ? submittedPrompt 
         : message.prompt;
 
+      // Get step number as a number for lookup
       const stepNumber = typeof message.step === 'string' 
         ? parseInt(message.step, 10) 
         : (message.step as number);
       
-      const stepInfo = workflowStepsInfo[stepNumber];
+      // Get the cached step info
+      const stepInfo = stepInfoRef.current[stepNumber];
       
+      if (!stepInfo) {
+        console.warn(`No cached info found for step ${stepNumber}`);
+      } else {
+        console.log(`Using cached info for step ${stepNumber}:`, {
+          model: stepInfo.chatModel.name,
+          persona: stepInfo.persona.role
+        });
+      }
+      
+      // Create a new result with the cached information
       const newResult: WorkflowResult = {
         step: message.step!.toString(),
         prompt: promptToShow,
         response: message.response,
-        chat_model: message.chat_model || (stepInfo ? stepInfo.chatModel : undefined),
-        persona: message.persona || (stepInfo ? stepInfo.persona : undefined)
+        // Use cached data that was prepared before streaming started
+        chat_model: stepInfo?.chatModel,
+        persona: stepInfo?.persona
       };
-
-      console.log(`Processing step ${stepNumber} with model: ${newResult.chat_model?.name || 'unknown'} and persona: ${newResult.persona?.role || 'unknown'}`);
 
       setResults(prev => {
         if (prev.some(r => r.step === newResult.step)) {
@@ -87,7 +100,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         }
       }, 0);
     }
-  }, [submittedPrompt, workflowStepsInfo]);
+  }, [submittedPrompt]);
 
   const executeWorkflowStream = useCallback(async (message?: string) => {
     if (cleanupRef.current) {
@@ -166,6 +179,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       console.log('Fetched workflow:', fetchedWorkflow);
       setWorkflow(fetchedWorkflow);
       
+      // Cache step information from the API response
       const stepsInfo: {
         [position: number]: {
           chatModel: { name: string; model: string; id: string };
@@ -173,6 +187,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         };
       } = {};
       
+      // Extract and store the chat model and persona information
       if (fetchedWorkflow.steps && Array.isArray(fetchedWorkflow.steps)) {
         fetchedWorkflow.steps.forEach((step: any, index) => {
           if (step.chat_model && step.persona) {
@@ -188,12 +203,19 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
                 id: step.persona.id.toString()
               }
             };
+            console.log(`Cached step ${index + 1} info:`, {
+              model: step.chat_model.name,
+              persona: step.persona.role
+            });
+          } else {
+            console.warn(`Step ${index + 1} is missing chat_model or persona information`);
           }
         });
       }
       
       console.log('Cached workflow steps info:', stepsInfo);
-      setWorkflowStepsInfo(stepsInfo);
+      // Store in ref to avoid re-renders
+      stepInfoRef.current = stepsInfo;
       
       await checkFirstStep(fetchedWorkflow);
     } catch (error) {
@@ -302,43 +324,38 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
                 <p>({results.length} steps completed)</p>
               </div>
             )}
-            {results.map((result) => {
-              const stepNumber = parseInt(result.step, 10);
-              const stepInfo = workflowStepsInfo[stepNumber];
-              
-              return (
-                <div 
-                  key={`result-${result.step}`}
-                  className="mb-8 p-6 border rounded-lg shadow-sm dark:bg-background dark:border-gray-700"
-                >
-                  <h3 className="font-semibold mb-4 flex items-center gap-2">
-                    Step {result.step}
-                    {(result.chat_model || (stepInfo && stepInfo.chatModel)) && (
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        using {result.chat_model?.name || stepInfo?.chatModel.name}
-                      </span>
-                    )}
-                    {(result.persona || (stepInfo && stepInfo.persona)) && (
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        as {result.persona?.role || stepInfo?.persona.role}
-                      </span>
-                    )}
-                  </h3>
-                  <div className="mb-4">
-                    <strong className="block mb-2">Prompt:</strong>
-                    <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
-                      <ReactMarkdown>{result.prompt}</ReactMarkdown>
-                    </div>
-                  </div>
-                  <div>
-                    <strong className="block mb-2">Response:</strong>
-                    <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
-                      <ReactMarkdown>{result.response}</ReactMarkdown>
-                    </div>
+            {results.map((result) => (
+              <div 
+                key={`result-${result.step}`}
+                className="mb-8 p-6 border rounded-lg shadow-sm dark:bg-background dark:border-gray-700"
+              >
+                <h3 className="font-semibold mb-4 flex items-center gap-2">
+                  Step {result.step}
+                  {result.chat_model && (
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      using {result.chat_model.name}
+                    </span>
+                  )}
+                  {result.persona && (
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      as {result.persona.role}
+                    </span>
+                  )}
+                </h3>
+                <div className="mb-4">
+                  <strong className="block mb-2">Prompt:</strong>
+                  <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
+                    <ReactMarkdown>{result.prompt}</ReactMarkdown>
                   </div>
                 </div>
-              );
-            })}
+                <div>
+                  <strong className="block mb-2">Response:</strong>
+                  <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
+                    <ReactMarkdown>{result.response}</ReactMarkdown>
+                  </div>
+                </div>
+              </div>
+            ))}
             {showRunAgain && (
               <div className="mt-8 mb-4 flex justify-center">
                 <Button

@@ -591,15 +591,12 @@ export function streamWorkflow(
               }
             }
 
-            // Create a clean stream message object
-            // Note: We're not adding chat_model and persona here as they'll be added from the cached data
+            // Just pass the basic message data - we'll add the model and persona info in the component
             const streamMessage: WorkflowStreamMessage = {
               type: data.type,
               step: data.step,
               prompt: data.prompt,
-              response: data.response,
-              chat_model: data.chat_model,
-              persona: data.persona
+              response: data.response
             };
             
             console.log('Dispatching step message to handler:', streamMessage);
