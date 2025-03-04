@@ -278,7 +278,9 @@ html, body {
 
 /* Fix for Uppy close button in dark mode */
 :root[class~="dark"] .uppy-Dashboard-close,
-:root[class~="dark"] button.uppy-Dashboard-close {
+:root[class~="dark"] button.uppy-Dashboard-close,
+:root[class~="dark"] .uppy-DashboardModal-close,
+:root[class~="dark"] button.uppy-DashboardModal-close {
   background-color: #374151 !important;
   color: #f3f4f6 !important;
   opacity: 1 !important;
@@ -290,19 +292,43 @@ html, body {
 }
 
 :root[class~="dark"] .uppy-Dashboard-close:hover,
-:root[class~="dark"] button.uppy-Dashboard-close:hover {
+:root[class~="dark"] button.uppy-Dashboard-close:hover,
+:root[class~="dark"] .uppy-DashboardModal-close:hover,
+:root[class~="dark"] button.uppy-DashboardModal-close:hover {
   background-color: #4b5563 !important;
   color: #ffffff !important;
 }
 
-:root[class~="dark"] .uppy-Dashboard-close svg {
+:root[class~="dark"] .uppy-Dashboard-close svg,
+:root[class~="dark"] .uppy-DashboardModal-close svg {
   fill: #f3f4f6 !important;
   stroke: #f3f4f6 !important;
 }
 
 :root[class~="dark"] .uppy-Dashboard-close svg path,
 :root[class~="dark"] .uppy-Dashboard-close svg line,
-:root[class~="dark"] .uppy-Dashboard-close svg circle {
+:root[class~="dark"] .uppy-Dashboard-close svg circle,
+:root[class~="dark"] .uppy-DashboardModal-close svg path,
+:root[class~="dark"] .uppy-DashboardModal-close svg line,
+:root[class~="dark"] .uppy-DashboardModal-close svg circle {
   fill: #f3f4f6 !important;
   stroke: #f3f4f6 !important;
+}
+
+/* Additional fix for Uppy close button to always be visible */
+.uppy-Dashboard-close,
+button.uppy-Dashboard-close,
+.uppy-DashboardModal-close,
+button.uppy-DashboardModal-close {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Ensure close button is visible on hover container too */
+.uppy-Dashboard-inner:hover .uppy-Dashboard-close,
+.uppy-Dashboard-inner:hover button.uppy-Dashboard-close,
+.uppy-DashboardModal:hover .uppy-DashboardModal-close,
+.uppy-DashboardModal:hover button.uppy-DashboardModal-close {
+  opacity: 1 !important;
+  visibility: visible !important;
 }
