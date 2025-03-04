@@ -361,6 +361,27 @@ function ChatContent() {
     handleToggleChatbotUtil(modelId, router, setSelectedModels, allChatModels);
   }
 
+  // Function to ensure the close button is visible
+  const ensureCloseButtonVisible = useCallback(() => {
+    setTimeout(() => {
+      const closeButtons = document.querySelectorAll('.uppy-Dashboard-close');
+      closeButtons.forEach(button => {
+        if (button instanceof HTMLElement) {
+          button.style.opacity = '1';
+          button.style.visibility = 'visible';
+          button.style.display = 'flex';
+        }
+      });
+    }, 300);
+  }, []);
+
+  // Add an effect to ensure the close button is visible whenever the upload modal is opened
+  useEffect(() => {
+    if (showUploadModal) {
+      ensureCloseButtonVisible();
+    }
+  }, [showUploadModal, ensureCloseButtonVisible]);
+
   // ChatWindow sub-component
   const ChatWindow = ({
     messages,
@@ -793,14 +814,26 @@ function ChatContent() {
       {/* File upload modal */}
       {showUploadModal && uppyRef.current && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg max-w-2xl w-full">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg max-w-2xl w-full relative">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Upload Files</h2>
-              <Button variant="ghost" size="icon" onClick={handleCloseUploadModal}>
+              <h2 className="text-lg font-semibold dark:text-white">Upload Files</h2>
+              <Button variant="ghost" size="icon" onClick={handleCloseUploadModal} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <Dashboard uppy={uppyRef.current} plugins={[]} />
+            <div className="uppy-wrapper">
+              <Dashboard 
+                uppy={uppyRef.current} 
+                plugins={[]} 
+                showLinkToFileUploadResult={false}
+                proudlyDisplayPoweredByUppy={false}
+                hideUploadButton={false}
+                height={400}
+                width="100%"
+                doneButtonHandler={() => handleCloseUploadModal()}
+                showProgressDetails={true}
+              />
+            </div>
           </div>
         </div>
       )}
