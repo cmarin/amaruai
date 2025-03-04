@@ -173,7 +173,7 @@ html, body {
   opacity: 1 !important;
   visibility: visible !important;
   border-color: #059669 !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
   pointer-events: auto !important;
   display: inline-block !important;
   position: relative !important;
@@ -264,6 +264,16 @@ html, body {
   visibility: visible !important;
   pointer-events: auto !important;
   z-index: 9999 !important;
+}
+
+/* Fix for tooltip with popover interactions */
+[data-radix-tooltip-trigger] {
+  position: relative;
+  z-index: 60;
+}
+
+[data-radix-tooltip-content] {
+  z-index: 70 !important;
 }
 
 /* Fix for Uppy close button in dark mode */

@@ -622,18 +622,20 @@ function ChatContent() {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <PromptSelector 
-                  prompts={prompts} 
-                  categories={categories} 
-                  onSelectPrompt={handlePromptSelect}
-                  onLoad={handleLoadMorePrompts}
-                >
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <BookOpen className="h-4 w-4" />
-                  </Button>
-                </PromptSelector>
+                <div className="relative z-[60]">
+                  <PromptSelector 
+                    prompts={prompts} 
+                    categories={categories} 
+                    onSelectPrompt={handlePromptSelect}
+                    onLoad={handleLoadMorePrompts}
+                  >
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <BookOpen className="h-4 w-4" />
+                    </Button>
+                  </PromptSelector>
+                </div>
               </TooltipTrigger>
-              <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
+              <TooltipContent side="top" sideOffset={5} className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700 z-[70]">
                 <p>Prompts</p>
               </TooltipContent>
             </Tooltip>
