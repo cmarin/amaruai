@@ -608,122 +608,130 @@ Please synthesize these responses into a comprehensive answer that combines the 
         </div>
 
         {/* Footer (input) */}
-        <div className="border-t p-4 flex items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="relative z-[60]">
-                  <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <BookOpen className="h-4 w-4" />
-                    </Button>
-                  </PromptSelector>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={5} className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700 z-[70]">
-                <p>Select Prompt</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowUploadModal(true)}>
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-gray-800">
-                <p>Add Attachment</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={`h-8 w-8 ${selectedKnowledgeBases.length > 0 || selectedAssets.length > 0 ? "text-green-500" : ""}`}
-                  onClick={() => setShowKnowledgeBaseModal(true)}
-                >
-                  <Database className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-gray-800">
-                <p>Knowledge Base</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
+        <div className="border-t p-4">
+          {/* File upload pills */}
+          {uploadedFiles.length > 0 && (
+            <div className="mb-3">
+              <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
+            </div>
+          )}
+          
           <div className="flex items-center gap-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
-                    className={`h-8 w-8 ${isWebSearchEnabled ? "text-green-500" : ""}`}
-                  >
-                    <Globe2 className="h-4 w-4" />
-                  </Button>
+                  <div className="relative z-[60]">
+                    <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <BookOpen className="h-4 w-4" />
+                      </Button>
+                    </PromptSelector>
+                  </div>
                 </TooltipTrigger>
-                <TooltipContent className="bg-white dark:bg-gray-800">
-                  <p>Enable Web Search</p>
+                <TooltipContent side="top" sideOffset={5} className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700 z-[70]">
+                  <p>Select Prompt</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowUploadModal(true)}>
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="bg-white dark:bg-gray-800">
+                  <p>Add Attachment</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={`h-8 w-8 ${selectedKnowledgeBases.length > 0 || selectedAssets.length > 0 ? "text-green-500" : ""}`}
+                    onClick={() => setShowKnowledgeBaseModal(true)}
+                  >
+                    <Database className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="bg-white dark:bg-gray-800">
+                  <p>Knowledge Base</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <div className="flex items-center gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+                      className={`h-8 w-8 ${isWebSearchEnabled ? "text-green-500" : ""}`}
+                    >
+                      <Globe2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-white dark:bg-gray-800">
+                    <p>Enable Web Search</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8"
+                    onClick={() => setShowSynthesisPromptModal(true)}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="bg-white dark:bg-gray-800">
+                  <p>Edit Synthesis Prompt</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <Input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSubmit(e)
+                }
+              }}
+              placeholder="Type a message..."
+              className="flex-1"
+            />
+
+            <Button onClick={e => handleSubmit(e)} disabled={isLoading || (!input.trim() && !uploadedFiles.length)}>
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+
+            <SynthesisPromptModal
+              isOpen={showSynthesisPromptModal}
+              onClose={() => setShowSynthesisPromptModal(false)}
+              prompt={synthesisPrompt}
+              onSave={setSynthesisPrompt}
+            />
           </div>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8"
-                  onClick={() => setShowSynthesisPromptModal(true)}
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-gray-800">
-                <p>Edit Synthesis Prompt</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <Input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleSubmit(e)
-              }
-            }}
-            placeholder="Type a message..."
-            className="flex-1"
-          />
-
-          <Button onClick={e => handleSubmit(e)} disabled={isLoading || (!input.trim() && !uploadedFiles.length)}>
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
-
-          <SynthesisPromptModal
-            isOpen={showSynthesisPromptModal}
-            onClose={() => setShowSynthesisPromptModal(false)}
-            prompt={synthesisPrompt}
-            onSave={setSynthesisPrompt}
-          />
         </div>
-      </div>
 
       {/* Add the modals */}
       <KnowledgeBaseSelector
@@ -762,13 +770,6 @@ Please synthesize these responses into a comprehensive answer that combines the 
         </div>
       )}
 
-      {/* File upload pills */}
-      {uploadedFiles.length > 0 && (
-        <div className="absolute bottom-0 left-0 right-0 p-2 bg-background border-t">
-          <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
-        </div>
-      )}
-
       {/* Complex Prompt Modal */}
       {selectedComplexPrompt && (
         <ComplexPromptModal
@@ -779,7 +780,8 @@ Please synthesize these responses into a comprehensive answer that combines the 
         />
       )}
     </div>
-  )
+  </div>
+)
 }
 
 export default function Fusion() {
@@ -788,4 +790,4 @@ export default function Fusion() {
       <FusionContent />
     </Suspense>
   )
-} 
+}

@@ -531,171 +531,174 @@ function ContentRemixContent() {
           </div>
         </div>
 
-        <div className="border-t p-4 flex items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="relative z-[60]">
-                  <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <BookOpen className="h-4 w-4" />
-                    </Button>
-                  </PromptSelector>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={5} className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700 z-[70]">
-                <p>Select Prompt</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowUploadModal(true)}>
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-gray-800">
-                <p>Add Attachment</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={`h-8 w-8 ${selectedKnowledgeBases.length > 0 || selectedAssets.length > 0 ? "text-green-500" : ""}`}
-                  onClick={() => setShowKnowledgeBaseModal(true)}
-                >
-                  <Database className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-gray-800">
-                <p>Knowledge Base</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
+        <div className="border-t p-4">
+          {/* File upload pills */}
+          {uploadedFiles.length > 0 && (
+            <div className="mb-3">
+              <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
+            </div>
+          )}
+          
           <div className="flex items-center gap-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
-                    className={`h-8 w-8 ${isWebSearchEnabled ? "text-green-500" : ""}`}
-                  >
-                    <Globe2 className="h-4 w-4" />
-                  </Button>
+                  <div className="relative z-[60]">
+                    <PromptSelector prompts={prompts} categories={categories} onSelectPrompt={handlePromptSelect}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <BookOpen className="h-4 w-4" />
+                      </Button>
+                    </PromptSelector>
+                  </div>
                 </TooltipTrigger>
-                <TooltipContent className="bg-white dark:bg-gray-800">
-                  <p>Enable Web Search</p>
+                <TooltipContent side="top" sideOffset={5} className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700 z-[70]">
+                  <p>Select Prompt</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          </div>
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8"
-                  onClick={() => setShowSettingsModal(true)}
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-gray-800">
-                <p>Edit Remix Settings</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowUploadModal(true)}>
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="bg-white dark:bg-gray-800">
+                  <p>Add Attachment</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
-          <Input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleSubmit(e)
-              }
-            }}
-            placeholder="Create content variations..."
-            className="flex-1"
-          />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={`h-8 w-8 ${selectedKnowledgeBases.length > 0 || selectedAssets.length > 0 ? "text-green-500" : ""}`}
+                    onClick={() => setShowKnowledgeBaseModal(true)}
+                  >
+                    <Database className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="bg-white dark:bg-gray-800">
+                  <p>Knowledge Base</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
-          <Button onClick={e => handleSubmit(e)} disabled={isLoading || !input.trim()}>
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-
-        <RemixSettingsModal
-          isOpen={showSettingsModal}
-          onClose={() => setShowSettingsModal(false)}
-          settings={remixSettings}
-          onSave={setRemixSettings}
-        />
-
-        {selectedComplexPrompt && (
-          <ComplexPromptModal
-            prompt={selectedComplexPrompt}
-            isOpen={!!selectedComplexPrompt}
-            onClose={() => setSelectedComplexPrompt(null)}
-            onSubmit={handleComplexPromptSubmit}
-          />
-        )}
-
-        {showUploadModal && uppyRef.current && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-background p-4 rounded-lg max-w-2xl w-full">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold">Upload Files</h2>
-                <Button variant="ghost" size="icon" onClick={handleCloseUploadModal}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <Dashboard uppy={uppyRef.current} plugins={[]} />
+            <div className="flex items-center gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+                      className={`h-8 w-8 ${isWebSearchEnabled ? "text-green-500" : ""}`}
+                    >
+                      <Globe2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-white dark:bg-gray-800">
+                    <p>Enable Web Search</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
-          </div>
-        )}
 
-        {uploadedFiles.length > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 p-2 bg-background border-t">
-            <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
-          </div>
-        )}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8"
+                    onClick={() => setShowSettingsModal(true)}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="bg-white dark:bg-gray-800">
+                  <p>Edit Remix Settings</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
-        <KnowledgeBaseSelector
-          knowledgeBases={knowledgeBases}
-          isLoadingKnowledgeBases={isLoadingKnowledgeBases}
-          selectedKnowledgeBases={selectedKnowledgeBases}
-          selectedAssets={selectedAssets}
-          onSelectKnowledgeBase={(kb: KnowledgeBase) => {
-            setSelectedKnowledgeBases([...selectedKnowledgeBases, kb]);
-          }}
-          onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
-            setSelectedKnowledgeBases(selectedKnowledgeBases.filter(k => k.id !== kb.id));
-          }}
-          onSelectAsset={(asset: Asset) => {
-            setSelectedAssets([...selectedAssets, asset]);
-          }}
-          onDeselectAsset={(asset: Asset) => {
-            setSelectedAssets(selectedAssets.filter(a => a.id !== asset.id));
-          }}
-          open={showKnowledgeBaseModal}
-          onOpenChange={setShowKnowledgeBaseModal}
-        />
+            <Input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSubmit(e)
+                }
+              }}
+              placeholder="Create content variations..."
+              className="flex-1"
+            />
+
+            <Button onClick={e => handleSubmit(e)} disabled={isLoading || !input.trim()}>
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+
+          <RemixSettingsModal
+            isOpen={showSettingsModal}
+            onClose={() => setShowSettingsModal(false)}
+            settings={remixSettings}
+            onSave={setRemixSettings}
+          />
+
+          {selectedComplexPrompt && (
+            <ComplexPromptModal
+              prompt={selectedComplexPrompt}
+              isOpen={!!selectedComplexPrompt}
+              onClose={() => setSelectedComplexPrompt(null)}
+              onSubmit={handleComplexPromptSubmit}
+            />
+          )}
+
+          {showUploadModal && uppyRef.current && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-background p-4 rounded-lg max-w-2xl w-full">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">Upload Files</h2>
+                  <Button variant="ghost" size="icon" onClick={handleCloseUploadModal}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Dashboard uppy={uppyRef.current} plugins={[]} />
+              </div>
+            </div>
+          )}
+
+          <KnowledgeBaseSelector
+            knowledgeBases={knowledgeBases}
+            isLoadingKnowledgeBases={isLoadingKnowledgeBases}
+            selectedKnowledgeBases={selectedKnowledgeBases}
+            selectedAssets={selectedAssets}
+            onSelectKnowledgeBase={(kb: KnowledgeBase) => {
+              setSelectedKnowledgeBases([...selectedKnowledgeBases, kb]);
+            }}
+            onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
+              setSelectedKnowledgeBases(selectedKnowledgeBases.filter(k => k.id !== kb.id));
+            }}
+            onSelectAsset={(asset: Asset) => {
+              setSelectedAssets([...selectedAssets, asset]);
+            }}
+            onDeselectAsset={(asset: Asset) => {
+              setSelectedAssets(selectedAssets.filter(a => a.id !== asset.id));
+            }}
+            open={showKnowledgeBaseModal}
+            onOpenChange={setShowKnowledgeBaseModal}
+          />
+        </div>
       </div>
     </div>
   )
