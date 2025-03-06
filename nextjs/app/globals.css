@@ -173,7 +173,7 @@ html, body {
   opacity: 1 !important;
   visibility: visible !important;
   border-color: #059669 !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
   pointer-events: auto !important;
   display: inline-block !important;
   position: relative !important;
@@ -266,9 +266,23 @@ html, body {
   z-index: 9999 !important;
 }
 
-/* Fix for Uppy close button in dark mode */
+/* Fix for tooltip with popover interactions */
+[data-radix-tooltip-trigger] {
+  position: relative;
+  z-index: 60;
+}
+
+[data-radix-tooltip-content] {
+  z-index: 70 !important;
+}
+
+/* Updated fix for Uppy close button in dark mode */
 :root[class~="dark"] .uppy-Dashboard-close,
-:root[class~="dark"] button.uppy-Dashboard-close {
+:root[class~="dark"] .uppy-DashboardModal-close,
+:root[class~="dark"] button.uppy-Dashboard-close,
+:root[class~="dark"] button.uppy-DashboardModal-close,
+:root[class~="dark"] .uppy-Dashboard-closeBtn,
+:root[class~="dark"] .uppy-DashboardModal-closeBtn {
   background-color: #374151 !important;
   color: #f3f4f6 !important;
   opacity: 1 !important;
@@ -277,22 +291,250 @@ html, body {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
   padding: 8px !important;
   margin: 8px !important;
+  display: block !important;
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 1001 !important;
+  cursor: pointer !important;
 }
 
-:root[class~="dark"] .uppy-Dashboard-close:hover,
-:root[class~="dark"] button.uppy-Dashboard-close:hover {
-  background-color: #4b5563 !important;
-  color: #ffffff !important;
+/* Force display for close button */
+.uppy-Dashboard-close,
+.uppy-DashboardModal-close,
+button.uppy-Dashboard-close,
+button.uppy-DashboardModal-close,
+.uppy-Dashboard-closeBtn,
+.uppy-DashboardModal-closeBtn {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 1001 !important;
+  cursor: pointer !important;
 }
 
-:root[class~="dark"] .uppy-Dashboard-close svg {
+/* Additional styling for the modal close button */
+.uppy-Dashboard-inner .uppy-Dashboard-close,
+.uppy-Dashboard .uppy-Dashboard-close,
+.uppy-Dashboard .uppy-Dashboard-closeBtn,
+.uppy-DashboardModal .uppy-DashboardModal-close,
+.uppy-DashboardModal .uppy-DashboardModal-closeBtn {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+}
+
+/* Make close button visible in Uppy version 3.x */
+.uppy-Dashboard:not(:hover) .uppy-Dashboard-close,
+.uppy-DashboardModal:not(:hover) .uppy-DashboardModal-close {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Style for the SVG icon inside close button */
+.uppy-Dashboard-close svg,
+.uppy-DashboardModal-close svg,
+.uppy-Dashboard-closeBtn svg,
+.uppy-DashboardModal-closeBtn svg {
   fill: #f3f4f6 !important;
   stroke: #f3f4f6 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
-:root[class~="dark"] .uppy-Dashboard-close svg path,
-:root[class~="dark"] .uppy-Dashboard-close svg line,
-:root[class~="dark"] .uppy-Dashboard-close svg circle {
-  fill: #f3f4f6 !important;
-  stroke: #f3f4f6 !important;
+/* Ensure close button is visible on dark backgrounds */
+.dark .uppy-Dashboard-close,
+.dark .uppy-DashboardModal-close,
+.dark button.uppy-Dashboard-close,
+.dark button.uppy-DashboardModal-close,
+.dark .uppy-Dashboard-closeBtn,
+.dark .uppy-DashboardModal-closeBtn {
+  background-color: #374151 !important;
+  color: #f3f4f6 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+}
+
+/* Specific fix for the chat page Dashboard close button */
+.fixed.inset-0.bg-black\/50 .uppy-Dashboard .uppy-Dashboard-close,
+.fixed.inset-0.bg-black\/50 .uppy-Dashboard-inner .uppy-Dashboard-close,
+.fixed.inset-0.bg-black\/50 .uppy-Dashboard .uppy-Dashboard-closeBtn,
+.fixed.inset-0.bg-black\/50 .uppy-Dashboard-inner .uppy-Dashboard-closeBtn {
+  background-color: #374151 !important;
+  color: #f3f4f6 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 9999 !important;
+  cursor: pointer !important;
+  border-radius: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Override any possible issues with the close button icon */
+.uppy-Dashboard-close::before,
+.uppy-Dashboard-close::after,
+.uppy-DashboardModal-close::before,
+.uppy-DashboardModal-close::after,
+.uppy-Dashboard-closeBtn::before,
+.uppy-Dashboard-closeBtn::after {
+  content: "" !important;
+  position: absolute !important;
+  width: 2px !important;
+  height: 16px !important;
+  background-color: #f3f4f6 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.uppy-Dashboard-close::before,
+.uppy-DashboardModal-close::before,
+.uppy-Dashboard-closeBtn::before {
+  transform: rotate(45deg) !important;
+}
+
+.uppy-Dashboard-close::after,
+.uppy-DashboardModal-close::after,
+.uppy-Dashboard-closeBtn::after {
+  transform: rotate(-45deg) !important;
+}
+
+/* Specific styling for the uppy-wrapper in our custom modal */
+.uppy-wrapper .uppy-Dashboard-inner {
+  background-color: white !important;
+}
+
+.dark .uppy-wrapper .uppy-Dashboard-inner {
+  background-color: #1f2937 !important;  /* dark gray for dark mode */
+  color: white !important;
+  border: 1px solid #374151 !important;
+}
+
+/* Fix the Uppy close button styles for dark mode */
+.dark .uppy-Dashboard-close, 
+.dark .uppy-Dashboard-close:hover {
+  opacity: 1 !important;
+  visibility: visible !important;
+  background-color: #4b5563 !important; /* gray-600 */
+  padding: 8px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 30px !important;
+  height: 30px !important;
+  top: 8px !important;
+  right: 8px !important;
+  z-index: 1000 !important;
+  color: white !important;
+}
+
+/* Ensure the close button icon is visible */
+.dark .uppy-Dashboard-close svg {
+  fill: white !important;
+  stroke: white !important;
+  width: 16px !important;
+  height: 16px !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Custom styling for the file upload modal in our app */
+.fixed.inset-0.bg-black\/50 .uppy-wrapper {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Remove the default close button styling and replace with our own */
+.uppy-Dashboard-close {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  z-index: 1000 !important;
+  background-color: #e5e7eb !important; /* gray-200 */
+  border-radius: 50% !important;
+  width: 30px !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Add a visible X inside the button in case the SVG doesn't show */
+.uppy-Dashboard-close::before,
+.uppy-Dashboard-close::after {
+  content: "" !important;
+  position: absolute !important;
+  width: 2px !important;
+  height: 16px !important;
+  background-color: #111827 !important; /* dark for light mode */
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.dark .uppy-Dashboard-close::before,
+.dark .uppy-Dashboard-close::after {
+  background-color: white !important; /* white for dark mode */
+}
+
+.uppy-Dashboard-close::before {
+  transform: rotate(45deg) !important;
+}
+
+.uppy-Dashboard-close::after {
+  transform: rotate(-45deg) !important;
+}
+
+/* Additional styles specific to Uppy in dark mode */
+html.dark .uppy-Dashboard-close,
+html.dark .uppy-DashboardModal-close,
+:root[class~="dark"] .uppy-Dashboard-close,
+:root[class~="dark"] .uppy-DashboardModal-close {
+  background-color: #4b5563 !important; /* gray-600 */
+  border-radius: 50% !important;
+  width: 30px !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  top: 8px !important;
+  right: 8px !important;
+  padding: 0 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  z-index: 10000 !important;
+}
+
+/* Target dashboard close button regardless of theme mode to ensure it's always visible */
+.uppy-Dashboard-inner .uppy-Dashboard-close,
+.uppy-DashboardModal .uppy-DashboardModal-close {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: #e5e7eb !important;
+  border-radius: 50% !important;
+  width: 30px !important;
+  height: 30px !important;
+  z-index: 10000 !important;
 }
