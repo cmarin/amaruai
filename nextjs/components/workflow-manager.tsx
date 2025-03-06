@@ -19,6 +19,7 @@ import { ChatModel, fetchChatModels } from '../utils/chat-model-service'
 import { Persona, fetchPersonas } from '../utils/persona-service'
 import { KnowledgeBase, fetchKnowledgeBases } from '@/utils/knowledge-base-service'
 import { Asset } from '@/types/knowledge-base'
+import { fetchAssets } from '@/utils/asset-service'
 import { useSession } from '@/app/utils/session/session';
 
 interface WorkflowManagerProps {
@@ -70,17 +71,50 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
         chatModelsData,
         personasData,
         knowledgeBasesData,
+        assetsData
       ] = await Promise.all([
         fetchPromptTemplates(headers),
         fetchChatModels(headers),
         fetchPersonas(headers),
         fetchKnowledgeBases(headers),
+        fetchAssets(headers)
       ]);
+
+      console.log('Loaded knowledge bases:', knowledgeBasesData);
+      console.log('Loaded assets:', assetsData);
 
       setPromptTemplates(promptTemplatesData);
       setChatModels(chatModelsData);
       setPersonas(personasData);
       setKnowledgeBases(knowledgeBasesData);
+      setAssets(assetsData);
+      
+      // If we have an initial workflow, initialize the selected knowledge bases and assets
+      if (initialWorkflow) {
+        console.log('Initial workflow knowledge_base_ids:', initialWorkflow.knowledge_base_ids);
+        console.log('Initial workflow asset_ids:', initialWorkflow.asset_ids);
+        
+        if (initialWorkflow.knowledge_base_ids && initialWorkflow.knowledge_base_ids.length > 0) {
+          const selectedKBs = knowledgeBasesData.filter(kb => 
+            initialWorkflow.knowledge_base_ids?.some(id => 
+              id === kb.id || id === kb.id.toString() || id.toString() === kb.id
+            )
+          );
+          console.log('Initializing selected knowledge bases:', selectedKBs);
+          setSelectedKnowledgeBases(selectedKBs);
+        }
+        
+        if (initialWorkflow.asset_ids && initialWorkflow.asset_ids.length > 0) {
+          const selectedAssetsList = assetsData.filter(asset => 
+            initialWorkflow.asset_ids?.some(id => 
+              id === asset.id || id === asset.id.toString() || id.toString() === asset.id
+            )
+          );
+          console.log('Initializing selected assets:', selectedAssetsList);
+          setSelectedAssets(selectedAssetsList);
+        }
+      }
+      
       setError(null);
     } catch (err) {
       console.error('Error loading data:', err);
@@ -88,7 +122,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     } finally {
       setIsLoading(false);
     }
-  }, [getApiHeaders]);
+  }, [getApiHeaders, initialWorkflow]);
 
   useEffect(() => {
     if (!sessionLoading && initialized) {
@@ -101,22 +135,9 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
       console.log('Setting initial workflow:', initialWorkflow);
       setWorkflow(initialWorkflow);
       
-      // Initialize selected knowledge bases from workflow data
-      if (initialWorkflow.knowledge_base_ids && initialWorkflow.knowledge_base_ids.length > 0) {
-        const selectedKBs = knowledgeBases.filter(kb => 
-          initialWorkflow.knowledge_base_ids?.includes(kb.id)
-        );
-        setSelectedKnowledgeBases(selectedKBs);
-      }
-
-      // Initialize selected assets
-      if (initialWorkflow.asset_ids && initialWorkflow.asset_ids.length > 0) {
-        const selectedAssetsList = assets.filter(asset => 
-          initialWorkflow.asset_ids?.includes(asset.id)
-        );
-        setSelectedAssets(selectedAssetsList);
-      }
-
+      // We'll handle the initialization of selected knowledge bases and assets in the loadData function
+      // to ensure we have the data available before trying to filter it
+      
       if (initialWorkflow.process_type === 'HIERARCHICAL') {
         console.log('Setting hierarchical values:', {
           manager_chat_model_id: initialWorkflow.manager_chat_model_id,
@@ -128,7 +149,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
         setMaxIterations(initialWorkflow.max_iterations || 5);
       }
     }
-  }, [initialWorkflow, knowledgeBases, assets]);
+  }, [initialWorkflow]);
 
   const handleProcessTypeChange = (value: "SEQUENTIAL" | "HIERARCHICAL") => {
     setWorkflow({ ...workflow, process_type: value });
@@ -321,6 +342,11 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
       console.error('Error saving workflow:', error);
     }
   };
+
+  useEffect(() => {
+    console.log('Selected knowledge bases changed:', selectedKnowledgeBases);
+    console.log('Selected assets changed:', selectedAssets);
+  }, [selectedKnowledgeBases, selectedAssets]);
 
   if (sessionLoading || !initialized) {
     return <div>Initializing session...</div>;
