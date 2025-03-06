@@ -80,7 +80,7 @@ export function KnowledgeBaseSelector({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`sm:max-w-[425px] ${className}`}>
+      <DialogContent className={`sm:max-w-[425px] bg-background border-border ${className}`}>
         <DialogHeader>
           <DialogTitle>Select Knowledge Bases & Assets</DialogTitle>
         </DialogHeader>
@@ -101,7 +101,7 @@ export function KnowledgeBaseSelector({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-4 w-4 p-0 hover:bg-transparent text-gray-700 dark:text-gray-300"
+                  className="h-4 w-4 p-0 hover:bg-transparent hover:opacity-80"
                   onClick={() => onDeselectKnowledgeBase(kb)}
                 >
                   <X className="h-3 w-3" />
@@ -114,7 +114,7 @@ export function KnowledgeBaseSelector({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-4 w-4 p-0 hover:bg-transparent text-gray-700 dark:text-gray-300"
+                  className="h-4 w-4 p-0 hover:bg-transparent hover:opacity-80"
                   onClick={() => onDeselectAsset(asset)}
                 >
                   <X className="h-3 w-3" />
@@ -129,13 +129,13 @@ export function KnowledgeBaseSelector({
             <TabsList className="grid w-full grid-cols-2 bg-transparent">
               <TabsTrigger 
                 value="knowledge-bases" 
-                className="data-[state=active]:bg-gray-100 data-[state=active]:text-black rounded-none border-0 shadow-none focus:!ring-0 focus:!ring-offset-0 !bg-transparent"
+                className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground rounded-none border-0 shadow-none focus:!ring-0 focus:!ring-offset-0 !bg-transparent"
               >
                 Knowledge Bases
               </TabsTrigger>
               <TabsTrigger 
                 value="assets" 
-                className="data-[state=active]:bg-gray-100 data-[state=active]:text-black rounded-none border-0 shadow-none focus:!ring-0 focus:!ring-offset-0 !bg-transparent"
+                className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground rounded-none border-0 shadow-none focus:!ring-0 focus:!ring-offset-0 !bg-transparent"
               >
                 Assets
               </TabsTrigger>
