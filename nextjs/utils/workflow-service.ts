@@ -1,6 +1,8 @@
 import { fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl, getFetchOptions } from './api-utils';
+import { KnowledgeBase } from './knowledge-base-service';
+import { Asset } from '@/types/knowledge-base';
 
 export interface WorkflowStep {
   id?: string;
@@ -22,6 +24,8 @@ export interface Workflow {
   max_iterations?: number;
   knowledge_base_ids?: string[];
   asset_ids?: string[];
+  assets?: Asset[];
+  knowledge_bases?: KnowledgeBase[];
 }
 
 export interface WorkflowResult {
