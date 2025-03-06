@@ -135,9 +135,48 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
       console.log('Setting initial workflow:', initialWorkflow);
       setWorkflow(initialWorkflow);
       
-      // We'll handle the initialization of selected knowledge bases and assets in the loadData function
-      // to ensure we have the data available before trying to filter it
-      
+      // Check if we have direct assets and knowledge_bases arrays from the API
+      if (initialWorkflow.assets && initialWorkflow.assets.length > 0) {
+        console.log('Found direct assets in workflow:', initialWorkflow.assets);
+        setSelectedAssets(initialWorkflow.assets);
+        
+        // Also update the workflow's asset_ids to match
+        setWorkflow(prev => ({
+          ...prev,
+          asset_ids: initialWorkflow.assets?.map(asset => asset.id) || []
+        }));
+      } 
+      // Fall back to asset_ids if direct assets aren't available
+      else if (initialWorkflow.asset_ids && initialWorkflow.asset_ids.length > 0) {
+        const selectedAssetsList = assets.filter(asset => 
+          initialWorkflow.asset_ids?.some(id => 
+            id === asset.id || id === asset.id.toString() || id.toString() === asset.id
+          )
+        );
+        setSelectedAssets(selectedAssetsList);
+      }
+
+      // Same for knowledge bases
+      if (initialWorkflow.knowledge_bases && initialWorkflow.knowledge_bases.length > 0) {
+        console.log('Found direct knowledge_bases in workflow:', initialWorkflow.knowledge_bases);
+        setSelectedKnowledgeBases(initialWorkflow.knowledge_bases);
+        
+        // Also update the workflow's knowledge_base_ids to match
+        setWorkflow(prev => ({
+          ...prev,
+          knowledge_base_ids: initialWorkflow.knowledge_bases?.map(kb => kb.id) || []
+        }));
+      } 
+      // Fall back to knowledge_base_ids if direct knowledge_bases aren't available
+      else if (initialWorkflow.knowledge_base_ids && initialWorkflow.knowledge_base_ids.length > 0) {
+        const selectedKBs = knowledgeBases.filter(kb => 
+          initialWorkflow.knowledge_base_ids?.some(id => 
+            id === kb.id || id === kb.id.toString() || id.toString() === kb.id
+          )
+        );
+        setSelectedKnowledgeBases(selectedKBs);
+      }
+
       if (initialWorkflow.process_type === 'HIERARCHICAL') {
         console.log('Setting hierarchical values:', {
           manager_chat_model_id: initialWorkflow.manager_chat_model_id,
@@ -149,7 +188,12 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
         setMaxIterations(initialWorkflow.max_iterations || 5);
       }
     }
-  }, [initialWorkflow]);
+  }, [initialWorkflow, knowledgeBases, assets]);
+
+  useEffect(() => {
+    console.log('Selected knowledge bases changed:', selectedKnowledgeBases);
+    console.log('Selected assets changed:', selectedAssets);
+  }, [selectedKnowledgeBases, selectedAssets]);
 
   const handleProcessTypeChange = (value: "SEQUENTIAL" | "HIERARCHICAL") => {
     setWorkflow({ ...workflow, process_type: value });
@@ -342,11 +386,6 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
       console.error('Error saving workflow:', error);
     }
   };
-
-  useEffect(() => {
-    console.log('Selected knowledge bases changed:', selectedKnowledgeBases);
-    console.log('Selected assets changed:', selectedAssets);
-  }, [selectedKnowledgeBases, selectedAssets]);
 
   if (sessionLoading || !initialized) {
     return <div>Initializing session...</div>;
