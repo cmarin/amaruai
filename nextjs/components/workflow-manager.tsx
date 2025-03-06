@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { WorkflowSteps } from "@/components/batch-flow/workflow-steps"
 import { KnowledgeBaseSelector } from "@/components/knowledge-base-selector"
+import { KnowledgeBaseAssetPills } from "@/components/knowledge-base-asset-pills"
 
 import { Workflow, WorkflowStep, createWorkflow, updateWorkflow } from '../utils/workflow-service'
 import { PromptTemplate, fetchPromptTemplates } from '@/utils/prompt-template-service'
@@ -432,6 +433,27 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
             >
               Select
             </Button>
+            {selectedKnowledgeBases.length === 0 && selectedAssets.length === 0 && !isKnowledgeBaseSelectorOpen && (
+              <p className="text-sm text-muted-foreground mt-1">No knowledge bases or assets selected</p>
+            )}
+            <KnowledgeBaseAssetPills
+              knowledgeBases={selectedKnowledgeBases}
+              assets={selectedAssets}
+              onRemoveKnowledgeBase={(kb: KnowledgeBase) => {
+                setSelectedKnowledgeBases(prev => prev.filter(k => k.id !== kb.id));
+                setWorkflow(prev => ({
+                  ...prev,
+                  knowledge_base_ids: (prev.knowledge_base_ids || []).filter(id => id !== kb.id)
+                }));
+              }}
+              onRemoveAsset={(asset: Asset) => {
+                setSelectedAssets(prev => prev.filter(a => a.id !== asset.id));
+                setWorkflow(prev => ({
+                  ...prev,
+                  asset_ids: (prev.asset_ids || []).filter(id => id !== asset.id)
+                }));
+              }}
+            />
             <KnowledgeBaseSelector
               knowledgeBases={knowledgeBases}
               isLoadingKnowledgeBases={isLoadingKnowledgeBases}
