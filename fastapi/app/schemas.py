@@ -326,6 +326,7 @@ class WorkflowBase(BaseModel):
     manager_chat_model_id: Optional[UUID] = None
     manager_persona_id: Optional[UUID] = None
     max_iterations: Optional[int] = None
+    search: Optional[bool] = None
 
     @validator('manager_chat_model_id', 'manager_persona_id', pre=True)
     def convert_to_uuid(cls, v):
@@ -344,6 +345,7 @@ class WorkflowCreate(BaseModel):
     manager_chat_model_id: Optional[UUID] = None
     manager_persona_id: Optional[UUID] = None
     max_iterations: Optional[int] = None
+    search: Optional[bool] = None
     asset_ids: Optional[List[UUID]] = None
     knowledge_base_ids: Optional[List[UUID]] = None
     created_by: Optional[UUID] = None

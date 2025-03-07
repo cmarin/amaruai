@@ -178,6 +178,7 @@ class Workflow(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
     created_by = Column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    search = Column(Boolean, nullable=True)
     
     # Add the new relationships
     assets = relationship(

@@ -61,6 +61,7 @@ def create_workflow(
             manager_chat_model_id=workflow_dict.get("manager_chat_model_id"),
             manager_persona_id=workflow_dict.get("manager_persona_id"),
             max_iterations=workflow_dict.get("max_iterations", 1),
+            search=workflow_dict.get("search"),
             created_by=workflow_dict["created_by"]
         )
         db.add(db_workflow)
