@@ -80,9 +80,9 @@ export function KnowledgeBaseSelector({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`sm:max-w-[425px] bg-background border-border ${className}`}>
+      <DialogContent className={`sm:max-w-[425px] bg-card text-card-foreground shadow-lg ${className}`}>
         <DialogHeader>
-          <DialogTitle>Select Knowledge Bases & Assets</DialogTitle>
+          <DialogTitle className="text-foreground">Select Knowledge Bases & Assets</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-2">
@@ -96,7 +96,7 @@ export function KnowledgeBaseSelector({
           
           <div className="flex flex-wrap gap-1 min-h-[32px]">
             {selectedKnowledgeBases.map(kb => (
-              <Badge key={kb.id} variant="secondary" className="gap-1 pr-1">
+              <Badge key={kb.id} variant="secondary" className="gap-1 pr-1 bg-secondary text-secondary-foreground">
                 {kb.title}
                 <Button
                   variant="ghost"
@@ -109,7 +109,7 @@ export function KnowledgeBaseSelector({
               </Badge>
             ))}
             {selectedAssets.map(asset => (
-              <Badge key={asset.id} variant="secondary" className="gap-1 pr-1">
+              <Badge key={asset.id} variant="secondary" className="gap-1 pr-1 bg-secondary text-secondary-foreground">
                 {asset.title}
                 <Button
                   variant="ghost"
@@ -125,24 +125,24 @@ export function KnowledgeBaseSelector({
         </div>
 
         <Tabs defaultValue="knowledge-bases" className="w-full" value={activeTab} onValueChange={handleTabChange}>
-          <div className="border-t border-b px-2 py-1">
-            <TabsList className="grid w-full grid-cols-2 bg-transparent">
+          <div className="border-t border-b border-border px-2 py-1">
+            <TabsList className="grid w-full grid-cols-2 bg-muted/20">
               <TabsTrigger 
                 value="knowledge-bases" 
-                className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground rounded-none border-0 shadow-none focus:!ring-0 focus:!ring-offset-0 !bg-transparent"
+                className="data-[state=active]:bg-background data-[state=active]:text-foreground rounded-sm border-0 shadow-none focus:!ring-0 focus:!ring-offset-0"
               >
                 Knowledge Bases
               </TabsTrigger>
               <TabsTrigger 
                 value="assets" 
-                className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground rounded-none border-0 shadow-none focus:!ring-0 focus:!ring-offset-0 !bg-transparent"
+                className="data-[state=active]:bg-background data-[state=active]:text-foreground rounded-sm border-0 shadow-none focus:!ring-0 focus:!ring-offset-0"
               >
                 Assets
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <TabsContent value="knowledge-bases" className="mt-0">
+          <TabsContent value="knowledge-bases" className="mt-0 border-0 p-0">
             <ScrollArea className="h-[300px]">
               <div className="p-2 space-y-1">
                 {isLoadingKnowledgeBases ? (
@@ -158,11 +158,11 @@ export function KnowledgeBaseSelector({
                     <Button
                       key={kb.id}
                       variant="outline"
-                      className="w-full justify-start text-left h-auto py-3 px-4 border-muted hover:bg-muted/5 transition-colors mb-2"
+                      className="w-full justify-start text-left h-auto py-3 px-4 border border-border hover:bg-accent/30 transition-colors mb-2"
                       onClick={() => onSelectKnowledgeBase(kb)}
                     >
                       <div>
-                        <div className="font-medium">{kb.title}</div>
+                        <div className="font-medium text-foreground">{kb.title}</div>
                         {kb.description && (
                           <div className="text-sm text-muted-foreground line-clamp-2 mt-1">{kb.description}</div>
                         )}
@@ -174,7 +174,7 @@ export function KnowledgeBaseSelector({
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="assets" className="mt-0">
+          <TabsContent value="assets" className="mt-0 border-0 p-0">
             <ScrollArea className="h-[300px]">
               <div className="p-2 space-y-1">
                 {isLoadingAssets ? (
@@ -190,11 +190,11 @@ export function KnowledgeBaseSelector({
                     <Button
                       key={asset.id}
                       variant="outline"
-                      className="w-full justify-start text-left h-auto py-3 px-4 border-muted hover:bg-muted/5 transition-colors mb-2"
+                      className="w-full justify-start text-left h-auto py-3 px-4 border border-border hover:bg-accent/30 transition-colors mb-2"
                       onClick={() => onSelectAsset(asset)}
                     >
                       <div>
-                        <div className="font-medium">{asset.title}</div>
+                        <div className="font-medium text-foreground">{asset.title}</div>
                         {asset.description && (
                           <div className="text-sm text-muted-foreground line-clamp-2 mt-1">{asset.description}</div>
                         )}
