@@ -286,7 +286,7 @@ async def execute_workflow(
                     
                     # Append ":online" if web search is enabled for OpenRouter
                     if workflow.search and chat_model.provider and chat_model.provider.lower() == "openrouter":
-                        model_name = f"{model_name}"
+                        model_name = f"{model_name}:online"
 
                     logger.info(f"Model used: {model_name}")
 
