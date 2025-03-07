@@ -12,6 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { WorkflowSteps } from "@/components/batch-flow/workflow-steps"
 import { KnowledgeBaseSelector } from "@/components/knowledge-base-selector"
 import { KnowledgeBaseAssetPills } from "@/components/knowledge-base-asset-pills"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Separator } from "@/components/ui/separator"
 
 import { createWorkflow, updateWorkflow } from '../utils/workflow-service'
 import { Workflow, WorkflowStep } from '@/types/workflow'
@@ -37,6 +39,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     steps: [],
     knowledge_base_ids: [],
     asset_ids: [],
+    search: false,
   });
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [chatModels, setChatModels] = useState<ChatModel[]>([]);
@@ -489,6 +492,24 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
               </div>
             </div>
           )}
+
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="search-enabled" 
+              checked={workflow.search || false}
+              onCheckedChange={(checked) => {
+                setWorkflow({ ...workflow, search: checked === true });
+              }}
+            />
+            <Label 
+              htmlFor="search-enabled" 
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Enable search for this workflow in conversations
+            </Label>
+          </div>
+
+          <Separator className="my-4" />
 
           <div className="space-y-2">
             <Label htmlFor="knowledgeBases">Knowledge Bases & Assets</Label>

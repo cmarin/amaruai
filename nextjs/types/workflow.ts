@@ -23,6 +23,7 @@ export interface Workflow {
   asset_ids?: string[];
   assets?: Asset[];
   knowledge_bases?: KnowledgeBase[];
+  search?: boolean;
 }
 
 export interface WorkflowResult {
