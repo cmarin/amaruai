@@ -19,6 +19,7 @@ export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
       id: workflow.id?.toString() || '',
       manager_chat_model_id: workflow.manager_chat_model_id?.toString(),
       manager_persona_id: workflow.manager_persona_id?.toString(),
+      search: workflow.search || false, // Include search field with default false
       steps: workflow.steps?.map((step: any) => ({
         ...step,
         id: step.id?.toString() || '',
@@ -69,6 +70,7 @@ export async function fetchWorkflow(id: string, headers: ApiHeaders): Promise<Wo
       id: data.id?.toString() || '',
       manager_chat_model_id: data.manager_chat_model_id?.toString(),
       manager_persona_id: data.manager_persona_id?.toString(),
+      search: data.search || false, // Include search field with default false
       steps: data.steps?.map((step: any) => ({
         ...step,
         id: step.id?.toString() || '',
@@ -106,6 +108,7 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
       max_iterations: workflow.max_iterations,
       knowledge_base_ids: workflow.knowledge_base_ids,
       asset_ids: workflow.asset_ids,
+      search: workflow.search,
       steps: workflow.steps?.map((step, index) => ({
         prompt_template_id: step.prompt_template_id,
         chat_model_id: step.chat_model_id,
@@ -190,6 +193,7 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       max_iterations: workflow.max_iterations,
       knowledge_base_ids: workflow.knowledge_base_ids,
       asset_ids: workflow.asset_ids,
+      search: workflow.search,
       steps: workflow.steps?.map((step, index) => ({
         prompt_template_id: step.prompt_template_id,
         chat_model_id: step.chat_model_id,

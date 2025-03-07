@@ -137,7 +137,14 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   useEffect(() => {
     if (initialWorkflow) {
       console.log('Setting initial workflow:', initialWorkflow);
-      setWorkflow(initialWorkflow);
+      
+      // Make sure search is properly initialized
+      const workflowWithSearch = {
+        ...initialWorkflow,
+        search: initialWorkflow.search || false
+      };
+      
+      setWorkflow(workflowWithSearch);
       
       // Check if we have direct assets and knowledge_bases arrays from the API
       if (initialWorkflow.assets && initialWorkflow.assets.length > 0) {
@@ -370,8 +377,11 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
           position: index
         })),
         knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
-        asset_ids: selectedAssets.map(asset => asset.id)
+        asset_ids: selectedAssets.map(asset => asset.id),
+        search: workflow.search || false
       };
+
+      console.log('Saving workflow with data:', workflowToSave);
 
       if (workflow.process_type === 'HIERARCHICAL') {
         workflowToSave.manager_chat_model_id = managerChatModelId;
@@ -494,6 +504,13 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
           )}
 
           <div className="flex items-center space-x-2">
+            <Label 
+              htmlFor="search-enabled" 
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Enable search
+            </Label>
+            
             <Checkbox 
               id="search-enabled" 
               checked={workflow.search || false}
@@ -501,12 +518,6 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
                 setWorkflow({ ...workflow, search: checked === true });
               }}
             />
-            <Label 
-              htmlFor="search-enabled" 
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Enable search for this workflow in conversations
-            </Label>
           </div>
 
           <Separator className="my-4" />
