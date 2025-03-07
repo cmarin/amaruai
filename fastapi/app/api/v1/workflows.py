@@ -247,12 +247,19 @@ async def execute_workflow(
                     manager_chat_model = crud.get_chat_model(db, workflow.manager_chat_model_id)
 
                     if manager_chat_model:
+                        # Prepare model name for manager
+                        manager_model_name = manager_chat_model.model
+                        
+                        # Append ":online" if web search is enabled for OpenRouter
+                        if workflow.search and manager_chat_model.provider and manager_chat_model.provider.lower() == "openrouter":
+                            manager_model_name = f"{manager_model_name}:online"
+                            
                         manager_llm = LLM(
-                            model=f"openrouter/{manager_chat_model.model}",
+                            model=f"openrouter/{manager_model_name}",
                             api_key=os.environ["OPENROUTER_API_KEY"],
                             base_url=os.environ["OPENROUTER_API_BASE"]
                         )
-                        logging.info(f"Manager LLM configured with model: {manager_chat_model.model}")
+                        logging.info(f"Manager LLM configured with model: {manager_model_name}")
                     else:
                         logging.error("Manager chat model not found or not configured.")
 
@@ -274,9 +281,16 @@ async def execute_workflow(
                     chat_model = step.chat_model
                     persona = step.persona
 
+                    # Prepare model name
+                    model_name = chat_model.model
+                    
+                    # Append ":online" if web search is enabled for OpenRouter
+                    if workflow.search and chat_model.provider and chat_model.provider.lower() == "openrouter":
+                        model_name = f"{model_name}:online"
+
                     # Dynamically create LLM for each step
                     llm = LLM(
-                        model=f"openrouter/{chat_model.model}",
+                        model=f"openrouter/{model_name}",
                         api_key=os.environ["OPENROUTER_API_KEY"],
                         base_url=os.environ["OPENROUTER_API_BASE"]
                     )
