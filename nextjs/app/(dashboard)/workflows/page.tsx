@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Workflow, fetchWorkflows, deleteWorkflow } from '@/utils/workflow-service'
+import { fetchWorkflows, deleteWorkflow } from '@/utils/workflow-service'
+import { Workflow } from '@/types/workflow'
 import { useRouter } from 'next/navigation'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/sidebar-context'

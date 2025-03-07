@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ChevronLeft, Copy, FileText, Check, RefreshCw } from 'lucide-react'
 import { 
-  fetchWorkflow, 
+  fetchWorkflow,
+  streamWorkflow
+} from '@/utils/workflow-service'
+import { 
   Workflow, 
   WorkflowResult,
-  streamWorkflow,
   WorkflowStreamMessage 
-} from '@/utils/workflow-service'
+} from '@/types/workflow'
 import { fetchPromptTemplate, PromptTemplate } from '@/utils/prompt-template-service'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 import ReactMarkdown from 'react-markdown'

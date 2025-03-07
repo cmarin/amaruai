@@ -23,7 +23,7 @@ import {
   PaginationNext, 
   PaginationPrevious 
 } from "@/components/ui/pagination"
-import { Workflow } from '@/utils/workflow-service'
+import { Workflow } from '@/types/workflow'
 
 type WorkflowLibraryProps = {
   workflows: Workflow[];

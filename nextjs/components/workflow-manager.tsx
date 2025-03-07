@@ -13,7 +13,8 @@ import { WorkflowSteps } from "@/components/batch-flow/workflow-steps"
 import { KnowledgeBaseSelector } from "@/components/knowledge-base-selector"
 import { KnowledgeBaseAssetPills } from "@/components/knowledge-base-asset-pills"
 
-import { Workflow, WorkflowStep, createWorkflow, updateWorkflow } from '../utils/workflow-service'
+import { createWorkflow, updateWorkflow } from '../utils/workflow-service'
+import { Workflow, WorkflowStep } from '@/types/workflow'
 import { PromptTemplate, fetchPromptTemplates } from '@/utils/prompt-template-service'
 import { ChatModel, fetchChatModels } from '../utils/chat-model-service'
 import { Persona, fetchPersonas } from '../utils/persona-service'
