@@ -313,7 +313,7 @@ export default function SettingsPage() {
                       New Category
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800">
                     <DialogHeader>
                       <DialogTitle>Create New Category</DialogTitle>
                       <DialogDescription>Add a new category to organize your content</DialogDescription>
@@ -381,7 +381,7 @@ export default function SettingsPage() {
                       New Chat Model
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800">
                     <DialogHeader>
                       <DialogTitle>Create New Chat Model</DialogTitle>
                       <DialogDescription>Add a new chat model to generate text</DialogDescription>
@@ -586,7 +586,7 @@ export default function SettingsPage() {
 
           {/* Edit Category Dialog */}
           <Dialog open={!!selectedCategory} onOpenChange={() => setSelectedCategory(null)}>
-            <DialogContent>
+            <DialogContent className="bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800">
               <DialogHeader>
                 <DialogTitle>Edit Category</DialogTitle>
                 <DialogDescription>Update category details</DialogDescription>
@@ -629,7 +629,7 @@ export default function SettingsPage() {
 
           {/* Edit Chat Model Dialog */}
           <Dialog open={!!selectedChatModel} onOpenChange={() => setSelectedChatModel(null)}>
-            <DialogContent>
+            <DialogContent className="bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800">
               <DialogHeader>
                 <DialogTitle>Edit Chat Model</DialogTitle>
                 <DialogDescription>Update chat model details</DialogDescription>
