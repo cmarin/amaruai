@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, UUID
+from typing import List
+from uuid import UUID
 from app import crud, schemas
 from app.database import get_db
 from app.api.v1.router import create_protected_router
