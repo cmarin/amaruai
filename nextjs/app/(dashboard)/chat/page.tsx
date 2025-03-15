@@ -557,287 +557,288 @@ function ChatContent() {
   }, [prompts, setData, isLoading]);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden">
-      <AppSidebar />
+    <div className="h-full w-full">
+      <div className="flex h-full w-full overflow-hidden bg-white dark:bg-background">
+        <AppSidebar toggleChatbot={handleToggleChatbot} />
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+          {/* Body/Chat section (scrollable) */}
+          <div className="flex-1 overflow-auto p-4">
+            {/* Single/dual/quad chat windows */}
+            {mode === 'single' ? (
+              <div className="grid h-full gap-4" style={{ gridTemplateColumns: '1fr' }}>
+                <ChatWindow
+                  messages={messages}
+                  messagesEndRef={messagesEndRef}
+                  title="Perplexity Llama"
+                  Icon={Timer}
+                  onCopy={() => handleCopyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onClearConversation={() => clearConversation(messages)}
+                  isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                  chatWindowId="chat1"
+                />
+              </div>
+            ) : (
+              <div
+                className="grid h-full gap-4"
+                style={{
+                  gridTemplateColumns: mode === 'dual' ? '1fr 1fr' : '1fr 1fr',
+                  gridTemplateRows: mode === 'quad' ? '1fr 1fr' : '1fr',
+                }}
+              >
+                <ChatWindow
+                  messages={messages}
+                  messagesEndRef={messagesEndRef}
+                  title="Perplexity Llama"
+                  Icon={Timer}
+                  onCopy={() => handleCopyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onClearConversation={() => clearConversation(messages)}
+                  isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                  chatWindowId="chat1"
+                />
+                <ChatWindow
+                  messages={messages2}
+                  messagesEndRef={messagesEndRef2}
+                  title="GPT-4o"
+                  Icon={Sparkles}
+                  onCopy={() => handleCopyToClipboard(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onAddToScratchPad={() => addToScratchPad(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                  onClearConversation={() => clearConversation(messages2)}
+                  isCopied={copiedStates[messages2.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                  chatWindowId="chat2"
+                />
+                {mode === 'quad' && (
+                  <>
+                    <ChatWindow
+                      messages={messages3}
+                      messagesEndRef={messagesEndRef3}
+                      title="Gemini 1.5 Pro"
+                      Icon={Bot}
+                      onCopy={() => handleCopyToClipboard(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                      onAddToScratchPad={() => addToScratchPad(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                      onClearConversation={() => clearConversation(messages3)}
+                      isCopied={copiedStates[messages3.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                      chatWindowId="chat3"
+                    />
+                    <ChatWindow
+                      messages={messages4}
+                      messagesEndRef={messagesEndRef4}
+                      title="Meta Llama 3.1"
+                      Icon={SmilePlus}
+                      onCopy={() => handleCopyToClipboard(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                      onAddToScratchPad={() => addToScratchPad(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
+                      onClearConversation={() => clearConversation(messages4)}
+                      isCopied={copiedStates[messages4.map(m => `${m.role}: ${m.content}`).join('\n')]}
+                      chatWindowId="chat4"
+                    />
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
-      <div className={`flex-1 flex flex-col h-full relative transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
-        {/* Body/Chat section (scrollable) */}
-        <div className="flex-1 overflow-auto p-4">
-          {/* Single/dual/quad chat windows */}
-          {mode === 'single' ? (
-            <div className="grid h-full gap-4" style={{ gridTemplateColumns: '1fr' }}>
-              <ChatWindow
-                messages={messages}
-                messagesEndRef={messagesEndRef}
-                title="Perplexity Llama"
-                Icon={Timer}
-                onCopy={() => handleCopyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onClearConversation={() => clearConversation(messages)}
-                isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                chatWindowId="chat1"
-              />
-            </div>
-          ) : (
-            <div
-              className="grid h-full gap-4"
-              style={{
-                gridTemplateColumns: mode === 'dual' ? '1fr 1fr' : '1fr 1fr',
-                gridTemplateRows: mode === 'quad' ? '1fr 1fr' : '1fr',
-              }}
-            >
-              <ChatWindow
-                messages={messages}
-                messagesEndRef={messagesEndRef}
-                title="Perplexity Llama"
-                Icon={Timer}
-                onCopy={() => handleCopyToClipboard(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onAddToScratchPad={() => addToScratchPad(messages.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onClearConversation={() => clearConversation(messages)}
-                isCopied={copiedStates[messages.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                chatWindowId="chat1"
-              />
-              <ChatWindow
-                messages={messages2}
-                messagesEndRef={messagesEndRef2}
-                title="GPT-4o"
-                Icon={Sparkles}
-                onCopy={() => handleCopyToClipboard(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onAddToScratchPad={() => addToScratchPad(messages2.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                onClearConversation={() => clearConversation(messages2)}
-                isCopied={copiedStates[messages2.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                chatWindowId="chat2"
-              />
-              {mode === 'quad' && (
-                <>
-                  <ChatWindow
-                    messages={messages3}
-                    messagesEndRef={messagesEndRef3}
-                    title="Gemini 1.5 Pro"
-                    Icon={Bot}
-                    onCopy={() => handleCopyToClipboard(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                    onAddToScratchPad={() => addToScratchPad(messages3.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                    onClearConversation={() => clearConversation(messages3)}
-                    isCopied={copiedStates[messages3.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                    chatWindowId="chat3"
-                  />
-                  <ChatWindow
-                    messages={messages4}
-                    messagesEndRef={messagesEndRef4}
-                    title="Meta Llama 3.1"
-                    Icon={SmilePlus}
-                    onCopy={() => handleCopyToClipboard(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                    onAddToScratchPad={() => addToScratchPad(messages4.map(m => `${m.role}: ${m.content}`).join('\n'))}
-                    onClearConversation={() => clearConversation(messages4)}
-                    isCopied={copiedStates[messages4.map(m => `${m.role}: ${m.content}`).join('\n')]}
-                    chatWindowId="chat4"
-                  />
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Footer (input / mode toggle) */}
-        <div className="border-t p-4">
-          {/* File upload pills */}
-          {uploadedFiles.length > 0 && (
-            <div className="mb-3">
-              <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
-            </div>
-          )}
-          
-          <div className="flex items-center gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="relative z-[60]">
-                    <PromptSelector 
-                      prompts={prompts} 
-                      categories={categories} 
-                      onSelectPrompt={handlePromptSelect}
-                      onLoad={handleLoadMorePrompts}
-                    >
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <BookOpen className="h-4 w-4" />
-                      </Button>
-                    </PromptSelector>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="top" sideOffset={5} className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700 z-[70]">
-                  <p>Prompts</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowUploadModal(true)}>
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
-                  <p>Add Attachment</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={`h-8 w-8 ${selectedKnowledgeBases.length > 0 || selectedAssets.length > 0 ? "text-green-500" : ""}`}
-                    onClick={() => setShowKnowledgeBaseModal(true)}
-                  >
-                    <Database className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
-                  <p>Knowledge Base</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild data-kb-selector="true">
-                  <KnowledgeBaseSelector
-                    knowledgeBases={knowledgeBases}
-                    isLoadingKnowledgeBases={isLoadingKnowledgeBases}
-                    selectedKnowledgeBases={selectedKnowledgeBases}
-                    selectedAssets={selectedAssets}
-                    onSelectKnowledgeBase={(kb: KnowledgeBase) => {
-                      setSelectedKnowledgeBases([...selectedKnowledgeBases, kb]);
-                    }}
-                    onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
-                      setSelectedKnowledgeBases(selectedKnowledgeBases.filter(k => k.id !== kb.id));
-                    }}
-                    onSelectAsset={(asset: Asset) => {
-                      setSelectedAssets([...selectedAssets, asset]);
-                    }}
-                    onDeselectAsset={(asset: Asset) => {
-                      setSelectedAssets(selectedAssets.filter(a => a.id !== asset.id));
-                    }}
-                    open={showKnowledgeBaseModal}
-                    onOpenChange={setShowKnowledgeBaseModal}
-                  />
-                </TooltipTrigger>
-                <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
-                  <p>Add Knowledge Base or Asset</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
+          {/* Footer (input / mode toggle) */}
+          <div className="border-t p-4">
+            {/* File upload pills */}
+            {uploadedFiles.length > 0 && (
+              <div className="mb-3">
+                <FileUploadPills files={uploadedFiles} onRemove={handleRemoveFile} />
+              </div>
+            )}
+            
             <div className="flex items-center gap-2">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
-                      className={isWebSearchEnabled ? "text-green-500" : ""}
-                    >
-                      <Globe2 className="h-5 w-5" />
-                    </Button>
+                    <div className="relative z-[60]">
+                      <PromptSelector 
+                        prompts={prompts} 
+                        categories={categories} 
+                        onSelectPrompt={handlePromptSelect}
+                        onLoad={handleLoadMorePrompts}
+                      >
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <BookOpen className="h-4 w-4" />
+                        </Button>
+                      </PromptSelector>
+                    </div>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
-                    <p>Enable Web Search</p>
+                  <TooltipContent side="top" sideOffset={5} className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700 z-[70]">
+                    <p>Prompts</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-            </div>
 
-            <Input
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSubmit(e)
-                }
-              }}
-              placeholder="Type a message..."
-              className="flex-1"
-            />
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowUploadModal(true)}>
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
+                    <p>Add Attachment</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
-            <Button onClick={e => handleSubmit(e)} disabled={isLoading || (!input.trim() && !uploadedFiles.length)}>
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-            </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className={`h-8 w-8 ${selectedKnowledgeBases.length > 0 || selectedAssets.length > 0 ? "text-green-500" : ""}`}
+                      onClick={() => setShowKnowledgeBaseModal(true)}
+                    >
+                      <Database className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
+                    <p>Knowledge Base</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
-            {/* Mode selection buttons */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant={mode === 'single' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => setMode('single')}
-                title="Single chat"
-              >
-                <Square className="h-4 w-4" />
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild data-kb-selector="true">
+                    <KnowledgeBaseSelector
+                      knowledgeBases={knowledgeBases}
+                      isLoadingKnowledgeBases={isLoadingKnowledgeBases}
+                      selectedKnowledgeBases={selectedKnowledgeBases}
+                      selectedAssets={selectedAssets}
+                      onSelectKnowledgeBase={(kb: KnowledgeBase) => {
+                        setSelectedKnowledgeBases([...selectedKnowledgeBases, kb]);
+                      }}
+                      onDeselectKnowledgeBase={(kb: KnowledgeBase) => {
+                        setSelectedKnowledgeBases(selectedKnowledgeBases.filter(k => k.id !== kb.id));
+                      }}
+                      onSelectAsset={(asset: Asset) => {
+                        setSelectedAssets([...selectedAssets, asset]);
+                      }}
+                      onDeselectAsset={(asset: Asset) => {
+                        setSelectedAssets(selectedAssets.filter(a => a.id !== asset.id));
+                      }}
+                      open={showKnowledgeBaseModal}
+                      onOpenChange={setShowKnowledgeBaseModal}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
+                    <p>Add Knowledge Base or Asset</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <div className="flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+                        className={isWebSearchEnabled ? "text-green-500" : ""}
+                      >
+                        <Globe2 className="h-5 w-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-white text-gray-800 dark:bg-gray-800 dark:text-gray-100 border dark:border-gray-700">
+                      <p>Enable Web Search</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+
+              <Input
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSubmit(e)
+                  }
+                }}
+                placeholder="Type a message..."
+                className="flex-1"
+              />
+
+              <Button onClick={e => handleSubmit(e)} disabled={isLoading || (!input.trim() && !uploadedFiles.length)}>
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
               </Button>
-              <Button
-                variant={mode === 'dual' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => setMode('dual')}
-                title="Split view"
-              >
-                <Columns className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={mode === 'quad' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => setMode('quad')}
-                title="Grid view"
-              >
-                <Grid2X2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
 
-        {/* Complex prompt modal */}
-        {selectedComplexPrompt && (
-          <ComplexPromptModal
-            prompt={selectedComplexPrompt}
-            isOpen={!!selectedComplexPrompt}
-            onClose={() => setSelectedComplexPrompt(null)}
-            onSubmit={handleComplexPromptSubmit}
-          />
-        )}
-
-        {/* File upload modal */}
-        {showUploadModal && uppyRef.current && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg max-w-2xl w-full relative">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold dark:text-white">Upload Files</h2>
-                <Button variant="ghost" size="icon" onClick={handleCloseUploadModal} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
-                  <X className="h-4 w-4" />
+              {/* Mode selection buttons */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={mode === 'single' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  onClick={() => setMode('single')}
+                  title="Single chat"
+                >
+                  <Square className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={mode === 'dual' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  onClick={() => setMode('dual')}
+                  title="Split view"
+                >
+                  <Columns className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={mode === 'quad' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  onClick={() => setMode('quad')}
+                  title="Grid view"
+                >
+                  <Grid2X2 className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="uppy-wrapper">
-                <Dashboard 
-                  uppy={uppyRef.current} 
-                  plugins={[]} 
-                  showLinkToFileUploadResult={false}
-                  proudlyDisplayPoweredByUppy={false}
-                  hideUploadButton={false}
-                  height={400}
-                  width="100%"
-                  doneButtonHandler={() => handleCloseUploadModal()}
-                  showProgressDetails={true}
-                />
-              </div>
             </div>
           </div>
-        )}
+
+          {/* Complex prompt modal */}
+          {selectedComplexPrompt && (
+            <ComplexPromptModal
+              prompt={selectedComplexPrompt}
+              isOpen={!!selectedComplexPrompt}
+              onClose={() => setSelectedComplexPrompt(null)}
+              onSubmit={handleComplexPromptSubmit}
+            />
+          )}
+
+          {/* File upload modal */}
+          {showUploadModal && uppyRef.current && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-lg max-w-2xl w-full relative">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold dark:text-white">Upload Files</h2>
+                  <Button variant="ghost" size="icon" onClick={handleCloseUploadModal} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="uppy-wrapper">
+                  <Dashboard 
+                    uppy={uppyRef.current} 
+                    plugins={[]} 
+                    showLinkToFileUploadResult={false}
+                    proudlyDisplayPoweredByUppy={false}
+                    hideUploadButton={false}
+                    height={400}
+                    width="100%"
+                    doneButtonHandler={() => handleCloseUploadModal()}
+                    showProgressDetails={true}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
