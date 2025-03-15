@@ -112,7 +112,7 @@ async def chat_endpoint(
         if chat_data.persona_id:
             persona = crud.get_persona(db, chat_data.persona_id)
             if persona:
-                system_message = f"Role: {persona.role}\nGoal: {persona.goal}\n"
+                system_message = f"Role: {persona.role}\nGoal: {persona.goal}\nBackstory: {persona.backstory}"
                 temperature = persona.temperature
 
         # Determine provider and model
