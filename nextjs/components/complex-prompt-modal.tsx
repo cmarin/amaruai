@@ -160,7 +160,7 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
   const renderField = (variable: VariableType) => {
     // Use dynamic classes based on dark mode
     const inputClassName = cn(
-      "col-span-3 w-full",
+      "w-full",
       darkMode ? "bg-gray-800 text-white border-gray-600" : "bg-white text-black border-gray-300"
     );
 
@@ -256,14 +256,14 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
           <ScrollArea type="always" className="flex-1 w-1">
             <div className="grid gap-4 py-4 pr-4">
               {content.variables.map((variable: VariableType) => (
-                <div key={variable.fieldName} className="grid grid-cols-4 items-center gap-4">
+                <div key={variable.fieldName} className="flex flex-col gap-2">
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Label 
                           htmlFor={variable.fieldName} 
                           className={cn(
-                            "text-right truncate",
+                            "text-left break-words",
                             darkMode ? "text-white" : "text-black"
                           )}
                         >
@@ -278,7 +278,9 @@ export function ComplexPromptModal({ prompt, isOpen, onClose, onSubmit }: Comple
                       )}
                     </Tooltip>
                   </TooltipProvider>
-                  {renderField(variable)}
+                  <div className="w-full">
+                    {renderField(variable)}
+                  </div>
                 </div>
               ))}
             </div>

@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
+from uuid import UUID
 from app import crud, schemas
 from app.database import get_db
 from app.api.v1.router import create_protected_router
@@ -18,21 +19,21 @@ def read_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
     return categories
 
 @router.get("/{category_id}", response_model=schemas.Category)
-def read_category(category_id: int, db: Session = Depends(get_db)):
+def read_category(category_id: UUID, db: Session = Depends(get_db)):
     db_category = crud.get_category(db, category_id=category_id)
     if db_category is None:
         raise HTTPException(status_code=404, detail="Category not found")
     return db_category
 
 @router.put("/{category_id}", response_model=schemas.Category)
-def update_category(category_id: int, category: schemas.CategoryCreate, db: Session = Depends(get_db)):
+def update_category(category_id: UUID, category: schemas.CategoryCreate, db: Session = Depends(get_db)):
     db_category = crud.update_category(db, category_id=category_id, category=category)
     if db_category is None:
         raise HTTPException(status_code=404, detail="Category not found")
     return db_category
 
 @router.delete("/{category_id}", response_model=schemas.Category)
-def delete_category(category_id: int, db: Session = Depends(get_db)):
+def delete_category(category_id: UUID, db: Session = Depends(get_db)):
     db_category = crud.delete_category(db, category_id=category_id)
     if db_category is None:
         raise HTTPException(status_code=404, detail="Category not found")

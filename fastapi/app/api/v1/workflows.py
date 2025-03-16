@@ -40,7 +40,7 @@ workflow_results = {}
 
 logger = logging.getLogger(__name__)
 
-@router.post("/", response_model=schemas.Workflow)
+@router.post("/", response_model=schemas.Workflow, operation_id="create_workflow_protected")
 def create_workflow(
     workflow: schemas.WorkflowCreate, 
     db: Session = Depends(get_db),
@@ -61,6 +61,7 @@ def create_workflow(
             manager_chat_model_id=workflow_dict.get("manager_chat_model_id"),
             manager_persona_id=workflow_dict.get("manager_persona_id"),
             max_iterations=workflow_dict.get("max_iterations", 1),
+            search=workflow_dict.get("search"),
             created_by=workflow_dict["created_by"]
         )
         db.add(db_workflow)
@@ -105,7 +106,7 @@ def create_workflow(
         )
 
 
-@router.get("/", response_model=List[schemas.Workflow])
+@router.get("/", response_model=List[schemas.Workflow], operation_id="read_workflows_protected")
 def read_workflows(
     skip: int = 0, 
     limit: int = 100, 
@@ -116,7 +117,7 @@ def read_workflows(
     return workflows
 
 
-@router.get("/{workflow_id}", response_model=schemas.Workflow)
+@router.get("/{workflow_id}", response_model=schemas.Workflow, operation_id="get_workflow_protected")
 def get_workflow(workflow_id: UUID, db: Session = Depends(get_db)):
     db_workflow = crud.get_workflow(db, workflow_id=workflow_id)
     if db_workflow is None:
@@ -129,7 +130,7 @@ def get_workflow(workflow_id: UUID, db: Session = Depends(get_db)):
     return db_workflow
 
 
-@router.put("/{workflow_id}", response_model=schemas.Workflow)
+@router.put("/{workflow_id}", response_model=schemas.Workflow, operation_id="update_workflow_protected")
 def update_workflow(
     workflow_id: UUID,
     workflow: schemas.WorkflowUpdate,
@@ -144,7 +145,7 @@ def update_workflow(
     return db_workflow
 
 
-@router.delete("/{workflow_id}")
+@router.delete("/{workflow_id}", operation_id="delete_workflow_protected")
 def delete_workflow(workflow_id: UUID, db: Session = Depends(get_db)):
     db_workflow = crud.delete_workflow(db, workflow_id=workflow_id)
     if db_workflow is None:
@@ -152,7 +153,7 @@ def delete_workflow(workflow_id: UUID, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-@router.post("/{workflow_id}/execute", response_model=Dict[str, str])
+@router.post("/{workflow_id}/execute", response_model=Dict[str, str], operation_id="execute_workflow_protected")
 async def execute_workflow(
     workflow_id: UUID, 
     user_input: WorkflowExecuteInput,  
@@ -185,11 +186,10 @@ async def execute_workflow(
 
         # Validate each step has required components
         for step in workflow.steps:
+            # Skip steps without a prompt template - they won't be executed
             if not step.prompt_template:
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"Step {step.position} is missing a prompt template"
-                )
+                logger.warning(f"Step {step.position} is missing a prompt template - it will be skipped")
+                continue
                 
             # Use default chat model if none specified
             if not step.chat_model:
@@ -246,12 +246,19 @@ async def execute_workflow(
                     manager_chat_model = crud.get_chat_model(db, workflow.manager_chat_model_id)
 
                     if manager_chat_model:
+                        # Prepare model name for manager
+                        manager_model_name = manager_chat_model.model
+                        
+                        # Append ":online" if web search is enabled for OpenRouter
+                        if workflow.search and manager_chat_model.provider and manager_chat_model.provider.lower() == "openrouter":
+                            manager_model_name = f"{manager_model_name}:online"
+                            
                         manager_llm = LLM(
-                            model=f"openrouter/{manager_chat_model.model}",
+                            model=f"openrouter/{manager_model_name}",
                             api_key=os.environ["OPENROUTER_API_KEY"],
                             base_url=os.environ["OPENROUTER_API_BASE"]
                         )
-                        logging.info(f"Manager LLM configured with model: {manager_chat_model.model}")
+                        logging.info(f"Manager LLM configured with model: {manager_model_name}")
                     else:
                         logging.error("Manager chat model not found or not configured.")
 
@@ -273,9 +280,23 @@ async def execute_workflow(
                     chat_model = step.chat_model
                     persona = step.persona
 
+                    # Skip steps without a prompt template
+                    if not prompt_template:
+                        logger.warning(f"Skipping step {i+1} (position {step.position}) - missing prompt template")
+                        continue
+
+                    # Prepare model name
+                    model_name = chat_model.model
+                    
+                    # Append ":online" if web search is enabled for OpenRouter
+                    if workflow.search and chat_model.provider and chat_model.provider.lower() == "openrouter":
+                        model_name = f"{model_name}:online"
+
+                    logger.info(f"Model used: {model_name}")
+
                     # Dynamically create LLM for each step
                     llm = LLM(
-                        model=f"openrouter/{chat_model.model}",
+                        model=f"openrouter/{model_name}",
                         api_key=os.environ["OPENROUTER_API_KEY"],
                         base_url=os.environ["OPENROUTER_API_BASE"]
                     )
@@ -406,7 +427,7 @@ async def execute_workflow(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/{workflow_id}/results", response_model=List[Dict[str, str]])
+@router.get("/{workflow_id}/results", response_model=List[Dict[str, str]], operation_id="get_workflow_results_protected")
 async def get_workflow_results(workflow_id: UUID):
     results = workflow_results.get(str(workflow_id), [])
     if not results:
@@ -427,7 +448,7 @@ async def get_workflow_results(workflow_id: UUID):
     return formatted_results
 
 
-@router.post("/{workflow_id}/steps/", response_model=schemas.WorkflowStep)
+@router.post("/{workflow_id}/steps/", response_model=schemas.WorkflowStep, operation_id="create_workflow_step_protected")
 def create_workflow_step(
     workflow_id: UUID,
     step: schemas.WorkflowStepCreate,
@@ -444,13 +465,13 @@ def create_workflow_step(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/{workflow_id}/steps/", response_model=List[schemas.WorkflowStep])
+@router.get("/{workflow_id}/steps/", response_model=List[schemas.WorkflowStep], operation_id="read_workflow_steps_protected")
 def read_workflow_steps(workflow_id: UUID, db: Session = Depends(get_db)):
     steps = crud.get_workflow_steps(db, workflow_id=workflow_id)
     return steps
 
 
-@router.put("/{workflow_id}/steps/{step_id}", response_model=schemas.WorkflowStep)
+@router.put("/{workflow_id}/steps/{step_id}", response_model=schemas.WorkflowStep, operation_id="update_workflow_step_protected")
 def update_workflow_step(
     workflow_id: UUID,
     step_id: UUID,
@@ -463,7 +484,7 @@ def update_workflow_step(
     return db_step
 
 
-@router.delete("/{workflow_id}/steps/{step_id}", response_model=schemas.WorkflowStep)
+@router.delete("/{workflow_id}/steps/{step_id}", response_model=schemas.WorkflowStep, operation_id="delete_workflow_step_protected")
 def delete_workflow_step(
     workflow_id: UUID,
     step_id: UUID,
@@ -475,7 +496,7 @@ def delete_workflow_step(
     return db_step
 
 
-@router.post("/{workflow_id}/stream", response_model=Dict[str, str])
+@router.post("/{workflow_id}/stream", response_model=Dict[str, str], operation_id="initiate_workflow_stream_protected")
 async def initiate_workflow_stream(
     workflow_id: UUID,
     user_input: Dict[str, str],
@@ -523,7 +544,7 @@ async def initiate_workflow_stream(
         logger.error(f"Error initiating workflow stream: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@public_router.get("/{workflow_id}/stream")
+@public_router.get("/{workflow_id}/stream", operation_id="stream_workflow_results_public")
 async def stream_workflow_results(
     workflow_id: UUID,
     stream_token: str,

@@ -1,68 +1,7 @@
 import { fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl, getFetchOptions } from './api-utils';
-import { KnowledgeBase } from './knowledge-base-service';
-import { Asset } from '@/types/knowledge-base';
-
-export interface WorkflowStep {
-  id?: string;
-  workflow_id?: string;
-  prompt_template_id: string;
-  chat_model_id: string;
-  persona_id: string;
-  position: number;
-}
-
-export interface Workflow {
-  id?: string;
-  name: string;
-  description: string;
-  process_type: 'SEQUENTIAL' | 'HIERARCHICAL';
-  steps: WorkflowStep[];
-  manager_chat_model_id?: string;
-  manager_persona_id?: string;
-  max_iterations?: number;
-  knowledge_base_ids?: string[];
-  asset_ids?: string[];
-  assets?: Asset[];
-  knowledge_bases?: KnowledgeBase[];
-}
-
-export interface WorkflowResult {
-  step: string;
-  prompt: string;
-  response: string;
-  chat_model?: {
-    id: string;
-    name: string;
-    model: string;
-  };
-  persona?: {
-    id: string;
-    role: string;
-    goal: string;
-  };
-}
-
-export interface WorkflowStreamMessage {
-  step?: string | number;
-  prompt?: string;
-  response?: string;
-  type: 'step' | 'completion' | 'error' | 'status';
-  error?: string;
-  content?: string;
-  message?: string;
-  chat_model?: {
-    id: string;
-    name: string;
-    model: string;
-  };
-  persona?: {
-    id: string;
-    role: string;
-    goal: string;
-  };
-}
+import { Workflow, WorkflowStep, WorkflowResult, WorkflowStreamMessage } from '@/types/workflow';
 
 export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
   return fetchWithRetry(async () => {
@@ -73,12 +12,14 @@ export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
     if (!response.ok) {
       throw new Error('Failed to fetch workflows');
     }
+
     const data = await response.json();
     return data.map((workflow: any) => ({
       ...workflow,
       id: workflow.id?.toString() || '',
       manager_chat_model_id: workflow.manager_chat_model_id?.toString(),
       manager_persona_id: workflow.manager_persona_id?.toString(),
+      search: workflow.search || false, // Include search field with default false
       steps: workflow.steps?.map((step: any) => ({
         ...step,
         id: step.id?.toString() || '',
@@ -129,6 +70,7 @@ export async function fetchWorkflow(id: string, headers: ApiHeaders): Promise<Wo
       id: data.id?.toString() || '',
       manager_chat_model_id: data.manager_chat_model_id?.toString(),
       manager_persona_id: data.manager_persona_id?.toString(),
+      search: data.search || false, // Include search field with default false
       steps: data.steps?.map((step: any) => ({
         ...step,
         id: step.id?.toString() || '',
@@ -166,6 +108,7 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
       max_iterations: workflow.max_iterations,
       knowledge_base_ids: workflow.knowledge_base_ids,
       asset_ids: workflow.asset_ids,
+      search: workflow.search,
       steps: workflow.steps?.map((step, index) => ({
         prompt_template_id: step.prompt_template_id,
         chat_model_id: step.chat_model_id,
@@ -250,6 +193,7 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       max_iterations: workflow.max_iterations,
       knowledge_base_ids: workflow.knowledge_base_ids,
       asset_ids: workflow.asset_ids,
+      search: workflow.search,
       steps: workflow.steps?.map((step, index) => ({
         prompt_template_id: step.prompt_template_id,
         chat_model_id: step.chat_model_id,

@@ -240,14 +240,14 @@ class ProcessType(str, Enum):
     PARALLEL = "HIERARCHICAL"
 
 class WorkflowStepBase(BaseModel):
-    prompt_template_id: UUID  # Required
+    prompt_template_id: Optional[UUID] = None  # Changed from required to optional
     chat_model_id: Optional[UUID] = None  # Optional, will use default if not specified
     persona_id: Optional[UUID] = None  # Optional
 
     @validator('prompt_template_id', pre=True)
     def validate_prompt_template(cls, v):
-        if not v:
-            raise ValueError("Prompt template ID is required")
+        if v is None:
+            return None  # Allow None values
         if isinstance(v, str):
             return UUID(v)
         elif isinstance(v, UUID):
@@ -293,15 +293,15 @@ class WorkflowStepCreate(BaseModel):
         return v
 
 class WorkflowStepUpdate(BaseModel):
-    prompt_template_id: UUID
-    chat_model_id: UUID
-    persona_id: UUID
-    position: int
+    prompt_template_id: Optional[UUID] = None
+    chat_model_id: Optional[UUID] = None
+    persona_id: Optional[UUID] = None
+    position: Optional[int] = None
 
     @validator('prompt_template_id', 'chat_model_id', 'persona_id', pre=True)
     def convert_to_uuid(cls, v):
-        if v is None:
-            raise ValueError("ID cannot be None for workflow step updates")
+        if v is None or v == "":
+            return None
         if isinstance(v, str):
             return UUID(v)
         elif isinstance(v, UUID):
@@ -326,6 +326,7 @@ class WorkflowBase(BaseModel):
     manager_chat_model_id: Optional[UUID] = None
     manager_persona_id: Optional[UUID] = None
     max_iterations: Optional[int] = None
+    search: Optional[bool] = None
 
     @validator('manager_chat_model_id', 'manager_persona_id', pre=True)
     def convert_to_uuid(cls, v):
@@ -344,6 +345,7 @@ class WorkflowCreate(BaseModel):
     manager_chat_model_id: Optional[UUID] = None
     manager_persona_id: Optional[UUID] = None
     max_iterations: Optional[int] = None
+    search: Optional[bool] = None
     asset_ids: Optional[List[UUID]] = None
     knowledge_base_ids: Optional[List[UUID]] = None
     created_by: Optional[UUID] = None

@@ -558,8 +558,7 @@ function ChatContent() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      <AppSidebar />
-
+      <AppSidebar toggleChatbot={handleToggleChatbot} />
       <div className={`flex-1 flex flex-col h-full relative transition-all duration-300 ${sidebarOpen ? 'ml-56' : 'ml-14'}`}>
         {/* Body/Chat section (scrollable) */}
         <div className="flex-1 overflow-auto p-4">

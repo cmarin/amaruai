@@ -12,8 +12,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { WorkflowSteps } from "@/components/batch-flow/workflow-steps"
 import { KnowledgeBaseSelector } from "@/components/knowledge-base-selector"
 import { KnowledgeBaseAssetPills } from "@/components/knowledge-base-asset-pills"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Separator } from "@/components/ui/separator"
 
-import { Workflow, WorkflowStep, createWorkflow, updateWorkflow } from '../utils/workflow-service'
+import { createWorkflow, updateWorkflow } from '../utils/workflow-service'
+import { Workflow, WorkflowStep } from '@/types/workflow'
 import { PromptTemplate, fetchPromptTemplates } from '@/utils/prompt-template-service'
 import { ChatModel, fetchChatModels } from '../utils/chat-model-service'
 import { Persona, fetchPersonas } from '../utils/persona-service'
@@ -36,6 +39,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     steps: [],
     knowledge_base_ids: [],
     asset_ids: [],
+    search: false,
   });
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [chatModels, setChatModels] = useState<ChatModel[]>([]);
@@ -133,7 +137,14 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
   useEffect(() => {
     if (initialWorkflow) {
       console.log('Setting initial workflow:', initialWorkflow);
-      setWorkflow(initialWorkflow);
+      
+      // Make sure search is properly initialized
+      const workflowWithSearch = {
+        ...initialWorkflow,
+        search: initialWorkflow.search || false
+      };
+      
+      setWorkflow(workflowWithSearch);
       
       // Check if we have direct assets and knowledge_bases arrays from the API
       if (initialWorkflow.assets && initialWorkflow.assets.length > 0) {
@@ -366,8 +377,11 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
           position: index
         })),
         knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
-        asset_ids: selectedAssets.map(asset => asset.id)
+        asset_ids: selectedAssets.map(asset => asset.id),
+        search: workflow.search || false
       };
+
+      console.log('Saving workflow with data:', workflowToSave);
 
       if (workflow.process_type === 'HIERARCHICAL') {
         workflowToSave.manager_chat_model_id = managerChatModelId;
@@ -488,6 +502,25 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
               </div>
             </div>
           )}
+
+          <div className="flex items-center space-x-2">
+            <Label 
+              htmlFor="search-enabled" 
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Enable search
+            </Label>
+            
+            <Checkbox 
+              id="search-enabled" 
+              checked={workflow.search || false}
+              onCheckedChange={(checked) => {
+                setWorkflow({ ...workflow, search: checked === true });
+              }}
+            />
+          </div>
+
+          <Separator className="my-4" />
 
           <div className="space-y-2">
             <Label htmlFor="knowledgeBases">Knowledge Bases & Assets</Label>

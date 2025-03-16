@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Workflow, fetchWorkflow } from '@/utils/workflow-service';
+import { fetchWorkflow } from '@/utils/workflow-service';
+import { Workflow } from '@/types/workflow';
 import { WorkflowManagerComponent } from '@/components/workflow-manager';
 import { AppSidebar } from '@/components/app-sidebar';
 import { useSidebar } from '@/components/sidebar-context';
