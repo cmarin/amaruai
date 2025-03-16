@@ -612,6 +612,8 @@ async def stream_workflow_results(
                                         })
                                     }
                                 last_result_count += 1
+                                # Add a small delay to ensure events are sent immediately
+                                await asyncio.sleep(0.01)
 
                         # Send completion event when done
                         if stream_data['status'] == 'completed':
@@ -624,6 +626,7 @@ async def stream_workflow_results(
                             }
                             return
 
+                        # Use a shorter polling interval for more responsive updates
                         await asyncio.sleep(0.1)  # Poll more frequently
 
                     except asyncio.CancelledError:
@@ -642,12 +645,14 @@ async def stream_workflow_results(
             event_generator(),
             media_type="text/event-stream",
             headers={
-                "Cache-Control": "no-cache",
+                "Cache-Control": "no-cache, no-transform",
                 "Connection": "keep-alive",
                 "Access-Control-Allow-Origin": "*",
                 "Content-Type": "text/event-stream",
-                "X-Accel-Buffering": "no"
-            }
+                "X-Accel-Buffering": "no",
+                "Transfer-Encoding": "chunked"
+            },
+            ping_interval=15  # Send ping every 15 seconds to keep connection alive
         )
 
     except Exception as e:

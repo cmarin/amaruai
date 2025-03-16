@@ -35,6 +35,52 @@ class CrewAIError(Exception):
     """Custom exception for CrewAI operations"""
     pass
 
+class StreamingTask(Task):
+    """Custom Task class that provides real-time streaming updates"""
+    
+    def __init__(self, *args, **kwargs):
+        self.stream_token = kwargs.pop('stream_token', None)
+        self.step_number = kwargs.pop('step_number', 0)
+        self.update_callback = kwargs.pop('update_callback', None)
+        super().__init__(*args, **kwargs)
+        self._partial_output = ""
+    
+    def execute(self):
+        """Execute the task and provide real-time streaming updates"""
+        try:
+            # Start execution
+            if self.update_callback and self.stream_token:
+                self.update_callback(self.stream_token, {
+                    "step": str(self.step_number),
+                    "prompt": self.description,
+                    "status": "executing",
+                    "response": ""
+                })
+            
+            # Execute the task
+            result = super().execute()
+            
+            # Update with final result
+            if self.update_callback and self.stream_token:
+                self.update_callback(self.stream_token, {
+                    "step": str(self.step_number),
+                    "prompt": self.description,
+                    "status": "completed",
+                    "response": result.raw if hasattr(result, 'raw') else str(result)
+                })
+            
+            return result
+        except Exception as e:
+            # Update with error
+            if self.update_callback and self.stream_token:
+                self.update_callback(self.stream_token, {
+                    "step": str(self.step_number),
+                    "prompt": self.description,
+                    "status": "error",
+                    "response": f"Error: {str(e)}"
+                })
+            raise
+
 class CrewAIService:
     def __init__(self):
         self.api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -57,6 +103,14 @@ class CrewAIService:
         if stream_token in self._streams:
             if 'result' not in self._streams[stream_token]:
                 self._streams[stream_token]['result'] = []
+            
+            # Add timestamp for debugging
+            result['timestamp'] = datetime.now().isoformat()
+            
+            # Log the update for debugging
+            logger.info(f"Updating stream {stream_token} with result: {json.dumps(result, cls=UUIDEncoder)[:200]}...")
+            
+            # Add the result to the stream data
             self._streams[stream_token]['result'].append(result)
 
     async def execute_workflow(self, workflow_id: UUID, user_input: dict, db: Session, stream_token: str):
@@ -86,6 +140,11 @@ class CrewAIService:
             tasks = []
 
             for i, step in enumerate(sorted(workflow.steps, key=lambda x: x.position)):
+                # Skip steps without a prompt template
+                if not step.prompt_template:
+                    logger.warning(f"Skipping step {i+1} (position {step.position}) - missing prompt template")
+                    continue
+                    
                 prompt_template = step.prompt_template
                 chat_model = step.chat_model or default_chat_model
                 persona = step.persona
@@ -146,10 +205,13 @@ class CrewAIService:
                         description = f"{description}\n\nReferenced Content:\n{reference_content}"
 
                 # Create task
-                task = Task(
+                task = StreamingTask(
                     description=description,
                     agent=agent,
-                    expected_output="Quality writing"
+                    expected_output="Quality writing",
+                    stream_token=stream_token,
+                    step_number=i + 1,
+                    update_callback=self._update_stream_data
                 )
                 tasks.append(task)
 
@@ -177,27 +239,43 @@ class CrewAIService:
 
                 self._update_stream_data(stream_token, step_info)
 
-            # Execute workflow
-            crew = Crew(
-                agents=agents,
-                tasks=tasks,
-                process=Process.sequential if workflow.process_type == models.ProcessType.SEQUENTIAL.value else Process.hierarchical,
-                verbose=True
-            )
+            # Execute workflow with real-time updates
+            if workflow.process_type == models.ProcessType.SEQUENTIAL.value:
+                # For sequential workflows, execute tasks one by one and update stream after each
+                for i, task in enumerate(tasks):
+                    try:
+                        # Execute the task
+                        result = await asyncio.to_thread(task.execute)
+                        
+                        # Small delay to ensure streaming
+                        await asyncio.sleep(0.1)
+                        
+                    except Exception as e:
+                        logger.error(f"Error executing task {i+1}: {str(e)}")
+                        self._update_stream_data(stream_token, {
+                            "step": str(i + 1),
+                            "prompt": task.description,
+                            "response": f"Error: {str(e)}"
+                        })
+                
+                # Mark as completed after all tasks are done
+                self._streams[stream_token]['status'] = 'completed'
+            else:
+                # For hierarchical workflows, use the Crew to manage execution
+                crew = Crew(
+                    agents=agents,
+                    tasks=tasks,
+                    process=Process.hierarchical,
+                    verbose=True
+                )
 
-            result = await asyncio.to_thread(crew.kickoff)
+                # Execute the crew
+                result = await asyncio.to_thread(crew.kickoff)
 
-            # Stream results
-            for i, task in enumerate(tasks):
-                output = task.output
-                self._update_stream_data(stream_token, {
-                    "step": str(i + 1),
-                    "prompt": task.description,
-                    "response": output.raw if hasattr(output, 'raw') else str(output)
-                })
-
-            # Mark as completed
-            self._streams[stream_token]['status'] = 'completed'
+                # No need to stream results after execution as StreamingTask will handle it
+                
+                # Mark as completed
+                self._streams[stream_token]['status'] = 'completed'
 
         except Exception as e:
             logger.error(f"Error in workflow execution: {str(e)}")
