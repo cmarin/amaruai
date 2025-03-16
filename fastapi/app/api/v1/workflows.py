@@ -186,11 +186,10 @@ async def execute_workflow(
 
         # Validate each step has required components
         for step in workflow.steps:
+            # Skip steps without a prompt template - they won't be executed
             if not step.prompt_template:
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"Step {step.position} is missing a prompt template"
-                )
+                logger.warning(f"Step {step.position} is missing a prompt template - it will be skipped")
+                continue
                 
             # Use default chat model if none specified
             if not step.chat_model:
@@ -280,6 +279,11 @@ async def execute_workflow(
                     prompt_template = step.prompt_template
                     chat_model = step.chat_model
                     persona = step.persona
+
+                    # Skip steps without a prompt template
+                    if not prompt_template:
+                        logger.warning(f"Skipping step {i+1} (position {step.position}) - missing prompt template")
+                        continue
 
                     # Prepare model name
                     model_name = chat_model.model
