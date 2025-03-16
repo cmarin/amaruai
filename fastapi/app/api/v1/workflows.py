@@ -568,38 +568,54 @@ async def stream_workflow_results(
 
                         stream_data = crew_service.get_stream_data(stream_token)
                         if not stream_data:
+                            logger.error(f"Invalid or expired stream token: {stream_token}")
                             yield f"event: error\ndata: {json.dumps({'error': 'Invalid or expired stream token'})}\n\n"
                             return
 
                         # Handle errors and validation
                         if str(stream_data['workflow_id']) != str(workflow_id):  # Convert both to string for comparison
+                            logger.error(f"Invalid workflow ID for token. Expected: {workflow_id}, Got: {stream_data['workflow_id']}")
                             yield f"event: error\ndata: {json.dumps({'error': 'Invalid workflow ID for this token'})}\n\n"
                             return
 
                         if stream_data['status'] == 'error':
+                            logger.error(f"Error in stream data: {stream_data.get('error', 'Unknown error')}")
                             yield f"event: error\ndata: {json.dumps({'error': stream_data.get('error', 'Unknown error occurred')})}\n\n"
                             return
 
                         # Stream new results as they come in
                         if 'result' in stream_data and stream_data['result']:
                             current_results = stream_data['result']
+                            
+                            # Log the current state for debugging
+                            logger.debug(f"Current results count: {len(current_results)}, Last result count: {last_result_count}")
+                            
                             while last_result_count < len(current_results):
                                 result = current_results[last_result_count]
+                                logger.info(f"Streaming result {last_result_count + 1}/{len(current_results)}")
+                                
                                 # Ensure result is a dictionary before accessing keys
                                 if isinstance(result, dict):
+                                    event_data = {
+                                        "type": "step",
+                                        "step": result.get("step", last_result_count + 1),
+                                        "prompt": result.get("prompt", ""),
+                                        "response": result.get("response", ""),
+                                        "persona": result.get("persona", {}),
+                                        "chat_model": result.get("chat_model", {})
+                                    }
+                                    
+                                    # Log the event data for debugging
+                                    logger.debug(f"Sending event data: {json.dumps(event_data)[:200]}...")
+                                    
+                                    # Send the event
                                     yield {
                                         "event": "message",
-                                        "data": json.dumps({
-                                            "type": "step",
-                                            "step": result.get("step", last_result_count + 1),
-                                            "prompt": result.get("prompt", ""),
-                                            "response": result.get("response", ""),
-                                            "persona": result.get("persona", {}),
-                                            "chat_model": result.get("chat_model", {})
-                                        })
+                                        "data": json.dumps(event_data)
                                     }
                                 else:
                                     # Handle string or other non-dict results
+                                    logger.warning(f"Non-dict result: {result}")
                                     yield {
                                         "event": "message",
                                         "data": json.dumps({
@@ -612,11 +628,13 @@ async def stream_workflow_results(
                                         })
                                     }
                                 last_result_count += 1
-                                # Add a small delay to ensure events are sent immediately
+                                
+                                # Flush the response immediately
                                 await asyncio.sleep(0.01)
 
                         # Send completion event when done
                         if stream_data['status'] == 'completed':
+                            logger.info(f"Workflow {workflow_id} completed, sending completion event")
                             yield {
                                 "event": "complete",
                                 "data": json.dumps({
@@ -627,7 +645,7 @@ async def stream_workflow_results(
                             return
 
                         # Use a shorter polling interval for more responsive updates
-                        await asyncio.sleep(0.1)  # Poll more frequently
+                        await asyncio.sleep(0.1)
 
                     except asyncio.CancelledError:
                         logger.info(f"Stream cancelled for workflow ID: {workflow_id}")
@@ -641,7 +659,8 @@ async def stream_workflow_results(
                 logger.error(f"Generator error for workflow {workflow_id}: {str(e)}")
                 yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
 
-        return EventSourceResponse(
+        # Create the EventSourceResponse with proper headers to prevent buffering
+        response = EventSourceResponse(
             event_generator(),
             media_type="text/event-stream",
             headers={
@@ -654,6 +673,9 @@ async def stream_workflow_results(
             },
             ping_interval=15  # Send ping every 15 seconds to keep connection alive
         )
+        
+        logger.info(f"EventSourceResponse created for workflow {workflow_id}")
+        return response
 
     except Exception as e:
         logger.error(f"Error in workflow stream: {str(e)}")

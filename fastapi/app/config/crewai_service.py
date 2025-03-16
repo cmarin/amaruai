@@ -35,52 +35,6 @@ class CrewAIError(Exception):
     """Custom exception for CrewAI operations"""
     pass
 
-class StreamingTask(Task):
-    """Custom Task class that provides real-time streaming updates"""
-    
-    def __init__(self, *args, **kwargs):
-        self.stream_token = kwargs.pop('stream_token', None)
-        self.step_number = kwargs.pop('step_number', 0)
-        self.update_callback = kwargs.pop('update_callback', None)
-        super().__init__(*args, **kwargs)
-        self._partial_output = ""
-    
-    def execute(self):
-        """Execute the task and provide real-time streaming updates"""
-        try:
-            # Start execution
-            if self.update_callback and self.stream_token:
-                self.update_callback(self.stream_token, {
-                    "step": str(self.step_number),
-                    "prompt": self.description,
-                    "status": "executing",
-                    "response": ""
-                })
-            
-            # Execute the task
-            result = super().execute()
-            
-            # Update with final result
-            if self.update_callback and self.stream_token:
-                self.update_callback(self.stream_token, {
-                    "step": str(self.step_number),
-                    "prompt": self.description,
-                    "status": "completed",
-                    "response": result.raw if hasattr(result, 'raw') else str(result)
-                })
-            
-            return result
-        except Exception as e:
-            # Update with error
-            if self.update_callback and self.stream_token:
-                self.update_callback(self.stream_token, {
-                    "step": str(self.step_number),
-                    "prompt": self.description,
-                    "status": "error",
-                    "response": f"Error: {str(e)}"
-                })
-            raise
-
 class CrewAIService:
     def __init__(self):
         self.api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -204,14 +158,11 @@ class CrewAIService:
                     if reference_content:
                         description = f"{description}\n\nReferenced Content:\n{reference_content}"
 
-                # Create task
-                task = StreamingTask(
+                # Create standard Task (not StreamingTask)
+                task = Task(
                     description=description,
                     agent=agent,
-                    expected_output="Quality writing",
-                    stream_token=stream_token,
-                    step_number=i + 1,
-                    update_callback=self._update_stream_data
+                    expected_output="Quality writing"
                 )
                 tasks.append(task)
 
@@ -244,8 +195,25 @@ class CrewAIService:
                 # For sequential workflows, execute tasks one by one and update stream after each
                 for i, task in enumerate(tasks):
                     try:
+                        # Update status to executing
+                        self._update_stream_data(stream_token, {
+                            "step": str(i + 1),
+                            "prompt": task.description,
+                            "status": "executing",
+                            "response": ""
+                        })
+                        
                         # Execute the task
                         result = await asyncio.to_thread(task.execute)
+                        
+                        # Update with the result
+                        output = task.output
+                        self._update_stream_data(stream_token, {
+                            "step": str(i + 1),
+                            "prompt": task.description,
+                            "status": "completed",
+                            "response": output.raw if hasattr(output, 'raw') else str(output)
+                        })
                         
                         # Small delay to ensure streaming
                         await asyncio.sleep(0.1)
@@ -255,6 +223,7 @@ class CrewAIService:
                         self._update_stream_data(stream_token, {
                             "step": str(i + 1),
                             "prompt": task.description,
+                            "status": "error",
                             "response": f"Error: {str(e)}"
                         })
                 
@@ -272,7 +241,15 @@ class CrewAIService:
                 # Execute the crew
                 result = await asyncio.to_thread(crew.kickoff)
 
-                # No need to stream results after execution as StreamingTask will handle it
+                # Update results after execution
+                for i, task in enumerate(tasks):
+                    output = task.output
+                    self._update_stream_data(stream_token, {
+                        "step": str(i + 1),
+                        "prompt": task.description,
+                        "status": "completed",
+                        "response": output.raw if hasattr(output, 'raw') else str(output)
+                    })
                 
                 # Mark as completed
                 self._streams[stream_token]['status'] = 'completed'
