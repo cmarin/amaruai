@@ -247,6 +247,19 @@ export default function PromptTemplateLibrary({
     ? prompts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
     : prompts
 
+  // Check if any prompts have is_favorite=true and filters.favorited_by exists
+  // This indicates the favorites filter is active
+  useEffect(() => {
+    // If at least one prompt is marked as favorite and the list seems filtered (smaller than expected)
+    // then we should set our local showFavorited state to true
+    const hasFavorites = prompts.some(p => p.is_favorite);
+    const isFavoritesFiltered = hasFavorites && prompts.every(p => p.is_favorite);
+    
+    if (isFavoritesFiltered) {
+      setShowFavorited(true);
+    }
+  }, [prompts]);
+
   // Handle sort change
   const handleSortChange = (value: string) => {
     setSelectedSort(value)
@@ -261,10 +274,10 @@ export default function PromptTemplateLibrary({
 
   // Handle favorites filter change
   const handleFavoritesChange = (checked: boolean) => {
-    setShowFavorited(checked)
+    setShowFavorited(checked);
     onUpdateFilters({
       favorited_by: checked ? 'current_user' : undefined,
-    })
+    });
   }
 
   // Add this effect to update filters when showMyPrompts changes

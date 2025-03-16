@@ -67,6 +67,11 @@ export default function PromptTemplatesPage() {
     sort_order: 'desc',
   });
 
+  // Sync showFavoritesOnly with filters.favorited_by
+  useEffect(() => {
+    setShowFavoritesOnly(!!filters.favorited_by);
+  }, [filters.favorited_by]);
+
   const loadPrompts = useCallback(async () => {
     try {
       const headers = getApiHeaders();
@@ -93,9 +98,17 @@ export default function PromptTemplatesPage() {
 
     // Only update filters if something has actually changed
     if (hasChanged) {
-      // If setting favorited_by, use actual user ID from session
-      if ('favorited_by' in newFilters && newFilters.favorited_by === 'current_user') {
-        newFilters.favorited_by = session?.user?.id || undefined;
+      // Handle favorites toggle: if favorited_by is explicitly set to undefined, remove it from filters
+      if ('favorited_by' in newFilters) {
+        if (newFilters.favorited_by === 'current_user') {
+          newFilters.favorited_by = session?.user?.id || undefined;
+        } else if (newFilters.favorited_by === undefined) {
+          // If favorited_by is being set to undefined, create a new filters object without the favorited_by property
+          const updatedFilters = { ...filters };
+          delete updatedFilters.favorited_by;
+          setFilters(updatedFilters);
+          return;
+        }
       }
       
       setFilters(prev => ({
