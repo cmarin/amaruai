@@ -363,10 +363,27 @@ async def execute_workflow(
 
                     logger.info(f"Step {i+1} final prompt: {description[:200]}...")
                     
+                    # Create a task-specific callback to update results as tasks complete
+                    def create_task_callback(step_num, step_prompt):
+                        def task_callback(output):
+                            task_raw_output = output.raw if hasattr(output, 'raw') else str(output)
+                            task_result = {
+                                "step": str(step_num),
+                                "prompt": step_prompt,
+                                "response": task_raw_output
+                            }
+                            # Update the results dictionary as soon as the task completes
+                            if workflow_id not in workflow_results:
+                                workflow_results[workflow_id] = []
+                            workflow_results[workflow_id].append(task_result)
+                            logging.info(f"Task {step_num} completed and result streamed: {task_result}")
+                        return task_callback
+                    
                     task = Task(
                         description=description,
                         agent=agent,
-                        expected_output="Quality writing"
+                        expected_output="Quality writing",
+                        callback=create_task_callback(i + 1, description)
                     )
                     tasks.append(task)
 
@@ -385,29 +402,39 @@ async def execute_workflow(
 
                 results = []
                 crew_result = crew.kickoff()
-                for i, task in enumerate(tasks):
-                    try:
-                        task_result = task.output
-                        if task_result is None:
-                            raise ValueError(f"Task {i+1} output is None")
-                        task_raw_output = task_result.raw if hasattr(task_result, 'raw') else str(task_result)
-                        results.append({
-                            "step": str(i + 1),
-                            "prompt": task.description,
-                            "response": task_raw_output
-                        })
-                    except Exception as task_error:
-                        logging.error(f"Error processing task {i+1}: {str(task_error)}")
-                        results.append({
-                            "step": str(i + 1),
-                            "prompt": task.description,
-                            "response": f"Error: {str(task_error)}"
-                        })
-
-                # Add a completion flag to the results
-                results.append({"completed": True})
-                workflow_results[workflow_id] = results
-                logging.info(f"Workflow execution completed: {results}")
+                
+                # All tasks have been completed at this point
+                # We'll add a completion flag to mark the workflow as done
+                if workflow_id in workflow_results:
+                    workflow_results[workflow_id].append({"completed": True})
+                else:
+                    # Handle edge case where no results were streamed via callbacks
+                    workflow_results[workflow_id] = []
+                    # Fallback: Collect task outputs if callbacks didn't work
+                    for i, task in enumerate(tasks):
+                        try:
+                            task_result = task.output
+                            if task_result is None:
+                                raise ValueError(f"Task {i+1} output is None")
+                            task_raw_output = task_result.raw if hasattr(task_result, 'raw') else str(task_result)
+                            results.append({
+                                "step": str(i + 1),
+                                "prompt": task.description,
+                                "response": task_raw_output
+                            })
+                        except Exception as task_error:
+                            logging.error(f"Error processing task {i+1}: {str(task_error)}")
+                            results.append({
+                                "step": str(i + 1),
+                                "prompt": task.description,
+                                "response": f"Error: {str(task_error)}"
+                            })
+                    
+                    # Add results to the workflow_results dictionary
+                    workflow_results[workflow_id].extend(results)
+                    workflow_results[workflow_id].append({"completed": True})
+                
+                logging.info(f"Workflow execution completed")
                 return {"result": "Workflow execution completed"}
 
             except Exception as e:

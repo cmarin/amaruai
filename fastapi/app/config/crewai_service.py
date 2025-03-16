@@ -149,7 +149,8 @@ class CrewAIService:
                 task = Task(
                     description=description,
                     agent=agent,
-                    expected_output="Quality writing"
+                    expected_output="Quality writing",
+                    callback=self._create_task_callback(stream_token, i + 1, description)
                 )
                 tasks.append(task)
 
@@ -187,22 +188,27 @@ class CrewAIService:
 
             result = await asyncio.to_thread(crew.kickoff)
 
-            # Stream results
-            for i, task in enumerate(tasks):
-                output = task.output
-                self._update_stream_data(stream_token, {
-                    "step": str(i + 1),
-                    "prompt": task.description,
-                    "response": output.raw if hasattr(output, 'raw') else str(output)
-                })
-
             # Mark as completed
             self._streams[stream_token]['status'] = 'completed'
-
+            # Add completion marker
+            self._update_stream_data(stream_token, {"completed": True})
         except Exception as e:
             logger.error(f"Error in workflow execution: {str(e)}")
             self._streams[stream_token]['status'] = 'error'
             self._streams[stream_token]['error'] = str(e)
             raise
+
+    def _create_task_callback(self, stream_token: str, step_num: int, step_prompt: str):
+        """Create a callback function for task completion that updates stream data."""
+        def task_callback(output):
+            task_raw_output = output.raw if hasattr(output, 'raw') else str(output)
+            task_result = {
+                "step": str(step_num),
+                "prompt": step_prompt,
+                "response": task_raw_output
+            }
+            self._update_stream_data(stream_token, task_result)
+            logger.info(f"Task {step_num} completed and result streamed")
+        return task_callback
 
 crew_service = CrewAIService()
