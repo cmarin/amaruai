@@ -22,6 +22,7 @@ from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
 from fastapi.responses import StreamingResponse
 from app.config.rag_utils import get_optimized_reference_content
 from pydantic import BaseModel
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -559,12 +560,22 @@ async def stream_workflow_results(
         
         async def event_generator():
             last_result_count = 0
+            last_ping_time = datetime.now()
+            ping_interval = 15  # seconds
+            
             try:
                 while True:
                     try:
                         if await request.is_disconnected():
                             logger.info(f"Client disconnected for workflow ID: {workflow_id}")
                             return
+
+                        # Send ping if needed
+                        current_time = datetime.now()
+                        if (current_time - last_ping_time).total_seconds() >= ping_interval:
+                            logger.debug(f"Sending ping for workflow {workflow_id}")
+                            yield f": ping - {current_time.isoformat()}\n\n"
+                            last_ping_time = current_time
 
                         stream_data = crew_service.get_stream_data(stream_token)
                         if not stream_data:
@@ -609,24 +620,18 @@ async def stream_workflow_results(
                                     logger.debug(f"Sending event data: {json.dumps(event_data)[:200]}...")
                                     
                                     # Send the event
-                                    yield {
-                                        "event": "message",
-                                        "data": json.dumps(event_data)
-                                    }
+                                    yield f"event: message\ndata: {json.dumps(event_data)}\n\n"
                                 else:
                                     # Handle string or other non-dict results
                                     logger.warning(f"Non-dict result: {result}")
-                                    yield {
-                                        "event": "message",
-                                        "data": json.dumps({
-                                            "type": "step",
-                                            "step": last_result_count + 1,
-                                            "response": str(result),
-                                            "prompt": "",
-                                            "persona": {},
-                                            "chat_model": {}
-                                        })
-                                    }
+                                    yield f"event: message\ndata: {json.dumps({
+                                        'type': 'step',
+                                        'step': last_result_count + 1,
+                                        'response': str(result),
+                                        'prompt': '',
+                                        'persona': {},
+                                        'chat_model': {}
+                                    })}\n\n"
                                 last_result_count += 1
                                 
                                 # Flush the response immediately
@@ -635,13 +640,7 @@ async def stream_workflow_results(
                         # Send completion event when done
                         if stream_data['status'] == 'completed':
                             logger.info(f"Workflow {workflow_id} completed, sending completion event")
-                            yield {
-                                "event": "complete",
-                                "data": json.dumps({
-                                    "type": "status",
-                                    "message": "Workflow execution completed"
-                                })
-                            }
+                            yield f"event: complete\ndata: {json.dumps({'type': 'status', 'message': 'Workflow execution completed'})}\n\n"
                             return
 
                         # Use a shorter polling interval for more responsive updates
@@ -670,8 +669,7 @@ async def stream_workflow_results(
                 "Content-Type": "text/event-stream",
                 "X-Accel-Buffering": "no",
                 "Transfer-Encoding": "chunked"
-            },
-            ping_interval=15  # Send ping every 15 seconds to keep connection alive
+            }
         )
         
         logger.info(f"EventSourceResponse created for workflow {workflow_id}")
