@@ -58,6 +58,7 @@ export default function PromptTemplatesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { sidebarOpen } = useSidebar();
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [showMyPromptsOnly, setShowMyPromptsOnly] = useState(false);
   const { getApiHeaders, loading: sessionLoading, initialized, session } = useSession();
   const [isDeletePromptDialogOpen, setIsDeletePromptDialogOpen] = useState(false);
   const [promptToDelete, setPromptToDelete] = useState<PromptTemplate | null>(null);
@@ -161,7 +162,8 @@ export default function PromptTemplatesPage() {
     (prompt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (prompt.description || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
     (!selectedCategory || prompt.categories.some(category => category.name === selectedCategory)) &&
-    (!showFavoritesOnly || prompt.is_favorite)
+    (!showFavoritesOnly || prompt.is_favorite) &&
+    (!showMyPromptsOnly || (session?.user?.id && prompt.created_by === session.user.id))
   );
 
   const allCategories = Array.from(new Set(prompts.flatMap((prompt) => prompt.categories.map(category => category.name))));

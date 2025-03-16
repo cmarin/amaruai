@@ -40,6 +40,7 @@ export interface PromptTemplate {
   default_persona_id?: string | null;
   default_chat_model_id?: string | null;
   is_favorite: boolean;
+  created_by?: string; // User ID of the creator
 }
 
 export interface CreatePromptTemplateRequest {

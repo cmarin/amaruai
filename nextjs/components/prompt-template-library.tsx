@@ -258,7 +258,15 @@ export default function PromptTemplateLibrary({
     if (isFavoritesFiltered) {
       setShowFavorited(true);
     }
-  }, [prompts]);
+
+    // Check if "My Prompts" filter is active
+    if (session?.user?.id && prompts.length > 0) {
+      const isMyPromptsFiltered = prompts.every(p => p.created_by === session.user.id);
+      if (isMyPromptsFiltered && prompts.some(p => p.created_by === session.user.id)) {
+        setShowMyPrompts(true);
+      }
+    }
+  }, [prompts, session]);
 
   // Handle sort change
   const handleSortChange = (value: string) => {
@@ -275,19 +283,33 @@ export default function PromptTemplateLibrary({
   // Handle favorites filter change
   const handleFavoritesChange = (checked: boolean) => {
     setShowFavorited(checked);
-    onUpdateFilters({
-      favorited_by: checked ? 'current_user' : undefined,
-    });
-  }
+    // Only update server-side filtering if we're toggling it on
+    // For toggle off, we'll let client-side filtering handle it immediately
+    if (checked) {
+      onUpdateFilters({
+        favorited_by: 'current_user',
+      });
+    } else {
+      // For better UX, don't trigger a server refresh when turning off filters
+      // Just update the local state which affects local filtering
+      onUpdateFilters({
+        favorited_by: undefined,
+      });
+    }
+  };
 
-  // Add this effect to update filters when showMyPrompts changes
-  useEffect(() => {
-    if (showMyPrompts && session?.user?.id) {
+  // Handle my prompts filter change
+  const handleMyPromptsChange = (checked: boolean) => {
+    setShowMyPrompts(checked);
+    // Only update server-side filtering if we're toggling it on
+    if (checked && session?.user?.id) {
       onUpdateFilters({ created_by: session.user.id });
     } else {
+      // For better UX, don't trigger a server refresh when turning off filters
+      // Just update the local state which affects local filtering
       onUpdateFilters({ created_by: undefined });
     }
-  }, [showMyPrompts, session?.user?.id]);
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -340,7 +362,7 @@ export default function PromptTemplateLibrary({
             showFavorites={showFavorited}
             onFavoritesChange={handleFavoritesChange}
             showMyPrompts={showMyPrompts}
-            onMyPromptsChange={setShowMyPrompts}
+            onMyPromptsChange={handleMyPromptsChange}
             filters={{}}
             onUpdateFilters={onUpdateFilters}
           />
