@@ -58,6 +58,7 @@ export default function PromptTemplatesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { sidebarOpen } = useSidebar();
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [showMyPromptsOnly, setShowMyPromptsOnly] = useState(false);
   const { getApiHeaders, loading: sessionLoading, initialized, session } = useSession();
   const [isDeletePromptDialogOpen, setIsDeletePromptDialogOpen] = useState(false);
   const [promptToDelete, setPromptToDelete] = useState<PromptTemplate | null>(null);
@@ -66,6 +67,11 @@ export default function PromptTemplatesPage() {
     sort_by: 'created_at',
     sort_order: 'desc',
   });
+
+  // Sync showFavoritesOnly with filters.favorited_by
+  useEffect(() => {
+    setShowFavoritesOnly(!!filters.favorited_by);
+  }, [filters.favorited_by]);
 
   const loadPrompts = useCallback(async () => {
     try {
@@ -93,9 +99,17 @@ export default function PromptTemplatesPage() {
 
     // Only update filters if something has actually changed
     if (hasChanged) {
-      // If setting favorited_by, use actual user ID from session
-      if ('favorited_by' in newFilters && newFilters.favorited_by === 'current_user') {
-        newFilters.favorited_by = session?.user?.id || undefined;
+      // Handle favorites toggle: if favorited_by is explicitly set to undefined, remove it from filters
+      if ('favorited_by' in newFilters) {
+        if (newFilters.favorited_by === 'current_user') {
+          newFilters.favorited_by = session?.user?.id || undefined;
+        } else if (newFilters.favorited_by === undefined) {
+          // If favorited_by is being set to undefined, create a new filters object without the favorited_by property
+          const updatedFilters = { ...filters };
+          delete updatedFilters.favorited_by;
+          setFilters(updatedFilters);
+          return;
+        }
       }
       
       setFilters(prev => ({
@@ -148,7 +162,8 @@ export default function PromptTemplatesPage() {
     (prompt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (prompt.description || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
     (!selectedCategory || prompt.categories.some(category => category.name === selectedCategory)) &&
-    (!showFavoritesOnly || prompt.is_favorite)
+    (!showFavoritesOnly || prompt.is_favorite) &&
+    (!showMyPromptsOnly || (session?.user?.id && prompt.created_by === session.user.id))
   );
 
   const allCategories = Array.from(new Set(prompts.flatMap((prompt) => prompt.categories.map(category => category.name))));
