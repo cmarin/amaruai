@@ -580,18 +580,18 @@ async def stream_workflow_results(
                         stream_data = crew_service.get_stream_data(stream_token)
                         if not stream_data:
                             logger.error(f"Invalid or expired stream token: {stream_token}")
-                            yield f"event: error\ndata: {json.dumps({'error': 'Invalid or expired stream token'})}\n\n"
+                            yield "event: error\ndata: " + json.dumps({'error': 'Invalid or expired stream token'}) + "\n\n"
                             return
 
                         # Handle errors and validation
                         if str(stream_data['workflow_id']) != str(workflow_id):  # Convert both to string for comparison
                             logger.error(f"Invalid workflow ID for token. Expected: {workflow_id}, Got: {stream_data['workflow_id']}")
-                            yield f"event: error\ndata: {json.dumps({'error': 'Invalid workflow ID for this token'})}\n\n"
+                            yield "event: error\ndata: " + json.dumps({'error': 'Invalid workflow ID for this token'}) + "\n\n"
                             return
 
                         if stream_data['status'] == 'error':
                             logger.error(f"Error in stream data: {stream_data.get('error', 'Unknown error')}")
-                            yield f"event: error\ndata: {json.dumps({'error': stream_data.get('error', 'Unknown error occurred')})}\n\n"
+                            yield "event: error\ndata: " + json.dumps({'error': stream_data.get('error', 'Unknown error occurred')}) + "\n\n"
                             return
 
                         # Stream new results as they come in
@@ -619,19 +619,19 @@ async def stream_workflow_results(
                                     # Log the event data for debugging
                                     logger.debug(f"Sending event data: {json.dumps(event_data)[:200]}...")
                                     
-                                    # Send the event
-                                    yield f"event: message\ndata: {json.dumps(event_data)}\n\n"
+                                    # Send the event with proper SSE format
+                                    yield "event: message\ndata: " + json.dumps(event_data) + "\n\n"
                                 else:
                                     # Handle string or other non-dict results
                                     logger.warning(f"Non-dict result: {result}")
-                                    yield f"event: message\ndata: {json.dumps({
+                                    yield "event: message\ndata: " + json.dumps({
                                         'type': 'step',
                                         'step': last_result_count + 1,
                                         'response': str(result),
                                         'prompt': '',
                                         'persona': {},
                                         'chat_model': {}
-                                    })}\n\n"
+                                    }) + "\n\n"
                                 last_result_count += 1
                                 
                                 # Flush the response immediately
@@ -640,7 +640,7 @@ async def stream_workflow_results(
                         # Send completion event when done
                         if stream_data['status'] == 'completed':
                             logger.info(f"Workflow {workflow_id} completed, sending completion event")
-                            yield f"event: complete\ndata: {json.dumps({'type': 'status', 'message': 'Workflow execution completed'})}\n\n"
+                            yield "event: complete\ndata: " + json.dumps({'type': 'status', 'message': 'Workflow execution completed'}) + "\n\n"
                             return
 
                         # Use a shorter polling interval for more responsive updates
@@ -651,12 +651,12 @@ async def stream_workflow_results(
                         return
                     except Exception as e:
                         logger.error(f"Error in event stream for workflow {workflow_id}: {str(e)}")
-                        yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+                        yield "event: error\ndata: " + json.dumps({'error': str(e)}) + "\n\n"
                         return
 
             except Exception as e:
                 logger.error(f"Generator error for workflow {workflow_id}: {str(e)}")
-                yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+                yield "event: error\ndata: " + json.dumps({'error': str(e)}) + "\n\n"
 
         # Create the EventSourceResponse with proper headers to prevent buffering
         response = EventSourceResponse(

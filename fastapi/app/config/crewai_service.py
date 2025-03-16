@@ -233,8 +233,11 @@ class CrewAIService:
                         })
                         logger.info(f"Executing task {i+1}")
                         
-                        # Execute the task
-                        result = await asyncio.to_thread(task.execute)
+                        # Execute the task - use the correct method
+                        # The Task class doesn't have an execute method, it's executed by the agent
+                        agent = task.agent
+                        logger.info(f"Agent executing task: {agent.role}")
+                        result = await asyncio.to_thread(agent.execute_task, task)
                         logger.info(f"Task {i+1} execution completed")
                         
                         # Update with the result
@@ -265,6 +268,17 @@ class CrewAIService:
             else:
                 # For hierarchical workflows, use the Crew to manage execution
                 logger.info(f"Executing hierarchical workflow with {len(tasks)} tasks")
+                
+                # First, update all tasks to executing status
+                for i, task in enumerate(tasks):
+                    self._update_stream_data(stream_token, {
+                        "step": str(i + 1),
+                        "prompt": task.description,
+                        "status": "executing",
+                        "response": ""
+                    })
+                
+                # Create and execute the crew
                 crew = Crew(
                     agents=agents,
                     tasks=tasks,
@@ -279,14 +293,23 @@ class CrewAIService:
 
                 # Update results after execution
                 for i, task in enumerate(tasks):
-                    output = task.output
-                    self._update_stream_data(stream_token, {
-                        "step": str(i + 1),
-                        "prompt": task.description,
-                        "status": "completed",
-                        "response": output.raw if hasattr(output, 'raw') else str(output)
-                    })
-                    logger.info(f"Updated stream with result for task {i+1}")
+                    try:
+                        output = task.output
+                        self._update_stream_data(stream_token, {
+                            "step": str(i + 1),
+                            "prompt": task.description,
+                            "status": "completed",
+                            "response": output.raw if hasattr(output, 'raw') else str(output)
+                        })
+                        logger.info(f"Updated stream with result for task {i+1}")
+                    except Exception as e:
+                        logger.error(f"Error getting output for task {i+1}: {str(e)}")
+                        self._update_stream_data(stream_token, {
+                            "step": str(i + 1),
+                            "prompt": task.description,
+                            "status": "error",
+                            "response": f"Error: {str(e)}"
+                        })
                 
                 # Mark as completed
                 self._streams[stream_token]['status'] = 'completed'
