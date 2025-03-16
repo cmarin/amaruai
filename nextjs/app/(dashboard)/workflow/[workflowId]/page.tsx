@@ -67,43 +67,33 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         ? parseInt(message.step, 10) 
         : (message.step as number);
       
-      // Use the chat_model and persona from the message if available
-      // Otherwise fall back to the cached step info
+      // Get the cached step info
       const stepInfo = stepInfoRef.current[stepNumber];
-      const chatModel = message.chat_model || stepInfo?.chatModel;
-      const persona = message.persona || stepInfo?.persona;
       
-      if (!chatModel || !persona) {
-        console.warn(`No model or persona info found for step ${stepNumber}`);
+      if (!stepInfo) {
+        console.warn(`No cached info found for step ${stepNumber}`);
       } else {
-        console.log(`Using model and persona info for step ${stepNumber}:`, {
-          model: chatModel.name,
-          persona: persona.role
+        console.log(`Using cached info for step ${stepNumber}:`, {
+          model: stepInfo.chatModel.name,
+          persona: stepInfo.persona.role
         });
       }
       
-      // Create a new result with the model and persona information
+      // Create a new result with the cached information
       const newResult: WorkflowResult = {
         step: message.step!.toString(),
         prompt: promptToShow,
         response: message.response,
-        chat_model: chatModel,
-        persona: persona
+        // Use cached data that was prepared before streaming started
+        chat_model: stepInfo?.chatModel,
+        persona: stepInfo?.persona
       };
 
       setResults(prev => {
-        // Check if we already have a result for this step
-        const existingIndex = prev.findIndex(r => r.step === newResult.step);
-        
-        if (existingIndex >= 0) {
-          // Update the existing result
-          const updated = [...prev];
-          updated[existingIndex] = newResult;
-          return updated;
-        } else {
-          // Add the new result
-          return [...prev, newResult];
+        if (prev.some(r => r.step === newResult.step)) {
+          return prev;
         }
+        return [...prev, newResult];
       });
 
       setTimeout(() => {
@@ -129,39 +119,28 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     setError(null);
     setShowRunAgain(false);
 
-    try {
-      console.log('Starting workflow stream execution...');
-      const cleanup = streamWorkflow(
-        params.workflowId,
-        'user',
-        `workflow_stream_${Date.now()}`,
-        headers,
-        handleStreamMessage,
-        (error) => {
-          console.error('Stream error:', error);
-          setError(error.message);
-          setIsExecuting(false);
-          setShowRunAgain(true);
-          cleanupRef.current = null;
-        },
-        () => {
-          console.log('Stream completed');
-          setIsExecuting(false);
-          setShowRunAgain(true);
-          cleanupRef.current = null;
-        },
-        message || initialMessage
-      );
+    const cleanup = streamWorkflow(
+      params.workflowId,
+      'user',
+      `workflow_stream_${Date.now()}`,
+      headers,
+      handleStreamMessage,
+      (error) => {
+        setError(error.message);
+        setIsExecuting(false);
+        setShowRunAgain(true);
+        cleanupRef.current = null;
+      },
+      () => {
+        setIsExecuting(false);
+        setShowRunAgain(true);
+        cleanupRef.current = null;
+      },
+      message || initialMessage
+    );
 
-      cleanupRef.current = cleanup;
-      return cleanup;
-    } catch (error) {
-      console.error('Error starting workflow stream:', error);
-      setError(error instanceof Error ? error.message : 'Unknown error occurred');
-      setIsExecuting(false);
-      setShowRunAgain(true);
-      return null;
-    }
+    cleanupRef.current = cleanup;
+    return cleanup;
   }, [params.workflowId, getApiHeaders, handleStreamMessage, initialMessage]);
 
   const checkFirstStep = useCallback(async (workflow: Workflow) => {
@@ -294,14 +273,11 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   };
 
   const handleRunAgain = () => {
-    console.log('Running workflow again...');
-    
-    // If we had a complex prompt before, show the modal again
+    setHasSubmittedComplexPrompt(false);
     if (complexPromptTemplate && !hasSubmittedComplexPrompt) {
       setShowComplexPromptModal(true);
     } else {
-      // Otherwise just execute with the same message as before
-      executeWorkflowStream(submittedPrompt);
+      executeWorkflowStream();
     }
   };
 

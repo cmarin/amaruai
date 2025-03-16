@@ -483,7 +483,7 @@ export function streamWorkflow(
   const payload = {
     user_id: userId,
     conversation_id: conversationId,
-    ...(message && { message: message })
+    ...(message && { message: message }) // This is now the formatted prompt from handleComplexPromptSubmit
   };
 
   console.log('Sending payload:', payload);
@@ -497,10 +497,7 @@ export function streamWorkflow(
     body: JSON.stringify(payload),
   }).then(async response => {
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Failed to initiate workflow stream:', errorText);
-      onError(new Error(`Failed to initiate workflow stream: ${response.status} ${response.statusText}`));
-      return;
+      throw new Error('Failed to initiate workflow stream');
     }
     
     const { stream_token } = await response.json();
@@ -508,12 +505,6 @@ export function streamWorkflow(
     console.log('Stream URL:', streamUrl);
     
     try {
-      // Close any existing EventSource
-      if (eventSource) {
-        eventSource.close();
-      }
-      
-      // Create a new EventSource
       eventSource = new EventSource(streamUrl);
       console.log('EventSource created');
 
@@ -553,36 +544,19 @@ export function streamWorkflow(
               type: data.type,
               step: data.step,
               prompt: data.prompt,
-              response: data.response,
-              chat_model: data.chat_model,
-              persona: data.persona
+              response: data.response
             };
             
             console.log('Dispatching step message to handler:', streamMessage);
             window.requestAnimationFrame(() => {
               onMessage(streamMessage);
             });
-          } else if (data.type === 'error') {
-            console.error('Error in workflow stream:', data.error || 'Unknown error');
-            onError(new Error(data.error || 'Unknown error occurred'));
-            if (eventSource) {
-              eventSource.close();
-            }
-          } else if (data.type === 'status' && data.message === 'Workflow execution completed') {
-            console.log('Workflow completed, closing connection');
-            isCompleting = true;
-            if (eventSource) {
-              eventSource.close();
-              onComplete();
-            }
           }
         } catch (error) {
           console.error('Error parsing message:', error);
-          onError(new Error('Error parsing server message'));
         }
       };
 
-      // Listen for specific event types
       eventSource.addEventListener('complete', (event: MessageEvent) => {
         console.log('Complete event received:', event.data);
         try {
@@ -600,20 +574,6 @@ export function streamWorkflow(
         }
       });
 
-      eventSource.addEventListener('error', (event: MessageEvent) => {
-        console.log('Error event received:', event.data);
-        try {
-          const data = JSON.parse(event.data);
-          onError(new Error(data.error || 'Unknown error occurred'));
-        } catch (error) {
-          console.error('Error parsing error event:', error);
-          onError(new Error('Unknown error occurred'));
-        }
-        if (eventSource) {
-          eventSource.close();
-        }
-      });
-
       eventSource.onerror = (event: Event) => {
         console.log('Error event received:', event);
         const source = event.target as EventSource;
@@ -628,7 +588,7 @@ export function streamWorkflow(
 
     } catch (error) {
       console.error('Error creating EventSource:', error);
-      onError(error instanceof Error ? error : new Error('Failed to create stream connection'));
+      onError(new Error('Failed to create stream connection'));
     }
 
   }).catch(error => {
