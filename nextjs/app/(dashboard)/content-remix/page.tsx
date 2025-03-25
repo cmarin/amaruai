@@ -331,7 +331,7 @@ function ContentRemixContent() {
           ...getApiHeaders(),
         },
         body: JSON.stringify({
-          messages: [...prevMessages, { role: 'user', content: input.trim() }],
+          messages: [...prevMessages, { role: 'user', content: buildPrompt(input.trim()) }],
           user_id: session?.user?.id,
           model_id: selectedModels[chatId],
           conversation_id: crypto.randomUUID(),
