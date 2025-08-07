@@ -169,7 +169,7 @@ export const resetSelectedModels = (mode: ChatMode, allChatModels: ChatModel[] |
 };
 
 /**
- * Makes an API call to the chat endpoint
+ * Makes an API call to the chat endpoint with enhanced chunk buffering
  */
 export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
   const {
@@ -207,7 +207,6 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
       console.log(`Already retried chat ${chatId}, skipping further retries`);
       return;
     }
-    // Mark this chat window as having been retried
     setRetryAttempts(prev => ({
       ...prev,
       [chatId]: (prev[chatId] || 0) + 1
@@ -249,7 +248,7 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
       throw new Error('Unable to get authentication headers');
     }
 
-    // Use the new submitChatMessage function from chat-service.ts
+    // Use the submitChatMessage function from chat-service.ts
     const response = await submitChatMessage({
       messages: [...prevMessagesLocal, newMessage],
       userId: session?.user?.id,
@@ -261,7 +260,7 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
       knowledgeBaseIds: selectedKnowledgeBases.map(kb => kb.id),
       assetIds: selectedAssets.map(asset => asset.id),
       webSearch: isWebSearchEnabled,
-      headers // Pass the authentication headers
+      headers
     });
 
     if (!response.body) {
@@ -273,6 +272,10 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
 
     let assistantMessage = '';
     let hasCreatedAssistantMessage = false;
+    
+    // Buffer for incomplete chunks
+    let buffer = '';
+    let incompleteDataLine = '';
 
     streamStartTime = Date.now();
 
@@ -284,14 +287,18 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
 
       const { value, done } = await reader.read();
       if (done) {
+        // Process any remaining buffer content
+        if (incompleteDataLine.trim()) {
+          console.warn('Stream ended with incomplete data line:', incompleteDataLine);
+        }
+        
         if (chunkCount > 0 && !hasReceivedContent) {
           throw new Error('Stream completed with only empty chunks');
         }
         
-        // If in multi-chat mode, only set streaming false when all active streams are done
+        // Handle stream completion
         if (mode !== 'single' && activeStreamsRef?.current) {
           activeStreamsRef.current.delete(chatId);
-          // Only set streaming to false if all streams are complete
           if (activeStreamsRef.current.size === 0) {
             isStreamingRef.current = false;
             if (chatContainerRef.current) {
@@ -299,7 +306,6 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
             }
           }
         } else {
-          // Single chat mode - set streaming false immediately
           isStreamingRef.current = false;
           if (chatContainerRef.current) {
             chatContainerRef.current.style.overflowY = 'auto';
@@ -312,60 +318,81 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
         receivedFirstChunk = true;
       }
 
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n');
+      // Decode the chunk and add to buffer
+      const chunk = decoder.decode(value, { stream: true });
+      buffer += chunk;
+
+      // Split by newlines but keep track of incomplete lines
+      const lines = buffer.split('\n');
+      
+      // The last "line" might be incomplete, so keep it in the buffer
+      buffer = lines.pop() || '';
 
       for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          chunkCount++;
-          const jsonData = line.slice(5).trim();
-          if (jsonData === '[DONE]') continue;
+        // Handle incomplete data lines from previous chunks
+        const fullLine = incompleteDataLine + line;
+        incompleteDataLine = '';
 
-          try {
-            const jsonString = jsonData;
-            const openBraces = (jsonString.match(/{/g) || []).length;
-            const closeBraces = (jsonString.match(/}/g) || []).length;
+        if (!fullLine.startsWith('data: ')) {
+          continue;
+        }
+
+        chunkCount++;
+        const jsonData = fullLine.slice(5).trim();
+        
+        if (jsonData === '[DONE]') {
+          continue;
+        }
+
+        if (!jsonData) {
+          continue;
+        }
+
+        try {
+          // First, try to parse the JSON
+          const parsed = JSON.parse(jsonData);
+          
+          // Process the parsed data
+          if (parsed.choices?.[0]?.delta?.content) {
+            hasReceivedContent = true;
+            assistantMessage += parsed.choices[0].delta.content;
             
-            if (openBraces !== closeBraces || (openBraces > 0 && !jsonString.trim().endsWith('}'))) {
-              console.warn('Skipping incomplete JSON chunk:', jsonString);
-              continue;
+            if (!hasCreatedAssistantMessage) {
+              hasCreatedAssistantMessage = true;
+              setMessagesFunction(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
+            } else {
+              setMessagesFunction(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = {
+                  role: 'assistant',
+                  content: assistantMessage,
+                };
+                if (chatContainerRef.current) {
+                  chatContainerRef.current.style.overflowY = 'auto';
+                }
+                return updated;
+              });
             }
-
-            const parsed = JSON.parse(jsonString);
-            if (parsed.choices?.[0]?.delta?.content) {
-              hasReceivedContent = true;
-              assistantMessage += parsed.choices[0].delta.content;
-              
-              if (!hasCreatedAssistantMessage) {
-                hasCreatedAssistantMessage = true;
-                setMessagesFunction(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
-              } else {
-                setMessagesFunction(prev => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = {
-                    role: 'assistant',
-                    content: assistantMessage,
-                  };
-                  if (chatContainerRef.current) {
-                    chatContainerRef.current.style.overflowY = 'auto';
-                  }
-                  return updated;
-                });
-              }
-            }
-          } catch (parseError) {
-            console.warn('Error parsing chunk, skipping:', parseError);
-            console.warn('Problematic chunk:', jsonData);
-            continue;
+          }
+        } catch (parseError) {
+          // If JSON parsing fails, this might be an incomplete chunk
+          // Check if it looks like the start of valid JSON
+          if (jsonData.startsWith('{') && !jsonData.endsWith('}')) {
+            // This looks like an incomplete JSON object, save it for the next iteration
+            incompleteDataLine = fullLine;
+            console.debug('Buffering incomplete JSON for next chunk');
+          } else {
+            // This is genuinely malformed JSON
+            console.warn('Malformed JSON chunk:', jsonData);
+            console.warn('Parse error:', parseError);
           }
         }
       }
     }
   } catch (err: any) {
-    // If in multi-chat mode, update active streams count
+    // Clean up streaming state
     if (mode !== 'single' && activeStreamsRef?.current) {
       activeStreamsRef.current.delete(chatId);
-      // Only set streaming to false if all streams are complete
       if (activeStreamsRef.current.size === 0) {
         isStreamingRef.current = false;
         if (chatContainerRef.current) {
@@ -381,11 +408,10 @@ export const makeApiCall = async (params: ApiCallParams): Promise<void> => {
     
     console.error('Error in API call:', err);
 
-    // If this is a timeout error or empty chunk error, retry without model_id
+    // Retry logic
     if ((err.message.includes('timeout') || err.message.includes('empty chunk')) && !isRetry) {
       console.log('Retrying stream without specific model for', chatId);
       try {
-        // Retry the API call without the model_id
         return makeApiCall({
           ...params,
           isRetry: true
@@ -516,4 +542,4 @@ export const handleToggleChatbot = (
     ...prev,
     chat1: modelId
   }));
-}; 
+};
