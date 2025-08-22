@@ -16,7 +16,7 @@ export interface ChatUploaderConfig {
  * Default configuration for chat uploads
  */
 const DEFAULT_CONFIG: ChatUploaderConfig = {
-  maxFiles: 1,
+  maxFiles: 10,
   storageFolder: 'chats',
   storageBucket: 'amaruai-dev'
 };

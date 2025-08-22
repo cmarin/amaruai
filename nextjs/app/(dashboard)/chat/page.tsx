@@ -832,6 +832,8 @@ function ChatContent() {
                   width="100%"
                   doneButtonHandler={() => handleCloseUploadModal()}
                   showProgressDetails={true}
+                  showSelectedFiles={true}
+                  showRemoveButtonAfterComplete={true}
                 />
               </div>
             </div>
