@@ -117,6 +117,11 @@ class CrewAIService:
                 prompt_template = step.prompt_template
                 chat_model = step.chat_model or default_chat_model
                 persona = step.persona
+                
+                # Skip steps without a prompt template
+                if not prompt_template:
+                    logger.warning(f"Step {i+1} (position {step.position}) has no prompt template - skipping")
+                    continue
 
                 # Create agent with default values if no persona specified
                 if persona and hasattr(persona, 'temperature') and persona.temperature is not None:
@@ -155,7 +160,14 @@ class CrewAIService:
                 agents.append(agent)
 
                 # Build prompt with RAG content
-                description = user_input.get("message") if i == 0 and "message" in user_input else prompt_template.prompt
+                if i == 0 and "message" in user_input and user_input.get("message"):
+                    description = user_input.get("message")
+                elif prompt_template and prompt_template.prompt:
+                    description = prompt_template.prompt
+                else:
+                    # Fallback description if both are None/empty
+                    description = "Process this step"
+                    logger.warning(f"Step {i+1} has no description from user input or prompt template, using fallback")
 
                 # Use the merged lists for RAG content
                 if all_asset_ids or all_kb_ids:
@@ -204,6 +216,13 @@ class CrewAIService:
 
                 self._update_stream_data(stream_token, step_info)
 
+            # Check if we have any valid tasks to execute
+            if not tasks:
+                logger.error("No valid tasks to execute in workflow")
+                self._streams[stream_token]['status'] = 'error'
+                self._streams[stream_token]['error'] = 'No valid tasks found in workflow. Please ensure workflow steps have prompt templates.'
+                return
+            
             # Execute workflow
             crew = Crew(
                 agents=agents,
