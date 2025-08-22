@@ -82,6 +82,34 @@ class CrewAIService:
                 self._streams[stream_token]['error'] = 'No default chat model configured'
                 return
 
+            # Extract dynamic inputs from user_input
+            dynamic_file_ids = user_input.get("file_ids", [])
+            dynamic_asset_ids = user_input.get("asset_ids", [])
+            dynamic_kb_ids = user_input.get("knowledge_base_ids", [])
+            
+            # Merge dynamic assets with workflow's fixed assets
+            all_asset_ids = [asset.id for asset in workflow.assets] if workflow.assets else []
+            all_kb_ids = [kb.id for kb in workflow.knowledge_bases] if workflow.knowledge_bases else []
+            
+            # Add dynamic file IDs to assets (files uploaded are just assets)
+            if dynamic_file_ids:
+                all_asset_ids.extend(dynamic_file_ids)
+                logger.info(f"Added {len(dynamic_file_ids)} uploaded files to workflow")
+                
+            # Add dynamic asset selections
+            if dynamic_asset_ids:
+                all_asset_ids.extend(dynamic_asset_ids)
+                logger.info(f"Added {len(dynamic_asset_ids)} selected assets to workflow")
+                
+            # Add dynamic KB selections
+            if dynamic_kb_ids:
+                all_kb_ids.extend(dynamic_kb_ids)
+                logger.info(f"Added {len(dynamic_kb_ids)} selected knowledge bases to workflow")
+            
+            # Remove duplicates while preserving UUIDs
+            all_asset_ids = list(set(all_asset_ids))
+            all_kb_ids = list(set(all_kb_ids))
+
             agents = []
             tasks = []
 
@@ -129,15 +157,13 @@ class CrewAIService:
                 # Build prompt with RAG content
                 description = user_input.get("message") if i == 0 and "message" in user_input else prompt_template.prompt
 
-                if workflow.assets or workflow.knowledge_bases:
-                    kb_ids = [kb.id for kb in workflow.knowledge_bases] if workflow.knowledge_bases else None
-                    asset_ids = [asset.id for asset in workflow.assets] if workflow.assets else None
-                    
+                # Use the merged lists for RAG content
+                if all_asset_ids or all_kb_ids:
                     reference_content, content_tokens, used_rag = get_optimized_reference_content(
                         db=db,
                         query_text=description,
-                        knowledge_base_ids=kb_ids,
-                        asset_ids=asset_ids,
+                        knowledge_base_ids=all_kb_ids if all_kb_ids else None,
+                        asset_ids=all_asset_ids if all_asset_ids else None,
                         max_tokens=chat_model.max_tokens,
                         token_threshold=0.75
                     )

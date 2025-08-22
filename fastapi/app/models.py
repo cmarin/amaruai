@@ -179,6 +179,8 @@ class Workflow(Base):
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
     created_by = Column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     search = Column(Boolean, nullable=True)
+    allow_file_upload = Column(Boolean, default=False, nullable=False)
+    allow_asset_selection = Column(Boolean, default=False, nullable=False)
     
     # Add the new relationships
     assets = relationship(
