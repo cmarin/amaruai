@@ -21,6 +21,7 @@ export interface KnowledgeBase {
   title: string;
   description: string;
   assets: Asset[];
+  token_count?: number;
   created_at: string;
   updated_at: string;
 }
