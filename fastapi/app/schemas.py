@@ -327,6 +327,8 @@ class WorkflowBase(BaseModel):
     manager_persona_id: Optional[UUID] = None
     max_iterations: Optional[int] = None
     search: Optional[bool] = None
+    allow_file_upload: Optional[bool] = False
+    allow_asset_selection: Optional[bool] = False
 
     @validator('manager_chat_model_id', 'manager_persona_id', pre=True)
     def convert_to_uuid(cls, v):
@@ -346,6 +348,8 @@ class WorkflowCreate(BaseModel):
     manager_persona_id: Optional[UUID] = None
     max_iterations: Optional[int] = None
     search: Optional[bool] = None
+    allow_file_upload: Optional[bool] = False
+    allow_asset_selection: Optional[bool] = False
     asset_ids: Optional[List[UUID]] = None
     knowledge_base_ids: Optional[List[UUID]] = None
     created_by: Optional[UUID] = None
@@ -411,6 +415,9 @@ class AssetIds(BaseModel):
 
 class WorkflowExecuteInput(BaseModel):
     message: Optional[str] = None
+    file_ids: Optional[List[UUID]] = []
+    asset_ids: Optional[List[UUID]] = []
+    knowledge_base_ids: Optional[List[UUID]] = []
 
 class Workflow(WorkflowBase):
     id: UUID

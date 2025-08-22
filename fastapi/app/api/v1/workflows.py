@@ -526,15 +526,15 @@ def delete_workflow_step(
 @router.post("/{workflow_id}/stream", response_model=Dict[str, str], operation_id="initiate_workflow_stream_protected")
 async def initiate_workflow_stream(
     workflow_id: UUID,
-    user_input: Dict[str, str],
+    user_input: WorkflowExecuteInput,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    """Initiate a workflow execution and return a stream token"""
+    """Initiate a workflow execution with optional dynamic inputs"""
     try:
         # Log the request parameters
         logger.info(f"Initiating workflow stream - Workflow ID: {workflow_id}")
-        logger.info(f"User input parameters: {json.dumps(user_input, indent=2)}")
+        logger.info(f"User input: {user_input.dict()}")
         
         # Get workflow with relationships
         workflow = db.query(models.Workflow).options(
@@ -545,12 +545,27 @@ async def initiate_workflow_stream(
             models.Workflow.id == workflow_id
         ).first()
 
-        if workflow:
-            steps = sorted(workflow.steps, key=lambda x: x.position)
-            if steps:
-                first_step = steps[0]
-                logger.info(f"First step prompt template (ID: {first_step.prompt_template_id}): {first_step.prompt_template.prompt}")
-                logger.info(f"First step is_complex: {first_step.prompt_template.is_complex}")
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        
+        # Validate dynamic inputs are allowed if provided
+        if (user_input.file_ids or user_input.asset_ids or user_input.knowledge_base_ids):
+            if not workflow.allow_file_upload and user_input.file_ids:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="This workflow does not allow file uploads"
+                )
+            if not workflow.allow_asset_selection and (user_input.asset_ids or user_input.knowledge_base_ids):
+                raise HTTPException(
+                    status_code=400, 
+                    detail="This workflow does not allow asset/KB selection"
+                )
+        
+        steps = sorted(workflow.steps, key=lambda x: x.position)
+        if steps:
+            first_step = steps[0]
+            logger.info(f"First step prompt template (ID: {first_step.prompt_template_id}): {first_step.prompt_template.prompt}")
+            logger.info(f"First step is_complex: {first_step.prompt_template.is_complex}")
         
         # Generate a stream token
         stream_token = await crew_service.prepare_workflow_stream(workflow_id)
@@ -560,7 +575,7 @@ async def initiate_workflow_stream(
         background_tasks.add_task(
             crew_service.execute_workflow,
             workflow_id=workflow_id,
-            user_input=user_input,
+            user_input=user_input.dict(),  # Convert to dict for the service
             db=db,
             stream_token=stream_token
         )
@@ -570,6 +585,94 @@ async def initiate_workflow_stream(
     except Exception as e:
         logger.error(f"Error initiating workflow stream: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{workflow_id}/upload-assets", operation_id="upload_workflow_assets_protected")
+async def upload_workflow_assets(
+    workflow_id: UUID,
+    asset_ids: List[UUID],
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user_id)
+):
+    """
+    Associate uploaded assets with a workflow execution.
+    The assets should already be created via the standard asset upload process.
+    This endpoint validates that the workflow allows file uploads and returns
+    the asset IDs that can be used in the workflow execution.
+    """
+    try:
+        workflow = crud.get_workflow(db, workflow_id)
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+            
+        if not workflow.allow_file_upload:
+            raise HTTPException(
+                status_code=400, 
+                detail="This workflow does not allow file uploads"
+            )
+        
+        # Verify all assets exist and belong to the user
+        assets = db.query(models.Asset).filter(
+            models.Asset.id.in_(asset_ids),
+            models.Asset.uploaded_by == current_user
+        ).all()
+        
+        if len(assets) != len(asset_ids):
+            raise HTTPException(
+                status_code=404,
+                detail="One or more assets not found or not owned by user"
+            )
+        
+        return {
+            "asset_ids": [str(asset.id) for asset in assets],
+            "count": len(assets),
+            "workflow_id": str(workflow_id),
+            "allow_file_upload": workflow.allow_file_upload,
+            "allow_asset_selection": workflow.allow_asset_selection
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error validating workflow assets: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{workflow_id}/upload-config", operation_id="get_workflow_upload_config_protected")
+def get_workflow_upload_config(
+    workflow_id: UUID,
+    db: Session = Depends(get_db)
+):
+    """
+    Get the upload configuration for a workflow.
+    Returns whether the workflow allows file uploads and asset selection.
+    """
+    workflow = crud.get_workflow(db, workflow_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    return {
+        "workflow_id": str(workflow_id),
+        "allow_file_upload": workflow.allow_file_upload,
+        "allow_asset_selection": workflow.allow_asset_selection,
+        "existing_assets": [
+            {
+                "id": str(asset.id),
+                "title": asset.title,
+                "file_name": asset.file_name,
+                "file_type": asset.file_type,
+                "size": asset.size
+            }
+            for asset in workflow.assets
+        ],
+        "existing_knowledge_bases": [
+            {
+                "id": str(kb.id),
+                "title": kb.title,
+                "description": kb.description,
+                "token_count": kb.token_count
+            }
+            for kb in workflow.knowledge_bases
+        ]
+    }
 
 @public_router.get("/{workflow_id}/stream", operation_id="stream_workflow_results_public")
 async def stream_workflow_results(
