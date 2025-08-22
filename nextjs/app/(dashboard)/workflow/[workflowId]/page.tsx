@@ -16,12 +16,14 @@ import {
 } from '@/types/workflow'
 import { fetchPromptTemplate, PromptTemplate } from '@/utils/prompt-template-service'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
+import { WorkflowDynamicInputModal } from '@/components/workflow-dynamic-input-modal'
 import ReactMarkdown from 'react-markdown'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/sidebar-context'
 import { addToScratchPad } from '@/utils/scratch-pad-service'
 import { useSession } from '@/app/utils/session/session'
 import { GeneratingButton } from '@/components/batch-flow/generating-button'
+import { UploadedFile } from '@/utils/upload-service'
 
 export default function WorkflowStreamPage({ params }: { params: { workflowId: string } }) {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
@@ -40,6 +42,12 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const [hasSubmittedComplexPrompt, setHasSubmittedComplexPrompt] = useState(false);
   const [submittedPrompt, setSubmittedPrompt] = useState<string | undefined>(undefined);
+  const [showDynamicInputModal, setShowDynamicInputModal] = useState(false);
+  const [dynamicInputData, setDynamicInputData] = useState<{
+    file_ids?: string[];
+    asset_ids?: string[];
+    knowledge_base_ids?: string[];
+  } | null>(null);
   
   // Store step information in a ref to avoid re-renders
   const stepInfoRef = useRef<{
@@ -104,7 +112,14 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     }
   }, [submittedPrompt]);
 
-  const executeWorkflowStream = useCallback(async (message?: string) => {
+  const executeWorkflowStream = useCallback(async (
+    message?: string,
+    dynamicInputs?: {
+      file_ids?: string[];
+      asset_ids?: string[];
+      knowledge_base_ids?: string[];
+    }
+  ) => {
     if (cleanupRef.current) {
       console.log('Cleaning up previous EventSource before starting new one');
       cleanupRef.current();
@@ -118,6 +133,11 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     setResults([]);
     setError(null);
     setShowRunAgain(false);
+
+    const inputData = {
+      message: message || initialMessage,
+      ...(dynamicInputs || dynamicInputData || {})
+    };
 
     const cleanup = streamWorkflow(
       params.workflowId,
@@ -136,14 +156,21 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         setShowRunAgain(true);
         cleanupRef.current = null;
       },
-      message || initialMessage
+      inputData
     );
 
     cleanupRef.current = cleanup;
     return cleanup;
-  }, [params.workflowId, getApiHeaders, handleStreamMessage, initialMessage]);
+  }, [params.workflowId, getApiHeaders, handleStreamMessage, initialMessage, dynamicInputData]);
 
   const checkFirstStep = useCallback(async (workflow: Workflow) => {
+    // Check for dynamic inputs first
+    if (workflow.allow_file_upload || workflow.allow_asset_selection) {
+      setShowDynamicInputModal(true);
+      return;
+    }
+    
+    // Then check for complex prompt (existing logic)
     if (workflow.steps.length > 0 && !hasSubmittedComplexPrompt) {
       const firstStep = workflow.steps[0];
       try {
@@ -165,6 +192,8 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         console.error('Error fetching prompt template:', error);
         setError('Failed to fetch prompt template');
       }
+    } else {
+      executeWorkflowStream();
     }
   }, [getApiHeaders, executeWorkflowStream, hasSubmittedComplexPrompt]);
 
@@ -248,6 +277,58 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     executeWorkflowStream(generatedPrompt);
   };
 
+  const handleDynamicInputSubmit = async (data: {
+    uploadedFiles: UploadedFile[];
+    selectedAssets: string[];
+    selectedKnowledgeBases: string[];
+  }) => {
+    try {
+      setShowDynamicInputModal(false);
+      
+      // Upload files if any
+      let uploadedFileIds: string[] = [];
+      if (data.uploadedFiles.length > 0) {
+        const headers = getApiHeaders();
+        if (!headers) return;
+        
+        // The files are already uploaded via AssetUploader, just collect the IDs
+        uploadedFileIds = data.uploadedFiles.map(f => f.id);
+      }
+      
+      // Store the dynamic input data
+      setDynamicInputData({
+        file_ids: uploadedFileIds,
+        asset_ids: data.selectedAssets,
+        knowledge_base_ids: data.selectedKnowledgeBases
+      });
+      
+      // Now check if we need to show complex prompt
+      if (workflow?.steps.length && workflow.steps.length > 0 && !hasSubmittedComplexPrompt) {
+        const firstStep = workflow.steps[0];
+        const headers = getApiHeaders();
+        if (headers) {
+          const promptTemplate = await fetchPromptTemplate(firstStep.prompt_template_id, headers);
+          if (promptTemplate.is_complex) {
+            setComplexPromptTemplate(promptTemplate);
+            setShowComplexPromptModal(true);
+            return;
+          }
+        }
+      }
+      
+      // Execute workflow with dynamic inputs
+      executeWorkflowStream(undefined, {
+        file_ids: uploadedFileIds,
+        asset_ids: data.selectedAssets,
+        knowledge_base_ids: data.selectedKnowledgeBases
+      });
+      
+    } catch (error) {
+      console.error('Error handling dynamic input:', error);
+      setError('Failed to process dynamic inputs');
+    }
+  };
+
   const toggleChatbot = useCallback((modelId: string) => {
     router.push(`/chat?model=${modelId}`);
   }, [router]);
@@ -274,7 +355,11 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
 
   const handleRunAgain = () => {
     setHasSubmittedComplexPrompt(false);
-    if (complexPromptTemplate && !hasSubmittedComplexPrompt) {
+    setDynamicInputData(null);
+    
+    if (workflow?.allow_file_upload || workflow?.allow_asset_selection) {
+      setShowDynamicInputModal(true);
+    } else if (complexPromptTemplate && !hasSubmittedComplexPrompt) {
       setShowComplexPromptModal(true);
     } else {
       executeWorkflowStream();
@@ -378,6 +463,14 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
               isOpen={showComplexPromptModal}
               onClose={() => setShowComplexPromptModal(false)}
               onSubmit={handleComplexPromptSubmit}
+            />
+          )}
+          {workflow && showDynamicInputModal && (
+            <WorkflowDynamicInputModal
+              workflow={workflow}
+              isOpen={showDynamicInputModal}
+              onClose={() => setShowDynamicInputModal(false)}
+              onSubmit={handleDynamicInputSubmit}
             />
           )}
         </div>

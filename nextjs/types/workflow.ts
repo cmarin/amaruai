@@ -24,6 +24,11 @@ export interface Workflow {
   assets?: Asset[];
   knowledge_bases?: KnowledgeBase[];
   search?: boolean;
+  allow_file_upload?: boolean;
+  allow_asset_selection?: boolean;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface WorkflowResult {
@@ -60,4 +65,29 @@ export interface WorkflowStreamMessage {
     role: string;
     goal: string;
   };
+}
+
+export interface WorkflowCreate {
+  name: string;
+  description?: string;
+  process_type: string;
+  manager_chat_model_id?: string;
+  manager_persona_id?: string;
+  max_iterations?: number;
+  search?: boolean;
+  allow_file_upload?: boolean;
+  allow_asset_selection?: boolean;
+  asset_ids?: string[];
+  knowledge_base_ids?: string[];
+}
+
+export interface WorkflowUpdate extends WorkflowCreate {
+  id?: string;
+}
+
+export interface WorkflowExecuteInput {
+  message?: string;
+  file_ids?: string[];
+  asset_ids?: string[];
+  knowledge_base_ids?: string[];
 } 

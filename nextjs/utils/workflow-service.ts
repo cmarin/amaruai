@@ -20,6 +20,8 @@ export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
       manager_chat_model_id: workflow.manager_chat_model_id?.toString(),
       manager_persona_id: workflow.manager_persona_id?.toString(),
       search: workflow.search || false, // Include search field with default false
+      allow_file_upload: workflow.allow_file_upload || false,
+      allow_asset_selection: workflow.allow_asset_selection || false,
       steps: workflow.steps?.map((step: any) => ({
         ...step,
         id: step.id?.toString() || '',
@@ -109,6 +111,8 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
       knowledge_base_ids: workflow.knowledge_base_ids,
       asset_ids: workflow.asset_ids,
       search: workflow.search,
+      allow_file_upload: workflow.allow_file_upload,
+      allow_asset_selection: workflow.allow_asset_selection,
       steps: workflow.steps?.map((step, index) => ({
         prompt_template_id: step.prompt_template_id,
         chat_model_id: step.chat_model_id,
@@ -194,6 +198,8 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       knowledge_base_ids: workflow.knowledge_base_ids,
       asset_ids: workflow.asset_ids,
       search: workflow.search,
+      allow_file_upload: workflow.allow_file_upload,
+      allow_asset_selection: workflow.allow_asset_selection,
       steps: workflow.steps?.map((step, index) => ({
         prompt_template_id: step.prompt_template_id,
         chat_model_id: step.chat_model_id,
@@ -471,7 +477,12 @@ export function streamWorkflow(
   onMessage: (message: WorkflowStreamMessage) => void,
   onError: (error: Error) => void,
   onComplete: () => void,
-  message?: string
+  inputData?: {
+    message?: string;
+    file_ids?: string[];
+    asset_ids?: string[];
+    knowledge_base_ids?: string[];
+  } | string
 ): () => void {
   const initUrl = `${getApiUrl()}/workflows/${workflowId}/stream`;
   let eventSource: EventSource | null = null;
@@ -479,12 +490,25 @@ export function streamWorkflow(
   
   console.log('Starting workflow stream...');
   
-  // Create the payload with the formatted message
-  const payload = {
+  // Create the payload with the formatted message or full input data
+  let payload: any = {
     user_id: userId,
-    conversation_id: conversationId,
-    ...(message && { message: message }) // This is now the formatted prompt from handleComplexPromptSubmit
+    conversation_id: conversationId
   };
+
+  if (typeof inputData === 'string') {
+    // Legacy support for string message
+    payload.message = inputData;
+  } else if (inputData) {
+    // New enhanced input with dynamic data
+    payload = {
+      ...payload,
+      ...(inputData.message && { message: inputData.message }),
+      ...(inputData.file_ids && { file_ids: inputData.file_ids }),
+      ...(inputData.asset_ids && { asset_ids: inputData.asset_ids }),
+      ...(inputData.knowledge_base_ids && { knowledge_base_ids: inputData.knowledge_base_ids })
+    };
+  }
 
   console.log('Sending payload:', payload);
   
@@ -523,6 +547,7 @@ export function streamWorkflow(
             if (data.prompt && typeof data.prompt === 'string') {
               try {
                 const promptObj = JSON.parse(data.prompt);
+                const message = typeof inputData === 'string' ? inputData : inputData?.message;
                 if (promptObj.variables && promptObj.prompt && message) {
                   // Replace the variable with the actual message in the prompt
                   const firstVar = promptObj.variables[0];

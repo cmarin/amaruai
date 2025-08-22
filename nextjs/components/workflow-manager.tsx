@@ -40,6 +40,8 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     knowledge_base_ids: [],
     asset_ids: [],
     search: false,
+    allow_file_upload: false,
+    allow_asset_selection: false,
   });
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [chatModels, setChatModels] = useState<ChatModel[]>([]);
@@ -138,13 +140,15 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     if (initialWorkflow) {
       console.log('Setting initial workflow:', initialWorkflow);
       
-      // Make sure search is properly initialized
-      const workflowWithSearch = {
+      // Make sure search and dynamic input settings are properly initialized
+      const workflowWithSettings = {
         ...initialWorkflow,
-        search: initialWorkflow.search || false
+        search: initialWorkflow.search || false,
+        allow_file_upload: initialWorkflow.allow_file_upload || false,
+        allow_asset_selection: initialWorkflow.allow_asset_selection || false
       };
       
-      setWorkflow(workflowWithSearch);
+      setWorkflow(workflowWithSettings);
       
       // Check if we have direct assets and knowledge_bases arrays from the API
       if (initialWorkflow.assets && initialWorkflow.assets.length > 0) {
@@ -378,7 +382,9 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
         })),
         knowledge_base_ids: selectedKnowledgeBases.map(kb => kb.id),
         asset_ids: selectedAssets.map(asset => asset.id),
-        search: workflow.search || false
+        search: workflow.search || false,
+        allow_file_upload: workflow.allow_file_upload || false,
+        allow_asset_selection: workflow.allow_asset_selection || false
       };
 
       console.log('Saving workflow with data:', workflowToSave);
@@ -518,6 +524,52 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
                 setWorkflow({ ...workflow, search: checked === true });
               }}
             />
+          </div>
+
+          <Separator className="my-4" />
+          
+          <div className="space-y-4 border rounded-lg p-4">
+            <h3 className="font-semibold">Dynamic Input Settings</h3>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="allow-file-upload"
+                checked={workflow?.allow_file_upload || false}
+                onCheckedChange={(checked) => {
+                  if (workflow) {
+                    setWorkflow({
+                      ...workflow,
+                      allow_file_upload: checked as boolean
+                    });
+                  }
+                }}
+              />
+              <Label htmlFor="allow-file-upload" className="cursor-pointer">
+                Allow users to upload files at runtime
+              </Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="allow-asset-selection"
+                checked={workflow?.allow_asset_selection || false}
+                onCheckedChange={(checked) => {
+                  if (workflow) {
+                    setWorkflow({
+                      ...workflow,
+                      allow_asset_selection: checked as boolean
+                    });
+                  }
+                }}
+              />
+              <Label htmlFor="allow-asset-selection" className="cursor-pointer">
+                Allow users to select assets and knowledge bases at runtime
+              </Label>
+            </div>
+            
+            <p className="text-sm text-gray-500">
+              When enabled, users will be prompted to upload files or select existing resources before executing the workflow.
+            </p>
           </div>
 
           <Separator className="my-4" />
