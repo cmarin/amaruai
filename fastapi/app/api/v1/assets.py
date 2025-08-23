@@ -10,7 +10,7 @@ from app.api.v1.router import create_protected_router
 from app import crud, schemas
 from app.config.supabase import supabase_client
 from app.embeddings import create_embeddings_for_asset
-from app.api.v1.dependencies import get_current_user
+from app.api.v1.dependencies import get_current_user, get_current_user_id
 import psycopg2
 from typing import List
 
@@ -390,17 +390,19 @@ async def process_asset(
         logger.error(f"Error processing asset: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/", response_model=schemas.Asset)
+@router.post("/", response_model=schemas.Asset, status_code=201)
 async def create_asset(
     asset: schemas.AssetCreate,
     db: Session = Depends(get_db),
-    current_user: str = Depends(get_current_user)
+    current_user_id: UUID = Depends(get_current_user_id)
 ):
     """Create a new asset record"""
     try:
         # Create the asset
-        db_asset = crud.create_asset(db=db, asset=asset, user_id=current_user)
+        db_asset = crud.create_asset(db=db, asset=asset, user_id=current_user_id)
         return db_asset
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating asset: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

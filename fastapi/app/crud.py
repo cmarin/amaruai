@@ -665,7 +665,7 @@ def get_asset_by_file_url(db: Session, file_url: str):
     
     return asset
 
-def create_asset(db: Session, asset: schemas.AssetCreate, user_id: str):
+def create_asset(db: Session, asset: schemas.AssetCreate, user_id: UUID):
     """Create a new asset record"""
     db_asset = models.Asset(
         title=asset.title,
@@ -1099,8 +1099,22 @@ def get_assets_by_storage_ids(db: Session, storage_ids: List[UUID]) -> List[mode
     if not storage_ids:
         return []
     
+    # Validate and convert to UUIDs, skipping invalid ones
+    logger = logging.getLogger(__name__)
+    valid_storage_ids = []
+    for sid in storage_ids:
+        try:
+            # Ensure it's a valid UUID
+            valid_uuid = UUID(str(sid)) if not isinstance(sid, UUID) else sid
+            valid_storage_ids.append(valid_uuid)
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"Skipping invalid storage ID: {sid} - {e}")
+    
+    if not valid_storage_ids:
+        return []
+    
     assets = db.query(models.Asset).filter(
-        models.Asset.storage_id.in_(storage_ids)
+        models.Asset.storage_id.in_(valid_storage_ids)
     ).all()
     
     return assets
