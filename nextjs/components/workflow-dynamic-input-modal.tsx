@@ -154,12 +154,12 @@ export function WorkflowDynamicInputModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[600px] flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Prepare Workflow Resources</DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
           <TabsList className={`grid w-full ${tabGridCols}`}>
             {showFileUpload && (
               <TabsTrigger value="upload">
@@ -182,8 +182,8 @@ export function WorkflowDynamicInputModal({
           </TabsList>
 
           {showFileUpload && (
-            <TabsContent value="upload" className="mt-4 flex-1">
-              <div className="space-y-4 h-full">
+            <TabsContent value="upload" className="mt-4 flex-1 overflow-auto">
+              <div className="space-y-4">
                 <div className="mb-2">
                   <p className="text-sm text-gray-600">
                     Upload files to include in this workflow execution. Files will be uploaded when you click the upload button in the widget below.
@@ -239,7 +239,7 @@ export function WorkflowDynamicInputModal({
 
           {showAssetSelection && (
             <>
-              <TabsContent value="assets" className="mt-4 flex-1">
+              <TabsContent value="assets" className="mt-4 flex-1 overflow-auto">
                 {isLoading ? (
                   <div className="flex items-center justify-center h-[400px]">
                     <Loader2 className="h-8 w-8 animate-spin" />
@@ -279,7 +279,7 @@ export function WorkflowDynamicInputModal({
                 )}
               </TabsContent>
 
-              <TabsContent value="knowledge" className="mt-4 flex-1">
+              <TabsContent value="knowledge" className="mt-4 flex-1 overflow-auto">
                 {isLoading ? (
                   <div className="flex items-center justify-center h-[400px]">
                     <Loader2 className="h-8 w-8 animate-spin" />
@@ -329,7 +329,7 @@ export function WorkflowDynamicInputModal({
           )}
         </Tabs>
 
-        <DialogFooter>
+        <DialogFooter className="mt-4 border-t pt-4">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
