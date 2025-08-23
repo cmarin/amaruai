@@ -116,8 +116,25 @@ export class UploadService {
                     .from(bucket)
                     .getPublicUrl(filePath);
 
-                // Prefer Supabase storage response Id if provided; fall back to our generated UUID
-                const storageId = (uploadData as any)?.Id || fileUuid;
+                // Try to resolve the true storage object Id by listing the file's directory
+                const directoryPath = filePath.split('/').slice(0, -1).join('/');
+                let resolvedStorageId: string | null = null;
+                try {
+                    const { data: items, error: listError } = await supabase.storage
+                        .from(bucket)
+                        .list(directoryPath, { search: file.name });
+                    if (!listError && Array.isArray(items)) {
+                        const match = items.find((it: any) => it?.name === file.name);
+                        if (match?.id) {
+                            resolvedStorageId = match.id as string;
+                        }
+                    }
+                } catch {
+                    // ignore directory listing failures, we'll fall back
+                }
+
+                // Prefer REST/SDK-provided Ids; fallback to resolved listing Id; then our generated UUID
+                const storageId = (uploadData as any)?.Id || (uploadData as any)?.id || resolvedStorageId || fileUuid;
                 // Keep the Supabase response for debugging purposes
                 dlog('Upload data:', uploadData);
                 dlog('Using storage ID:', storageId);
