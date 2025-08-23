@@ -116,12 +116,11 @@ export class UploadService {
                     .from(bucket)
                     .getPublicUrl(filePath);
 
-                // Always use our generated UUID as the canonical storage ID for consistency
-                // This ensures the backend can reliably find assets by storage_id
-                const storageId = fileUuid;
+                // Prefer Supabase storage response Id if provided; fall back to our generated UUID
+                const storageId = (uploadData as any)?.Id || fileUuid;
                 // Keep the Supabase response for debugging purposes
                 dlog('Upload data:', uploadData);
-                dlog('Using storage ID (fileUuid):', storageId);
+                dlog('Using storage ID:', storageId);
 
                 const uploadedFile: UploadedFile = {
                     id: storageId,
