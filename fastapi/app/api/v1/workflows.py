@@ -594,7 +594,6 @@ async def initiate_workflow_stream(
             crew_service.execute_workflow,
             workflow_id=workflow_id,
             user_input=user_input.dict(),  # Convert to dict for the service
-            db=db,
             stream_token=stream_token
         )
         

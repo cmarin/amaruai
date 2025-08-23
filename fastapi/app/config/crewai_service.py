@@ -8,7 +8,7 @@ import sys
 from uuid import UUID
 from io import StringIO
 from app import crud, models
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timedelta
@@ -81,7 +81,8 @@ class CrewAIService:
                 self._streams[stream_token]['result'] = []
             self._streams[stream_token]['result'].append(result)
 
-    async def execute_workflow(self, workflow_id: UUID, user_input: dict, db: Session, stream_token: str):
+    async def execute_workflow(self, workflow_id: UUID, user_input: dict, stream_token: str):
+        db: Session = SessionLocal()
         try:
             workflow = db.query(models.Workflow).options(
                 joinedload(models.Workflow.steps),
@@ -277,6 +278,11 @@ class CrewAIService:
             elif "rate limit" in str(e).lower():
                 error_message = str(e)  # Rate limit messages are safe to expose
             self._streams[stream_token]['error'] = error_message
+        finally:
+            try:
+                db.close()
+            except Exception:
+                pass
 
     def _create_task_callback(self, stream_token: str, step_num: int, step_prompt: str):
         """Create a callback function for task completion that updates stream data."""
