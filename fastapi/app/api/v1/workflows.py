@@ -640,21 +640,18 @@ async def create_assets_from_files(
     current_user: UUID = Depends(get_current_user_id)
 ):
     """
-    Create asset records from uploaded files for workflow execution.
-    This endpoint takes uploaded file information, creates asset records,
-    downloads the files, extracts their content, and stores it in the database.
+    Link uploaded files to assets for workflow execution.
+    Files have already been uploaded and processed by Supabase Edge functions.
+    This endpoint creates or finds the asset records for use in the workflow.
     
     Args:
         workflow_id: The workflow ID
-        files: List of file information dicts with keys: id, name, type, size, uploadURL
+        files: List of uploaded file information
     
     Returns:
-        Dictionary with created asset IDs
+        Asset IDs that can be used in the workflow
     """
     try:
-        # Import required modules
-        import requests
-        
         # Validate workflow allows file uploads
         workflow = crud.get_workflow(db, workflow_id)
         if not workflow:
@@ -666,130 +663,93 @@ async def create_assets_from_files(
                 detail="This workflow does not allow file uploads"
             )
         
-        # File validation constants (shared with upload_workflow_assets)
-        ALLOWED_MIME_TYPES = {
-            'text/plain', 'text/csv', 'application/pdf', 
-            'application/json', 'text/markdown', 'text/html',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        }
-        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-        MAX_TOTAL_SIZE = 50 * 1024 * 1024  # 50MB total
-        MAX_FILES = 10
-        
         # Validate number of files
+        MAX_FILES = 10
         if len(request.files) > MAX_FILES:
             raise HTTPException(
                 status_code=400,
                 detail=f"Maximum {MAX_FILES} files can be uploaded at once"
             )
         
-        created_assets = []
+        asset_ids = []
         
         for file_info in request.files:
             try:
                 # Extract file information
                 file_id = file_info.id
                 file_name = file_info.name
-                file_type = file_info.type
-                file_size = file_info.size
                 file_url = file_info.uploadURL
                 
-                # Extract relative path from URL for storage reference
+                # Extract relative path from URL for finding the asset
                 relative_path = ''
                 if 'assets/' in file_url:
                     relative_path = file_url[file_url.find('assets/'):]
                 elif 'knowledge-bases/' in file_url:
                     relative_path = file_url[file_url.find('knowledge-bases/'):]
                 
-                # Validate file type and size upfront
-                if file_type not in ALLOWED_MIME_TYPES:
-                    logger.warning(f"Skipping file {file_name}: unsupported type {file_type}")
-                    continue
+                # First try to find by ID if provided
+                if file_id:
+                    existing_asset = db.query(models.Asset).filter(
+                        models.Asset.id == UUID(file_id)
+                    ).first()
                     
-                if file_size > MAX_FILE_SIZE:
-                    logger.warning(f"Skipping file {file_name}: size {file_size} exceeds limit")
-                    continue
+                    if existing_asset:
+                        logger.info(f"Found existing asset by ID {existing_asset.id} for file {file_name}")
+                        asset_ids.append(str(existing_asset.id))
+                        continue
                 
-                # Mask sensitive parts of URL for logging
-                def mask_url(url: str) -> str:
-                    """Mask sensitive parts of URL for safe logging."""
-                    if '?' in url:
-                        base, _ = url.split('?', 1)
-                        return base + '?[params_masked]'
-                    return url
-                
-                # Download the file content
-                masked_url = mask_url(file_url)
-                logger.info(f"Downloading file {file_name} from {masked_url}")
-                
-                content = ''
-                try:
-                    response = requests.get(file_url, timeout=30)
-                    response.raise_for_status()
+                # Then check if asset exists by file_url
+                if relative_path:
+                    existing_asset = db.query(models.Asset).filter(
+                        models.Asset.file_url == relative_path
+                    ).first()
                     
-                    # Extract text content based on file type
-                    if file_type.startswith('text/') or file_type in ['application/json', 'application/xml', 'text/markdown']:
-                        try:
-                            content = response.text
-                            logger.info(f"Extracted text content from {file_name}: {len(content)} characters")
-                        except Exception as e:
-                            logger.error(f"Failed to decode text from {file_name}: {str(e)}")
-                            content = f"[Failed to decode text content from {file_name}]"
-                    elif file_type == 'application/pdf':
-                        # For PDF files, store a placeholder for now
-                        # You can add PDF extraction later with PyPDF2 or similar
-                        content = f"[PDF content from {file_name} - extraction not yet implemented]"
-                        logger.info(f"PDF file {file_name} - extraction not yet implemented")
-                    else:
-                        # For binary files, store metadata only
-                        content = f"[Binary file: {file_name}, type: {file_type}, size: {file_size} bytes]"
-                        logger.debug(f"Binary file {file_name} - storing metadata only")
-                        
-                except requests.exceptions.RequestException as e:
-                    logger.error(f"Failed to download file {file_name}: {str(e)}")
-                    # Create asset with empty content if download fails
-                    content = f"[Failed to download content from {file_name}]"
+                    if existing_asset:
+                        logger.info(f"Found existing asset by path {existing_asset.id} for file {file_name}")
+                        asset_ids.append(str(existing_asset.id))
+                        continue
                 
-                # Create asset record
-                asset_data = {
-                    'id': UUID(file_id) if file_id else uuid4(),
-                    'title': file_name,
-                    'file_name': file_name,
-                    'file_url': relative_path,
-                    'content': content,
-                    'file_type': file_type.split('/')[0] if '/' in file_type else 'text',
-                    'mime_type': file_type,
-                    'size': file_size,
-                    'uploaded_by': current_user,
-                    'managed': False,  # Set to false for temporary workflow files
-                    'status': 'ready',
-                    'token_count': len(content.split()) if content else 0
-                }
-                
-                # Create the asset in database
-                db_asset = models.Asset(**asset_data)
-                db.add(db_asset)
-                db.flush()  # Flush to get the ID
-                
-                created_assets.append(db_asset)
-                logger.debug(f"Created asset {db_asset.id} for file {file_name}")
+                # If asset doesn't exist, create a placeholder
+                # The content will be populated by Supabase Edge functions
+                if file_id and relative_path:
+                    logger.info(f"Creating placeholder asset for file {file_name}")
+                    
+                    new_asset = models.Asset(
+                        id=UUID(file_id),
+                        title=file_name,
+                        file_name=file_name,
+                        file_url=relative_path,
+                        content="",  # Will be populated by Edge function
+                        file_type=file_info.type.split('/')[0] if '/' in file_info.type else 'text',
+                        mime_type=file_info.type,
+                        size=file_info.size,
+                        uploaded_by=current_user,
+                        managed=False,  # Temporary workflow files
+                        status='processing',  # Mark as processing
+                        token_count=0
+                    )
+                    
+                    db.add(new_asset)
+                    db.flush()  # Get the ID
+                    
+                    asset_ids.append(str(new_asset.id))
+                    logger.info(f"Created asset {new_asset.id} for file {file_name}")
+                else:
+                    logger.warning(f"Cannot create asset for file {file_name} - missing ID or path")
                 
             except Exception as e:
                 logger.error(f"Error processing file {file_info.name}: {str(e)}")
-                # Continue with other files even if one fails
                 continue
         
-        # Commit all assets
+        # Commit any new assets
         db.commit()
         
-        # Log summary at info level
-        logger.info(f"Created {len(created_assets)} assets from {len(request.files)} files for workflow {workflow_id}")
+        logger.info(f"Processed {len(asset_ids)} assets from {len(request.files)} files for workflow {workflow_id}")
         
-        # Return the created asset IDs
+        # Return the asset IDs
         return CreateAssetsFromFilesResponse(
-            asset_ids=[str(asset.id) for asset in created_assets],
-            count=len(created_assets),
+            asset_ids=asset_ids,
+            count=len(asset_ids),
             workflow_id=str(workflow_id)
         )
         
@@ -798,7 +758,7 @@ async def create_assets_from_files(
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"Error creating assets from files: {str(e)}", exc_info=True)
+        logger.error(f"Error processing assets for files: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500, 
             detail="An error occurred while processing your files"
