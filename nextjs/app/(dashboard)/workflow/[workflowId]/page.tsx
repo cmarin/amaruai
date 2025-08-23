@@ -26,6 +26,7 @@ import { useSession } from '@/app/utils/session/session'
 import { GeneratingButton } from '@/components/batch-flow/generating-button'
 import { UploadedFile } from '@/utils/upload-service'
 import { dlog, derror } from '@/utils/debug'
+import { useToast } from "@/hooks/use-toast"
 
 export default function WorkflowStreamPage({ params }: { params: { workflowId: string } }) {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
@@ -40,6 +41,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const { getApiHeaders } = useSession();
   const { sidebarOpen } = useSidebar();
   const router = useRouter();
+  const { toast } = useToast();
   const cleanupRef = useRef<(() => void) | null>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const [hasSubmittedComplexPrompt, setHasSubmittedComplexPrompt] = useState(false);
@@ -306,19 +308,39 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         const headers = getApiHeaders();
         if (headers) {
           dlog('Creating assets from uploaded files...');
-          const result = await createAssetsFromFiles(
-            params.workflowId,
-            data.uploadedFiles.map(f => ({
-              id: f.id,
-              name: f.name,
-              type: f.type,
-              size: f.size,
-              uploadURL: f.uploadURL
-            })),
-            headers
-          );
-          createdAssetIds = result.asset_ids;
-          dlog('Created asset IDs:', createdAssetIds);
+          try {
+            const result = await createAssetsFromFiles(
+              params.workflowId,
+              data.uploadedFiles.map(f => ({
+                id: f.id,
+                name: f.name,
+                type: f.type,
+                size: f.size,
+                uploadURL: f.uploadURL
+              })),
+              headers
+            );
+            createdAssetIds = result.asset_ids;
+            dlog('Created asset IDs:', createdAssetIds);
+            
+            // Notify user if some files were skipped
+            if (result.count < data.uploadedFiles.length) {
+              const skipped = data.uploadedFiles.length - result.count;
+              toast({
+                title: "Some files skipped",
+                description: `${result.count} of ${data.uploadedFiles.length} files were processed. ${skipped} file(s) were skipped due to validation errors.`,
+                variant: "warning"
+              });
+            }
+          } catch (error) {
+            derror('Failed to create assets from files:', error);
+            toast({
+              title: "File processing failed",
+              description: error instanceof Error ? error.message : "Failed to process uploaded files",
+              variant: "destructive"
+            });
+            // Continue with other inputs even if file processing fails
+          }
         }
       }
       

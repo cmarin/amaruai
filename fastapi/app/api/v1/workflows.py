@@ -22,7 +22,6 @@ from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
 from fastapi.responses import StreamingResponse
 from app.config.rag_utils import get_optimized_reference_content
 from pydantic import BaseModel
-from typing import Any
 from app.api.v1.rate_limiter import check_workflow_rate_limit
 
 # Load environment variables
@@ -611,7 +610,8 @@ async def initiate_workflow_stream(
             detail="Failed to initiate workflow. Please try again later."
         )
 
-class FileInfo(BaseModel):
+class UploadedFileInfo(BaseModel):
+    """Information about an uploaded file to be converted to an asset."""
     id: Optional[str] = None
     name: str
     type: str
@@ -619,9 +619,20 @@ class FileInfo(BaseModel):
     uploadURL: str
 
 class CreateAssetsFromFilesRequest(BaseModel):
-    files: List[FileInfo]
+    """Request model for creating assets from uploaded files."""
+    files: List[UploadedFileInfo]
 
-@router.post("/{workflow_id}/create-assets-from-files", operation_id="create_assets_from_files_protected")
+class CreateAssetsFromFilesResponse(BaseModel):
+    """Response model for created assets."""
+    asset_ids: List[str]  # Using str for UUID serialization
+    count: int
+    workflow_id: str
+
+@router.post(
+    "/{workflow_id}/create-assets-from-files", 
+    response_model=CreateAssetsFromFilesResponse,
+    operation_id="create_assets_from_files_protected"
+)
 async def create_assets_from_files(
     workflow_id: UUID,
     request: CreateAssetsFromFilesRequest,
@@ -655,11 +666,22 @@ async def create_assets_from_files(
                 detail="This workflow does not allow file uploads"
             )
         
+        # File validation constants (shared with upload_workflow_assets)
+        ALLOWED_MIME_TYPES = {
+            'text/plain', 'text/csv', 'application/pdf', 
+            'application/json', 'text/markdown', 'text/html',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }
+        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+        MAX_TOTAL_SIZE = 50 * 1024 * 1024  # 50MB total
+        MAX_FILES = 10
+        
         # Validate number of files
-        if len(request.files) > 10:
+        if len(request.files) > MAX_FILES:
             raise HTTPException(
                 status_code=400,
-                detail="Maximum 10 files can be uploaded at once"
+                detail=f"Maximum {MAX_FILES} files can be uploaded at once"
             )
         
         created_assets = []
@@ -680,8 +702,26 @@ async def create_assets_from_files(
                 elif 'knowledge-bases/' in file_url:
                     relative_path = file_url[file_url.find('knowledge-bases/'):]
                 
+                # Validate file type and size upfront
+                if file_type not in ALLOWED_MIME_TYPES:
+                    logger.warning(f"Skipping file {file_name}: unsupported type {file_type}")
+                    continue
+                    
+                if file_size > MAX_FILE_SIZE:
+                    logger.warning(f"Skipping file {file_name}: size {file_size} exceeds limit")
+                    continue
+                
+                # Mask sensitive parts of URL for logging
+                def mask_url(url: str) -> str:
+                    """Mask sensitive parts of URL for safe logging."""
+                    if '?' in url:
+                        base, _ = url.split('?', 1)
+                        return base + '?[params_masked]'
+                    return url
+                
                 # Download the file content
-                logger.info(f"Downloading file {file_name} from {file_url}")
+                masked_url = mask_url(file_url)
+                logger.info(f"Downloading file {file_name} from {masked_url}")
                 
                 content = ''
                 try:
@@ -704,7 +744,7 @@ async def create_assets_from_files(
                     else:
                         # For binary files, store metadata only
                         content = f"[Binary file: {file_name}, type: {file_type}, size: {file_size} bytes]"
-                        logger.info(f"Binary file {file_name} - storing metadata only")
+                        logger.debug(f"Binary file {file_name} - storing metadata only")
                         
                 except requests.exceptions.RequestException as e:
                     logger.error(f"Failed to download file {file_name}: {str(e)}")
@@ -733,7 +773,7 @@ async def create_assets_from_files(
                 db.flush()  # Flush to get the ID
                 
                 created_assets.append(db_asset)
-                logger.info(f"Created asset {db_asset.id} for file {file_name}")
+                logger.debug(f"Created asset {db_asset.id} for file {file_name}")
                 
             except Exception as e:
                 logger.error(f"Error processing file {file_info.name}: {str(e)}")
@@ -743,12 +783,15 @@ async def create_assets_from_files(
         # Commit all assets
         db.commit()
         
+        # Log summary at info level
+        logger.info(f"Created {len(created_assets)} assets from {len(request.files)} files for workflow {workflow_id}")
+        
         # Return the created asset IDs
-        return {
-            "asset_ids": [str(asset.id) for asset in created_assets],
-            "count": len(created_assets),
-            "workflow_id": str(workflow_id)
-        }
+        return CreateAssetsFromFilesResponse(
+            asset_ids=[str(asset.id) for asset in created_assets],
+            count=len(created_assets),
+            workflow_id=str(workflow_id)
+        )
         
     except HTTPException:
         db.rollback()
@@ -756,7 +799,10 @@ async def create_assets_from_files(
     except Exception as e:
         db.rollback()
         logger.error(f"Error creating assets from files: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An error occurred while processing your files")
+        raise HTTPException(
+            status_code=500, 
+            detail="An error occurred while processing your files"
+        ) from e
 
 @router.post("/{workflow_id}/upload-assets", operation_id="upload_workflow_assets_protected")
 async def upload_workflow_assets(

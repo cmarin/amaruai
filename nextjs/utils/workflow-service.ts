@@ -473,21 +473,27 @@ export async function createAssetsFromFiles(
   workflowId: string,
   files: Array<{ id: string; name: string; type: string; size: number; uploadURL: string }>,
   headers: ApiHeaders
-): Promise<{ asset_ids: string[]; count: number }> {
-  const response = await fetch(`${getApiUrl()}/workflows/${workflowId}/create-assets-from-files`, {
-    method: 'POST',
-    headers: {
-      ...headers,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ files }),
+): Promise<{ asset_ids: string[]; count: number; workflow_id: string }> {
+  return fetchWithRetry(async () => {
+    const response = await fetch(`${getApiUrl()}/workflows/${workflowId}/create-assets-from-files`, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ files }),
+    });
+    
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(
+        `Failed to create assets from files: ${response.status} ${response.statusText}${text ? ` - ${text}` : ''}`
+      );
+    }
+    
+    return response.json();
   });
-
-  if (!response.ok) {
-    throw new Error('Failed to create assets from files');
-  }
-
-  return response.json();
 }
 
 export function streamWorkflow(

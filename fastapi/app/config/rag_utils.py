@@ -66,21 +66,35 @@ def get_optimized_reference_content(
                 Asset.id.in_(asset_ids)
             ).all()
             
-            logger.info(f"Found {len(assets)} direct assets")
-            logger.info(f"Asset IDs requested: {asset_ids}")
-            logger.info(f"Assets found: {[str(a.id) for a in assets]}")
+            # Summary at info level, details at debug
+            logger.info(f"Direct assets lookup completed", extra={
+                "requested_count": len(asset_ids or []), 
+                "found_count": len(assets)
+            })
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Direct assets detail", extra={
+                    "asset_ids_requested": [str(aid) for aid in (asset_ids or [])][:10],
+                    "asset_ids_found": [str(a.id) for a in assets][:10],
+                    "truncated": len(asset_ids or []) > 10 or len(assets) > 10
+                })
             
             for asset in assets:
-                logger.info(f"Processing asset {asset.id} - {asset.title if asset.title else asset.file_name}")
+                asset_name = asset.title if asset.title else asset.file_name
+                logger.debug(f"Processing asset {asset.id} - {asset_name}")
                 if asset.content:
-                    logger.info(f"- Content length: {len(asset.content)} characters")
-                    logger.info(f"- Content preview: {asset.content[:200]}...")
+                    logger.debug(f"- Content length: {len(asset.content)} characters")
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(f"- Content preview (first 200 chars): {asset.content[:200]!r}")
                     all_content.append(asset.content)
                     tokens = asset.token_count or count_tokens(asset.content)
                     total_tokens += tokens
-                    logger.info(f"- Token count: {tokens}")
+                    logger.debug(f"- Token count: {tokens}")
                 else:
-                    logger.warning(f"- No content found in asset {asset.id} (file: {asset.file_name})")
+                    logger.warning(
+                        f"- No content found in asset {asset.id} "
+                        f"(file: {asset.file_name}, mime: {getattr(asset, 'mime_type', None)}, "
+                        f"size: {getattr(asset, 'size', None)})"
+                    )
 
         # Then get content from knowledge bases
         if knowledge_base_ids:
@@ -92,15 +106,18 @@ def get_optimized_reference_content(
             
             logger.info(f"Found {len(kb_assets)} knowledge base assets")
             for asset in kb_assets:
-                logger.info(f"Processing KB asset {asset.id} - {asset.title}")
+                kb_asset_name = asset.title if asset.title else asset.file_name
+                logger.debug(f"Processing KB asset {asset.id} - {kb_asset_name}")
                 if asset.content:
-                    logger.info(f"- Content preview: {asset.content[:100]}...")
+                    logger.debug(f"- Content length: {len(asset.content)} characters")
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(f"- Content preview (first 200 chars): {asset.content[:200]!r}")
                     all_content.append(asset.content)
                     tokens = asset.token_count or count_tokens(asset.content)
                     total_tokens += tokens
-                    logger.info(f"- Token count: {tokens}")
+                    logger.debug(f"- Token count: {tokens}")
                 else:
-                    logger.warning(f"- No content found in KB asset {asset.id}")
+                    logger.warning(f"- No content found in KB asset {asset.id} (file: {asset.file_name})")
 
         if not all_content:
             logger.warning("No content found in any assets or knowledge bases")
@@ -120,10 +137,19 @@ def get_optimized_reference_content(
         # Convert UUIDs to strings for the chunks query
         asset_id_strings = [str(aid) for aid in (asset_ids or [])]
         if knowledge_base_ids:
-            # Add asset IDs from knowledge bases
-            kb_asset_ids = [str(asset.id) for kb_id in knowledge_base_ids
-                          for asset in crud.get_knowledge_base(db, kb_id).assets]
-            asset_id_strings.extend(kb_asset_ids)
+            # Prefer a single query to fetch distinct KB assets
+            from app.models import knowledge_base_assets
+            kb_assets_query = (
+                db.query(Asset)
+                  .join(knowledge_base_assets)
+                  .filter(knowledge_base_assets.c.knowledge_base_id.in_(knowledge_base_ids))
+                  .distinct(Asset.id)
+                  .all()
+            )
+            asset_id_strings.extend(str(a.id) for a in kb_assets_query)
+        
+        # De-duplicate to avoid double-processing
+        asset_id_strings = list(dict.fromkeys(asset_id_strings))
 
         # Get chunks without max_tokens parameter
         chunks = find_relevant_chunks(

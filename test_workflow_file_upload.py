@@ -4,14 +4,18 @@ Test script to verify workflow file upload functionality.
 This script tests the new endpoint that creates assets from uploaded files.
 """
 
+import os
 import requests
 import json
 from uuid import uuid4
 
-# Configuration
-API_BASE_URL = "http://localhost:8000/api/v1"  # Adjust as needed
-WORKFLOW_ID = "acc0727f-2586-43e5-b20b-0ed0ccc00468"  # Replace with your workflow ID
-AUTH_TOKEN = "your-auth-token"  # Replace with your auth token
+# Configuration from environment variables
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api/v1")
+WORKFLOW_ID = os.getenv("WORKFLOW_ID", "acc0727f-2586-43e5-b20b-0ed0ccc00468")
+AUTH_TOKEN = os.getenv("AUTH_TOKEN", "")
+
+if not AUTH_TOKEN:
+    print("⚠️  Warning: AUTH_TOKEN not set. Set it via environment variable.")
 
 def test_create_assets_from_files():
     """Test creating assets from uploaded files."""
@@ -38,8 +42,12 @@ def test_create_assets_from_files():
     print(f"Testing endpoint: {url}")
     print(f"Payload: {json.dumps(payload, indent=2)}")
     
-    # Make request
-    response = requests.post(url, headers=headers, json=payload)
+    # Make request with timeout
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+    except requests.RequestException as e:
+        print(f"❌ Request failed: {e}")
+        return []
     
     # Check response
     if response.status_code == 200:
@@ -70,7 +78,11 @@ def test_workflow_stream_with_files(asset_ids):
     print(f"\nTesting workflow stream with file_ids: {asset_ids}")
     print(f"Payload: {json.dumps(payload, indent=2)}")
     
-    response = requests.post(url, headers=headers, json=payload)
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+    except requests.RequestException as e:
+        print(f"❌ Request failed: {e}")
+        return None
     
     if response.status_code == 200:
         result = response.json()
@@ -94,9 +106,9 @@ if __name__ == "__main__":
         stream_token = test_workflow_stream_with_files(asset_ids)
         
         if stream_token:
-            print(f"\n✅ All tests passed!")
+            print("\n✅ All tests passed!")
             print(f"You can now connect to the stream endpoint with token: {stream_token}")
         else:
-            print(f"\n❌ Workflow stream test failed")
+            print("\n❌ Workflow stream test failed")
     else:
-        print(f"\n❌ Asset creation test failed")
+        print("\n❌ Asset creation test failed")
