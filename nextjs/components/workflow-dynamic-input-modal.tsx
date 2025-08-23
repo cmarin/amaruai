@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,8 +13,9 @@ import { fetchKnowledgeBases } from '@/utils/knowledge-base-service';
 import { useSession } from '@/app/utils/session/session';
 import { useToast } from "@/hooks/use-toast";
 import { Workflow } from '@/types/workflow';
-import { AssetUploader } from '@/components/asset-uploader';
+import { WorkflowAssetUploader } from '@/components/workflow-asset-uploader';
 import { UploadedFile } from '@/utils/upload-service';
+import { dlog, derror } from '@/utils/debug';
 
 interface WorkflowDynamicInputModalProps {
   workflow: Workflow;
@@ -42,6 +43,7 @@ export function WorkflowDynamicInputModal({
   const [activeTab, setActiveTab] = useState('upload');
   const { getApiHeaders } = useSession();
   const { toast } = useToast();
+  const uploadedFilesRef = useRef<UploadedFile[]>([]);
 
   // Determine which tabs to show based on workflow settings
   const showFileUpload = workflow.allow_file_upload;
@@ -63,6 +65,19 @@ export function WorkflowDynamicInputModal({
     }
   }, [showAssetSelection, isOpen]);
 
+  // Reset state when modal opens/closes
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset state when modal closes
+      setUploadedFiles([]);
+      uploadedFilesRef.current = [];
+      setSelectedAssets([]);
+      setSelectedKnowledgeBases([]);
+      // Reset active tab based on available features
+      setActiveTab(showFileUpload ? 'upload' : (showAssetSelection ? 'assets' : 'upload'));
+    }
+  }, [isOpen, showFileUpload, showAssetSelection]);
+
   const loadAssetsAndKnowledgeBases = async () => {
     try {
       setIsLoading(true);
@@ -77,7 +92,7 @@ export function WorkflowDynamicInputModal({
       setAssets(assetsData);
       setKnowledgeBases(kbData);
     } catch (error) {
-      console.error('Error loading assets and knowledge bases:', error);
+      derror('Error loading assets and knowledge bases:', error);
       toast({
         title: "Error",
         description: "Failed to load assets and knowledge bases",
@@ -88,41 +103,45 @@ export function WorkflowDynamicInputModal({
     }
   };
 
-  const handleFilesUploaded = (files: UploadedFile[]) => {
-    setUploadedFiles(files);
-  };
+  const handleFileUploaded = useCallback((file: UploadedFile) => {
+    dlog('File uploaded:', file);
+    setUploadedFiles(prev => {
+      const updated = [...prev, file];
+      uploadedFilesRef.current = updated;
+      return updated;
+    });
+  }, []);
+
+  const handleUploadComplete = useCallback((result: any) => {
+    dlog('Upload complete, uploaded files:', uploadedFilesRef.current);
+    // The files have already been added via handleFileUploaded
+    // This is just a completion signal
+  }, []);
 
   const removeFile = (fileId: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+    setUploadedFiles(prev => {
+      const updated = prev.filter(f => f.id !== fileId);
+      uploadedFilesRef.current = updated;
+      return updated;
+    });
   };
 
-  const toggleAsset = (assetId: string) => {
-    setSelectedAssets(prev => 
-      prev.includes(assetId) 
-        ? prev.filter(id => id !== assetId)
-        : [...prev, assetId]
-    );
-  };
-
-  const toggleKnowledgeBase = (kbId: string) => {
-    setSelectedKnowledgeBases(prev => 
-      prev.includes(kbId) 
-        ? prev.filter(id => id !== kbId)
-        : [...prev, kbId]
-    );
-  };
+  // Removed toggle functions - will handle inline with checked value
 
   const handleSubmit = () => {
-    onSubmit({
-      uploadedFiles,
+    dlog('Submitting with:', {
+      uploadedFiles: uploadedFilesRef.current,
       selectedAssets,
       selectedKnowledgeBases
     });
     
-    // Clean up
-    setUploadedFiles([]);
-    setSelectedAssets([]);
-    setSelectedKnowledgeBases([]);
+    onSubmit({
+      uploadedFiles: uploadedFilesRef.current,
+      selectedAssets,
+      selectedKnowledgeBases
+    });
+    
+    // Clean up will happen via the useEffect when modal closes
   };
 
   const hasSelections = uploadedFiles.length > 0 || 
@@ -165,8 +184,17 @@ export function WorkflowDynamicInputModal({
           {showFileUpload && (
             <TabsContent value="upload" className="mt-4 flex-1">
               <div className="space-y-4 h-full">
-                <AssetUploader 
-                  onUploadComplete={handleFilesUploaded}
+                <div className="mb-2">
+                  <p className="text-sm text-gray-600">
+                    Upload files to include in this workflow execution. Files will be uploaded when you click the upload button in the widget below.
+                  </p>
+                </div>
+                
+                {/* Pass individual file handler instead of batch handler */}
+                <WorkflowAssetUploader 
+                  key={`uploader-${isOpen}`} // Force new instance when modal opens
+                  onFileUploaded={handleFileUploaded}
+                  onUploadComplete={handleUploadComplete}
                   onUploadError={(error) => {
                     toast({
                       title: "Upload Error",
@@ -177,28 +205,33 @@ export function WorkflowDynamicInputModal({
                 />
 
                 {uploadedFiles.length > 0 && (
-                  <ScrollArea className="h-[150px] border rounded-lg p-4">
-                    <div className="space-y-2">
-                      {uploadedFiles.map((file) => (
-                        <div key={file.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                          <div className="flex items-center space-x-2">
-                            <FileText className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm">{file.name}</span>
-                            <span className="text-xs text-gray-500">
-                              ({(file.size / 1024).toFixed(1)} KB)
-                            </span>
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Uploaded Files:</h4>
+                    <ScrollArea className="h-[100px] border rounded-lg p-2">
+                      <div className="space-y-2">
+                        {uploadedFiles.map((file) => (
+                          <div key={file.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                            <div className="flex items-center space-x-2">
+                              <FileText className="h-4 w-4 text-gray-500" />
+                              <span className="text-sm">{file.name}</span>
+                              <span className="text-xs text-gray-500">
+                                ({file.size > 1024*1024 
+                                  ? (file.size / (1024*1024)).toFixed(1) + ' MB' 
+                                  : (file.size / 1024).toFixed(1) + ' KB'})
+                              </span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeFile(file.id)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeFile(file.id)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
                 )}
               </div>
             </TabsContent>
@@ -219,7 +252,11 @@ export function WorkflowDynamicInputModal({
                           <Checkbox
                             id={`asset-${asset.id}`}
                             checked={selectedAssets.includes(asset.id)}
-                            onCheckedChange={() => toggleAsset(asset.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedAssets(prev =>
+                                checked ? [...prev, asset.id] : prev.filter(id => id !== asset.id)
+                              );
+                            }}
                           />
                           <label
                             htmlFor={`asset-${asset.id}`}
@@ -255,7 +292,11 @@ export function WorkflowDynamicInputModal({
                           <Checkbox
                             id={`kb-${kb.id}`}
                             checked={selectedKnowledgeBases.includes(kb.id)}
-                            onCheckedChange={() => toggleKnowledgeBase(kb.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedKnowledgeBases(prev =>
+                                checked ? [...prev, kb.id] : prev.filter(id => id !== kb.id)
+                              );
+                            }}
                           />
                           <label
                             htmlFor={`kb-${kb.id}`}
