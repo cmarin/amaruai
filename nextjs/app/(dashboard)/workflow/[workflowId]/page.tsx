@@ -44,6 +44,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const [hasSubmittedComplexPrompt, setHasSubmittedComplexPrompt] = useState(false);
   const [submittedPrompt, setSubmittedPrompt] = useState<string | undefined>(undefined);
   const [showDynamicInputModal, setShowDynamicInputModal] = useState(false);
+  const [hasSubmittedDynamicInputs, setHasSubmittedDynamicInputs] = useState(false);
   const [dynamicInputData, setDynamicInputData] = useState<{
     file_ids?: string[];
     asset_ids?: string[];
@@ -165,8 +166,8 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   }, [params.workflowId, getApiHeaders, handleStreamMessage, initialMessage, dynamicInputData]);
 
   const checkFirstStep = useCallback(async (workflow: Workflow) => {
-    // Check for dynamic inputs first
-    if (workflow.allow_file_upload || workflow.allow_asset_selection) {
+    // Check for dynamic inputs first (but only if not already submitted)
+    if ((workflow.allow_file_upload || workflow.allow_asset_selection) && !hasSubmittedDynamicInputs) {
       setShowDynamicInputModal(true);
       return;
     }
@@ -196,7 +197,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     } else {
       executeWorkflowStream();
     }
-  }, [getApiHeaders, executeWorkflowStream, hasSubmittedComplexPrompt]);
+  }, [getApiHeaders, executeWorkflowStream, hasSubmittedComplexPrompt, hasSubmittedDynamicInputs]);
 
   const loadWorkflow = useCallback(async () => {
     const headers = getApiHeaders();
@@ -286,6 +287,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     try {
       dlog('handleDynamicInputSubmit called with:', data);
       setShowDynamicInputModal(false);
+      setHasSubmittedDynamicInputs(true);
       
       // The files are already uploaded via AssetUploader, just collect the IDs
       const uploadedFileIds = data.uploadedFiles.map(f => f.id);
@@ -359,6 +361,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const handleRunAgain = () => {
     // Clear all previous state for a fresh run
     setHasSubmittedComplexPrompt(false);
+    setHasSubmittedDynamicInputs(false);
     setDynamicInputData(null);
     setInitialMessage(undefined);
     setSubmittedPrompt(undefined);
