@@ -414,10 +414,10 @@ class AssetIds(BaseModel):
     asset_ids: List[UUID]
 
 class WorkflowExecuteInput(BaseModel):
-    message: Optional[str] = None
-    file_ids: Optional[List[UUID]] = []
-    asset_ids: Optional[List[UUID]] = []
-    knowledge_base_ids: Optional[List[UUID]] = []
+    message: Optional[str] = Field(None, max_length=10000)
+    file_ids: Optional[List[UUID]] = Field(default_factory=list, max_items=50)
+    asset_ids: Optional[List[UUID]] = Field(default_factory=list, max_items=50)
+    knowledge_base_ids: Optional[List[UUID]] = Field(default_factory=list, max_items=20)
 
 class Workflow(WorkflowBase):
     id: UUID

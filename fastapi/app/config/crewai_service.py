@@ -46,12 +46,34 @@ class CrewAIService:
         self._streams[stream_token] = {
             'workflow_id': workflow_id,
             'status': 'pending',
-            'result': []
+            'result': [],
+            'created_at': datetime.utcnow(),
+            'expires_at': datetime.utcnow() + timedelta(minutes=30)  # 30 minute expiration
         }
+        # Clean up expired tokens
+        self._cleanup_expired_tokens()
         return stream_token
+    
+    def _cleanup_expired_tokens(self):
+        """Remove expired stream tokens to prevent memory leak"""
+        current_time = datetime.utcnow()
+        expired_tokens = [
+            token for token, data in self._streams.items()
+            if 'expires_at' in data and data['expires_at'] < current_time
+        ]
+        for token in expired_tokens:
+            del self._streams[token]
+            logger.debug(f"Cleaned up expired stream token: {token}")
 
     def get_stream_data(self, stream_token: str) -> Optional[Dict]:
-        return self._streams.get(stream_token)
+        stream_data = self._streams.get(stream_token)
+        if stream_data and 'expires_at' in stream_data:
+            if datetime.utcnow() > stream_data['expires_at']:
+                # Token has expired
+                del self._streams[stream_token]
+                logger.warning(f"Stream token {stream_token} has expired")
+                return None
+        return stream_data
 
     def _update_stream_data(self, stream_token: str, result: Dict):
         if stream_token in self._streams:
@@ -117,6 +139,11 @@ class CrewAIService:
                 prompt_template = step.prompt_template
                 chat_model = step.chat_model or default_chat_model
                 persona = step.persona
+                
+                # Skip steps without a prompt template
+                if not prompt_template:
+                    logger.warning(f"Step {i+1} (position {step.position}) has no prompt template - skipping")
+                    continue
 
                 # Create agent with default values if no persona specified
                 if persona and hasattr(persona, 'temperature') and persona.temperature is not None:
@@ -155,7 +182,14 @@ class CrewAIService:
                 agents.append(agent)
 
                 # Build prompt with RAG content
-                description = user_input.get("message") if i == 0 and "message" in user_input else prompt_template.prompt
+                if i == 0 and "message" in user_input and user_input.get("message"):
+                    description = user_input.get("message")
+                elif prompt_template and prompt_template.prompt:
+                    description = prompt_template.prompt
+                else:
+                    # Fallback description if both are None/empty
+                    description = "Process this step"
+                    logger.warning(f"Step {i+1} has no description from user input or prompt template, using fallback")
 
                 # Use the merged lists for RAG content
                 if all_asset_ids or all_kb_ids:
@@ -204,6 +238,13 @@ class CrewAIService:
 
                 self._update_stream_data(stream_token, step_info)
 
+            # Check if we have any valid tasks to execute
+            if not tasks:
+                logger.error("No valid tasks to execute in workflow")
+                self._streams[stream_token]['status'] = 'error'
+                self._streams[stream_token]['error'] = 'No valid tasks found in workflow. Please ensure workflow steps have prompt templates.'
+                return
+            
             # Execute workflow
             crew = Crew(
                 agents=agents,
@@ -219,10 +260,15 @@ class CrewAIService:
             # Add completion marker
             self._update_stream_data(stream_token, {"completed": True})
         except Exception as e:
-            logger.error(f"Error in workflow execution: {str(e)}")
+            logger.error(f"Error in workflow execution: {str(e)}", exc_info=True)
             self._streams[stream_token]['status'] = 'error'
-            self._streams[stream_token]['error'] = str(e)
-            raise
+            # Sanitize error message to prevent information disclosure
+            error_message = "Workflow execution failed"
+            if "validation error" in str(e).lower():
+                error_message = "Invalid workflow configuration. Please check your workflow setup."
+            elif "rate limit" in str(e).lower():
+                error_message = str(e)  # Rate limit messages are safe to expose
+            self._streams[stream_token]['error'] = error_message
 
     def _create_task_callback(self, stream_token: str, step_num: int, step_prompt: str):
         """Create a callback function for task completion that updates stream data."""

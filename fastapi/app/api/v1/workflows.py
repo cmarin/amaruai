@@ -22,6 +22,7 @@ from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
 from fastapi.responses import StreamingResponse
 from app.config.rag_utils import get_optimized_reference_content
 from pydantic import BaseModel
+from app.api.v1.rate_limiter import check_workflow_rate_limit
 
 # Load environment variables
 load_dotenv()
@@ -62,6 +63,8 @@ def create_workflow(
             manager_persona_id=workflow_dict.get("manager_persona_id"),
             max_iterations=workflow_dict.get("max_iterations", 1),
             search=workflow_dict.get("search"),
+            allow_file_upload=workflow_dict.get("allow_file_upload", False),
+            allow_asset_selection=workflow_dict.get("allow_asset_selection", False),
             created_by=workflow_dict["created_by"]
         )
         db.add(db_workflow)
@@ -72,6 +75,8 @@ def create_workflow(
             assets = db.query(models.Asset).filter(
                 models.Asset.id.in_(workflow_dict["asset_ids"])
             ).all()
+            if len(assets) != len(workflow_dict["asset_ids"]):
+                raise ValueError("One or more asset IDs are invalid")
             db_workflow.assets.extend(assets)
 
         # Add knowledge bases if provided
@@ -79,6 +84,8 @@ def create_workflow(
             knowledge_bases = db.query(models.KnowledgeBase).filter(
                 models.KnowledgeBase.id.in_(workflow_dict["knowledge_base_ids"])
             ).all()
+            if len(knowledge_bases) != len(workflow_dict["knowledge_base_ids"]):
+                raise ValueError("One or more knowledge base IDs are invalid")
             db_workflow.knowledge_bases.extend(knowledge_bases)
 
         # Add steps if provided
@@ -97,12 +104,19 @@ def create_workflow(
         db.refresh(db_workflow)
         return db_workflow
 
-    except Exception as e:
+    except ValueError as e:
         db.rollback()
-        logger.error(f"Error creating workflow: {str(e)}")
+        logger.warning(f"Validation error creating workflow: {str(e)}")
         raise HTTPException(
             status_code=400, 
-            detail=f"Failed to create workflow: {str(e)}"
+            detail=str(e)
+        )
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating workflow: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500, 
+            detail="Failed to create workflow. Please try again."
         )
 
 
@@ -528,10 +542,14 @@ async def initiate_workflow_stream(
     workflow_id: UUID,
     user_input: WorkflowExecuteInput,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user_id)
 ):
     """Initiate a workflow execution with optional dynamic inputs"""
     try:
+        # Apply rate limiting
+        await check_workflow_rate_limit(str(current_user))
+        
         # Log the request parameters
         logger.info(f"Initiating workflow stream - Workflow ID: {workflow_id}")
         logger.info(f"User input: {user_input.dict()}")
@@ -582,9 +600,15 @@ async def initiate_workflow_stream(
         
         return {"stream_token": stream_token}
     
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error initiating workflow stream: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error initiating workflow stream: {str(e)}", exc_info=True)
+        # Don't expose internal error details
+        raise HTTPException(
+            status_code=500, 
+            detail="Failed to initiate workflow. Please try again later."
+        )
 
 @router.post("/{workflow_id}/upload-assets", operation_id="upload_workflow_assets_protected")
 async def upload_workflow_assets(
@@ -600,6 +624,13 @@ async def upload_workflow_assets(
     the asset IDs that can be used in the workflow execution.
     """
     try:
+        # Validate number of assets
+        if len(asset_ids) > 50:
+            raise HTTPException(
+                status_code=400,
+                detail="Maximum 50 assets can be uploaded at once"
+            )
+        
         workflow = crud.get_workflow(db, workflow_id)
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
@@ -622,6 +653,41 @@ async def upload_workflow_assets(
                 detail="One or more assets not found or not owned by user"
             )
         
+        # Validate file types and sizes
+        ALLOWED_MIME_TYPES = {
+            'text/plain', 'text/csv', 'application/pdf', 
+            'application/json', 'text/markdown', 'text/html',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }
+        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+        MAX_TOTAL_SIZE = 50 * 1024 * 1024  # 50MB total
+        
+        total_size = 0
+        for asset in assets:
+            # Check file type
+            if asset.mime_type and asset.mime_type not in ALLOWED_MIME_TYPES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File type {asset.mime_type} is not allowed. Allowed types: {', '.join(ALLOWED_MIME_TYPES)}"
+                )
+            
+            # Check individual file size
+            if asset.size and asset.size > MAX_FILE_SIZE:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File {asset.file_name} exceeds maximum size of 10MB"
+                )
+            
+            total_size += asset.size or 0
+        
+        # Check total size
+        if total_size > MAX_TOTAL_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Total file size exceeds maximum of 50MB"
+            )
+        
         return {
             "asset_ids": [str(asset.id) for asset in assets],
             "count": len(assets),
@@ -633,8 +699,8 @@ async def upload_workflow_assets(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error validating workflow assets: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error validating workflow assets: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while processing your request")
 
 @router.get("/{workflow_id}/upload-config", operation_id="get_workflow_upload_config_protected")
 def get_workflow_upload_config(
