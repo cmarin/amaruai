@@ -67,16 +67,20 @@ def get_optimized_reference_content(
             ).all()
             
             logger.info(f"Found {len(assets)} direct assets")
+            logger.info(f"Asset IDs requested: {asset_ids}")
+            logger.info(f"Assets found: {[str(a.id) for a in assets]}")
+            
             for asset in assets:
-                logger.info(f"Processing asset {asset.id} - {asset.title}")
+                logger.info(f"Processing asset {asset.id} - {asset.title if asset.title else asset.file_name}")
                 if asset.content:
-                    logger.info(f"- Content preview: {asset.content[:100]}...")
+                    logger.info(f"- Content length: {len(asset.content)} characters")
+                    logger.info(f"- Content preview: {asset.content[:200]}...")
                     all_content.append(asset.content)
                     tokens = asset.token_count or count_tokens(asset.content)
                     total_tokens += tokens
                     logger.info(f"- Token count: {tokens}")
                 else:
-                    logger.warning(f"- No content found in asset {asset.id}")
+                    logger.warning(f"- No content found in asset {asset.id} (file: {asset.file_name})")
 
         # Then get content from knowledge bases
         if knowledge_base_ids:

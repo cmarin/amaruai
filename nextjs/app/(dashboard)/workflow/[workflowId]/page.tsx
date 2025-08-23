@@ -7,7 +7,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { ChevronLeft, Copy, FileText, Check, RefreshCw } from 'lucide-react'
 import { 
   fetchWorkflow,
-  streamWorkflow
+  streamWorkflow,
+  createAssetsFromFiles
 } from '@/utils/workflow-service'
 import { 
   Workflow, 
@@ -299,10 +300,26 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       dlog('handleDynamicInputSubmit called with:', data);
       setShowDynamicInputModal(false);
       
-      // The files are already uploaded via AssetUploader, just collect the IDs
-      const uploadedFileIds = data.uploadedFiles.map(f => f.id);
-      if (uploadedFileIds.length > 0) {
-        dlog('Uploaded file IDs:', uploadedFileIds);
+      // Create assets from uploaded files if any
+      let createdAssetIds: string[] = [];
+      if (data.uploadedFiles.length > 0) {
+        const headers = getApiHeaders();
+        if (headers) {
+          dlog('Creating assets from uploaded files...');
+          const result = await createAssetsFromFiles(
+            params.workflowId,
+            data.uploadedFiles.map(f => ({
+              id: f.id,
+              name: f.name,
+              type: f.type,
+              size: f.size,
+              uploadURL: f.uploadURL
+            })),
+            headers
+          );
+          createdAssetIds = result.asset_ids;
+          dlog('Created asset IDs:', createdAssetIds);
+        }
       }
       
       // Build dynamic inputs sparsely - only include non-empty arrays
@@ -311,7 +328,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         asset_ids?: string[];
         knowledge_base_ids?: string[];
       } = {};
-      if (uploadedFileIds.length) dynamicInputs.file_ids = uploadedFileIds;
+      if (createdAssetIds.length) dynamicInputs.file_ids = createdAssetIds;
       if (data.selectedAssets.length) dynamicInputs.asset_ids = data.selectedAssets;
       if (data.selectedKnowledgeBases.length) dynamicInputs.knowledge_base_ids = data.selectedKnowledgeBases;
       

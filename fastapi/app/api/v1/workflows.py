@@ -22,6 +22,7 @@ from llama_index.core.llms import ChatMessage as LlamaChatMessage, MessageRole
 from fastapi.responses import StreamingResponse
 from app.config.rag_utils import get_optimized_reference_content
 from pydantic import BaseModel
+from typing import Any
 from app.api.v1.rate_limiter import check_workflow_rate_limit
 
 # Load environment variables
@@ -609,6 +610,153 @@ async def initiate_workflow_stream(
             status_code=500, 
             detail="Failed to initiate workflow. Please try again later."
         )
+
+class FileInfo(BaseModel):
+    id: Optional[str] = None
+    name: str
+    type: str
+    size: int
+    uploadURL: str
+
+class CreateAssetsFromFilesRequest(BaseModel):
+    files: List[FileInfo]
+
+@router.post("/{workflow_id}/create-assets-from-files", operation_id="create_assets_from_files_protected")
+async def create_assets_from_files(
+    workflow_id: UUID,
+    request: CreateAssetsFromFilesRequest,
+    db: Session = Depends(get_db),
+    current_user: UUID = Depends(get_current_user_id)
+):
+    """
+    Create asset records from uploaded files for workflow execution.
+    This endpoint takes uploaded file information, creates asset records,
+    downloads the files, extracts their content, and stores it in the database.
+    
+    Args:
+        workflow_id: The workflow ID
+        files: List of file information dicts with keys: id, name, type, size, uploadURL
+    
+    Returns:
+        Dictionary with created asset IDs
+    """
+    try:
+        # Import required modules
+        import requests
+        
+        # Validate workflow allows file uploads
+        workflow = crud.get_workflow(db, workflow_id)
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+            
+        if not workflow.allow_file_upload:
+            raise HTTPException(
+                status_code=400, 
+                detail="This workflow does not allow file uploads"
+            )
+        
+        # Validate number of files
+        if len(request.files) > 10:
+            raise HTTPException(
+                status_code=400,
+                detail="Maximum 10 files can be uploaded at once"
+            )
+        
+        created_assets = []
+        
+        for file_info in request.files:
+            try:
+                # Extract file information
+                file_id = file_info.id
+                file_name = file_info.name
+                file_type = file_info.type
+                file_size = file_info.size
+                file_url = file_info.uploadURL
+                
+                # Extract relative path from URL for storage reference
+                relative_path = ''
+                if 'assets/' in file_url:
+                    relative_path = file_url[file_url.find('assets/'):]
+                elif 'knowledge-bases/' in file_url:
+                    relative_path = file_url[file_url.find('knowledge-bases/'):]
+                
+                # Download the file content
+                logger.info(f"Downloading file {file_name} from {file_url}")
+                
+                content = ''
+                try:
+                    response = requests.get(file_url, timeout=30)
+                    response.raise_for_status()
+                    
+                    # Extract text content based on file type
+                    if file_type.startswith('text/') or file_type in ['application/json', 'application/xml', 'text/markdown']:
+                        try:
+                            content = response.text
+                            logger.info(f"Extracted text content from {file_name}: {len(content)} characters")
+                        except Exception as e:
+                            logger.error(f"Failed to decode text from {file_name}: {str(e)}")
+                            content = f"[Failed to decode text content from {file_name}]"
+                    elif file_type == 'application/pdf':
+                        # For PDF files, store a placeholder for now
+                        # You can add PDF extraction later with PyPDF2 or similar
+                        content = f"[PDF content from {file_name} - extraction not yet implemented]"
+                        logger.info(f"PDF file {file_name} - extraction not yet implemented")
+                    else:
+                        # For binary files, store metadata only
+                        content = f"[Binary file: {file_name}, type: {file_type}, size: {file_size} bytes]"
+                        logger.info(f"Binary file {file_name} - storing metadata only")
+                        
+                except requests.exceptions.RequestException as e:
+                    logger.error(f"Failed to download file {file_name}: {str(e)}")
+                    # Create asset with empty content if download fails
+                    content = f"[Failed to download content from {file_name}]"
+                
+                # Create asset record
+                asset_data = {
+                    'id': UUID(file_id) if file_id else uuid4(),
+                    'title': file_name,
+                    'file_name': file_name,
+                    'file_url': relative_path,
+                    'content': content,
+                    'file_type': file_type.split('/')[0] if '/' in file_type else 'text',
+                    'mime_type': file_type,
+                    'size': file_size,
+                    'uploaded_by': current_user,
+                    'managed': False,  # Set to false for temporary workflow files
+                    'status': 'ready',
+                    'token_count': len(content.split()) if content else 0
+                }
+                
+                # Create the asset in database
+                db_asset = models.Asset(**asset_data)
+                db.add(db_asset)
+                db.flush()  # Flush to get the ID
+                
+                created_assets.append(db_asset)
+                logger.info(f"Created asset {db_asset.id} for file {file_name}")
+                
+            except Exception as e:
+                logger.error(f"Error processing file {file_info.name}: {str(e)}")
+                # Continue with other files even if one fails
+                continue
+        
+        # Commit all assets
+        db.commit()
+        
+        # Return the created asset IDs
+        return {
+            "asset_ids": [str(asset.id) for asset in created_assets],
+            "count": len(created_assets),
+            "workflow_id": str(workflow_id)
+        }
+        
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating assets from files: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while processing your files")
 
 @router.post("/{workflow_id}/upload-assets", operation_id="upload_workflow_assets_protected")
 async def upload_workflow_assets(

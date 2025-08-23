@@ -469,6 +469,27 @@ export async function updateWorkflowStep(
   });
 }
 
+export async function createAssetsFromFiles(
+  workflowId: string,
+  files: Array<{ id: string; name: string; type: string; size: number; uploadURL: string }>,
+  headers: ApiHeaders
+): Promise<{ asset_ids: string[]; count: number }> {
+  const response = await fetch(`${getApiUrl()}/workflows/${workflowId}/create-assets-from-files`, {
+    method: 'POST',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ files }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to create assets from files');
+  }
+
+  return response.json();
+}
+
 export function streamWorkflow(
   workflowId: string,
   userId: string,
