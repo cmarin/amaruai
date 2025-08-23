@@ -112,7 +112,7 @@ export function WorkflowAssetUploader({
         hideUploadButton={false}
         hideProgressAfterFinish={true}
         note="Files up to 10MB"
-        height={350}
+        height={300}
       />
     </div>
   );
