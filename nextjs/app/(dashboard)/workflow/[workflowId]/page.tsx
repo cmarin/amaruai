@@ -283,6 +283,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     selectedKnowledgeBases: string[];
   }) => {
     try {
+      console.log('handleDynamicInputSubmit called with:', data);
       setShowDynamicInputModal(false);
       
       // Upload files if any
@@ -293,22 +294,27 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         
         // The files are already uploaded via AssetUploader, just collect the IDs
         uploadedFileIds = data.uploadedFiles.map(f => f.id);
+        console.log('Uploaded file IDs:', uploadedFileIds);
       }
       
       // Store the dynamic input data
-      setDynamicInputData({
+      const dynamicInputs = {
         file_ids: uploadedFileIds,
         asset_ids: data.selectedAssets,
         knowledge_base_ids: data.selectedKnowledgeBases
-      });
+      };
+      setDynamicInputData(dynamicInputs);
+      console.log('Dynamic input data stored:', dynamicInputs);
       
       // Now check if we need to show complex prompt
       if (workflow?.steps.length && workflow.steps.length > 0 && !hasSubmittedComplexPrompt) {
         const firstStep = workflow.steps[0];
         const headers = getApiHeaders();
         if (headers) {
+          console.log('Checking for complex prompt...');
           const promptTemplate = await fetchPromptTemplate(firstStep.prompt_template_id, headers);
           if (promptTemplate.is_complex) {
+            console.log('Complex prompt found, showing modal');
             setComplexPromptTemplate(promptTemplate);
             setShowComplexPromptModal(true);
             return;
@@ -316,12 +322,9 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         }
       }
       
+      console.log('Executing workflow with dynamic inputs:', dynamicInputs);
       // Execute workflow with dynamic inputs
-      executeWorkflowStream(undefined, {
-        file_ids: uploadedFileIds,
-        asset_ids: data.selectedAssets,
-        knowledge_base_ids: data.selectedKnowledgeBases
-      });
+      executeWorkflowStream(undefined, dynamicInputs);
       
     } catch (error) {
       console.error('Error handling dynamic input:', error);
