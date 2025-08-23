@@ -110,6 +110,16 @@ class TranscriptionWorker:
             file_url = msg_data['payload']['file_url']
             asset_id = msg_data['payload']['asset_id']
             persona_id = msg_data['payload'].get('persona_id', None)
+            
+            # Check if the asset already has content (skip if already processed)
+            db = SessionLocal()
+            try:
+                asset = crud.get_asset(db, asset_id=asset_id)
+                if asset and asset.content:
+                    logger.info(f"Asset {asset_id} already has content, skipping processing")
+                    return
+            finally:
+                db.close()
 
             # Create a temporary directory for processing
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -181,11 +191,11 @@ class TranscriptionWorker:
                             mp3_path, audio_temp_dir = self.video_service.extract_audio(temp_file_path)
                             # 2) Then transcribe
                             extracted_text = self.whisper_service.transcribe_audio(mp3_path)
-                        elif file_ext == ".txt":
-                            # For .txt files, just read the content directly
+                        elif file_ext in [".txt", ".md", ".markdown"]:
+                            # For text and markdown files, just read the content directly
                             with open(temp_file_path, 'r', encoding='utf-8') as f:
                                 extracted_text = f.read()
-                            logger.info("Successfully read text file content")
+                            logger.info(f"Successfully read {file_ext} file content")
                         else:
                             extracted_text = self.docling_service.convert_file(temp_file_path)
 
@@ -230,18 +240,22 @@ class TranscriptionWorker:
                     await self.update_asset_status(asset_id, "failed", error_msg)
                     return
 
-            # Archive the message after successful processing
-            supabase_client.rpc(
-                'archive',
-                {
-                    'queue_name': 'asset_transcription',
-                    'message_id': message['msg_id']
-                }
-            ).execute()
-
         except Exception as e:
             logger.error(f"Worker {self.worker_id} failed to process message: {str(e)}", exc_info=True)
-            # The message will become visible again after the visibility timeout
+            
+        finally:
+            # Archive the message whether successful or failed to prevent infinite retries
+            try:
+                supabase_client.rpc(
+                    'archive',
+                    {
+                        'queue_name': 'asset_transcription',
+                        'message_id': message['msg_id']
+                    }
+                ).execute()
+                logger.info(f"Archived message {message['msg_id']}")
+            except Exception as archive_error:
+                logger.error(f"Failed to archive message {message['msg_id']}: {str(archive_error)}")
 
     async def run(self):
         logger.info(f"Worker {self.worker_id} started")
