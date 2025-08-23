@@ -109,6 +109,13 @@ class CrewAIService:
             dynamic_asset_ids = user_input.get("asset_ids", [])
             dynamic_kb_ids = user_input.get("knowledge_base_ids", [])
             
+            logger.info(
+                "Dynamic input received: file_ids=%s, asset_ids=%s, knowledge_base_ids=%s",
+                dynamic_file_ids,
+                dynamic_asset_ids,
+                dynamic_kb_ids
+            )
+            
             # Merge dynamic assets with workflow's fixed assets
             all_asset_ids = [asset.id for asset in workflow.assets] if workflow.assets else []
             all_kb_ids = [kb.id for kb in workflow.knowledge_bases] if workflow.knowledge_bases else []
@@ -117,6 +124,7 @@ class CrewAIService:
             if dynamic_file_ids:
                 all_asset_ids.extend(dynamic_file_ids)
                 logger.info(f"Added {len(dynamic_file_ids)} uploaded files to workflow")
+                logger.debug("File IDs being processed: %s", dynamic_file_ids)
                 
             # Add dynamic asset selections
             if dynamic_asset_ids:
