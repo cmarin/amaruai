@@ -44,6 +44,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const [hasSubmittedComplexPrompt, setHasSubmittedComplexPrompt] = useState(false);
   const [submittedPrompt, setSubmittedPrompt] = useState<string | undefined>(undefined);
   const [showDynamicInputModal, setShowDynamicInputModal] = useState(false);
+  const [hasSubmittedDynamicInputs, setHasSubmittedDynamicInputs] = useState(false);
   const [dynamicInputData, setDynamicInputData] = useState<{
     file_ids?: string[];
     asset_ids?: string[];
@@ -165,8 +166,8 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   }, [params.workflowId, getApiHeaders, handleStreamMessage, initialMessage, dynamicInputData]);
 
   const checkFirstStep = useCallback(async (workflow: Workflow) => {
-    // Check for dynamic inputs first
-    if (workflow.allow_file_upload || workflow.allow_asset_selection) {
+    // Check for dynamic inputs first (but only if not already submitted)
+    if ((workflow.allow_file_upload || workflow.allow_asset_selection) && !hasSubmittedDynamicInputs) {
       setShowDynamicInputModal(true);
       return;
     }
@@ -196,7 +197,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     } else {
       executeWorkflowStream();
     }
-  }, [getApiHeaders, executeWorkflowStream, hasSubmittedComplexPrompt]);
+  }, [getApiHeaders, executeWorkflowStream, hasSubmittedComplexPrompt, hasSubmittedDynamicInputs]);
 
   const loadWorkflow = useCallback(async () => {
     const headers = getApiHeaders();
@@ -269,6 +270,17 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     };
   }, [loadWorkflow]);
 
+  // Reset state when switching between workflows
+  useEffect(() => {
+    setHasSubmittedDynamicInputs(false);
+    setDynamicInputData(null);
+    setHasSubmittedComplexPrompt(false);
+    setInitialMessage(undefined);
+    setSubmittedPrompt(undefined);
+    setResults([]);
+    setError(null);
+  }, [params.workflowId]);
+
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
     console.log('Complex prompt submitted:', generatedPrompt);
     setShowComplexPromptModal(false);
@@ -304,6 +316,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       if (data.selectedKnowledgeBases.length) dynamicInputs.knowledge_base_ids = data.selectedKnowledgeBases;
       
       setDynamicInputData(dynamicInputs);
+      setHasSubmittedDynamicInputs(true);
       dlog('Dynamic input data stored:', dynamicInputs);
       
       // Now check if we need to show complex prompt
@@ -359,18 +372,16 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const handleRunAgain = () => {
     // Clear all previous state for a fresh run
     setHasSubmittedComplexPrompt(false);
+    setHasSubmittedDynamicInputs(false);
     setDynamicInputData(null);
     setInitialMessage(undefined);
     setSubmittedPrompt(undefined);
     setResults([]);
     setError(null);
     
-    if (workflow?.allow_file_upload || workflow?.allow_asset_selection) {
-      setShowDynamicInputModal(true);
-    } else if (complexPromptTemplate && !hasSubmittedComplexPrompt) {
-      setShowComplexPromptModal(true);
-    } else {
-      executeWorkflowStream();
+    // Reuse the same entry logic as initial load for consistency
+    if (workflow) {
+      checkFirstStep(workflow);
     }
   };
 
