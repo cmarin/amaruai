@@ -270,6 +270,17 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     };
   }, [loadWorkflow]);
 
+  // Reset state when switching between workflows
+  useEffect(() => {
+    setHasSubmittedDynamicInputs(false);
+    setDynamicInputData(null);
+    setHasSubmittedComplexPrompt(false);
+    setInitialMessage(undefined);
+    setSubmittedPrompt(undefined);
+    setResults([]);
+    setError(null);
+  }, [params.workflowId]);
+
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
     console.log('Complex prompt submitted:', generatedPrompt);
     setShowComplexPromptModal(false);
@@ -287,7 +298,6 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     try {
       dlog('handleDynamicInputSubmit called with:', data);
       setShowDynamicInputModal(false);
-      setHasSubmittedDynamicInputs(true);
       
       // The files are already uploaded via AssetUploader, just collect the IDs
       const uploadedFileIds = data.uploadedFiles.map(f => f.id);
@@ -306,6 +316,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       if (data.selectedKnowledgeBases.length) dynamicInputs.knowledge_base_ids = data.selectedKnowledgeBases;
       
       setDynamicInputData(dynamicInputs);
+      setHasSubmittedDynamicInputs(true);
       dlog('Dynamic input data stored:', dynamicInputs);
       
       // Now check if we need to show complex prompt
@@ -368,12 +379,9 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     setResults([]);
     setError(null);
     
-    if (workflow?.allow_file_upload || workflow?.allow_asset_selection) {
-      setShowDynamicInputModal(true);
-    } else if (complexPromptTemplate && !hasSubmittedComplexPrompt) {
-      setShowComplexPromptModal(true);
-    } else {
-      executeWorkflowStream();
+    // Reuse the same entry logic as initial load for consistency
+    if (workflow) {
+      checkFirstStep(workflow);
     }
   };
 
