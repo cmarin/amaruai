@@ -104,12 +104,11 @@ export function WorkflowDynamicInputModal({
   };
 
   const handleFileUploaded = useCallback((file: UploadedFile) => {
-    console.log('File uploaded callback called:', file);
-    dlog('File uploaded:', file);
+    dlog('File uploaded callback called:', file);
     setUploadedFiles(prev => {
       const updated = [...prev, file];
       uploadedFilesRef.current = updated;
-      console.log('Updated files state:', updated);
+      dlog('Updated files state:', updated);
       return updated;
     });
   }, []);
@@ -188,7 +187,7 @@ export function WorkflowDynamicInputModal({
               <div className="space-y-4 h-full">
                 <div className="mb-2">
                   <p className="text-sm text-gray-600">
-                    Upload files to include in this workflow execution. Files will be uploaded when you click the upload button in the widget below.
+                    Upload files to include in this workflow execution. Files upload automatically when selected. You can remove any file before continuing.
                   </p>
                 </div>
                 

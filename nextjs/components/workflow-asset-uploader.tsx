@@ -105,7 +105,7 @@ export function WorkflowAssetUploader({
         uppyInstance.destroy();
       }
     };
-  }, [supabase, knowledgeBaseId, toast]); // Only recreate when these change
+  }, [supabase, knowledgeBaseId]); // Only recreate when these change - toast is stable
 
   if (!uppy) {
     return <div>Loading uploader...</div>;

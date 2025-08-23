@@ -1,6 +1,7 @@
 import Uppy from '@uppy/core';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
+import { dlog } from '@/utils/debug';
 
 export interface UploadedFile {
     id: string;
@@ -39,7 +40,7 @@ export class UploadService {
             autoProceed: true,  // Auto-upload when files are selected
             restrictions: {
                 maxFileSize: config.restrictions?.maxFileSize || 10 * 1024 * 1024,
-                maxNumberOfFiles: config.maxFiles || 10,
+                maxNumberOfFiles: config.restrictions?.maxNumberOfFiles ?? config.maxFiles ?? 10,
                 allowedFileTypes: config.restrictions?.allowedFileTypes || [
                     'image/*',
                     'application/pdf',
@@ -57,6 +58,15 @@ export class UploadService {
 
         uppy.on('file-added', async (file) => {
             try {
+                // Mark file as "uploading" for Dashboard/progress state
+                uppy.setFileState(file.id, {
+                    progress: {
+                        uploadStarted: Date.now(),
+                        bytesUploaded: 0,
+                        bytesTotal: file.size ?? 0,
+                    },
+                });
+
                 const { data: { session } } = await supabase.auth.getSession();
                 if (!session?.user?.id) {
                     throw new Error('User must be authenticated to upload files');
@@ -72,7 +82,7 @@ export class UploadService {
                     : `${config.storageFolder}/${session.user.id}/${fileUuid}/${file.name}`;
 
                 const mimeType = file.type || 'application/octet-stream';
-                const bucket = config.storageBucket || 'amaruai-dev';
+                const bucket = config.storageBucket ?? process.env.NEXT_PUBLIC_SUPABASE_BUCKET ?? 'amaruai-dev';
 
                 const { error: uploadError } = await supabase.storage
                     .from(bucket)
@@ -92,7 +102,10 @@ export class UploadService {
                     });
 
                 if (uploadError) {
-                    throw uploadError;
+                    console.error('Error uploading file:', uploadError);
+                    uppy.setFileState(file.id, { error: uploadError.message });
+                    uppy.emit('upload-error', file, uploadError);
+                    return;
                 }
 
                 const { data: { publicUrl } } = supabase.storage
@@ -108,14 +121,40 @@ export class UploadService {
                 };
 
                 if (onFileUploaded) {
-                    console.log('Calling onFileUploaded callback with:', uploadedFile);
+                    dlog('Calling onFileUploaded callback with:', uploadedFile);
                     onFileUploaded(uploadedFile);
                 } else {
-                    console.log('No onFileUploaded callback provided');
+                    dlog('No onFileUploaded callback provided');
+                }
+
+                // Reflect success in Uppy UI and emit lifecycle events
+                uppy.setFileState(file.id, {
+                    progress: {
+                        uploadComplete: true,
+                        bytesUploaded: file.size ?? 0,
+                        bytesTotal: file.size ?? 0,
+                    },
+                });
+                uppy.emit('upload-success', file, { uploadURL: publicUrl });
+
+                // If all files in the current selection are done (success/failed), emit 'complete'
+                const files = uppy.getFiles();
+                const successful = files.filter(f => f.progress?.uploadComplete);
+                const failed = files.filter(f => Boolean((f as any).error));
+                if (successful.length + failed.length === files.length) {
+                    uppy.emit('complete', { successful, failed });
                 }
             } catch (error) {
                 console.error('Error uploading file:', error);
-                throw error;
+                // Surface to listeners instead of throwing from an event handler
+                const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+                uppy.setFileState(file.id, { error: errorMessage });
+                try {
+                    uppy.emit('upload-error', file, error);
+                } catch {
+                    // no-op: ensure we don't crash the app from an event context
+                }
+                return;
             }
         });
 
