@@ -63,6 +63,7 @@ export function WorkflowAssetUploader({
         toast({
           title: "File uploaded",
           description: `Successfully uploaded ${file.name}`,
+          duration: 2000, // Show for only 2 seconds
         });
       },
       (result) => {
@@ -107,8 +108,9 @@ export function WorkflowAssetUploader({
         uppy={uppy}
         proudlyDisplayPoweredByUppy={false}
         showSelectedFiles={true}
-        showRemoveButtonAfterComplete={true}
+        showRemoveButtonAfterComplete={false}
         hideUploadButton={false}
+        hideProgressAfterFinish={true}
         note="Files up to 10MB"
         height={350}
       />

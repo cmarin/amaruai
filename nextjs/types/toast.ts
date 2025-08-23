@@ -8,6 +8,7 @@ export interface Toast {
   variant?: "default" | "destructive"
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  duration?: number
 }
 
 export type ToastActionElement = ReactElement 
