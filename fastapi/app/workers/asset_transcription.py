@@ -110,6 +110,20 @@ class TranscriptionWorker:
             file_url = msg_data['payload']['file_url']
             asset_id = msg_data['payload']['asset_id']
             persona_id = msg_data['payload'].get('persona_id', None)
+            
+            # Check if the asset already has content (skip if already processed)
+            db = SessionLocal()
+            try:
+                asset = crud.get_asset(db, asset_id=asset_id)
+                if asset and asset.content:
+                    # Finalize status to avoid dangling "processing"/"failed" records in the UI
+                    if getattr(asset, "status", None) != "completed":
+                        asset.status = "completed"
+                        db.commit()
+                    logger.info(f"Asset {asset_id} already has content, skipping processing")
+                    return
+            finally:
+                db.close()
 
             # Create a temporary directory for processing
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -181,18 +195,19 @@ class TranscriptionWorker:
                             mp3_path, audio_temp_dir = self.video_service.extract_audio(temp_file_path)
                             # 2) Then transcribe
                             extracted_text = self.whisper_service.transcribe_audio(mp3_path)
-                        elif file_ext == ".txt":
-                            # For .txt files, just read the content directly
-                            with open(temp_file_path, 'r', encoding='utf-8') as f:
+                        elif file_ext in [".txt", ".md", ".markdown"]:
+                            # For text and markdown files, just read the content directly
+                            # Use errors='replace' to avoid hard failures on unexpected encodings
+                            with open(temp_file_path, 'r', encoding='utf-8', errors='replace') as f:
                                 extracted_text = f.read()
-                            logger.info("Successfully read text file content")
+                            logger.debug(f"Successfully read {file_ext} file content")
                         else:
                             extracted_text = self.docling_service.convert_file(temp_file_path)
 
-                        logger.info("Successfully extracted text:")
-                        logger.info("=" * 50)
-                        logger.info(extracted_text)
-                        logger.info("=" * 50)
+                        # Avoid logging full document contents (privacy + log volume)
+                        preview = extracted_text[:500].replace("\n", " ")
+                        logger.debug(f"Extracted text preview (first 500 chars): {preview}")
+                        logger.info(f"Extracted text length: {len(extracted_text)} chars")
 
                         # Update database
                         db = SessionLocal()
@@ -230,18 +245,33 @@ class TranscriptionWorker:
                     await self.update_asset_status(asset_id, "failed", error_msg)
                     return
 
-            # Archive the message after successful processing
-            supabase_client.rpc(
-                'archive',
-                {
-                    'queue_name': 'asset_transcription',
-                    'message_id': message['msg_id']
-                }
-            ).execute()
-
         except Exception as e:
             logger.error(f"Worker {self.worker_id} failed to process message: {str(e)}", exc_info=True)
-            # The message will become visible again after the visibility timeout
+            
+        finally:
+            # Archive the message whether successful or failed to prevent infinite retries
+            max_attempts = 3
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    supabase_client.rpc(
+                        'archive',
+                        {
+                            'queue_name': 'asset_transcription',
+                            'message_id': message['msg_id']
+                        }
+                    ).execute()
+                    logger.info(f"Archived message {message['msg_id']}")
+                    break
+                except Exception as err:
+                    if attempt < max_attempts:
+                        logger.warning(
+                            f"Archive attempt {attempt} failed for message {message['msg_id']}: {err}. Retrying..."
+                        )
+                        await asyncio.sleep(2 ** attempt)
+                    else:
+                        logger.error(
+                            f"Failed to archive message {message['msg_id']} after {max_attempts} attempts: {err}"
+                        )
 
     async def run(self):
         logger.info(f"Worker {self.worker_id} started")
