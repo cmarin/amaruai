@@ -36,7 +36,7 @@ export class UploadService {
 
         const uppy = new Uppy({
             id,
-            autoProceed: false,  // Changed back to false to match old behavior
+            autoProceed: true,  // Auto-upload when files are selected
             restrictions: {
                 maxFileSize: config.restrictions?.maxFileSize || 10 * 1024 * 1024,
                 maxNumberOfFiles: config.maxFiles || 10,
@@ -108,7 +108,10 @@ export class UploadService {
                 };
 
                 if (onFileUploaded) {
+                    console.log('Calling onFileUploaded callback with:', uploadedFile);
                     onFileUploaded(uploadedFile);
+                } else {
+                    console.log('No onFileUploaded callback provided');
                 }
             } catch (error) {
                 console.error('Error uploading file:', error);

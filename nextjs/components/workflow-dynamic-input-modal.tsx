@@ -104,10 +104,12 @@ export function WorkflowDynamicInputModal({
   };
 
   const handleFileUploaded = useCallback((file: UploadedFile) => {
+    console.log('File uploaded callback called:', file);
     dlog('File uploaded:', file);
     setUploadedFiles(prev => {
       const updated = [...prev, file];
       uploadedFilesRef.current = updated;
+      console.log('Updated files state:', updated);
       return updated;
     });
   }, []);

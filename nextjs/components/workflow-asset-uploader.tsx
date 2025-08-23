@@ -27,6 +27,16 @@ export function WorkflowAssetUploader({
   const supabase = useSupabase();
   const { toast } = useToast();
   const uploadedFilesRef = useRef<UploadedFile[]>([]);
+  const onFileUploadedRef = useRef(onFileUploaded);
+  const onUploadCompleteRef = useRef(onUploadComplete);
+  const onUploadErrorRef = useRef(onUploadError);
+
+  // Keep refs up to date
+  useEffect(() => {
+    onFileUploadedRef.current = onFileUploaded;
+    onUploadCompleteRef.current = onUploadComplete;
+    onUploadErrorRef.current = onUploadError;
+  }, [onFileUploaded, onUploadComplete, onUploadError]);
 
   useEffect(() => {
     // Reset uploaded files when component mounts
@@ -55,9 +65,9 @@ export function WorkflowAssetUploader({
         // Track each file as it's uploaded
         uploadedFilesRef.current.push(file);
         
-        // Notify parent of each file upload
-        if (onFileUploaded) {
-          onFileUploaded(file);
+        // Notify parent of each file upload using ref to avoid stale closure
+        if (onFileUploadedRef.current) {
+          onFileUploadedRef.current(file);
         }
         
         toast({
@@ -66,9 +76,9 @@ export function WorkflowAssetUploader({
         });
       },
       (result) => {
-        // When all uploads are complete, notify with all files
-        if (onUploadComplete) {
-          onUploadComplete(uploadedFilesRef.current);
+        // When all uploads are complete, notify with all files using ref
+        if (onUploadCompleteRef.current) {
+          onUploadCompleteRef.current(uploadedFilesRef.current);
         }
       },
       supabase,
@@ -78,8 +88,8 @@ export function WorkflowAssetUploader({
     // Handle upload errors
     uppyInstance.on('upload-error', (file, error) => {
       derror(`Upload error for ${file?.name}:`, error);
-      if (onUploadError) {
-        onUploadError(error as Error);
+      if (onUploadErrorRef.current) {
+        onUploadErrorRef.current(error as Error);
       }
       toast({
         title: "Upload failed",
@@ -95,7 +105,7 @@ export function WorkflowAssetUploader({
         uppyInstance.destroy();
       }
     };
-  }, [supabase, knowledgeBaseId]); // Remove callbacks from deps to avoid recreating
+  }, [supabase, knowledgeBaseId, toast]); // Only recreate when these change
 
   if (!uppy) {
     return <div>Loading uploader...</div>;
@@ -108,8 +118,8 @@ export function WorkflowAssetUploader({
         proudlyDisplayPoweredByUppy={false}
         showSelectedFiles={true}
         showRemoveButtonAfterComplete={true}
-        hideUploadButton={false}
-        note="Files up to 10MB"
+        hideUploadButton={true}
+        note="Files up to 10MB - Files upload automatically when selected"
         height={350}
       />
     </div>
