@@ -6,22 +6,23 @@ import Uppy from '@uppy/core';
 import { useSupabase } from '@/app/contexts/SupabaseContext';
 import { UploadService, UploadedFile } from '@/utils/upload-service';
 import { useToast } from "@/hooks/use-toast"
+import { derror } from '@/utils/debug';
 import '@uppy/core/dist/style.css';
 import '@uppy/dashboard/dist/style.css';
 
-interface AssetUploaderFixedProps {
+interface WorkflowAssetUploaderProps {
   onFileUploaded?: (file: UploadedFile) => void;
   onUploadComplete?: (files: UploadedFile[]) => void;
   onUploadError?: (error: Error) => void;
   knowledgeBaseId?: string;
 }
 
-export function AssetUploaderFixed({ 
+export function WorkflowAssetUploader({ 
   onFileUploaded, 
   onUploadComplete, 
   onUploadError, 
   knowledgeBaseId 
-}: AssetUploaderFixedProps) {
+}: WorkflowAssetUploaderProps) {
   const [uppy, setUppy] = useState<ReturnType<typeof UploadService.createUppy> | null>(null);
   const supabase = useSupabase();
   const { toast } = useToast();
@@ -32,7 +33,7 @@ export function AssetUploaderFixed({
     uploadedFilesRef.current = [];
 
     const uppyInstance = UploadService.createUppy(
-      `asset-uploader-${Date.now()}`, // Unique ID to avoid conflicts
+      `workflow-asset-uploader-${Date.now()}`,
       {
         maxFiles: 10,
         storageFolder: knowledgeBaseId ? `knowledge-bases/${knowledgeBaseId}` : 'assets',
@@ -74,6 +75,19 @@ export function AssetUploaderFixed({
       knowledgeBaseId
     );
 
+    // Handle upload errors
+    uppyInstance.on('upload-error', (file, error) => {
+      derror(`Upload error for ${file?.name}:`, error);
+      if (onUploadError) {
+        onUploadError(error as Error);
+      }
+      toast({
+        title: "Upload failed",
+        description: `Failed to upload ${file?.name}: ${error?.message}`,
+        variant: "destructive"
+      });
+    });
+
     setUppy(uppyInstance);
 
     return () => {
@@ -81,26 +95,7 @@ export function AssetUploaderFixed({
         uppyInstance.destroy();
       }
     };
-  }, [supabase, knowledgeBaseId]); // Remove onUploadComplete and onFileUploaded from deps to avoid recreating
-
-  // Call the callbacks with the current refs to avoid stale closures
-  useEffect(() => {
-    if (uppy && onFileUploaded) {
-      const handler = (file: UploadedFile) => {
-        onFileUploaded(file);
-      };
-      // Store reference to handler if needed
-    }
-  }, [uppy, onFileUploaded]);
-
-  useEffect(() => {
-    if (uppy && onUploadComplete) {
-      const handler = (files: UploadedFile[]) => {
-        onUploadComplete(files);
-      };
-      // Store reference to handler if needed
-    }
-  }, [uppy, onUploadComplete]);
+  }, [supabase, knowledgeBaseId]); // Remove callbacks from deps to avoid recreating
 
   if (!uppy) {
     return <div>Loading uploader...</div>;

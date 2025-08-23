@@ -24,6 +24,7 @@ import { addToScratchPad } from '@/utils/scratch-pad-service'
 import { useSession } from '@/app/utils/session/session'
 import { GeneratingButton } from '@/components/batch-flow/generating-button'
 import { UploadedFile } from '@/utils/upload-service'
+import { dlog, derror } from '@/utils/debug'
 
 export default function WorkflowStreamPage({ params }: { params: { workflowId: string } }) {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
@@ -283,38 +284,37 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     selectedKnowledgeBases: string[];
   }) => {
     try {
-      console.log('handleDynamicInputSubmit called with:', data);
+      dlog('handleDynamicInputSubmit called with:', data);
       setShowDynamicInputModal(false);
       
-      // Upload files if any
-      let uploadedFileIds: string[] = [];
-      if (data.uploadedFiles.length > 0) {
-        const headers = getApiHeaders();
-        if (!headers) return;
-        
-        // The files are already uploaded via AssetUploader, just collect the IDs
-        uploadedFileIds = data.uploadedFiles.map(f => f.id);
-        console.log('Uploaded file IDs:', uploadedFileIds);
+      // The files are already uploaded via AssetUploader, just collect the IDs
+      const uploadedFileIds = data.uploadedFiles.map(f => f.id);
+      if (uploadedFileIds.length > 0) {
+        dlog('Uploaded file IDs:', uploadedFileIds);
       }
       
-      // Store the dynamic input data
-      const dynamicInputs = {
-        file_ids: uploadedFileIds,
-        asset_ids: data.selectedAssets,
-        knowledge_base_ids: data.selectedKnowledgeBases
-      };
+      // Build dynamic inputs sparsely - only include non-empty arrays
+      const dynamicInputs: {
+        file_ids?: string[];
+        asset_ids?: string[];
+        knowledge_base_ids?: string[];
+      } = {};
+      if (uploadedFileIds.length) dynamicInputs.file_ids = uploadedFileIds;
+      if (data.selectedAssets.length) dynamicInputs.asset_ids = data.selectedAssets;
+      if (data.selectedKnowledgeBases.length) dynamicInputs.knowledge_base_ids = data.selectedKnowledgeBases;
+      
       setDynamicInputData(dynamicInputs);
-      console.log('Dynamic input data stored:', dynamicInputs);
+      dlog('Dynamic input data stored:', dynamicInputs);
       
       // Now check if we need to show complex prompt
       if (workflow?.steps.length && workflow.steps.length > 0 && !hasSubmittedComplexPrompt) {
         const firstStep = workflow.steps[0];
         const headers = getApiHeaders();
         if (headers) {
-          console.log('Checking for complex prompt...');
+          dlog('Checking for complex prompt...');
           const promptTemplate = await fetchPromptTemplate(firstStep.prompt_template_id, headers);
           if (promptTemplate.is_complex) {
-            console.log('Complex prompt found, showing modal');
+            dlog('Complex prompt found, showing modal');
             setComplexPromptTemplate(promptTemplate);
             setShowComplexPromptModal(true);
             return;
@@ -322,12 +322,12 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         }
       }
       
-      console.log('Executing workflow with dynamic inputs:', dynamicInputs);
+      dlog('Executing workflow with dynamic inputs:', dynamicInputs);
       // Execute workflow with dynamic inputs
       executeWorkflowStream(undefined, dynamicInputs);
       
     } catch (error) {
-      console.error('Error handling dynamic input:', error);
+      derror('Error handling dynamic input:', error);
       setError('Failed to process dynamic inputs');
     }
   };
@@ -357,8 +357,13 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   };
 
   const handleRunAgain = () => {
+    // Clear all previous state for a fresh run
     setHasSubmittedComplexPrompt(false);
     setDynamicInputData(null);
+    setInitialMessage(undefined);
+    setSubmittedPrompt(undefined);
+    setResults([]);
+    setError(null);
     
     if (workflow?.allow_file_upload || workflow?.allow_asset_selection) {
       setShowDynamicInputModal(true);

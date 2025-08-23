@@ -13,8 +13,9 @@ import { fetchKnowledgeBases } from '@/utils/knowledge-base-service';
 import { useSession } from '@/app/utils/session/session';
 import { useToast } from "@/hooks/use-toast";
 import { Workflow } from '@/types/workflow';
-import { AssetUploaderFixed } from '@/components/asset-uploader-fixed';
+import { WorkflowAssetUploader } from '@/components/workflow-asset-uploader';
 import { UploadedFile } from '@/utils/upload-service';
+import { dlog, derror } from '@/utils/debug';
 
 interface WorkflowDynamicInputModalProps {
   workflow: Workflow;
@@ -72,8 +73,10 @@ export function WorkflowDynamicInputModal({
       uploadedFilesRef.current = [];
       setSelectedAssets([]);
       setSelectedKnowledgeBases([]);
+      // Reset active tab based on available features
+      setActiveTab(showFileUpload ? 'upload' : (showAssetSelection ? 'assets' : 'upload'));
     }
-  }, [isOpen]);
+  }, [isOpen, showFileUpload, showAssetSelection]);
 
   const loadAssetsAndKnowledgeBases = async () => {
     try {
@@ -89,7 +92,7 @@ export function WorkflowDynamicInputModal({
       setAssets(assetsData);
       setKnowledgeBases(kbData);
     } catch (error) {
-      console.error('Error loading assets and knowledge bases:', error);
+      derror('Error loading assets and knowledge bases:', error);
       toast({
         title: "Error",
         description: "Failed to load assets and knowledge bases",
@@ -101,7 +104,7 @@ export function WorkflowDynamicInputModal({
   };
 
   const handleFileUploaded = useCallback((file: UploadedFile) => {
-    console.log('File uploaded:', file);
+    dlog('File uploaded:', file);
     setUploadedFiles(prev => {
       const updated = [...prev, file];
       uploadedFilesRef.current = updated;
@@ -110,7 +113,7 @@ export function WorkflowDynamicInputModal({
   }, []);
 
   const handleUploadComplete = useCallback((result: any) => {
-    console.log('Upload complete, uploaded files:', uploadedFilesRef.current);
+    dlog('Upload complete, uploaded files:', uploadedFilesRef.current);
     // The files have already been added via handleFileUploaded
     // This is just a completion signal
   }, []);
@@ -123,24 +126,10 @@ export function WorkflowDynamicInputModal({
     });
   };
 
-  const toggleAsset = (assetId: string) => {
-    setSelectedAssets(prev => 
-      prev.includes(assetId) 
-        ? prev.filter(id => id !== assetId)
-        : [...prev, assetId]
-    );
-  };
-
-  const toggleKnowledgeBase = (kbId: string) => {
-    setSelectedKnowledgeBases(prev => 
-      prev.includes(kbId) 
-        ? prev.filter(id => id !== kbId)
-        : [...prev, kbId]
-    );
-  };
+  // Removed toggle functions - will handle inline with checked value
 
   const handleSubmit = () => {
-    console.log('Submitting with:', {
+    dlog('Submitting with:', {
       uploadedFiles: uploadedFilesRef.current,
       selectedAssets,
       selectedKnowledgeBases
@@ -202,7 +191,7 @@ export function WorkflowDynamicInputModal({
                 </div>
                 
                 {/* Pass individual file handler instead of batch handler */}
-                <AssetUploaderFixed 
+                <WorkflowAssetUploader 
                   key={`uploader-${isOpen}`} // Force new instance when modal opens
                   onFileUploaded={handleFileUploaded}
                   onUploadComplete={handleUploadComplete}
@@ -226,7 +215,9 @@ export function WorkflowDynamicInputModal({
                               <FileText className="h-4 w-4 text-gray-500" />
                               <span className="text-sm">{file.name}</span>
                               <span className="text-xs text-gray-500">
-                                ({(file.size / 1024).toFixed(1)} KB)
+                                ({file.size > 1024*1024 
+                                  ? (file.size / (1024*1024)).toFixed(1) + ' MB' 
+                                  : (file.size / 1024).toFixed(1) + ' KB'})
                               </span>
                             </div>
                             <Button
@@ -261,7 +252,11 @@ export function WorkflowDynamicInputModal({
                           <Checkbox
                             id={`asset-${asset.id}`}
                             checked={selectedAssets.includes(asset.id)}
-                            onCheckedChange={() => toggleAsset(asset.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedAssets(prev =>
+                                checked ? [...prev, asset.id] : prev.filter(id => id !== asset.id)
+                              );
+                            }}
                           />
                           <label
                             htmlFor={`asset-${asset.id}`}
@@ -297,7 +292,11 @@ export function WorkflowDynamicInputModal({
                           <Checkbox
                             id={`kb-${kb.id}`}
                             checked={selectedKnowledgeBases.includes(kb.id)}
-                            onCheckedChange={() => toggleKnowledgeBase(kb.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedKnowledgeBases(prev =>
+                                checked ? [...prev, kb.id] : prev.filter(id => id !== kb.id)
+                              );
+                            }}
                           />
                           <label
                             htmlFor={`kb-${kb.id}`}
