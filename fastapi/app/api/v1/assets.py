@@ -389,3 +389,18 @@ async def process_asset(
     except Exception as e:
         logger.error(f"Error processing asset: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/", response_model=schemas.Asset)
+async def create_asset(
+    asset: schemas.AssetCreate,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """Create a new asset record"""
+    try:
+        # Create the asset
+        db_asset = crud.create_asset(db=db, asset=asset, user_id=current_user)
+        return db_asset
+    except Exception as e:
+        logger.error(f"Error creating asset: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

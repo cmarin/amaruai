@@ -62,13 +62,23 @@ def get_optimized_reference_content(
 
         # First, try to get direct content from assets
         if asset_ids:
+            # Try to get assets by ID first
             assets = db.query(Asset).filter(
                 Asset.id.in_(asset_ids)
             ).all()
             
-            logger.info(f"Found {len(assets)} direct assets")
+            # If no assets found by ID, try by storage_id (for workflow file uploads)
+            if not assets:
+                logger.info("No assets found by asset ID, trying storage_id lookup")
+                assets = db.query(Asset).filter(
+                    Asset.storage_id.in_(asset_ids)
+                ).all()
+                logger.info(f"Found {len(assets)} assets by storage_id")
+            else:
+                logger.info(f"Found {len(assets)} direct assets by asset ID")
+            
             for asset in assets:
-                logger.info(f"Processing asset {asset.id} - {asset.title}")
+                logger.info(f"Processing asset {asset.id} (storage_id: {asset.storage_id}) - {asset.title}")
                 if asset.content:
                     logger.info(f"- Content preview: {asset.content[:100]}...")
                     all_content.append(asset.content)

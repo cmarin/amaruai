@@ -84,7 +84,7 @@ export class UploadService {
                 const mimeType = file.type || 'application/octet-stream';
                 const bucket = config.storageBucket ?? process.env.NEXT_PUBLIC_SUPABASE_BUCKET ?? 'amaruai-dev';
 
-                const { error: uploadError } = await supabase.storage
+                const { data: uploadData, error: uploadError } = await supabase.storage
                     .from(bucket)
                     .upload(filePath, file.data, {
                         contentType: mimeType,
@@ -117,8 +117,14 @@ export class UploadService {
                     .from(bucket)
                     .getPublicUrl(filePath);
 
+                // Use the storage ID from the upload response, fallback to fileUuid if not available
+                // The Supabase storage response might have 'id', 'Id', or other field names
+                const storageId = uploadData?.id || uploadData?.Id || fileUuid;
+                dlog('Upload data:', uploadData);
+                dlog('Using storage ID:', storageId);
+
                 const uploadedFile: UploadedFile = {
-                    id: fileUuid,
+                    id: storageId,
                     name: file.name || '',
                     type: file.type || 'application/octet-stream',
                     size: file.size || 0,

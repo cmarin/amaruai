@@ -665,6 +665,27 @@ def get_asset_by_file_url(db: Session, file_url: str):
     
     return asset
 
+def create_asset(db: Session, asset: schemas.AssetCreate, user_id: str):
+    """Create a new asset record"""
+    db_asset = models.Asset(
+        title=asset.title,
+        file_name=asset.file_name,
+        file_url=asset.file_url,
+        file_type=asset.file_type,
+        mime_type=asset.mime_type,
+        size=asset.size,
+        content=asset.content,
+        token_count=asset.token_count or 0,
+        status=asset.status,
+        managed=asset.managed if asset.managed is not None else False,  # Default to False for workflow uploads
+        uploaded_by=user_id,
+        storage_id=asset.storage_id
+    )
+    db.add(db_asset)
+    db.commit()
+    db.refresh(db_asset)
+    return db_asset
+
 def get_asset(db: Session, asset_id: UUID):
     logger = logging.getLogger(__name__)
     logger.info(f"Attempting to get asset with ID: {asset_id}")
@@ -1062,6 +1083,26 @@ def get_assets_by_ids(db: Session, asset_ids: List[UUID], context: str = "chat")
                     user_path = parts[1].split("/")[0]  # Get user ID
                     asset.file_url = f"batch-flow/{user_path}/{asset.id}/{asset.file_name}"
                     
+    return assets
+
+def get_assets_by_storage_ids(db: Session, storage_ids: List[UUID]) -> List[models.Asset]:
+    """
+    Get multiple assets by their storage IDs.
+    
+    Args:
+        db: Database session
+        storage_ids: List of storage UUIDs to retrieve
+        
+    Returns:
+        List of Asset objects
+    """
+    if not storage_ids:
+        return []
+    
+    assets = db.query(models.Asset).filter(
+        models.Asset.storage_id.in_(storage_ids)
+    ).all()
+    
     return assets
 
 def update_chat_model_position(db: Session, chat_model_id: UUID, position: int):
