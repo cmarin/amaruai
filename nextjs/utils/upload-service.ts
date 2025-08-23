@@ -118,8 +118,8 @@ export class UploadService {
                     .getPublicUrl(filePath);
 
                 // Use the storage ID from the upload response, fallback to fileUuid if not available
-                // The Supabase storage response might have 'id', 'Id', or other field names
-                const storageId = uploadData?.id || uploadData?.Id || fileUuid;
+                // The Supabase storage response has an 'id' field
+                const storageId = uploadData?.id || fileUuid;
                 dlog('Upload data:', uploadData);
                 dlog('Using storage ID:', storageId);
 
