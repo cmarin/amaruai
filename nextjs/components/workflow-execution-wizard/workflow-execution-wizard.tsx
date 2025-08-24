@@ -211,7 +211,7 @@ export function WorkflowExecutionWizard({
   if (isLoading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
+        <DialogContent className="max-w-4xl max-h-[80vh]">
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
             <span className="ml-3">Loading wizard...</span>
@@ -228,7 +228,7 @@ export function WorkflowExecutionWizard({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[95vh] flex flex-col">
+      <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-2xl">
@@ -256,7 +256,7 @@ export function WorkflowExecutionWizard({
 
         {/* Step Content */}
         <div className="flex-1 overflow-y-auto px-2">
-          <div className="min-h-[500px]">
+          <div className="min-h-[300px]">
             {renderCurrentStep()}
           </div>
         </div>
