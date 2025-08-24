@@ -173,6 +173,11 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   }, [params.workflowId, getApiHeaders, handleStreamMessage, initialMessage, dynamicInputData]);
 
   const checkFirstStep = useCallback(async (workflow: Workflow) => {
+    // Skip all modals/wizards if already executing
+    if (isExecuting) {
+      return;
+    }
+    
     // Check if we should use the new wizard
     if (!hasSubmittedWizard) {
       let promptTemplate: PromptTemplate | undefined;
@@ -199,7 +204,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     
     // Fallback to legacy modal approach if wizard is not needed
     // Check for dynamic inputs first (but only if not already submitted)
-    if ((workflow.allow_file_upload || workflow.allow_asset_selection) && !hasSubmittedDynamicInputs) {
+    if ((workflow.allow_file_upload || workflow.allow_asset_selection) && !hasSubmittedDynamicInputs && !hasSubmittedWizard) {
       setShowDynamicInputModal(true);
       return;
     }
@@ -229,7 +234,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     } else {
       executeWorkflowStream();
     }
-  }, [getApiHeaders, executeWorkflowStream, hasSubmittedComplexPrompt, hasSubmittedDynamicInputs, hasSubmittedWizard]);
+  }, [getApiHeaders, executeWorkflowStream, hasSubmittedComplexPrompt, hasSubmittedDynamicInputs, hasSubmittedWizard, isExecuting]);
 
   const loadWorkflow = useCallback(async () => {
     const headers = getApiHeaders();
@@ -290,8 +295,12 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   }, [params.workflowId, getApiHeaders, checkFirstStep]);
 
   useEffect(() => {
-    console.log('Component mounted, loading workflow...');
-    loadWorkflow();
+    // Only load workflow on initial mount or when workflowId changes
+    // Don't reload if we're already executing
+    if (!isExecuting) {
+      console.log('Component mounted, loading workflow...');
+      loadWorkflow();
+    }
 
     return () => {
       if (cleanupRef.current) {
@@ -300,7 +309,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         cleanupRef.current = null;
       }
     };
-  }, [loadWorkflow]);
+  }, [params.workflowId, isExecuting, loadWorkflow]);
 
   // Reset state when switching between workflows
   useEffect(() => {
