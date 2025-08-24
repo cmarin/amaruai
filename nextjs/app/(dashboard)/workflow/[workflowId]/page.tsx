@@ -17,6 +17,8 @@ import {
 import { fetchPromptTemplate, PromptTemplate } from '@/utils/prompt-template-service'
 import { ComplexPromptModal } from '@/components/complex-prompt-modal'
 import { WorkflowDynamicInputModal } from '@/components/workflow-dynamic-input-modal'
+import { WorkflowExecutionWizard } from '@/components/workflow-execution-wizard'
+import { shouldShowWizard } from '@/utils/workflow-wizard-utils'
 import ReactMarkdown from 'react-markdown'
 import { AppSidebar } from '@/components/app-sidebar'
 import { useSidebar } from '@/components/sidebar-context'
@@ -50,6 +52,11 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     asset_ids?: string[];
     knowledge_base_ids?: string[];
   } | null>(null);
+  
+  // New wizard state
+  const [showWizard, setShowWizard] = useState(false);
+  const [hasSubmittedWizard, setHasSubmittedWizard] = useState(false);
+  const [firstPromptTemplate, setFirstPromptTemplate] = useState<PromptTemplate | null>(null);
   
   // Store step information in a ref to avoid re-renders
   const stepInfoRef = useRef<{
@@ -166,6 +173,31 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   }, [params.workflowId, getApiHeaders, handleStreamMessage, initialMessage, dynamicInputData]);
 
   const checkFirstStep = useCallback(async (workflow: Workflow) => {
+    // Check if we should use the new wizard
+    if (!hasSubmittedWizard) {
+      let promptTemplate: PromptTemplate | undefined;
+      
+      // Fetch first prompt template for wizard decision
+      if (workflow.steps.length > 0) {
+        try {
+          const headers = getApiHeaders();
+          if (headers) {
+            promptTemplate = await fetchPromptTemplate(workflow.steps[0].prompt_template_id, headers);
+            setFirstPromptTemplate(promptTemplate);
+          }
+        } catch (error) {
+          console.error('Error fetching prompt template:', error);
+        }
+      }
+      
+      // Check if wizard should be shown
+      if (shouldShowWizard(workflow, promptTemplate)) {
+        setShowWizard(true);
+        return;
+      }
+    }
+    
+    // Fallback to legacy modal approach if wizard is not needed
     // Check for dynamic inputs first (but only if not already submitted)
     if ((workflow.allow_file_upload || workflow.allow_asset_selection) && !hasSubmittedDynamicInputs) {
       setShowDynamicInputModal(true);
@@ -197,7 +229,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     } else {
       executeWorkflowStream();
     }
-  }, [getApiHeaders, executeWorkflowStream, hasSubmittedComplexPrompt, hasSubmittedDynamicInputs]);
+  }, [getApiHeaders, executeWorkflowStream, hasSubmittedComplexPrompt, hasSubmittedDynamicInputs, hasSubmittedWizard]);
 
   const loadWorkflow = useCallback(async () => {
     const headers = getApiHeaders();
@@ -279,6 +311,8 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     setSubmittedPrompt(undefined);
     setResults([]);
     setError(null);
+    setHasSubmittedWizard(false);
+    setFirstPromptTemplate(null);
   }, [params.workflowId]);
 
   const handleComplexPromptSubmit = (generatedPrompt: string) => {
@@ -345,6 +379,52 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     }
   };
 
+  const handleWizardExecute = async (data: {
+    uploadedFiles: UploadedFile[];
+    selectedAssets: string[];
+    selectedKnowledgeBases: string[];
+    complexPromptData?: string;
+  }) => {
+    try {
+      dlog('handleWizardExecute called with:', data);
+      setShowWizard(false);
+      
+      // The files are already uploaded via AssetUploader, just collect the IDs
+      const uploadedFileIds = data.uploadedFiles.map(f => f.id);
+      if (uploadedFileIds.length > 0) {
+        dlog('Uploaded file IDs:', uploadedFileIds);
+      }
+      
+      // Build dynamic inputs sparsely - only include non-empty arrays
+      const dynamicInputs: {
+        file_ids?: string[];
+        asset_ids?: string[];
+        knowledge_base_ids?: string[];
+      } = {};
+      if (uploadedFileIds.length) dynamicInputs.file_ids = uploadedFileIds;
+      if (data.selectedAssets.length) dynamicInputs.asset_ids = data.selectedAssets;
+      if (data.selectedKnowledgeBases.length) dynamicInputs.knowledge_base_ids = data.selectedKnowledgeBases;
+      
+      setDynamicInputData(dynamicInputs);
+      setHasSubmittedWizard(true);
+      
+      // If complex prompt data was provided, use it
+      if (data.complexPromptData) {
+        setInitialMessage(data.complexPromptData);
+        setSubmittedPrompt(data.complexPromptData);
+        setHasSubmittedComplexPrompt(true);
+      }
+      
+      dlog('Executing workflow with wizard data:', { dynamicInputs, complexPrompt: data.complexPromptData });
+      // Execute workflow with collected data
+      executeWorkflowStream(data.complexPromptData, dynamicInputs);
+      
+    } catch (error) {
+      derror('Error handling wizard execution:', error);
+      setError('Failed to process wizard data');
+    }
+  };
+
   const toggleChatbot = useCallback((modelId: string) => {
     router.push(`/chat?model=${modelId}`);
   }, [router]);
@@ -378,6 +458,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     setSubmittedPrompt(undefined);
     setResults([]);
     setError(null);
+    setHasSubmittedWizard(false);
     
     // Reuse the same entry logic as initial load for consistency
     if (workflow) {
@@ -490,6 +571,14 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
               isOpen={showDynamicInputModal}
               onClose={() => setShowDynamicInputModal(false)}
               onSubmit={handleDynamicInputSubmit}
+            />
+          )}
+          {workflow && showWizard && (
+            <WorkflowExecutionWizard
+              workflow={workflow}
+              isOpen={showWizard}
+              onClose={() => setShowWizard(false)}
+              onExecute={handleWizardExecute}
             />
           )}
         </div>
