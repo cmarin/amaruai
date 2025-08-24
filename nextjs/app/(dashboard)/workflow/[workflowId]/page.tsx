@@ -309,7 +309,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         cleanupRef.current = null;
       }
     };
-  }, [params.workflowId, isExecuting, loadWorkflow]);
+  }, [params.workflowId, isExecuting]);
 
   // Reset state when switching between workflows
   useEffect(() => {
