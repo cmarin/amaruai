@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { WizardStepProps } from '@/types/workflow-wizard';
 import { derror } from '@/utils/debug';
 
-interface AssetSelectionStepProps extends WizardStepProps {}
+type AssetSelectionStepProps = WizardStepProps;
 
 export function AssetSelectionStep({
   workflow,
@@ -32,12 +32,7 @@ export function AssetSelectionStep({
   const { getApiHeaders } = useSession();
   const { toast } = useToast();
 
-  // Load assets and knowledge bases
-  useEffect(() => {
-    loadAssetsAndKnowledgeBases();
-  }, []);
-
-  const loadAssetsAndKnowledgeBases = async () => {
+  const loadAssetsAndKnowledgeBases = useCallback(async () => {
     try {
       setIsLoading(true);
       const headers = getApiHeaders();
@@ -60,7 +55,12 @@ export function AssetSelectionStep({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [getApiHeaders, toast]);
+
+  // Load assets and knowledge bases
+  useEffect(() => {
+    loadAssetsAndKnowledgeBases();
+  }, [loadAssetsAndKnowledgeBases]);
 
   const toggleAsset = useCallback((assetId: string) => {
     const currentAssets = wizardState.selectedAssets;

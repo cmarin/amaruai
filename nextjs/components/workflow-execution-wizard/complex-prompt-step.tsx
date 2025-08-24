@@ -65,6 +65,7 @@ export function ComplexPromptStep({
   // Generate prompt whenever values change
   useEffect(() => {
     generatePrompt();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [values, promptTemplate]);
 
   const handleInputChange = useCallback((fieldName: string, value: string | string[] | number) => {

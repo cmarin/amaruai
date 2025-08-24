@@ -9,7 +9,7 @@ import { WizardStepProps } from '@/types/workflow-wizard';
 import { UploadedFile } from '@/utils/upload-service';
 import { useToast } from "@/hooks/use-toast";
 
-interface FileUploadStepProps extends WizardStepProps {}
+type FileUploadStepProps = WizardStepProps;
 
 export function FileUploadStep({
   workflow,

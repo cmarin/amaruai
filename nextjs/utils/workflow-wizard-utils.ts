@@ -1,4 +1,5 @@
-import { Workflow, PromptTemplate } from '@/types/workflow';
+import { Workflow } from '@/types/workflow';
+import { PromptTemplate } from '@/utils/prompt-template-service';
 import { WizardStepConfig, WizardStepId, WIZARD_STEPS } from '@/types/workflow-wizard';
 
 /**

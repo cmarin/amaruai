@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { FileText, Database, Settings, Play, CheckCircle } from 'lucide-react';
 import { WizardStepProps } from '@/types/workflow-wizard';
 
-interface ReviewStepProps extends WizardStepProps {}
+type ReviewStepProps = WizardStepProps;
 
 export function ReviewStep({
   workflow,

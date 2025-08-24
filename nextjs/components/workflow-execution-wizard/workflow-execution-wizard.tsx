@@ -52,29 +52,7 @@ export function WorkflowExecutionWizard({
     isExecuting: false
   });
 
-  // Initialize wizard when it opens
-  useEffect(() => {
-    if (isOpen && workflow) {
-      initializeWizard();
-    }
-  }, [isOpen, workflow]);
-
-  // Reset state when modal closes
-  useEffect(() => {
-    if (!isOpen) {
-      setWizardState({
-        uploadedFiles: [],
-        selectedAssets: [],
-        selectedKnowledgeBases: [],
-        complexPromptData: undefined,
-        currentStepId: WIZARD_STEPS.FILE_UPLOAD,
-        completedSteps: new Set(),
-        isExecuting: false
-      });
-    }
-  }, [isOpen]);
-
-  const initializeWizard = async () => {
+  const initializeWizard = useCallback(async () => {
     try {
       setIsLoading(true);
       
@@ -109,7 +87,29 @@ export function WorkflowExecutionWizard({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [getApiHeaders, workflow]);
+
+  // Initialize wizard when it opens
+  useEffect(() => {
+    if (isOpen && workflow) {
+      initializeWizard();
+    }
+  }, [isOpen, workflow, initializeWizard]);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setWizardState({
+        uploadedFiles: [],
+        selectedAssets: [],
+        selectedKnowledgeBases: [],
+        complexPromptData: undefined,
+        currentStepId: WIZARD_STEPS.FILE_UPLOAD,
+        completedSteps: new Set(),
+        isExecuting: false
+      });
+    }
+  }, [isOpen]);
 
   const updateWizardState = useCallback((updates: Partial<WorkflowWizardState>) => {
     setWizardState(prev => ({ ...prev, ...updates }));
@@ -121,7 +121,7 @@ export function WorkflowExecutionWizard({
 
     // Check if current step can be completed
     const canComplete = canCompleteStep(
-      wizardState.currentStepId, 
+      wizardState.currentStepId as WizardStepId, 
       workflow, 
       {
         uploadedFiles: wizardState.uploadedFiles,
@@ -136,18 +136,18 @@ export function WorkflowExecutionWizard({
     }
 
     // Mark current step as completed and move to next
-    const nextStepId = getNextStepId(wizardState.currentStepId, steps);
+    const nextStepId = getNextStepId(wizardState.currentStepId as WizardStepId, steps);
     if (nextStepId) {
       setWizardState(prev => ({
         ...prev,
         currentStepId: nextStepId,
-        completedSteps: new Set([...prev.completedSteps, wizardState.currentStepId])
+        completedSteps: new Set(Array.from(prev.completedSteps).concat(wizardState.currentStepId))
       }));
     }
   }, [wizardState.currentStepId, wizardState.uploadedFiles, wizardState.selectedAssets, wizardState.selectedKnowledgeBases, wizardState.complexPromptData, workflow, steps]);
 
   const handlePrevious = useCallback(() => {
-    const previousStepId = getPreviousStepId(wizardState.currentStepId, steps);
+    const previousStepId = getPreviousStepId(wizardState.currentStepId as WizardStepId, steps);
     if (previousStepId) {
       setWizardState(prev => ({
         ...prev,
@@ -177,8 +177,8 @@ export function WorkflowExecutionWizard({
       onNext: handleNext,
       onPrevious: handlePrevious,
       onComplete: handleComplete,
-      isFirst: isFirstStep(wizardState.currentStepId, steps),
-      isLast: isLastStep(wizardState.currentStepId, steps)
+      isFirst: isFirstStep(wizardState.currentStepId as WizardStepId, steps),
+      isLast: isLastStep(wizardState.currentStepId as WizardStepId, steps)
     };
 
     switch (wizardState.currentStepId) {
@@ -249,7 +249,7 @@ export function WorkflowExecutionWizard({
         <div className="flex-shrink-0 px-2">
           <WizardProgress
             steps={steps}
-            currentStepId={wizardState.currentStepId}
+            currentStepId={wizardState.currentStepId as WizardStepId}
             completedSteps={wizardState.completedSteps}
           />
         </div>
