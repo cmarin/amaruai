@@ -297,66 +297,9 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     }
   }, [params.workflowId, getApiHeaders]);
 
+  // Load workflow when component mounts or workflowId changes
   useEffect(() => {
-    // Only load workflow on initial mount or when workflowId changes
-    // Don't reload if we're already executing
-    if (!isExecuting) {
-      const loadAndCheckWorkflow = async () => {
-        const headers = getApiHeaders();
-        if (!headers) {
-          console.error('No valid headers available');
-          return;
-        }
-        
-        try {
-          const fetchedWorkflow = await fetchWorkflow(params.workflowId, headers);
-          setWorkflow(fetchedWorkflow);
-          
-          // Cache step information from the API response
-          const stepsInfo: {
-            [position: number]: {
-              chatModel: { name: string; model: string; id: string };
-              persona: { role: string; goal: string; id: string };
-            };
-          } = {};
-          
-          // Extract and store the chat model and persona information
-          if (fetchedWorkflow.steps && Array.isArray(fetchedWorkflow.steps)) {
-            fetchedWorkflow.steps.forEach((step: any, index) => {
-              if (step.chat_model && step.persona) {
-                stepsInfo[index + 1] = {
-                  chatModel: {
-                    name: step.chat_model.name,
-                    model: step.chat_model.model,
-                    id: step.chat_model.id.toString()
-                  },
-                  persona: {
-                    role: step.persona.role,
-                    goal: step.persona.goal,
-                    id: step.persona.id.toString()
-                  }
-                };
-              } else {
-                console.warn(`Step ${index + 1} is missing chat_model or persona information`);
-              }
-            });
-          }
-          
-          // Store in ref to avoid re-renders
-          stepInfoRef.current = stepsInfo;
-          
-          // Now check if we need to show wizard or execute workflow
-          if (fetchedWorkflow) {
-            checkFirstStep(fetchedWorkflow);
-          }
-        } catch (error) {
-          console.error('Error loading workflow:', error);
-          setError('Failed to load workflow');
-        }
-      };
-      
-      loadAndCheckWorkflow();
-    }
+    loadWorkflow();
 
     return () => {
       if (cleanupRef.current) {
@@ -366,7 +309,16 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.workflowId, isExecuting]);
+  }, [params.workflowId]);
+
+  // Check if we should show wizard/modals after workflow is loaded
+  // This is separate to avoid circular dependencies
+  useEffect(() => {
+    if (workflow && !isExecuting && !hasSubmittedWizard && !hasSubmittedComplexPrompt && !hasSubmittedDynamicInputs) {
+      checkFirstStep(workflow);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workflow, isExecuting]);
 
   // Reset state when switching between workflows
   useEffect(() => {
