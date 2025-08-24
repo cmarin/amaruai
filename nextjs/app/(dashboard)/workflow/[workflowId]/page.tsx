@@ -52,6 +52,8 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     asset_ids?: string[];
     knowledge_base_ids?: string[];
   } | null>(null);
+  // Guard to ensure we only enter the initial decision flow once per workflow load
+  const entryGuardRef = useRef<boolean>(false);
   
   // New wizard state
   const [showWizard, setShowWizard] = useState(false);
@@ -311,14 +313,15 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.workflowId]);
 
-  // Check if we should show wizard/modals after workflow is loaded
-  // This is separate to avoid circular dependencies
+  // Check if we should show wizard/modals after workflow is loaded.
+  // Use an entry guard to ensure this runs only once per workflow load.
   useEffect(() => {
-    if (workflow && !isExecuting && !hasSubmittedWizard && !hasSubmittedComplexPrompt && !hasSubmittedDynamicInputs) {
-      checkFirstStep(workflow);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workflow, isExecuting]);
+    if (!workflow) return;
+    if (entryGuardRef.current) return;
+    // Prevent duplicate entry from any re-renders
+    entryGuardRef.current = true;
+    checkFirstStep(workflow);
+  }, [workflow, checkFirstStep]);
 
   // Reset state when switching between workflows
   useEffect(() => {
@@ -477,6 +480,8 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     setResults([]);
     setError(null);
     setHasSubmittedWizard(false);
+    // Allow re-entry into the decision flow
+    entryGuardRef.current = false;
     
     // Reuse the same entry logic as initial load for consistency
     if (workflow) {
