@@ -58,6 +58,11 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const [hasSubmittedWizard, setHasSubmittedWizard] = useState(false);
   const [firstPromptTemplate, setFirstPromptTemplate] = useState<PromptTemplate | null>(null);
   
+  // Debug logging for wizard state
+  useEffect(() => {
+    console.log('[Debug] Wizard state changed:', { showWizard, hasSubmittedWizard });
+  }, [showWizard, hasSubmittedWizard]);
+  
   // Store step information in a ref to avoid re-renders
   const stepInfoRef = useRef<{
     [position: number]: {
@@ -175,8 +180,16 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const checkFirstStep = useCallback(async (workflow: Workflow) => {
     // Skip all modals/wizards if already executing
     if (isExecuting) {
+      console.log('[checkFirstStep] Skipping - already executing');
       return;
     }
+    
+    console.log('[checkFirstStep] Checking wizard conditions:', {
+      hasSubmittedWizard,
+      allow_file_upload: workflow.allow_file_upload,
+      allow_asset_selection: workflow.allow_asset_selection,
+      steps_length: workflow.steps.length
+    });
     
     // Check if we should use the new wizard
     if (!hasSubmittedWizard) {
@@ -189,6 +202,9 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
           if (headers) {
             promptTemplate = await fetchPromptTemplate(workflow.steps[0].prompt_template_id, headers);
             setFirstPromptTemplate(promptTemplate);
+            console.log('[checkFirstStep] Fetched prompt template:', {
+              is_complex: promptTemplate?.is_complex
+            });
           }
         } catch (error) {
           console.error('Error fetching prompt template:', error);
@@ -196,7 +212,10 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       }
       
       // Check if wizard should be shown
-      if (shouldShowWizard(workflow, promptTemplate)) {
+      const shouldShow = shouldShowWizard(workflow, promptTemplate);
+      console.log('[checkFirstStep] shouldShowWizard result:', shouldShow);
+      if (shouldShow) {
+        console.log('[checkFirstStep] Setting showWizard to true');
         setShowWizard(true);
         return;
       }
@@ -287,19 +306,28 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       // Store in ref to avoid re-renders
       stepInfoRef.current = stepsInfo;
       
-      await checkFirstStep(fetchedWorkflow);
+      // Return the fetched workflow so it can be used by the caller
+      return fetchedWorkflow;
     } catch (error) {
       console.error('Error loading workflow:', error);
       setError('Failed to load workflow');
+      return null;
     }
-  }, [params.workflowId, getApiHeaders, checkFirstStep]);
+  }, [params.workflowId, getApiHeaders]);
 
   useEffect(() => {
     // Only load workflow on initial mount or when workflowId changes
     // Don't reload if we're already executing
     if (!isExecuting) {
-      console.log('Component mounted, loading workflow...');
-      loadWorkflow();
+      console.log('[useEffect] Component mounted, loading workflow...', {
+        workflowId: params.workflowId,
+        isExecuting
+      });
+      loadWorkflow().then((fetchedWorkflow) => {
+        if (fetchedWorkflow) {
+          checkFirstStep(fetchedWorkflow);
+        }
+      });
     }
 
     return () => {
@@ -309,7 +337,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         cleanupRef.current = null;
       }
     };
-  }, [params.workflowId, isExecuting]);
+  }, [params.workflowId, isExecuting, loadWorkflow, checkFirstStep]);
 
   // Reset state when switching between workflows
   useEffect(() => {
@@ -459,6 +487,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   };
 
   const handleRunAgain = () => {
+    console.log('[handleRunAgain] Resetting state for fresh run');
     // Clear all previous state for a fresh run
     setHasSubmittedComplexPrompt(false);
     setHasSubmittedDynamicInputs(false);
@@ -471,6 +500,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     
     // Reuse the same entry logic as initial load for consistency
     if (workflow) {
+      console.log('[handleRunAgain] Calling checkFirstStep with workflow');
       checkFirstStep(workflow);
     }
   };
@@ -583,12 +613,15 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
             />
           )}
           {workflow && showWizard && (
-            <WorkflowExecutionWizard
-              workflow={workflow}
-              isOpen={showWizard}
-              onClose={() => setShowWizard(false)}
-              onExecute={handleWizardExecute}
-            />
+            <>
+              {console.log('[Render] Rendering WorkflowExecutionWizard:', { workflow, showWizard })}
+              <WorkflowExecutionWizard
+                workflow={workflow}
+                isOpen={showWizard}
+                onClose={() => setShowWizard(false)}
+                onExecute={handleWizardExecute}
+              />
+            </>
           )}
         </div>
       </main>
