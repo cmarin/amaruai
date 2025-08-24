@@ -58,10 +58,6 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const [hasSubmittedWizard, setHasSubmittedWizard] = useState(false);
   const [firstPromptTemplate, setFirstPromptTemplate] = useState<PromptTemplate | null>(null);
   
-  // Debug logging for wizard state
-  useEffect(() => {
-    console.log('[Debug] Wizard state changed:', { showWizard, hasSubmittedWizard });
-  }, [showWizard, hasSubmittedWizard]);
   
   // Store step information in a ref to avoid re-renders
   const stepInfoRef = useRef<{
@@ -180,16 +176,8 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   const checkFirstStep = useCallback(async (workflow: Workflow) => {
     // Skip all modals/wizards if already executing
     if (isExecuting) {
-      console.log('[checkFirstStep] Skipping - already executing');
       return;
     }
-    
-    console.log('[checkFirstStep] Checking wizard conditions:', {
-      hasSubmittedWizard,
-      allow_file_upload: workflow.allow_file_upload,
-      allow_asset_selection: workflow.allow_asset_selection,
-      steps_length: workflow.steps.length
-    });
     
     // Check if we should use the new wizard
     if (!hasSubmittedWizard) {
@@ -202,9 +190,6 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
           if (headers) {
             promptTemplate = await fetchPromptTemplate(workflow.steps[0].prompt_template_id, headers);
             setFirstPromptTemplate(promptTemplate);
-            console.log('[checkFirstStep] Fetched prompt template:', {
-              is_complex: promptTemplate?.is_complex
-            });
           }
         } catch (error) {
           console.error('Error fetching prompt template:', error);
@@ -212,10 +197,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
       }
       
       // Check if wizard should be shown
-      const shouldShow = shouldShowWizard(workflow, promptTemplate);
-      console.log('[checkFirstStep] shouldShowWizard result:', shouldShow);
-      if (shouldShow) {
-        console.log('[checkFirstStep] Setting showWizard to true');
+      if (shouldShowWizard(workflow, promptTemplate)) {
         setShowWizard(true);
         return;
       }
@@ -319,15 +301,61 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     // Only load workflow on initial mount or when workflowId changes
     // Don't reload if we're already executing
     if (!isExecuting) {
-      console.log('[useEffect] Component mounted, loading workflow...', {
-        workflowId: params.workflowId,
-        isExecuting
-      });
-      loadWorkflow().then((fetchedWorkflow) => {
-        if (fetchedWorkflow) {
-          checkFirstStep(fetchedWorkflow);
+      const loadAndCheckWorkflow = async () => {
+        const headers = getApiHeaders();
+        if (!headers) {
+          console.error('No valid headers available');
+          return;
         }
-      });
+        
+        try {
+          const fetchedWorkflow = await fetchWorkflow(params.workflowId, headers);
+          setWorkflow(fetchedWorkflow);
+          
+          // Cache step information from the API response
+          const stepsInfo: {
+            [position: number]: {
+              chatModel: { name: string; model: string; id: string };
+              persona: { role: string; goal: string; id: string };
+            };
+          } = {};
+          
+          // Extract and store the chat model and persona information
+          if (fetchedWorkflow.steps && Array.isArray(fetchedWorkflow.steps)) {
+            fetchedWorkflow.steps.forEach((step: any, index) => {
+              if (step.chat_model && step.persona) {
+                stepsInfo[index + 1] = {
+                  chatModel: {
+                    name: step.chat_model.name,
+                    model: step.chat_model.model,
+                    id: step.chat_model.id.toString()
+                  },
+                  persona: {
+                    role: step.persona.role,
+                    goal: step.persona.goal,
+                    id: step.persona.id.toString()
+                  }
+                };
+              } else {
+                console.warn(`Step ${index + 1} is missing chat_model or persona information`);
+              }
+            });
+          }
+          
+          // Store in ref to avoid re-renders
+          stepInfoRef.current = stepsInfo;
+          
+          // Now check if we need to show wizard or execute workflow
+          if (fetchedWorkflow) {
+            checkFirstStep(fetchedWorkflow);
+          }
+        } catch (error) {
+          console.error('Error loading workflow:', error);
+          setError('Failed to load workflow');
+        }
+      };
+      
+      loadAndCheckWorkflow();
     }
 
     return () => {
@@ -337,7 +365,8 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         cleanupRef.current = null;
       }
     };
-  }, [params.workflowId, isExecuting, loadWorkflow, checkFirstStep]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.workflowId, isExecuting]);
 
   // Reset state when switching between workflows
   useEffect(() => {
@@ -487,7 +516,6 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
   };
 
   const handleRunAgain = () => {
-    console.log('[handleRunAgain] Resetting state for fresh run');
     // Clear all previous state for a fresh run
     setHasSubmittedComplexPrompt(false);
     setHasSubmittedDynamicInputs(false);
@@ -500,7 +528,6 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     
     // Reuse the same entry logic as initial load for consistency
     if (workflow) {
-      console.log('[handleRunAgain] Calling checkFirstStep with workflow');
       checkFirstStep(workflow);
     }
   };
@@ -613,15 +640,12 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
             />
           )}
           {workflow && showWizard && (
-            <>
-              {console.log('[Render] Rendering WorkflowExecutionWizard:', { workflow, showWizard })}
-              <WorkflowExecutionWizard
-                workflow={workflow}
-                isOpen={showWizard}
-                onClose={() => setShowWizard(false)}
-                onExecute={handleWizardExecute}
-              />
-            </>
+            <WorkflowExecutionWizard
+              workflow={workflow}
+              isOpen={showWizard}
+              onClose={() => setShowWizard(false)}
+              onExecute={handleWizardExecute}
+            />
           )}
         </div>
       </main>
