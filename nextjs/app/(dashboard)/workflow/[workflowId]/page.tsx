@@ -299,7 +299,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     }
   }, [params.workflowId, getApiHeaders]);
 
-  // Load workflow when component mounts or workflowId changes
+  // Load workflow when component mounts or when dependencies change (e.g., headers become available)
   useEffect(() => {
     loadWorkflow();
 
@@ -310,8 +310,7 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
         cleanupRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.workflowId]);
+  }, [params.workflowId, loadWorkflow]);
 
   // Check if we should show wizard/modals after workflow is loaded.
   // Use an entry guard to ensure this runs only once per workflow load.
@@ -334,6 +333,8 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
     setError(null);
     setHasSubmittedWizard(false);
     setFirstPromptTemplate(null);
+    // Reset entry guard so initial decision flow runs for the new workflow
+    entryGuardRef.current = false;
   }, [params.workflowId]);
 
   const handleComplexPromptSubmit = (generatedPrompt: string) => {

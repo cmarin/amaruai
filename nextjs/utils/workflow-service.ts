@@ -73,6 +73,8 @@ export async function fetchWorkflow(id: string, headers: ApiHeaders): Promise<Wo
       manager_chat_model_id: data.manager_chat_model_id?.toString(),
       manager_persona_id: data.manager_persona_id?.toString(),
       search: data.search || false, // Include search field with default false
+      allow_file_upload: data.allow_file_upload || false,
+      allow_asset_selection: data.allow_asset_selection || false,
       steps: data.steps?.map((step: any) => ({
         ...step,
         id: step.id?.toString() || '',
