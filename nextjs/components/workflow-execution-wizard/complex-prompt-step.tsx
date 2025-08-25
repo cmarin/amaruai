@@ -31,6 +31,7 @@ export function ComplexPromptStep({
   const [values, setValues] = useState<{ [key: string]: string | string[] | number }>({});
   const [generatedPrompt, setGeneratedPrompt] = useState<string>('');
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!promptTemplate?.is_complex) return;
@@ -76,6 +77,7 @@ export function ComplexPromptStep({
     } else {
       setValues(prev => ({ ...prev, [fieldName]: value }));
     }
+    setTouched(prev => ({ ...prev, [fieldName]: true }));
   }, [values]);
 
   const generatePrompt = useCallback(() => {
@@ -165,7 +167,7 @@ export function ComplexPromptStep({
 
   const renderField = (variable: VariableType) => {
     const value = values[variable.fieldName] || '';
-    const hasError = variable.required && (value === '' || value === undefined);
+    const hasError = touched[variable.fieldName] && variable.required && (value === '' || value === undefined);
 
     const fieldElement = (() => {
       switch (variable.controlType) {
@@ -306,20 +308,12 @@ export function ComplexPromptStep({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <Settings className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Configure Prompt</h2>
-        <p className="text-gray-600">
-          Fill out the form below to customize your prompt. Required fields are marked with *.
-        </p>
-      </div>
+    <div className="space-y-4">
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Form Fields */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Prompt Variables</h3>
-          <ScrollArea className="h-[400px] border rounded-lg p-4">
+        <div className="space-y-3">
+          <ScrollArea className="h-[360px] border rounded-lg p-4">
             <div className="space-y-4">
               {content.variables.map(renderField)}
             </div>
@@ -327,16 +321,15 @@ export function ComplexPromptStep({
         </div>
 
         {/* Generated Prompt Preview */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Preview</h3>
-          <div className="border rounded-lg p-4 h-[400px] overflow-y-auto bg-gray-50 dark:bg-gray-800/50">
+        <div className="space-y-3">
+          <div className="border rounded-lg p-4 h-[360px] overflow-y-auto bg-gray-50 dark:bg-gray-800/50">
             {generatedPrompt ? (
               <div className="whitespace-pre-wrap text-sm">
                 {generatedPrompt}
               </div>
             ) : (
               <div className="text-gray-500 text-sm">
-                Fill out the form to see your generated prompt
+                Configure variables to see your generated prompt
               </div>
             )}
           </div>
@@ -354,7 +347,7 @@ export function ComplexPromptStep({
         </div>
       )}
 
-      <div className="flex justify-between pt-6 border-t">
+      <div className="sticky bottom-0 z-10 flex justify-between pt-3 border-t bg-background dark:bg-gray-900">
         <Button
           variant="outline"
           onClick={onPrevious}

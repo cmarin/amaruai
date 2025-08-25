@@ -208,7 +208,7 @@ export function AssetSelectionStep({
         </Tabs>
       </div>
 
-      <div className="flex justify-between pt-6 border-t">
+      <div className="sticky bottom-0 z-10 flex justify-between pt-3 border-t bg-background dark:bg-gray-900">
         <Button
           variant="outline"
           onClick={onPrevious}
