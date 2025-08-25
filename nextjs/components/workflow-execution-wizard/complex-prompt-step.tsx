@@ -169,10 +169,11 @@ export function ComplexPromptStep({
 
     const fieldElement = (() => {
       switch (variable.controlType) {
+        case 'dropdown':
         case 'select':
           return (
             <Select
-              value={String(value)}
+              value={value === '' ? undefined : String(value)}
               onValueChange={(newValue) => handleInputChange(variable.fieldName, newValue)}
             >
               <SelectTrigger className={cn(hasError && "border-red-500")}>
@@ -235,12 +236,31 @@ export function ComplexPromptStep({
             <Input
               type="number"
               value={String(value)}
-              onChange={(e) => handleInputChange(variable.fieldName, parseFloat(e.target.value) || 0)}
+              onChange={(e) => {
+                const raw = e.target.value;
+                handleInputChange(
+                  variable.fieldName,
+                  raw === '' ? '' : parseFloat(raw)
+                );
+              }}
               placeholder={variable.placeholder}
               className={cn(hasError && "border-red-500")}
               min={variable.validation?.min}
               max={variable.validation?.max}
               step={variable.validation?.step}
+            />
+          );
+
+        case 'date':
+          return (
+            <Input
+              type="date"
+              value={value === '' ? '' : String(value)}
+              onChange={(e) => handleInputChange(variable.fieldName, e.target.value)}
+              placeholder={variable.placeholder}
+              className={cn(hasError && "border-red-500")}
+              min={(variable.validation as any)?.min}
+              max={(variable.validation as any)?.max}
             />
           );
 
