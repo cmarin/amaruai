@@ -230,18 +230,10 @@ export function WorkflowExecutionWizard({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl lg:max-w-5xl max-h-[75vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center">
             <DialogTitle className="text-2xl">
               Setup Workflow: {workflow.name}
             </DialogTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="h-6 w-6"
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </DialogHeader>
 

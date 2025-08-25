@@ -48,8 +48,8 @@ export function FileUploadStep({
   }, [toast]);
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
+    <div className="space-y-3">
+      <div className="rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50">
         <WorkflowAssetUploader
           key={`wizard-uploader-${Date.now()}`}
           onFileUploaded={handleFileUploaded}
@@ -62,7 +62,7 @@ export function FileUploadStep({
       {wizardState.uploadedFiles.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-base font-semibold">Uploaded Files ({wizardState.uploadedFiles.length})</h3>
-          <ScrollArea className="h-[160px] border rounded-lg p-3">
+          <ScrollArea className="h-[140px] border rounded-lg p-3">
             <div className="space-y-2">
               {wizardState.uploadedFiles.map((file) => (
                 <div
@@ -95,7 +95,7 @@ export function FileUploadStep({
         </div>
       )}
 
-      <div className="flex justify-between pt-4 border-t">
+      <div className="flex justify-between pt-3 border-t">
         <Button
           variant="outline"
           onClick={onPrevious}
