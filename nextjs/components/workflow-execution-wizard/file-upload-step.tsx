@@ -48,38 +48,29 @@ export function FileUploadStep({
   }, [toast]);
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Upload Files</h2>
-        <p className="text-gray-600">
-          Upload files that will be included in your workflow execution. 
-          These files will be processed and made available to all workflow steps.
-        </p>
-      </div>
-
-      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
+    <div className="space-y-4">
+      <div className="rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
         <WorkflowAssetUploader
           key={`wizard-uploader-${Date.now()}`}
           onFileUploaded={handleFileUploaded}
           onUploadComplete={handleUploadComplete}
           onUploadError={handleUploadError}
-          knowledgeBaseId={undefined} // Use default storage folder
+          knowledgeBaseId={undefined}
         />
       </div>
 
       {wizardState.uploadedFiles.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Uploaded Files ({wizardState.uploadedFiles.length})</h3>
-          <ScrollArea className="h-[200px] border rounded-lg p-4">
+        <div className="space-y-2">
+          <h3 className="text-base font-semibold">Uploaded Files ({wizardState.uploadedFiles.length})</h3>
+          <ScrollArea className="h-[160px] border rounded-lg p-3">
             <div className="space-y-2">
               {wizardState.uploadedFiles.map((file) => (
                 <div
                   key={file.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                  className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-md"
                 >
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
-                    <FileText className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                    <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{file.name}</p>
                       <p className="text-xs text-gray-500">
@@ -104,7 +95,7 @@ export function FileUploadStep({
         </div>
       )}
 
-      <div className="flex justify-between pt-6 border-t">
+      <div className="flex justify-between pt-4 border-t">
         <Button
           variant="outline"
           onClick={onPrevious}
