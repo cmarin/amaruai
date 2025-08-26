@@ -535,38 +535,109 @@ export default function WorkflowStreamPage({ params }: { params: { workflowId: s
                 <p>({results.length} steps completed)</p>
               </div>
             )}
-            {results.map((result) => (
-              <div 
-                key={`result-${result.step}`}
-                className="mb-8 p-6 border rounded-lg shadow-sm dark:bg-background dark:border-gray-700"
-              >
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  Step {result.step}
-                  {result.chat_model && (
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      using {result.chat_model.name}
-                    </span>
-                  )}
-                  {result.persona && (
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      as {result.persona.role}
-                    </span>
-                  )}
-                </h3>
-                <div className="mb-4">
-                  <strong className="block mb-2">Prompt:</strong>
-                  <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
-                    <ReactMarkdown>{result.prompt}</ReactMarkdown>
+            {results.map((result) => {
+              // Detect and extract "Referenced Content:" from the prompt so it can be collapsed by default
+              const promptText = result.prompt || '';
+              const label = 'Referenced Content:';
+              const lcPrompt = promptText.toLowerCase();
+              const labelIndex = lcPrompt.indexOf(label.toLowerCase());
+
+              let mainPrompt = promptText;
+              let referencedContent: string | null = null;
+
+              if (labelIndex !== -1) {
+                const before = promptText.slice(0, labelIndex).trimEnd();
+                const afterLabelIndex = labelIndex + label.length;
+                const rest = promptText.slice(afterLabelIndex);
+
+                // Trim any leading whitespace/newlines after the label
+                const trimmedRest = rest.replace(/^\s+/, '');
+
+                // Heuristics to capture referenced content:
+                // 1) If immediately fenced in ``` blocks, take contents of the block
+                // 2) Else, take up to the first blank line (double newline)
+                // 3) Else, take the rest of the current line
+                let ref = '';
+                let remainder = '';
+
+                if (trimmedRest.startsWith('```')) {
+                  const afterTicks = trimmedRest.slice(3);
+                  const endTicks = afterTicks.indexOf('```');
+                  if (endTicks !== -1) {
+                    ref = afterTicks.slice(0, endTicks).trim();
+                    remainder = afterTicks.slice(endTicks + 3).replace(/^\n+/, '');
+                  } else {
+                    ref = afterTicks.trim();
+                    remainder = '';
+                  }
+                } else {
+                  const doubleNewline = trimmedRest.search(/\n\s*\n/);
+                  if (doubleNewline !== -1) {
+                    ref = trimmedRest.slice(0, doubleNewline).trim();
+                    remainder = trimmedRest.slice(doubleNewline).replace(/^\n+/, '');
+                  } else {
+                    const nl = trimmedRest.indexOf('\n');
+                    if (nl !== -1) {
+                      ref = trimmedRest.slice(0, nl).trim();
+                      remainder = trimmedRest.slice(nl + 1);
+                    } else {
+                      ref = trimmedRest.trim();
+                      remainder = '';
+                    }
+                  }
+                }
+
+                mainPrompt = [before, remainder].filter(Boolean).join('\n').trim();
+                referencedContent = ref.length ? ref : null;
+              }
+
+              return (
+                <div 
+                  key={`result-${result.step}`}
+                  className="mb-8 p-6 border rounded-lg shadow-sm dark:bg-background dark:border-gray-700"
+                >
+                  <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    Step {result.step}
+                    {result.chat_model && (
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        using {result.chat_model.name}
+                      </span>
+                    )}
+                    {result.persona && (
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        as {result.persona.role}
+                      </span>
+                    )}
+                  </h3>
+                  <div className="mb-4">
+                    <strong className="block mb-2">Prompt:</strong>
+                    <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
+                      {referencedContent ? (
+                        <>
+                          {mainPrompt && <ReactMarkdown>{mainPrompt}</ReactMarkdown>}
+                          <details className="mt-2">
+                            <summary className="cursor-pointer text-sm text-gray-600 dark:text-gray-300">
+                              Referenced Content (click to expand)
+                            </summary>
+                            <div className="mt-2">
+                              <ReactMarkdown>{referencedContent}</ReactMarkdown>
+                            </div>
+                          </details>
+                        </>
+                      ) : (
+                        <ReactMarkdown>{promptText}</ReactMarkdown>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <strong className="block mb-2">Response:</strong>
+                    <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
+                      <ReactMarkdown>{result.response}</ReactMarkdown>
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <strong className="block mb-2">Response:</strong>
-                  <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
-                    <ReactMarkdown>{result.response}</ReactMarkdown>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {showRunAgain && (
               <div className="mt-8 mb-4 flex justify-center">
                 <Button
