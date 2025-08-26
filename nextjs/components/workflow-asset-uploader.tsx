@@ -111,8 +111,7 @@ export function WorkflowAssetUploader({
         showRemoveButtonAfterComplete={false}
         hideUploadButton={false}
         hideProgressAfterFinish={true}
-        note="Files up to 10MB"
-        height={400}
+        height={350}
       />
     </div>
   );
