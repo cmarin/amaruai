@@ -228,7 +228,7 @@ export function WorkflowExecutionWizard({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl lg:max-w-5xl max-h-[75vh] flex flex-col">
+      <DialogContent className="relative z-[70] max-w-4xl lg:max-w-5xl max-h-[75vh] flex flex-col isolate">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center">
             <DialogTitle className="text-2xl">
