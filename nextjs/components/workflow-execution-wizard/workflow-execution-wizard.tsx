@@ -248,7 +248,7 @@ export function WorkflowExecutionWizard({
 
         {/* Step Content */}
         <div className="flex-1 overflow-y-auto px-2">
-          <div className="min-h-[260px] pb-4">
+          <div className="min-h-[260px] pb-24">
             {renderCurrentStep()}
           </div>
         </div>
