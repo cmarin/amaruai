@@ -4,6 +4,7 @@ import type { PromptContent } from '@/components/complex-prompt-editor';
 import { getApiUrl, fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
 import { Category } from '@/utils/category-service';
+import { cachedRequest, invalidateCache } from './api-request-manager';
 
 export interface VariableType {
   fieldName: string;
@@ -74,11 +75,6 @@ export interface PromptTemplateFilters {
   query?: string; // Add text search parameter
 }
 
-// Simple in-memory request tracker to prevent duplicate calls
-// This is much simpler than a full cache system
-const requestTracker: {
-  [key: string]: boolean
-} = {};
 
 export async function createPromptTemplate(
   promptTemplate: CreatePromptTemplateRequest,
@@ -111,7 +107,12 @@ export async function createPromptTemplate(
         throw new Error('Failed to create prompt template');
       }
 
-      return response.json();
+      const data = await response.json();
+
+      // Invalidate prompt templates cache after successful creation
+      invalidateCache(/^prompt_templates/);
+
+      return data;
     });
   } catch (error) {
     console.error('Error in createPromptTemplate:', error);
@@ -147,7 +148,12 @@ export async function updatePromptTemplate(
         throw new Error('Failed to update prompt template');
       }
 
-      return response.json();
+      const data = await response.json();
+
+      // Invalidate prompt templates cache after successful update
+      invalidateCache(/^prompt_templates/);
+
+      return data;
     });
   } catch (error) {
     console.error('Error in updatePromptTemplate:', error);
@@ -166,6 +172,9 @@ export async function deletePromptTemplate(promptTemplateId: string, headers: Ap
       const data = await response.json();
       throw new Error(data.error || 'Failed to delete prompt template');
     }
+
+    // Invalidate prompt templates cache after successful deletion
+    invalidateCache(/^prompt_templates/);
   });
 }
 
@@ -178,76 +187,66 @@ export async function fetchPromptTemplates(
     return [];
   }
 
-  // Create a request key
-  const requestKey = JSON.stringify(filters || {});
-  
-  // Check if we're already making this exact request
-  if (requestTracker[requestKey]) {
-    console.log(`Duplicate request prevented: ${requestKey}`);
-    return [];
-  }
-  
-  // Mark this request as in progress
-  requestTracker[requestKey] = true;
+  // Create a cache key that includes filters
+  const cacheKey = `prompt_templates_${JSON.stringify(filters || {})}`;
 
-  try {
-    // Construct query parameters
-    const queryParams = new URLSearchParams();
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          queryParams.append(key, value.toString());
-        }
+  return cachedRequest(
+    cacheKey,
+    async () => {
+      // Construct query parameters
+      const queryParams = new URLSearchParams();
+      if (filters) {
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            queryParams.append(key, value.toString());
+          }
+        });
+      }
+
+      const queryString = queryParams.toString();
+      const url = `${getApiUrl()}/prompt_templates/${queryString ? `?${queryString}` : ''}`;
+      console.log(`Fetching prompt templates from: ${url}`);
+
+      const response = await fetch(url, {
+        headers: headers || {},
       });
-    }
 
-    const queryString = queryParams.toString();
-    const url = `${getApiUrl()}/prompt_templates/${queryString ? `?${queryString}` : ''}`;
-    console.log(`Fetching prompt templates from: ${url}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error fetching prompt templates:', response.status, errorText);
+        throw new Error('Failed to fetch prompt templates');
+      }
 
-    const response = await fetch(url, {
-      headers: headers || {},
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error fetching prompt templates:', response.status, errorText);
-      throw new Error('Failed to fetch prompt templates');
-    }
-
-    const data = await response.json();
-    const templates = data.map((template: any) => {
-      // Check for both possible favorite flags in the API response
-      const isFavorite = template.is_favorite || template.is_favorited || false;
+      const data = await response.json();
+      const templates = data.map((template: any) => {
+        // Check for both possible favorite flags in the API response
+        const isFavorite = template.is_favorite || template.is_favorited || false;
+        
+        return {
+          ...template,
+          id: template.id?.toString() || '',
+          category_id: template.category_id?.toString(),
+          default_persona_id: template.default_persona_id?.toString(),
+          default_chat_model_id: template.default_chat_model_id?.toString(),
+          // Set is_favorite flag based on API data
+          is_favorite: isFavorite,
+          tags: template.tags?.map((tag: any) => ({
+            ...tag,
+            id: tag.id?.toString() || ''
+          })) || []
+        };
+      });
       
-      return {
-        ...template,
-        id: template.id?.toString() || '',
-        category_id: template.category_id?.toString(),
-        default_persona_id: template.default_persona_id?.toString(),
-        default_chat_model_id: template.default_chat_model_id?.toString(),
-        // Set is_favorite flag based on API data
-        is_favorite: isFavorite,
-        tags: template.tags?.map((tag: any) => ({
-          ...tag,
-          id: tag.id?.toString() || ''
-        })) || []
-      };
-    });
-    
-    // Log how many favorites we found
-    console.log(`Mapped ${templates.length} templates with ${templates.filter((t: PromptTemplate) => t.is_favorite).length} favorites`);
-    
-    return templates;
-  } catch (error) {
-    console.error('Error in fetchPromptTemplates:', error);
-    return [];
-  } finally {
-    // Clear the request tracker for this request
-    setTimeout(() => {
-      delete requestTracker[requestKey];
-    }, 2000); // Prevent duplicate requests for 2 seconds
-  }
+      // Log how many favorites we found
+      console.log(`Mapped ${templates.length} templates with ${templates.filter((t: PromptTemplate) => t.is_favorite).length} favorites`);
+      
+      return templates;
+    },
+    {
+      ttl: 30, // Cache for 30 minutes
+      debug: process.env.NODE_ENV === 'development'
+    }
+  );
 }
 
 export async function fetchPromptTemplate(promptTemplateId: string, headers: ApiHeaders): Promise<PromptTemplate> {

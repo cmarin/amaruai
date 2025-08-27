@@ -1,10 +1,6 @@
 import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl } from './api-utils';
-
-// Simple in-memory request tracker to prevent duplicate calls
-const requestTracker: {
-  [key: string]: boolean
-} = {};
+import { cachedRequest, invalidateCache } from './api-request-manager';
 
 export type Category = {
   id: string;
@@ -13,56 +9,33 @@ export type Category = {
 };
 
 export async function fetchCategories(headers: ApiHeaders): Promise<Category[]> {
-  // Create a request key
-  const requestKey = 'categories';
-  
-  // Check if we're already making this exact request
-  if (requestTracker[requestKey]) {
-    console.log(`Duplicate request prevented: ${requestKey}`);
-    // Return a promise that never resolves during the lock period
-    // This will prevent the state from being updated with an empty array
-    return new Promise((resolve) => {
-      const checkLock = () => {
-        if (!requestTracker[requestKey]) {
-          // When the lock is released, try again
-          fetchCategories(headers).then(resolve);
-        } else {
-          // Check again after a short delay
-          setTimeout(checkLock, 100);
-        }
-      };
-      setTimeout(checkLock, 100);
-    });
-  }
-  
-  // Mark this request as in progress
-  requestTracker[requestKey] = true;
+  return cachedRequest(
+    'categories',
+    async () => {
+      const response = await fetch(`${getApiUrl()}/categories/?limit=30`, {
+        method: 'GET',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
 
-  try {
-    const response = await fetch(`${getApiUrl()}/categories/?limit=30`, {
-      method: 'GET',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    });
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch categories');
+      const data = await response.json();
+      return data.map((category: any) => ({
+        ...category,
+        id: category.id?.toString() || ''
+      }));
+    },
+    {
+      ttl: 30, // Cache for 30 minutes
+      debug: process.env.NODE_ENV === 'development'
     }
-
-    const data = await response.json();
-    return data.map((category: any) => ({
-      ...category,
-      id: category.id?.toString() || ''
-    }));
-  } finally {
-    // Clear the request tracker after a delay
-    setTimeout(() => {
-      delete requestTracker[requestKey];
-    }, 2000);
-  }
+  );
 }
 
 export async function createCategory(category: Omit<Category, 'id'>, headers: ApiHeaders): Promise<Category> {
@@ -80,10 +53,15 @@ export async function createCategory(category: Omit<Category, 'id'>, headers: Ap
   }
 
   const data = await response.json();
-  return {
+  const result = {
     ...data,
     id: data.id.toString()
   };
+
+  // Invalidate categories cache after successful creation
+  invalidateCache(/^categories/);
+  
+  return result;
 }
 
 export async function updateCategory(id: string, category: Partial<Category>, headers: ApiHeaders): Promise<Category> {
@@ -101,10 +79,15 @@ export async function updateCategory(id: string, category: Partial<Category>, he
   }
 
   const data = await response.json();
-  return {
+  const result = {
     ...data,
     id: data.id.toString()
   };
+
+  // Invalidate categories cache after successful update
+  invalidateCache(/^categories/);
+  
+  return result;
 }
 
 export async function deleteCategory(id: string, headers: ApiHeaders): Promise<void> {
@@ -116,4 +99,7 @@ export async function deleteCategory(id: string, headers: ApiHeaders): Promise<v
   if (!response.ok) {
     throw new Error('Failed to delete category');
   }
+
+  // Invalidate categories cache after successful deletion
+  invalidateCache(/^categories/);
 }
