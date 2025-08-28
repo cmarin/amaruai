@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { FileText, Database, Loader2, FolderOpen } from 'lucide-react';
+import { FileText, Database, Loader2 } from 'lucide-react';
 import { Asset, KnowledgeBase } from '@/types/knowledge-base';
 import { fetchAssets } from '@/utils/asset-service';
 import { fetchKnowledgeBases } from '@/utils/knowledge-base-service';
@@ -92,20 +92,6 @@ export function AssetSelectionStep({
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <FolderOpen className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Select Resources</h2>
-        <p className="text-gray-600">
-          Choose assets and knowledge bases to include in your workflow execution.
-          These resources will be made available to all workflow steps.
-        </p>
-        {totalSelected > 0 && (
-          <p className="text-sm text-blue-600 mt-2">
-            {totalSelected} resource{totalSelected !== 1 ? 's' : ''} selected
-          </p>
-        )}
-      </div>
-
       {/* Content area with extra bottom padding to accommodate sticky footer */}
       <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6 pb-24">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

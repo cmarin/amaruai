@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Database, Settings, Play, CheckCircle } from 'lucide-react';
+import { FileText, Database, Settings, Play } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { WizardStepProps } from '@/types/workflow-wizard';
 
 type ReviewStepProps = WizardStepProps;
@@ -32,13 +33,7 @@ export function ReviewStep({
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <CheckCircle className="mx-auto h-12 w-12 text-green-500 mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Review & Execute</h2>
-        <p className="text-gray-600">
-          Review your selections below and start the workflow execution when ready.
-        </p>
-      </div>
+      
 
       {/* Workflow Summary */}
       <Card>
@@ -176,9 +171,82 @@ export function ReviewStep({
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[120px]">
-              <div className="text-sm whitespace-pre-wrap bg-gray-50 dark:bg-gray-800 p-3 rounded">
-                {wizardState.complexPromptData}
-              </div>
+              {(() => {
+                const promptText = wizardState.complexPromptData || '';
+                const label = 'Referenced Content:';
+                const lcPrompt = promptText.toLowerCase();
+                const labelIndex = lcPrompt.indexOf(label.toLowerCase());
+
+                let mainPrompt = promptText;
+                let referencedContent: string | null = null;
+
+                if (labelIndex !== -1) {
+                  const before = promptText.slice(0, labelIndex).trimEnd();
+                  const afterLabelIndex = labelIndex + label.length;
+                  const rest = promptText.slice(afterLabelIndex);
+
+                  const trimmedRest = rest.replace(/^\s+/, '');
+
+                  let ref = '';
+                  let remainder = '';
+
+                  if (trimmedRest.startsWith('```')) {
+                    const afterTicks = trimmedRest.slice(3);
+                    const endTicks = afterTicks.indexOf('```');
+                    if (endTicks !== -1) {
+                      ref = afterTicks.slice(0, endTicks).trim();
+                      remainder = afterTicks.slice(endTicks + 3).replace(/^\n+/, '');
+                    } else {
+                      ref = afterTicks.trim();
+                      remainder = '';
+                    }
+                  } else {
+                    const doubleNewline = trimmedRest.search(/\n\s*\n/);
+                    if (doubleNewline !== -1) {
+                      ref = trimmedRest.slice(0, doubleNewline).trim();
+                      remainder = trimmedRest.slice(doubleNewline).replace(/^\n+/, '');
+                    } else {
+                      const nl = trimmedRest.indexOf('\n');
+                      if (nl !== -1) {
+                        ref = trimmedRest.slice(0, nl).trim();
+                        remainder = trimmedRest.slice(nl + 1);
+                      } else {
+                        ref = trimmedRest.trim();
+                        remainder = '';
+                      }
+                    }
+                  }
+
+                  mainPrompt = [before, remainder].filter(Boolean).join('\n').trim();
+                  referencedContent = ref.length ? ref : null;
+                }
+
+                return (
+                  <div className="text-sm bg-gray-50 dark:bg-gray-800 p-3 rounded">
+                    {referencedContent ? (
+                      <>
+                        {mainPrompt && (
+                          <div className="whitespace-pre-wrap">
+                            <ReactMarkdown>{mainPrompt}</ReactMarkdown>
+                          </div>
+                        )}
+                        <details className="mt-2">
+                          <summary className="cursor-pointer text-xs text-gray-600 dark:text-gray-300">
+                            Referenced Content (click to expand)
+                          </summary>
+                          <div className="mt-2 whitespace-pre-wrap">
+                            <ReactMarkdown>{referencedContent}</ReactMarkdown>
+                          </div>
+                        </details>
+                      </>
+                    ) : (
+                      <div className="whitespace-pre-wrap">
+                        <ReactMarkdown>{promptText}</ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </ScrollArea>
           </CardContent>
         </Card>
