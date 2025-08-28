@@ -5,7 +5,8 @@ import { Asset } from '@/types/knowledge-base';
 
 export async function fetchAssets(headers: ApiHeaders): Promise<Asset[]> {
   return fetchWithRetry(async () => {
-    const response = await fetch(`${getApiUrl()}/assets`, {
+    // Explicitly request only managed assets
+    const response = await fetch(`${getApiUrl()}/assets?managed=true`, {
       headers: {
         ...headers,
         'Content-Type': 'application/json',

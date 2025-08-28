@@ -667,6 +667,24 @@ def get_asset_by_file_url(db: Session, file_url: str):
 
 def create_asset(db: Session, asset: schemas.AssetCreate, user_id: UUID):
     """Create a new asset record"""
+    
+    # Determine managed status based on file path
+    managed_status = False  # Default to False for backward compatibility
+    
+    if asset.file_url:
+        # Files in 'assets/' or 'knowledge-bases/' folders are permanent managed assets
+        if asset.file_url.startswith('assets/') or asset.file_url.startswith('knowledge-bases/'):
+            managed_status = True
+        # Files in 'chats/', 'batch-flow/', 'workflows/' are temporary
+        elif asset.file_url.startswith(('chats/', 'batch-flow/', 'workflows/')):
+            managed_status = False
+        # Respect explicitly provided value if set
+        elif asset.managed is not None:
+            managed_status = asset.managed
+    # If managed is explicitly provided in the request, use that
+    elif asset.managed is not None:
+        managed_status = asset.managed
+    
     db_asset = models.Asset(
         title=asset.title,
         file_name=asset.file_name,
@@ -677,7 +695,7 @@ def create_asset(db: Session, asset: schemas.AssetCreate, user_id: UUID):
         content=asset.content,
         token_count=asset.token_count or 0,
         status=asset.status,
-        managed=asset.managed if asset.managed is not None else False,  # Default to False for workflow uploads
+        managed=managed_status,  # Use our determined status
         uploaded_by=user_id,
         storage_id=asset.storage_id
     )
