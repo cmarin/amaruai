@@ -27,6 +27,7 @@ class ApiRequestManager {
   private pendingRequests = new Map<string, Promise<any>>();
   private cache = new Map<string, CacheEntry>();
   private cleanupInterval: NodeJS.Timeout | null = null;
+  private readonly maxCacheSize = 100; // Maximum number of cache entries
 
   constructor() {
     // Start cleanup interval to remove expired cache entries every 5 minutes
@@ -93,8 +94,8 @@ class ApiRequestManager {
 
       const result = await fetcher();
 
-      // Cache the result
-      this.cache.set(key, {
+      // Cache the result with size limit check
+      this.setCacheEntry(key, {
         data: result,
         timestamp: Date.now(),
         ttl: ttlMs
@@ -128,6 +129,35 @@ class ApiRequestManager {
     return entry.data as T;
   }
 
+  private setCacheEntry(key: string, entry: CacheEntry): void {
+    // Check cache size limit
+    if (this.cache.size >= this.maxCacheSize && !this.cache.has(key)) {
+      // Remove oldest entry when cache is full
+      const oldestKey = this.findOldestCacheEntry();
+      if (oldestKey) {
+        this.cache.delete(oldestKey);
+        console.log(`[ApiRequestManager] Cache full, evicted oldest entry: ${oldestKey}`);
+      }
+    }
+    
+    this.cache.set(key, entry);
+  }
+
+  private findOldestCacheEntry(): string | null {
+    let oldestKey: string | null = null;
+    let oldestTime = Date.now();
+    
+    const entries = Array.from(this.cache.entries());
+    for (const [key, entry] of entries) {
+      if (entry.timestamp < oldestTime) {
+        oldestTime = entry.timestamp;
+        oldestKey = key;
+      }
+    }
+    
+    return oldestKey;
+  }
+
   /**
    * Invalidate cache entries matching a pattern
    * @param pattern String or RegExp to match cache keys
@@ -135,7 +165,9 @@ class ApiRequestManager {
   invalidate(pattern: string | RegExp): void {
     const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
     
-    for (const [key] of this.cache) {
+    // Use Array.from to avoid iteration issues with older TypeScript targets
+    const keys = Array.from(this.cache.keys());
+    for (const key of keys) {
       if (regex.test(key)) {
         this.cache.delete(key);
         console.log(`[ApiRequestManager] Invalidated cache for key: ${key}`);
@@ -176,13 +208,20 @@ class ApiRequestManager {
     this.cleanupInterval = setInterval(() => {
       this.cleanupExpiredEntries();
     }, 5 * 60 * 1000);
+
+    // Ensure cleanup on Node.js process exit (for server-side)
+    if (typeof process !== 'undefined' && process.on) {
+      process.on('exit', () => this.destroy());
+    }
   }
 
   private cleanupExpiredEntries(): void {
     const now = Date.now();
     let removedCount = 0;
 
-    for (const [key, entry] of this.cache) {
+    // Use Array.from to avoid iteration issues with older TypeScript targets
+    const entries = Array.from(this.cache.entries());
+    for (const [key, entry] of entries) {
       if (now - entry.timestamp > entry.ttl) {
         this.cache.delete(key);
         removedCount++;
