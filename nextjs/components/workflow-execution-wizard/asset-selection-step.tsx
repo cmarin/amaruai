@@ -106,7 +106,8 @@ export function AssetSelectionStep({
         )}
       </div>
 
-      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
+      {/* Content area with extra bottom padding to accommodate sticky footer */}
+      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6 pb-24">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="assets" className="flex items-center space-x-2">
@@ -208,7 +209,8 @@ export function AssetSelectionStep({
         </Tabs>
       </div>
 
-      <div className="sticky bottom-0 z-10 flex justify-between pt-3 border-t bg-background dark:bg-gray-900">
+      {/* Sticky footer with solid background to avoid overlap */}
+      <div className="sticky bottom-0 z-20 flex justify-between pt-3 border-t bg-white dark:bg-gray-900">
         <Button
           variant="outline"
           onClick={onPrevious}
