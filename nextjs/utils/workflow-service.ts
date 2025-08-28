@@ -9,7 +9,8 @@ export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
     'workflows',
     async () => {
       return fetchWithRetry(async () => {
-        const response = await fetch(`${getApiUrl()}/workflows/`, {
+        const base = getApiUrl().replace(/\/+$/, '');
+        const response = await fetch(`${base}/workflows/`, {
           headers
         });
 
@@ -135,10 +136,12 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
 
     console.log('Creating workflow with payload:', workflowPayload);
 
-    const response = await fetch(`${getApiUrl()}/workflows/`, {
+    const base = getApiUrl().replace(/\/+$/, '');
+    const response = await fetch(`${base}/workflows/`, {
       method: 'POST',
       headers: {
         ...headers,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify(workflowPayload),
     });
@@ -229,6 +232,7 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       method: 'PUT',
       headers: {
         ...headers,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify(workflowPayload),
     });
@@ -297,6 +301,7 @@ export async function createWorkflowStep(workflowId: string, step: Omit<Workflow
       method: 'POST',
       headers: {
         ...headers,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify(step),
     });
@@ -407,6 +412,7 @@ export async function executeWorkflow(
       method: 'POST',
       headers: {
         ...headers,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     });
@@ -456,6 +462,7 @@ export async function updateWorkflowStep(
       method: 'PUT',
       headers: {
         ...headers,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify(step),
     });

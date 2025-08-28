@@ -57,14 +57,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // Transform function defined outside the loop to avoid hoisting issues
   const transformChatModels = (models: BaseChatModel[]): ChatModel[] => {
     return models.map(model => {
-      const now = new Date().toISOString();
       return {
         ...model,
         model_id: model.model || '',
         default: model.model?.toLowerCase().includes('gpt-4') || false,
-        created_at: now,
-        updated_at: now,
-        is_favorite: model.is_favorite || false,
+        // Prefer API timestamps when present; fall back to stable epoch strings
+        created_at: (model as any).created_at ?? '1970-01-01T00:00:00.000Z',
+        updated_at: (model as any).updated_at ?? '1970-01-01T00:00:00.000Z',
+        is_favorite: !!model.is_favorite,
         // Preserve the position value if it exists
         position: model.position !== undefined ? model.position : null
       };
@@ -180,9 +180,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setIsFetching(false);
       
       // Clear the fetch lock after a delay to prevent rapid successive calls
+      const cooldownMs = Number(process.env.NEXT_PUBLIC_FETCH_COOLDOWN_MS || 2000);
       setTimeout(() => {
         fetchLockRef.current = false;
-      }, 2000);
+      }, cooldownMs);
     }
   }, [getApiHeaders, initialized, session]);
 
@@ -194,6 +195,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [initialized, session?.user?.id]);  // Only depend on these essential variables
 
+  // Efficient array comparator by id (order-sensitive)
+  const arraysEqualById = <T extends { id?: string }>(a: T[], b: T[]) =>
+    a.length === b.length && a.every((x, i) => x.id === b[i].id);
+
   const setData = useCallback((data: {
     chatModels?: ChatModel[];
     favoriteChatModels?: ChatModel[];
@@ -203,18 +208,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }) => {
     // Only update states that actually change
     if (data.chatModels) setChatModels(prev => 
-      JSON.stringify(prev) !== JSON.stringify(data.chatModels) ? data.chatModels! : prev);
+      arraysEqualById(prev, data.chatModels!) ? prev : data.chatModels!);
     
     if (data.favoriteChatModels) setFavoriteChatModels(prev => 
-      JSON.stringify(prev) !== JSON.stringify(data.favoriteChatModels) ? data.favoriteChatModels! : prev);
+      arraysEqualById(prev, data.favoriteChatModels!) ? prev : data.favoriteChatModels!);
     
     if (data.personas) setPersonas(prev => 
-      JSON.stringify(prev) !== JSON.stringify(data.personas) ? data.personas! : prev);
+      arraysEqualById(prev as any, data.personas as any) ? prev : data.personas!);
     
     if (data.promptTemplates) {
       setPromptTemplates(prev => {
         // Check if this update has different content than the current state
-        if (JSON.stringify(prev) !== JSON.stringify(data.promptTemplates)) {
+        if (!arraysEqualById(prev as any, data.promptTemplates as any)) {
           // Log information about the favorites to help debug
           const prevFavorites = prev.filter(p => p.is_favorite).length;
           const newFavorites = data.promptTemplates!.filter(p => p.is_favorite).length;
@@ -235,7 +240,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
     
     if (data.categories) setCategories(prev => 
-      JSON.stringify(prev) !== JSON.stringify(data.categories) ? data.categories! : prev);
+      arraysEqualById(prev as any, data.categories as any) ? prev : data.categories!);
   }, []);
 
   const refetchData = useCallback(async () => {
