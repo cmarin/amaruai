@@ -2,11 +2,7 @@ import { fetchWithRetry } from './api-utils';
 import { createTag, fetchTags, Tag } from './tag-service';
 import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl, getFetchOptions } from './api-utils';
-
-// Simple in-memory request tracker to prevent duplicate calls
-const requestTracker: {
-  [key: string]: boolean
-} = {};
+import { cachedRequest, invalidateCache } from './api-request-manager';
 
 export type Persona = {
   id: string | number;
@@ -46,60 +42,37 @@ export type PersonaCreate = {
 export type PersonaUpdate = Omit<PersonaCreate, 'prompt_templates'>;
 
 export async function fetchPersonas(headers: ApiHeaders): Promise<Persona[]> {
-  // Create a request key
-  const requestKey = 'personas';
-  
-  // Check if we're already making this exact request
-  if (requestTracker[requestKey]) {
-    console.log(`Duplicate request prevented: ${requestKey}`);
-    // Return a promise that never resolves during the lock period
-    // This will prevent the state from being updated with an empty array
-    return new Promise((resolve) => {
-      const checkLock = () => {
-        if (!requestTracker[requestKey]) {
-          // When the lock is released, try again
-          fetchPersonas(headers).then(resolve);
-        } else {
-          // Check again after a short delay
-          setTimeout(checkLock, 100);
+  return cachedRequest(
+    'personas',
+    async () => {
+      return await fetchWithRetry(async () => {
+        const apiUrl = getApiUrl();
+        if (!apiUrl) {
+          throw new Error('API_BASE_URL is not defined');
         }
-      };
-      setTimeout(checkLock, 100);
-    });
-  }
-  
-  // Mark this request as in progress
-  requestTracker[requestKey] = true;
 
-  try {
-    return await fetchWithRetry(async () => {
-      const apiUrl = getApiUrl();
-      if (!apiUrl) {
-        throw new Error('API_BASE_URL is not defined');
-      }
+        console.log('Fetching personas from:', `${apiUrl}/personas/?limit=30`);
+        const response = await fetch(`${apiUrl}/personas/?limit=30`, getFetchOptions({
+          method: 'GET',
+          headers
+        }));
 
-      console.log('Fetching personas from:', `${apiUrl}/personas/?limit=30`);
-      const response = await fetch(`${apiUrl}/personas/?limit=30`, getFetchOptions({
-        method: 'GET',
-        headers
-      }));
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Failed to fetch personas:', response.status, errorText);
+          throw new Error('Failed to fetch personas');
+        }
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to fetch personas:', response.status, errorText);
-        throw new Error('Failed to fetch personas');
-      }
-
-      const data = await response.json();
-      console.log('Personas fetch response:', data);
-      return data;
-    });
-  } finally {
-    // Clear the request tracker after a delay
-    setTimeout(() => {
-      delete requestTracker[requestKey];
-    }, 2000);
-  }
+        const data = await response.json();
+        console.log('Personas fetch response:', data);
+        return data;
+      });
+    },
+    {
+      ttl: 30, // Cache for 30 minutes
+      debug: process.env.NODE_ENV === 'development'
+    }
+  );
 }
 
 export async function fetchPersona(id: string, headers: Record<string, string>): Promise<Persona> {
@@ -145,7 +118,7 @@ export async function createPersona(persona: PersonaCreate, headers: ApiHeaders)
     }
 
     const data = await response.json();
-    return {
+    const result = {
       ...data,
       id: data.id?.toString() || '',
       categories: data.categories?.map((cat: any) => ({
@@ -157,6 +130,11 @@ export async function createPersona(persona: PersonaCreate, headers: ApiHeaders)
         id: tag.id?.toString() || ''
       })) || []
     };
+
+    // Invalidate personas cache after successful creation
+    invalidateCache(/^personas/);
+    
+    return result;
   } catch (error) {
     console.error('Error creating persona:', error);
     throw error;
@@ -193,7 +171,7 @@ export async function updatePersona(personaId: string, persona: PersonaUpdate, h
     }
 
     const data = await response.json();
-    return {
+    const result = {
       ...data,
       id: data.id?.toString() || '',
       categories: data.categories?.map((cat: any) => ({
@@ -205,6 +183,11 @@ export async function updatePersona(personaId: string, persona: PersonaUpdate, h
         id: tag.id?.toString() || ''
       })) || []
     };
+
+    // Invalidate personas cache after successful update
+    invalidateCache(/^personas/);
+    
+    return result;
   } catch (error) {
     console.error('Error updating persona:', error);
     throw error;
@@ -229,6 +212,9 @@ export async function deletePersona(personaId: string, headers: ApiHeaders): Pro
       throw new Error(`Failed to delete persona: ${response.status} ${response.statusText}`);
     }
     console.log('Persona deleted successfully');
+
+    // Invalidate personas cache after successful deletion
+    invalidateCache(/^personas/);
   } catch (error) {
     console.error('Error deleting persona:', error);
     throw error;

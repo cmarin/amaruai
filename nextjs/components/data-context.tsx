@@ -6,6 +6,7 @@ import { Persona, fetchPersonas } from '../utils/persona-service';
 import { PromptTemplate, fetchPromptTemplates, fetchInitialPromptTemplates } from '@/utils/prompt-template-service';
 import { Category, fetchCategories } from '../utils/category-service';
 import { useSession } from '@/app/utils/session/session';
+import { invalidateCache, clearCache } from '../utils/api-request-manager';
 
 // Extend the base ChatModel type to include additional fields from the API
 export interface ChatModel extends Omit<BaseChatModel, 'id'> {
@@ -34,6 +35,10 @@ type DataContextType = {
     promptTemplates?: PromptTemplate[];
     categories?: Category[];
   }) => void;
+  // Cache management methods
+  invalidateCache: (pattern: string | RegExp) => void;
+  clearAllCache: () => void;
+  refreshData: (forceRefresh?: boolean) => Promise<void>;
 };
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -69,7 +74,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // Use a ref for more reliable fetch lock tracking
   const fetchLockRef = useRef(false);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (forceRefresh = false) => {
     // Guard against uninitialized session
     if (!initialized) {
       console.log('Session not initialized, skipping fetch');
@@ -96,7 +101,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     // Log which user is being fetched for
     const userId = session?.user?.id;
-    console.log('Fetching data for user:', userId);
+    console.log('Fetching data for user:', userId, forceRefresh ? '(force refresh)' : '(cached)');
 
     try {
       // Sequential fetches instead of parallel to reduce server load
@@ -227,6 +232,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchData]);
 
+  // Cache management methods
+  const handleInvalidateCache = useCallback((pattern: string | RegExp) => {
+    invalidateCache(pattern);
+    console.log('Cache invalidated for pattern:', pattern);
+  }, []);
+
+  const handleClearAllCache = useCallback(() => {
+    clearCache();
+    console.log('All cache cleared');
+  }, []);
+
+  const refreshData = useCallback(async (forceRefresh = false) => {
+    if (forceRefresh) {
+      // Clear relevant cache entries before refetching
+      clearCache();
+    }
+    await fetchData(forceRefresh);
+  }, [fetchData]);
+
   return (
     <DataContext.Provider
       value={{
@@ -239,6 +263,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         error,
         refetchData,
         setData,
+        invalidateCache: handleInvalidateCache,
+        clearAllCache: handleClearAllCache,
+        refreshData,
       }}
     >
       {children}

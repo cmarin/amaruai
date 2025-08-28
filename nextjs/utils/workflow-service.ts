@@ -2,48 +2,58 @@ import { fetchWithRetry } from './api-utils';
 import { ApiHeaders } from '@/app/utils/session/session';
 import { getApiUrl, getFetchOptions } from './api-utils';
 import { Workflow, WorkflowStep, WorkflowResult, WorkflowStreamMessage } from '@/types/workflow';
+import { cachedRequest, invalidateCache } from './api-request-manager';
 
 export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
-  return fetchWithRetry(async () => {
-    const response = await fetch(`${getApiUrl()}/workflows`, {
-      headers
-    });
+  return cachedRequest(
+    'workflows',
+    async () => {
+      return fetchWithRetry(async () => {
+        const response = await fetch(`${getApiUrl()}/workflows`, {
+          headers
+        });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch workflows');
+        if (!response.ok) {
+          throw new Error('Failed to fetch workflows');
+        }
+
+        const data = await response.json();
+        return data.map((workflow: any) => ({
+          ...workflow,
+          id: workflow.id?.toString() || '',
+          manager_chat_model_id: workflow.manager_chat_model_id?.toString(),
+          manager_persona_id: workflow.manager_persona_id?.toString(),
+          search: workflow.search || false, // Include search field with default false
+          allow_file_upload: workflow.allow_file_upload || false,
+          allow_asset_selection: workflow.allow_asset_selection || false,
+          steps: workflow.steps?.map((step: any) => ({
+            ...step,
+            id: step.id?.toString() || '',
+            workflow_id: step.workflow_id?.toString() || '',
+            prompt_template_id: step.prompt_template_id?.toString() || '',
+            chat_model_id: step.chat_model_id?.toString() || '',
+            persona_id: step.persona_id?.toString() || '',
+            prompt_template: step.prompt_template ? {
+              ...step.prompt_template,
+              id: step.prompt_template.id?.toString() || ''
+            } : undefined,
+            chat_model: step.chat_model ? {
+              ...step.chat_model,
+              id: step.chat_model.id?.toString() || ''
+            } : undefined,
+            persona: step.persona ? {
+              ...step.persona,
+              id: step.persona.id?.toString() || ''
+            } : undefined
+          })) || []
+        }));
+      });
+    },
+    {
+      ttl: 30, // Cache for 30 minutes
+      debug: process.env.NODE_ENV === 'development'
     }
-
-    const data = await response.json();
-    return data.map((workflow: any) => ({
-      ...workflow,
-      id: workflow.id?.toString() || '',
-      manager_chat_model_id: workflow.manager_chat_model_id?.toString(),
-      manager_persona_id: workflow.manager_persona_id?.toString(),
-      search: workflow.search || false, // Include search field with default false
-      allow_file_upload: workflow.allow_file_upload || false,
-      allow_asset_selection: workflow.allow_asset_selection || false,
-      steps: workflow.steps?.map((step: any) => ({
-        ...step,
-        id: step.id?.toString() || '',
-        workflow_id: step.workflow_id?.toString() || '',
-        prompt_template_id: step.prompt_template_id?.toString() || '',
-        chat_model_id: step.chat_model_id?.toString() || '',
-        persona_id: step.persona_id?.toString() || '',
-        prompt_template: step.prompt_template ? {
-          ...step.prompt_template,
-          id: step.prompt_template.id?.toString() || ''
-        } : undefined,
-        chat_model: step.chat_model ? {
-          ...step.chat_model,
-          id: step.chat_model.id?.toString() || ''
-        } : undefined,
-        persona: step.persona ? {
-          ...step.persona,
-          id: step.persona.id?.toString() || ''
-        } : undefined
-      })) || []
-    }));
-  });
+  );
 }
 
 export async function fetchWorkflow(id: string, headers: ApiHeaders): Promise<Workflow> {
@@ -181,6 +191,9 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
 
     console.log('Created steps:', createdSteps);
 
+    // Invalidate workflows cache after successful creation
+    invalidateCache(/^workflows/);
+
     return {
       ...createdWorkflow,
       steps: createdSteps,
@@ -255,6 +268,9 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
         } : undefined
       })) || []
     };
+    // Invalidate workflows cache after successful update
+    invalidateCache(/^workflows/);
+
     return updatedWorkflow;
   });
 }
@@ -268,6 +284,9 @@ export async function deleteWorkflow(id: string, headers: ApiHeaders): Promise<v
     if (!response.ok) {
       throw new Error('Failed to delete workflow');
     }
+
+    // Invalidate workflows cache after successful deletion
+    invalidateCache(/^workflows/);
   });
 }
 
