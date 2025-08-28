@@ -55,6 +55,10 @@ def create_workflow(
         workflow_dict["created_by"] = current_user
         
         # Create the workflow with basic info first
+        asset_selection_config_dict = None
+        if workflow_dict.get("asset_selection_config"):
+            asset_selection_config_dict = workflow_dict["asset_selection_config"].dict()
+        
         db_workflow = models.Workflow(
             name=workflow_dict.get("name", "New Workflow"),
             description=workflow_dict.get("description", ""),
@@ -65,6 +69,7 @@ def create_workflow(
             search=workflow_dict.get("search"),
             allow_file_upload=workflow_dict.get("allow_file_upload", False),
             allow_asset_selection=workflow_dict.get("allow_asset_selection", False),
+            asset_selection_config=asset_selection_config_dict,
             created_by=workflow_dict["created_by"]
         )
         db.add(db_workflow)

@@ -1,9 +1,30 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any, Union, ForwardRef, Annotated
+from typing import List, Optional, Dict, Any, Union, ForwardRef, Annotated, Literal
 from enum import Enum
 from uuid import UUID
 from datetime import datetime
 from pydantic import validator
+
+# Asset Selection Configuration Schemas
+class KnowledgeBaseSelection(BaseModel):
+    """Configuration for individual asset selection from a knowledge base"""
+    knowledge_base_id: UUID = Field(..., description="ID of the knowledge base")
+    selection_type: Literal["single", "multiple"] = Field(..., description="Whether to allow single or multiple asset selection")
+    max_selections: Optional[int] = Field(None, description="Maximum number of selections allowed (for multiple type)")
+    required: bool = Field(default=False, description="Whether selection is required")
+    label: str = Field(..., description="Label to display for this selection")
+    
+    @validator('max_selections')
+    def validate_max_selections(cls, v, values):
+        if values.get('selection_type') == 'multiple' and v is None:
+            raise ValueError('max_selections is required for multiple selection type')
+        if values.get('selection_type') == 'single' and v is not None:
+            raise ValueError('max_selections should not be set for single selection type')
+        return v
+
+class AssetSelectionConfig(BaseModel):
+    """Configuration for individual asset selection in workflows"""
+    knowledge_base_selections: List[KnowledgeBaseSelection] = Field(default_factory=list, description="List of knowledge base selection configurations")
 
 class ToolBase(BaseModel):
     name: str
@@ -329,6 +350,7 @@ class WorkflowBase(BaseModel):
     search: Optional[bool] = None
     allow_file_upload: Optional[bool] = False
     allow_asset_selection: Optional[bool] = False
+    asset_selection_config: Optional[AssetSelectionConfig] = None
 
     @validator('manager_chat_model_id', 'manager_persona_id', pre=True)
     def convert_to_uuid(cls, v):
@@ -418,6 +440,7 @@ class WorkflowExecuteInput(BaseModel):
     file_ids: Optional[List[UUID]] = Field(default_factory=list, max_items=50)
     asset_ids: Optional[List[UUID]] = Field(default_factory=list, max_items=50)
     knowledge_base_ids: Optional[List[UUID]] = Field(default_factory=list, max_items=20)
+    individual_asset_selections: Optional[Dict[str, List[UUID]]] = Field(default_factory=dict, description="Individual asset selections by knowledge base ID")
 
 class Workflow(WorkflowBase):
     id: UUID

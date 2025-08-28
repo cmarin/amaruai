@@ -7,6 +7,7 @@ import { X } from 'lucide-react';
 import { WizardProgress } from './wizard-progress';
 import { FileUploadStep } from './file-upload-step';
 import { AssetSelectionStep } from './asset-selection-step';
+import { IndividualAssetSelectionStep } from './individual-asset-selection-step';
 import { ComplexPromptStep } from './complex-prompt-step';
 import { ReviewStep } from './review-step';
 import { 
@@ -46,6 +47,7 @@ export function WorkflowExecutionWizard({
     uploadedFiles: [],
     selectedAssets: [],
     selectedKnowledgeBases: [],
+    individualAssetSelections: {},
     complexPromptData: undefined,
     currentStepId: WIZARD_STEPS.FILE_UPLOAD, // Will be updated after steps are determined
     completedSteps: new Set(),
@@ -103,6 +105,7 @@ export function WorkflowExecutionWizard({
         uploadedFiles: [],
         selectedAssets: [],
         selectedKnowledgeBases: [],
+        individualAssetSelections: {},
         complexPromptData: undefined,
         currentStepId: WIZARD_STEPS.FILE_UPLOAD,
         completedSteps: new Set(),
@@ -127,6 +130,7 @@ export function WorkflowExecutionWizard({
         uploadedFiles: wizardState.uploadedFiles,
         selectedAssets: wizardState.selectedAssets,
         selectedKnowledgeBases: wizardState.selectedKnowledgeBases,
+        individualAssetSelections: wizardState.individualAssetSelections,
         complexPromptData: wizardState.complexPromptData
       }
     );
@@ -144,7 +148,7 @@ export function WorkflowExecutionWizard({
         completedSteps: new Set(Array.from(prev.completedSteps).concat(wizardState.currentStepId))
       }));
     }
-  }, [wizardState.currentStepId, wizardState.uploadedFiles, wizardState.selectedAssets, wizardState.selectedKnowledgeBases, wizardState.complexPromptData, workflow, steps]);
+  }, [wizardState.currentStepId, wizardState.uploadedFiles, wizardState.selectedAssets, wizardState.selectedKnowledgeBases, wizardState.individualAssetSelections, wizardState.complexPromptData, workflow, steps]);
 
   const handlePrevious = useCallback(() => {
     const previousStepId = getPreviousStepId(wizardState.currentStepId as WizardStepId, steps);
@@ -162,6 +166,7 @@ export function WorkflowExecutionWizard({
       uploadedFiles: wizardState.uploadedFiles,
       selectedAssets: wizardState.selectedAssets,
       selectedKnowledgeBases: wizardState.selectedKnowledgeBases,
+      individualAssetSelections: wizardState.individualAssetSelections,
       complexPromptData: wizardState.complexPromptData
     });
     
@@ -187,6 +192,9 @@ export function WorkflowExecutionWizard({
       
       case WIZARD_STEPS.ASSET_SELECTION:
         return <AssetSelectionStep {...commonProps} />;
+      
+      case WIZARD_STEPS.INDIVIDUAL_ASSET_SELECTION:
+        return <IndividualAssetSelectionStep {...commonProps} />;
       
       case WIZARD_STEPS.COMPLEX_PROMPT:
         return (
