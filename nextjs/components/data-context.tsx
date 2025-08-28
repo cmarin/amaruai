@@ -57,14 +57,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // Transform function defined outside the loop to avoid hoisting issues
   const transformChatModels = (models: BaseChatModel[]): ChatModel[] => {
     return models.map(model => {
-      const now = new Date().toISOString();
       return {
         ...model,
         model_id: model.model || '',
         default: model.model?.toLowerCase().includes('gpt-4') || false,
-        created_at: now,
-        updated_at: now,
-        is_favorite: model.is_favorite || false,
+        // Prefer API timestamps when present; fall back to stable epoch strings
+        created_at: (model as any).created_at ?? '1970-01-01T00:00:00.000Z',
+        updated_at: (model as any).updated_at ?? '1970-01-01T00:00:00.000Z',
+        is_favorite: !!model.is_favorite,
         // Preserve the position value if it exists
         position: model.position !== undefined ? model.position : null
       };
@@ -103,60 +103,75 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const userId = session?.user?.id;
     console.log('Fetching data for user:', userId, forceRefresh ? '(force refresh)' : '(cached)');
 
+    // Performance timing (development only)
+    const startTime = process.env.NODE_ENV === 'development' ? performance.now() : 0;
+
     try {
-      // Sequential fetches instead of parallel to reduce server load
-      console.log('Starting sequential data fetches...');
+      // Parallel fetches for optimal performance
+      console.log('Starting parallel data fetches...');
       
-      // 1. Fetch chat models
-      let models: BaseChatModel[] = [];
-      try {
-        models = await fetchChatModels(headers);
-        setChatModels(transformChatModels(models));
-      } catch (err) {
-        console.error('Error fetching chat models:', err);
+      const results = await Promise.allSettled([
+        fetchChatModels(headers),
+        fetchFavoriteChatModels(headers),
+        fetchPersonas(headers),
+        fetchCategories(headers),
+        userId ? fetchInitialPromptTemplates(headers, userId) : Promise.resolve([])
+      ]);
+
+      // Process results with individual error handling
+      const [chatModelsResult, favChatModelsResult, personasResult, categoriesResult, promptTemplatesResult] = results;
+
+      // 1. Handle chat models
+      if (chatModelsResult.status === 'fulfilled') {
+        setChatModels(transformChatModels(chatModelsResult.value));
+      } else {
+        console.error('Error fetching chat models:', chatModelsResult.reason);
       }
-      
-      // 2. Fetch favorite chat models
-      try {
-        const favModels = await fetchFavoriteChatModels(headers);
+
+      // 2. Handle favorite chat models
+      if (favChatModelsResult.status === 'fulfilled') {
         setFavoriteChatModels(
-          transformChatModels(favModels).map(model => ({
+          transformChatModels(favChatModelsResult.value).map(model => ({
             ...model,
             is_favorite: true
           }))
         );
-      } catch (err) {
-        console.error('Error fetching favorite chat models:', err);
+      } else {
+        console.error('Error fetching favorite chat models:', favChatModelsResult.reason);
       }
-      
-      // 3. Fetch personas
-      try {
-        const personaData = await fetchPersonas(headers);
-        setPersonas(personaData);
-      } catch (err) {
-        console.error('Error fetching personas:', err);
+
+      // 3. Handle personas
+      if (personasResult.status === 'fulfilled') {
+        setPersonas(personasResult.value);
+      } else {
+        console.error('Error fetching personas:', personasResult.reason);
       }
-      
-      // 4. Fetch categories
-      try {
-        const categoryData = await fetchCategories(headers);
-        setCategories(categoryData);
-      } catch (err) {
-        console.error('Error fetching categories:', err);
+
+      // 4. Handle categories
+      if (categoriesResult.status === 'fulfilled') {
+        setCategories(categoriesResult.value);
+      } else {
+        console.error('Error fetching categories:', categoriesResult.reason);
       }
-      
-      // 5. Fetch prompt templates last
-      try {
-        if (userId) {
-          const templates = await fetchInitialPromptTemplates(headers, userId);
-          console.log('Fetched prompt templates:', templates.length, 'favorites:', templates.filter(t => t.is_favorite).length);
-          setPromptTemplates(templates);
-        }
-      } catch (err) {
-        console.error('Error fetching prompt templates:', err);
+
+      // 5. Handle prompt templates
+      if (promptTemplatesResult.status === 'fulfilled') {
+        const templates = promptTemplatesResult.value;
+        console.log('Fetched prompt templates:', templates.length, 'favorites:', templates.filter(t => t.is_favorite).length);
+        setPromptTemplates(templates);
+      } else {
+        console.error('Error fetching prompt templates:', promptTemplatesResult.reason);
       }
-      
-      console.log('All data fetched successfully');
+
+      // Log performance improvement (development only)
+      if (process.env.NODE_ENV === 'development') {
+        const endTime = performance.now();
+        const duration = Math.round(endTime - startTime);
+        const successfulFetches = results.filter(r => r.status === 'fulfilled').length;
+        console.log(`✅ Parallel data fetch completed: ${duration}ms (${successfulFetches}/${results.length} successful)`);
+      }
+
+      console.log('All data fetches completed');
     } catch (err) {
       console.error('Error in fetchData:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
@@ -165,9 +180,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setIsFetching(false);
       
       // Clear the fetch lock after a delay to prevent rapid successive calls
+      const cooldownMs = Number(process.env.NEXT_PUBLIC_FETCH_COOLDOWN_MS || 2000);
       setTimeout(() => {
         fetchLockRef.current = false;
-      }, 2000);
+      }, cooldownMs);
     }
   }, [getApiHeaders, initialized, session]);
 
@@ -179,6 +195,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [initialized, session?.user?.id]);  // Only depend on these essential variables
 
+  // Efficient array comparator by id (order-sensitive)
+  const arraysEqualById = <T extends { id?: string }>(a: T[], b: T[]) =>
+    a.length === b.length && a.every((x, i) => x.id === b[i].id);
+
   const setData = useCallback((data: {
     chatModels?: ChatModel[];
     favoriteChatModels?: ChatModel[];
@@ -188,18 +208,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }) => {
     // Only update states that actually change
     if (data.chatModels) setChatModels(prev => 
-      JSON.stringify(prev) !== JSON.stringify(data.chatModels) ? data.chatModels! : prev);
+      arraysEqualById(prev, data.chatModels!) ? prev : data.chatModels!);
     
     if (data.favoriteChatModels) setFavoriteChatModels(prev => 
-      JSON.stringify(prev) !== JSON.stringify(data.favoriteChatModels) ? data.favoriteChatModels! : prev);
+      arraysEqualById(prev, data.favoriteChatModels!) ? prev : data.favoriteChatModels!);
     
     if (data.personas) setPersonas(prev => 
-      JSON.stringify(prev) !== JSON.stringify(data.personas) ? data.personas! : prev);
+      arraysEqualById(prev as any, data.personas as any) ? prev : data.personas!);
     
     if (data.promptTemplates) {
       setPromptTemplates(prev => {
         // Check if this update has different content than the current state
-        if (JSON.stringify(prev) !== JSON.stringify(data.promptTemplates)) {
+        if (!arraysEqualById(prev as any, data.promptTemplates as any)) {
           // Log information about the favorites to help debug
           const prevFavorites = prev.filter(p => p.is_favorite).length;
           const newFavorites = data.promptTemplates!.filter(p => p.is_favorite).length;
@@ -220,7 +240,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
     
     if (data.categories) setCategories(prev => 
-      JSON.stringify(prev) !== JSON.stringify(data.categories) ? data.categories! : prev);
+      arraysEqualById(prev as any, data.categories as any) ? prev : data.categories!);
   }, []);
 
   const refetchData = useCallback(async () => {
