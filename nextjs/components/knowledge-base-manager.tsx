@@ -56,7 +56,7 @@ export default function KnowledgeBaseManager({ knowledgeBase, onSave, onClose }:
       if (!headers) return;
       const assets = await fetchAssets(headers);
       // fetchAssets now explicitly requests only managed=true assets
-      setAvailableAssets(assets);
+      setAvailableAssets(assets ?? []);
     } catch (error) {
       console.error('Error loading assets:', error);
     }

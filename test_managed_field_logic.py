@@ -41,6 +41,13 @@ def test_managed_field_logic():
         ('chats/user123/uuid123/file.txt', True, False, 'Path-based logic should override explicit value for known paths'),
         (None, True, True, 'No file_url with explicit True should use explicit'),
         (None, None, False, 'No file_url and no explicit should default to False'),
+        # Edge cases and normalization tests
+        ('/assets/user123/uuid123/document.pdf', None, False, 'Leading slash should not match (different path)'),
+        ('ASSETS/user123/uuid123/document.pdf', None, False, 'Case-sensitive match (uppercase should not match)'),
+        ('https://example.com/storage/v1/object/public/bucket/knowledge-bases/kb1/u1/file.pdf', None, False, 'Full URL should not match (only relative paths)'),
+        ('unknown/user123/uuid123/file.txt', False, False, 'Explicit False should be respected on unknown path'),
+        ('assetsmalicious/user123/file.txt', None, False, 'Path starting with assets but not assets/ should not match'),
+        ('knowledge-basesmalicious/user123/file.txt', None, False, 'Path starting with knowledge-bases but not knowledge-bases/ should not match'),
     ]
     
     print("Testing Managed Field Logic")
