@@ -9,7 +9,7 @@ export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
     'workflows',
     async () => {
       return fetchWithRetry(async () => {
-        const response = await fetch(`${getApiUrl()}/workflows`, {
+        const response = await fetch(`${getApiUrl()}/workflows/`, {
           headers
         });
 

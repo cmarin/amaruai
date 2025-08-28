@@ -103,60 +103,75 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const userId = session?.user?.id;
     console.log('Fetching data for user:', userId, forceRefresh ? '(force refresh)' : '(cached)');
 
+    // Performance timing (development only)
+    const startTime = process.env.NODE_ENV === 'development' ? performance.now() : 0;
+
     try {
-      // Sequential fetches instead of parallel to reduce server load
-      console.log('Starting sequential data fetches...');
+      // Parallel fetches for optimal performance
+      console.log('Starting parallel data fetches...');
       
-      // 1. Fetch chat models
-      let models: BaseChatModel[] = [];
-      try {
-        models = await fetchChatModels(headers);
-        setChatModels(transformChatModels(models));
-      } catch (err) {
-        console.error('Error fetching chat models:', err);
+      const results = await Promise.allSettled([
+        fetchChatModels(headers),
+        fetchFavoriteChatModels(headers),
+        fetchPersonas(headers),
+        fetchCategories(headers),
+        userId ? fetchInitialPromptTemplates(headers, userId) : Promise.resolve([])
+      ]);
+
+      // Process results with individual error handling
+      const [chatModelsResult, favChatModelsResult, personasResult, categoriesResult, promptTemplatesResult] = results;
+
+      // 1. Handle chat models
+      if (chatModelsResult.status === 'fulfilled') {
+        setChatModels(transformChatModels(chatModelsResult.value));
+      } else {
+        console.error('Error fetching chat models:', chatModelsResult.reason);
       }
-      
-      // 2. Fetch favorite chat models
-      try {
-        const favModels = await fetchFavoriteChatModels(headers);
+
+      // 2. Handle favorite chat models
+      if (favChatModelsResult.status === 'fulfilled') {
         setFavoriteChatModels(
-          transformChatModels(favModels).map(model => ({
+          transformChatModels(favChatModelsResult.value).map(model => ({
             ...model,
             is_favorite: true
           }))
         );
-      } catch (err) {
-        console.error('Error fetching favorite chat models:', err);
+      } else {
+        console.error('Error fetching favorite chat models:', favChatModelsResult.reason);
       }
-      
-      // 3. Fetch personas
-      try {
-        const personaData = await fetchPersonas(headers);
-        setPersonas(personaData);
-      } catch (err) {
-        console.error('Error fetching personas:', err);
+
+      // 3. Handle personas
+      if (personasResult.status === 'fulfilled') {
+        setPersonas(personasResult.value);
+      } else {
+        console.error('Error fetching personas:', personasResult.reason);
       }
-      
-      // 4. Fetch categories
-      try {
-        const categoryData = await fetchCategories(headers);
-        setCategories(categoryData);
-      } catch (err) {
-        console.error('Error fetching categories:', err);
+
+      // 4. Handle categories
+      if (categoriesResult.status === 'fulfilled') {
+        setCategories(categoriesResult.value);
+      } else {
+        console.error('Error fetching categories:', categoriesResult.reason);
       }
-      
-      // 5. Fetch prompt templates last
-      try {
-        if (userId) {
-          const templates = await fetchInitialPromptTemplates(headers, userId);
-          console.log('Fetched prompt templates:', templates.length, 'favorites:', templates.filter(t => t.is_favorite).length);
-          setPromptTemplates(templates);
-        }
-      } catch (err) {
-        console.error('Error fetching prompt templates:', err);
+
+      // 5. Handle prompt templates
+      if (promptTemplatesResult.status === 'fulfilled') {
+        const templates = promptTemplatesResult.value;
+        console.log('Fetched prompt templates:', templates.length, 'favorites:', templates.filter(t => t.is_favorite).length);
+        setPromptTemplates(templates);
+      } else {
+        console.error('Error fetching prompt templates:', promptTemplatesResult.reason);
       }
-      
-      console.log('All data fetched successfully');
+
+      // Log performance improvement (development only)
+      if (process.env.NODE_ENV === 'development') {
+        const endTime = performance.now();
+        const duration = Math.round(endTime - startTime);
+        const successfulFetches = results.filter(r => r.status === 'fulfilled').length;
+        console.log(`✅ Parallel data fetch completed: ${duration}ms (${successfulFetches}/${results.length} successful)`);
+      }
+
+      console.log('All data fetches completed');
     } catch (err) {
       console.error('Error in fetchData:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
