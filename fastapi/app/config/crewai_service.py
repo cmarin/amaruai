@@ -141,6 +141,65 @@ class CrewAIService:
             all_asset_ids = list(set(all_asset_ids))
             all_kb_ids = list(set(all_kb_ids))
 
+            # Build and stream a context summary so clients can verify what will be used
+            try:
+                # Fetch assets by id
+                assets_by_id = []
+                if all_asset_ids:
+                    assets_by_id = db.query(models.Asset).filter(
+                        models.Asset.id.in_(all_asset_ids)
+                    ).all()
+
+                # Also try storage_id for any dynamic file ids that are storage IDs
+                storage_assets = []
+                if dynamic_file_ids:
+                    storage_assets = db.query(models.Asset).filter(
+                        models.Asset.storage_id.in_(dynamic_file_ids)
+                    ).all()
+
+                # Merge and de-duplicate assets
+                asset_meta_map = {}
+                for a in assets_by_id + storage_assets:
+                    asset_meta_map[str(a.id)] = {
+                        "id": str(a.id),
+                        "storage_id": str(a.storage_id) if a.storage_id else None,
+                        "title": a.title,
+                        "file_name": a.file_name,
+                        "managed": bool(a.managed),
+                    }
+
+                # Fetch knowledge bases
+                kb_meta = []
+                if all_kb_ids:
+                    kbs = db.query(models.KnowledgeBase).filter(
+                        models.KnowledgeBase.id.in_(all_kb_ids)
+                    ).all()
+                    kb_meta = [{
+                        "id": str(kb.id),
+                        "title": kb.title,
+                        "token_count": kb.token_count
+                    } for kb in kbs]
+
+                context_event = {
+                    "type": "context",
+                    "assets": list(asset_meta_map.values()),
+                    "knowledge_bases": kb_meta,
+                    "counts": {
+                        "assets": len(asset_meta_map),
+                        "knowledge_bases": len(kb_meta)
+                    },
+                    "sources": {
+                        "dynamic_file_ids": [str(fid) for fid in (dynamic_file_ids or [])],
+                        "dynamic_asset_ids": [str(aid) for aid in (dynamic_asset_ids or [])],
+                        "dynamic_knowledge_base_ids": [str(kid) for kid in (dynamic_kb_ids or [])],
+                        "workflow_asset_ids": [str(aid) for aid in ([asset.id for asset in (workflow.assets or [])])],
+                        "workflow_knowledge_base_ids": [str(kid) for kid in ([kb.id for kb in (workflow.knowledge_bases or [])])]
+                    }
+                }
+                self._update_stream_data(stream_token, context_event)
+            except Exception as e:
+                logger.warning(f"Unable to stream context summary: {e}")
+
             agents = []
             tasks = []
 
@@ -244,6 +303,11 @@ class CrewAIService:
                     }
                 else:
                     step_info["persona"] = None
+
+                # Include attached context identifiers for transparency
+                step_info["attached_asset_ids"] = [str(aid) for aid in (all_asset_ids or [])]
+                step_info["attached_knowledge_base_ids"] = [str(kid) for kid in (all_kb_ids or [])]
+                step_info["type"] = "step"
 
                 self._update_stream_data(stream_token, step_info)
 

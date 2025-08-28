@@ -782,16 +782,18 @@ async def stream_workflow_results(
                                 result = current_results[last_result_count]
                                 # Ensure result is a dictionary before accessing keys
                                 if isinstance(result, dict):
+                                    # Preserve the original result and inject defaults only when missing
+                                    result_copy = dict(result)
+                                    if not result_copy.get("type"):
+                                        result_copy["type"] = "step"
+                                        result_copy.setdefault("step", last_result_count + 1)
+                                        result_copy.setdefault("prompt", "")
+                                        result_copy.setdefault("response", "")
+                                        result_copy.setdefault("persona", {})
+                                        result_copy.setdefault("chat_model", {})
                                     yield {
                                         "event": "message",
-                                        "data": json.dumps({
-                                            "type": "step",
-                                            "step": result.get("step", last_result_count + 1),
-                                            "prompt": result.get("prompt", ""),
-                                            "response": result.get("response", ""),
-                                            "persona": result.get("persona", {}),
-                                            "chat_model": result.get("chat_model", {})
-                                        })
+                                        "data": json.dumps(result_copy)
                                     }
                                 else:
                                     # Handle string or other non-dict results
