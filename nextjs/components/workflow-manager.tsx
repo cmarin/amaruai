@@ -390,13 +390,13 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
         asset_selection_config: workflow.asset_selection_config
       };
 
-      console.log('Saving workflow with data:', workflowToSave);
-
       if (workflow.process_type === 'HIERARCHICAL') {
         workflowToSave.manager_chat_model_id = managerChatModelId;
         workflowToSave.manager_persona_id = managerPersonaId;
         workflowToSave.max_iterations = maxIterations;
       }
+
+      console.log('Saving workflow with data:', workflowToSave);
 
       if (workflow.id) {
         await updateWorkflow(workflow.id, workflowToSave, headers);
@@ -578,18 +578,21 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
           <Separator className="my-4" />
 
           {/* Individual Asset Selection Configuration */}
-          <WorkflowAssetSelectionConfig
-            knowledgeBases={knowledgeBases}
-            config={workflow.asset_selection_config}
-            onChange={(config) => {
-              setWorkflow({
-                ...workflow,
-                asset_selection_config: config
-              });
-            }}
-          />
-
-          <Separator className="my-4" />
+          {workflow.allow_asset_selection && (
+            <>
+              <WorkflowAssetSelectionConfig
+                knowledgeBases={knowledgeBases}
+                config={workflow.asset_selection_config}
+                onChange={(config) => {
+                  setWorkflow({
+                    ...workflow,
+                    asset_selection_config: config
+                  });
+                }}
+              />
+              <Separator className="my-4" />
+            </>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="knowledgeBases">Knowledge Bases & Assets</Label>
