@@ -17,6 +17,9 @@ export interface WorkflowWizardState {
   selectedAssets: string[];
   selectedKnowledgeBases: string[];
   
+  // Individual asset selections by knowledge base ID
+  individualAssetSelections: Record<string, string[]>;
+  
   // Complex prompt data
   complexPromptData?: string;
   
@@ -54,6 +57,7 @@ export interface WorkflowExecutionWizardProps {
     uploadedFiles: UploadedFile[];
     selectedAssets: string[];
     selectedKnowledgeBases: string[];
+    individualAssetSelections?: Record<string, string[]>;
     complexPromptData?: string;
   }) => void;
 }
@@ -61,7 +65,8 @@ export interface WorkflowExecutionWizardProps {
 // Step IDs for the wizard
 export const WIZARD_STEPS = {
   FILE_UPLOAD: 'file_upload',
-  ASSET_SELECTION: 'asset_selection', 
+  ASSET_SELECTION: 'asset_selection',
+  INDIVIDUAL_ASSET_SELECTION: 'individual_asset_selection',
   COMPLEX_PROMPT: 'complex_prompt',
   REVIEW: 'review'
 } as const;

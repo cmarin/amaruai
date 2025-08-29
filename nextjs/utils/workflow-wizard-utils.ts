@@ -32,6 +32,16 @@ export function determineWizardSteps(
     });
   }
 
+  // Individual asset selection step
+  if (workflow.asset_selection_config?.knowledge_base_selections?.length) {
+    steps.push({
+      id: WIZARD_STEPS.INDIVIDUAL_ASSET_SELECTION,
+      label: 'Select Specific Assets',
+      description: 'Choose individual assets from specific knowledge bases',
+      required: workflow.asset_selection_config.knowledge_base_selections.some(s => s.required)
+    });
+  }
+
   // Complex prompt step - only if first template is complex
   if (firstPromptTemplate?.is_complex) {
     steps.push({
@@ -64,7 +74,8 @@ export function shouldShowWizard(
 ): boolean {
   return (
     workflow.allow_file_upload || 
-    workflow.allow_asset_selection || 
+    workflow.allow_asset_selection ||
+    (workflow.asset_selection_config?.knowledge_base_selections?.length ?? 0) > 0 ||
     firstPromptTemplate?.is_complex === true
   );
 }
@@ -79,6 +90,7 @@ export function canCompleteStep(
     uploadedFiles: any[];
     selectedAssets: string[];
     selectedKnowledgeBases: string[];
+    individualAssetSelections?: Record<string, string[]>;
     complexPromptData?: string;
   }
 ): boolean {
@@ -90,6 +102,37 @@ export function canCompleteStep(
     case WIZARD_STEPS.ASSET_SELECTION:
       // Asset selection is optional - can always proceed
       return true;
+
+    case WIZARD_STEPS.INDIVIDUAL_ASSET_SELECTION: {
+      // Check if all required individual asset selections are made
+      if (!workflow.asset_selection_config?.knowledge_base_selections?.length) {
+        return true;
+      }
+      
+      const selections = wizardState.individualAssetSelections || {};
+      return workflow.asset_selection_config.knowledge_base_selections.every(config => {
+        const kbSelections = selections[config.knowledge_base_id] || [];
+        
+        // Check if required selection is made
+        if (config.required && kbSelections.length === 0) {
+          return false;
+        }
+        
+        // Check single selection has at most 1 item
+        if (config.selection_type === 'single' && kbSelections.length > 1) {
+          return false;
+        }
+        
+        // Check if selection doesn't exceed max limit for multiple
+        if (config.selection_type === 'multiple' && config.max_selections) {
+          if (kbSelections.length > config.max_selections) {
+            return false;
+          }
+        }
+        
+        return true;
+      });
+    }
 
     case WIZARD_STEPS.COMPLEX_PROMPT:
       // Complex prompt requires data to be provided
@@ -177,6 +220,7 @@ export function validateWizardForExecution(
     uploadedFiles: any[];
     selectedAssets: string[];
     selectedKnowledgeBases: string[];
+    individualAssetSelections?: Record<string, string[]>;
     complexPromptData?: string;
   },
   firstPromptTemplate?: PromptTemplate
@@ -188,8 +232,26 @@ export function validateWizardForExecution(
     errors.push('Complex prompt configuration is required');
   }
 
-  // Could add more validation rules here as needed
-  // For example, minimum number of files, required assets, etc.
+  // Validate individual asset selections
+  if (workflow.asset_selection_config?.knowledge_base_selections?.length) {
+    const selections = wizardState.individualAssetSelections || {};
+    
+    workflow.asset_selection_config.knowledge_base_selections.forEach(config => {
+      const kbSelections = selections[config.knowledge_base_id] || [];
+      
+      if (config.required && kbSelections.length === 0) {
+        errors.push(`${config.label} selection is required`);
+      }
+      
+      if (config.selection_type === 'single' && kbSelections.length > 1) {
+        errors.push(`${config.label} allows only a single selection`);
+      }
+      
+      if (config.selection_type === 'multiple' && config.max_selections && kbSelections.length > config.max_selections) {
+        errors.push(`${config.label} selection exceeds maximum limit of ${config.max_selections}`);
+      }
+    });
+  }
 
   return {
     isValid: errors.length === 0,

@@ -490,9 +490,14 @@ def create_workflow(db: Session, workflow: schemas.WorkflowCreate):
 def update_workflow(db: Session, workflow_id: UUID, workflow: schemas.WorkflowUpdate):
     db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id).first()
     if db_workflow:
-        update_data = workflow.dict(exclude_unset=True, exclude={'steps', 'asset_ids', 'knowledge_base_ids'})
+        update_data = workflow.dict(exclude_unset=True, exclude={'steps', 'asset_ids', 'knowledge_base_ids', 'asset_selection_config'})
         for key, value in update_data.items():
             setattr(db_workflow, key, value)
+        
+        # Handle asset_selection_config separately to convert to dict
+        if workflow.asset_selection_config is not None:
+            asset_config_dict = workflow.asset_selection_config.dict() if workflow.asset_selection_config else None
+            setattr(db_workflow, 'asset_selection_config', asset_config_dict)
             
         # Update steps if provided
         if workflow.steps is not None:

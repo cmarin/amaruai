@@ -1,6 +1,18 @@
 import { KnowledgeBase } from '@/utils/knowledge-base-service';
 import { Asset } from '@/types/knowledge-base';
 
+export interface KnowledgeBaseSelection {
+  knowledge_base_id: string;
+  selection_type: 'single' | 'multiple';
+  max_selections?: number;
+  required: boolean;
+  label: string;
+}
+
+export interface AssetSelectionConfig {
+  knowledge_base_selections: KnowledgeBaseSelection[];
+}
+
 export interface WorkflowStep {
   id?: string;
   workflow_id?: string;
@@ -26,6 +38,7 @@ export interface Workflow {
   search?: boolean;
   allow_file_upload?: boolean;
   allow_asset_selection?: boolean;
+  asset_selection_config?: AssetSelectionConfig;
   created_by?: string;
   created_at?: string;
   updated_at?: string;
@@ -77,6 +90,7 @@ export interface WorkflowCreate {
   search?: boolean;
   allow_file_upload?: boolean;
   allow_asset_selection?: boolean;
+  asset_selection_config?: AssetSelectionConfig;
   asset_ids?: string[];
   knowledge_base_ids?: string[];
 }
@@ -90,4 +104,5 @@ export interface WorkflowExecuteInput {
   file_ids?: string[];
   asset_ids?: string[];
   knowledge_base_ids?: string[];
+  individual_asset_selections?: Record<string, string[]>;
 } 
