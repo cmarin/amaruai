@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
 import { WizardProgress } from './wizard-progress';
 import { FileUploadStep } from './file-upload-step';
 import { AssetSelectionStep } from './asset-selection-step';

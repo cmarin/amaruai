@@ -278,7 +278,7 @@ export function IndividualAssetSelectionStep({
                         {assets.map((asset) => {
                           const isSelected = currentSelections.includes(asset.id);
                           const isDisabled = !isSelected && 
-                            selection.max_selections && 
+                            !!selection.max_selections && 
                             currentSelections.length >= selection.max_selections;
                           
                           return (

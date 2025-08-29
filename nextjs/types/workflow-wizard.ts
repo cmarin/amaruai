@@ -57,7 +57,7 @@ export interface WorkflowExecutionWizardProps {
     uploadedFiles: UploadedFile[];
     selectedAssets: string[];
     selectedKnowledgeBases: string[];
-    individualAssetSelections: Record<string, string[]>;
+    individualAssetSelections?: Record<string, string[]>;
     complexPromptData?: string;
   }) => void;
 }

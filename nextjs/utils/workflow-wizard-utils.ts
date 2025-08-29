@@ -103,7 +103,7 @@ export function canCompleteStep(
       // Asset selection is optional - can always proceed
       return true;
 
-    case WIZARD_STEPS.INDIVIDUAL_ASSET_SELECTION:
+    case WIZARD_STEPS.INDIVIDUAL_ASSET_SELECTION: {
       // Check if all required individual asset selections are made
       if (!workflow.asset_selection_config?.knowledge_base_selections?.length) {
         return true;
@@ -118,7 +118,12 @@ export function canCompleteStep(
           return false;
         }
         
-        // Check if selection doesn't exceed max limit
+        // Check single selection has at most 1 item
+        if (config.selection_type === 'single' && kbSelections.length > 1) {
+          return false;
+        }
+        
+        // Check if selection doesn't exceed max limit for multiple
         if (config.selection_type === 'multiple' && config.max_selections) {
           if (kbSelections.length > config.max_selections) {
             return false;
@@ -127,6 +132,7 @@ export function canCompleteStep(
         
         return true;
       });
+    }
 
     case WIZARD_STEPS.COMPLEX_PROMPT:
       // Complex prompt requires data to be provided
@@ -235,6 +241,10 @@ export function validateWizardForExecution(
       
       if (config.required && kbSelections.length === 0) {
         errors.push(`${config.label} selection is required`);
+      }
+      
+      if (config.selection_type === 'single' && kbSelections.length > 1) {
+        errors.push(`${config.label} allows only a single selection`);
       }
       
       if (config.selection_type === 'multiple' && config.max_selections && kbSelections.length > config.max_selections) {

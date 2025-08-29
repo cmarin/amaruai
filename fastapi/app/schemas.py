@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any, Union, ForwardRef, Annotated, Literal
+from typing import List, Optional, Dict, Any, Literal
 from enum import Enum
 from uuid import UUID
 from datetime import datetime
@@ -25,6 +25,16 @@ class KnowledgeBaseSelection(BaseModel):
 class AssetSelectionConfig(BaseModel):
     """Configuration for individual asset selection in workflows"""
     knowledge_base_selections: List[KnowledgeBaseSelection] = Field(default_factory=list, description="List of knowledge base selection configurations")
+    
+    @validator('knowledge_base_selections')
+    def unique_kb_ids(cls, v: List[KnowledgeBaseSelection]):
+        """Ensure no duplicate knowledge base IDs in selections"""
+        if not v:
+            return v
+        ids = [s.knowledge_base_id for s in v]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Duplicate knowledge_base_id entries are not allowed")
+        return v
 
 class ToolBase(BaseModel):
     name: str
@@ -258,7 +268,7 @@ class Persona(PersonaBase):
 
 class ProcessType(str, Enum):
     SEQUENTIAL = "SEQUENTIAL"
-    PARALLEL = "HIERARCHICAL"
+    HIERARCHICAL = "HIERARCHICAL"
 
 class WorkflowStepBase(BaseModel):
     prompt_template_id: Optional[UUID] = None  # Changed from required to optional
