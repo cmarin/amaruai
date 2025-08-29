@@ -35,7 +35,7 @@ export function WorkflowAssetSelectionConfig({
         knowledge_base_selections: selections
       });
     }
-  }, [selections, onChange]);
+  }, [selections]);
 
   const addSelection = () => {
     const newSelection: KnowledgeBaseSelection = {
