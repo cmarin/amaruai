@@ -386,7 +386,8 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
         asset_ids: selectedAssets.map(asset => asset.id),
         search: workflow.search || false,
         allow_file_upload: workflow.allow_file_upload || false,
-        allow_asset_selection: workflow.allow_asset_selection || false
+        allow_asset_selection: workflow.allow_asset_selection || false,
+        asset_selection_config: workflow.asset_selection_config
       };
 
       console.log('Saving workflow with data:', workflowToSave);
