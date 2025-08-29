@@ -136,7 +136,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     if (!sessionLoading && initialized) {
       loadData();
     }
-  }, [sessionLoading, initialized, loadData]);
+  }, [sessionLoading, initialized]);
 
   useEffect(() => {
     if (initialWorkflow) {
