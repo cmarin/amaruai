@@ -55,9 +55,8 @@ def create_workflow(
         workflow_dict["created_by"] = current_user
         
         # Create the workflow with basic info first
-        asset_selection_config_dict = None
-        if workflow_dict.get("asset_selection_config"):
-            asset_selection_config_dict = workflow_dict["asset_selection_config"].dict()
+        # Handle asset_selection_config - it's already a dict after workflow.dict()
+        asset_selection_config_dict = workflow_dict.get("asset_selection_config")
         
         db_workflow = models.Workflow(
             name=workflow_dict.get("name", "New Workflow"),

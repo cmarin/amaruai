@@ -16,8 +16,11 @@ class KnowledgeBaseSelection(BaseModel):
     
     @validator('max_selections')
     def validate_max_selections(cls, v, values):
-        if values.get('selection_type') == 'multiple' and v is None:
-            raise ValueError('max_selections is required for multiple selection type')
+        if values.get('selection_type') == 'multiple':
+            if v is None:
+                raise ValueError('max_selections is required for multiple selection type')
+            if v <= 0:
+                raise ValueError('max_selections must be >= 1')
         if values.get('selection_type') == 'single' and v is not None:
             raise ValueError('max_selections should not be set for single selection type')
         return v

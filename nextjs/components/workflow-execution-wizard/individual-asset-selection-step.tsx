@@ -48,7 +48,7 @@ export function IndividualAssetSelectionStep({
   const assetSelectionConfig = workflow.asset_selection_config;
 
   const loadKnowledgeBaseAssets = useCallback(async () => {
-    if (!assetSelectionConfig?.knowledge_base_selections.length) return;
+    if (!assetSelectionConfig?.knowledge_base_selections?.length) return;
 
     try {
       setIsLoading(true);
@@ -88,7 +88,7 @@ export function IndividualAssetSelectionStep({
   }, [loadKnowledgeBaseAssets]);
 
   const handleSingleSelection = useCallback((kbId: string, assetId: string | undefined) => {
-    const currentSelections = { ...wizardState.individualAssetSelections };
+    const currentSelections = { ...(wizardState.individualAssetSelections ?? {}) };
     
     if (assetId) {
       currentSelections[kbId] = [assetId];
@@ -100,7 +100,7 @@ export function IndividualAssetSelectionStep({
   }, [wizardState.individualAssetSelections, onStateChange]);
 
   const handleMultipleSelection = useCallback((kbId: string, assetId: string, isSelected: boolean) => {
-    const currentSelections = { ...wizardState.individualAssetSelections };
+    const currentSelections = { ...(wizardState.individualAssetSelections ?? {}) };
     const currentKbSelections = currentSelections[kbId] || [];
     
     if (isSelected) {
@@ -120,7 +120,7 @@ export function IndividualAssetSelectionStep({
   }, [wizardState.individualAssetSelections, onStateChange]);
 
   const removeSelection = useCallback((kbId: string, assetId: string) => {
-    const currentSelections = { ...wizardState.individualAssetSelections };
+    const currentSelections = { ...(wizardState.individualAssetSelections ?? {}) };
     const currentKbSelections = currentSelections[kbId] || [];
     
     currentSelections[kbId] = currentKbSelections.filter(id => id !== assetId);
@@ -150,6 +150,10 @@ export function IndividualAssetSelectionStep({
       return false;
     }
     
+    if (selection.selection_type === 'single' && currentSelections.length > 1) {
+      return false;
+    }
+    
     if (selection.selection_type === 'multiple' && selection.max_selections) {
       return currentSelections.length <= selection.max_selections;
     }
@@ -158,14 +162,14 @@ export function IndividualAssetSelectionStep({
   }, [wizardState.individualAssetSelections]);
 
   const canProceed = useCallback((): boolean => {
-    if (!assetSelectionConfig?.knowledge_base_selections.length) return true;
+    if (!assetSelectionConfig?.knowledge_base_selections?.length) return true;
     
     return assetSelectionConfig.knowledge_base_selections.every(selection => 
       isSelectionValid(selection)
     );
   }, [assetSelectionConfig, isSelectionValid]);
 
-  if (!assetSelectionConfig?.knowledge_base_selections.length) {
+  if (!assetSelectionConfig?.knowledge_base_selections?.length) {
     return (
       <div className="text-center py-8">
         <p className="text-gray-500">No individual asset selection configured for this workflow.</p>
