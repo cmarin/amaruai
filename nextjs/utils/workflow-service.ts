@@ -27,6 +27,7 @@ export async function fetchWorkflows(headers: ApiHeaders): Promise<Workflow[]> {
           search: workflow.search || false, // Include search field with default false
           allow_file_upload: workflow.allow_file_upload || false,
           allow_asset_selection: workflow.allow_asset_selection || false,
+          asset_selection_config: workflow.asset_selection_config,
           steps: workflow.steps?.map((step: any) => ({
             ...step,
             id: step.id?.toString() || '',
@@ -86,6 +87,7 @@ export async function fetchWorkflow(id: string, headers: ApiHeaders): Promise<Wo
       search: data.search || false, // Include search field with default false
       allow_file_upload: data.allow_file_upload || false,
       allow_asset_selection: data.allow_asset_selection || false,
+      asset_selection_config: data.asset_selection_config,
       steps: data.steps?.map((step: any) => ({
         ...step,
         id: step.id?.toString() || '',
@@ -126,6 +128,7 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
       search: workflow.search,
       allow_file_upload: workflow.allow_file_upload,
       allow_asset_selection: workflow.allow_asset_selection,
+      asset_selection_config: workflow.asset_selection_config,
       steps: workflow.steps?.map((step, index) => ({
         prompt_template_id: step.prompt_template_id,
         chat_model_id: step.chat_model_id,
@@ -156,6 +159,7 @@ export async function createWorkflow(workflow: Omit<Workflow, 'id'>, headers: Ap
       id: data.id?.toString() || '',
       manager_chat_model_id: data.manager_chat_model_id?.toString(),
       manager_persona_id: data.manager_persona_id?.toString(),
+      asset_selection_config: data.asset_selection_config,
       steps: data.steps?.map((step: any) => ({
         ...step,
         id: step.id?.toString() || '',
@@ -218,6 +222,7 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       search: workflow.search,
       allow_file_upload: workflow.allow_file_upload,
       allow_asset_selection: workflow.allow_asset_selection,
+      asset_selection_config: workflow.asset_selection_config,
       steps: workflow.steps?.map((step, index) => ({
         prompt_template_id: step.prompt_template_id,
         chat_model_id: step.chat_model_id,
@@ -251,6 +256,7 @@ export async function updateWorkflow(id: string, workflow: Partial<Workflow>, he
       manager_persona_id: data.manager_persona_id?.toString(),
       knowledge_base_ids: data.knowledge_base_ids || [],
       asset_ids: data.asset_ids || [],
+      asset_selection_config: data.asset_selection_config,
       steps: data.steps?.map((step: any) => ({
         ...step,
         id: step.id?.toString() || '',
