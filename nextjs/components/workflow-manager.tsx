@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { WorkflowSteps } from "@/components/batch-flow/workflow-steps"
 import { KnowledgeBaseSelector } from "@/components/knowledge-base-selector"
 import { KnowledgeBaseAssetPills } from "@/components/knowledge-base-asset-pills"
+import { WorkflowAssetSelectionConfig } from "@/components/workflow-asset-selection-config"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 
@@ -42,6 +43,7 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
     search: false,
     allow_file_upload: false,
     allow_asset_selection: false,
+    asset_selection_config: undefined,
   });
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [chatModels, setChatModels] = useState<ChatModel[]>([]);
@@ -571,6 +573,20 @@ export function WorkflowManagerComponent({ workflow: initialWorkflow, onSave, on
               When enabled, users will be prompted to upload files or select existing resources before executing the workflow.
             </p>
           </div>
+
+          <Separator className="my-4" />
+
+          {/* Individual Asset Selection Configuration */}
+          <WorkflowAssetSelectionConfig
+            knowledgeBases={knowledgeBases}
+            config={workflow.asset_selection_config}
+            onChange={(config) => {
+              setWorkflow({
+                ...workflow,
+                asset_selection_config: config
+              });
+            }}
+          />
 
           <Separator className="my-4" />
 
