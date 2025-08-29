@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, Text, Enum, UUID, BigInteger, TIMESTAMP, DateTime, Float, JSON
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, Text, UUID, BigInteger, TIMESTAMP, DateTime, Float
+from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import text, func
 import enum
@@ -181,7 +181,7 @@ class Workflow(Base):
     search = Column(Boolean, nullable=True)
     allow_file_upload = Column(Boolean, default=False, nullable=False)
     allow_asset_selection = Column(Boolean, default=False, nullable=False)
-    asset_selection_config = Column(JSON, nullable=True)
+    asset_selection_config = Column(JSONB, nullable=True)
     
     # Add the new relationships
     assets = relationship(

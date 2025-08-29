@@ -494,10 +494,13 @@ def update_workflow(db: Session, workflow_id: UUID, workflow: schemas.WorkflowUp
         for key, value in update_data.items():
             setattr(db_workflow, key, value)
         
-        # Handle asset_selection_config separately to convert to dict
-        if workflow.asset_selection_config is not None:
-            asset_config_dict = workflow.asset_selection_config.dict() if workflow.asset_selection_config else None
-            setattr(db_workflow, 'asset_selection_config', asset_config_dict)
+        # Handle asset_selection_config explicitly; allow clearing to None
+        if hasattr(workflow, "__fields_set__") and "asset_selection_config" in workflow.__fields_set__:
+            db_workflow.asset_selection_config = (
+                workflow.asset_selection_config.dict()
+                if workflow.asset_selection_config is not None
+                else None
+            )
             
         # Update steps if provided
         if workflow.steps is not None:
