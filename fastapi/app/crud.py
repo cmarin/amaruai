@@ -3,7 +3,6 @@ from . import models, schemas
 from sqlalchemy import desc, Enum as SQLAlchemyEnum, asc, func, cast
 from fastapi import HTTPException
 import logging
-import json
 from uuid import UUID, uuid4
 from typing import List
 from .models import ProcessType  # Add this import
@@ -498,7 +497,7 @@ def update_workflow(db: Session, workflow_id: UUID, workflow: schemas.WorkflowUp
         # Handle asset_selection_config explicitly; allow clearing to None
         if hasattr(workflow, "__fields_set__") and "asset_selection_config" in workflow.__fields_set__:
             db_workflow.asset_selection_config = (
-                json.loads(workflow.asset_selection_config.model_dump_json())
+                workflow.asset_selection_config.model_dump(mode="json")
                 if workflow.asset_selection_config is not None
                 else None
             )
