@@ -24,6 +24,11 @@ class KnowledgeBaseSelection(BaseModel):
         if values.get('selection_type') == 'single' and v is not None:
             raise ValueError('max_selections should not be set for single selection type')
         return v
+    
+    class Config:
+        json_encoders = {
+            UUID: str
+        }
 
 class AssetSelectionConfig(BaseModel):
     """Configuration for individual asset selection in workflows"""
@@ -38,6 +43,11 @@ class AssetSelectionConfig(BaseModel):
         if len(ids) != len(set(ids)):
             raise ValueError("Duplicate knowledge_base_id entries are not allowed")
         return v
+    
+    class Config:
+        json_encoders = {
+            UUID: str
+        }
 
 class ToolBase(BaseModel):
     name: str
