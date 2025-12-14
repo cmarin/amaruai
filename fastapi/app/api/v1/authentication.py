@@ -15,8 +15,7 @@ async def login(email: str, password: str):
             "email": email,
             "password": password
         })
-        logger.debug(f"Login successful. Session token: {response.session.access_token[:20]}...")
-        logger.debug(f"Full response session data: {response.session}")
+        logger.debug("Login successful")
         return response
 
     except Exception as e:
@@ -40,7 +39,7 @@ async def get_user():
         logger.debug("Attempting to get user")
         session = supabase.auth.get_session()
         if session:
-            logger.debug(f"Current session token: {session.access_token[:20]}...")
+            logger.debug("Session retrieved successfully")
             user = supabase.auth.get_user(session.access_token)
             logger.debug(f"User retrieved: {user.user.email}")
             return user
