@@ -13,7 +13,6 @@ from dotenv import load_dotenv
 import jwt
 from app.config.supabase import supabase_client
 load_dotenv()
-print(f"Loaded API key: {os.getenv('SERVICE1_API_KEY')}")
 
 logger = logging.getLogger(__name__)
 
