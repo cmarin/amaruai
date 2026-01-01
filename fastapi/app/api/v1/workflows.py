@@ -667,8 +667,8 @@ async def upload_workflow_assets(
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         }
-        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-        MAX_TOTAL_SIZE = 50 * 1024 * 1024  # 50MB total
+        MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+        MAX_TOTAL_SIZE = 500 * 1024 * 1024  # 500MB total
         
         total_size = 0
         for asset in assets:
@@ -683,7 +683,7 @@ async def upload_workflow_assets(
             if asset.size and asset.size > MAX_FILE_SIZE:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"File {asset.file_name} exceeds maximum size of 10MB"
+                    detail=f"File {asset.file_name} exceeds maximum size of 100MB"
                 )
             
             total_size += asset.size or 0
@@ -692,7 +692,7 @@ async def upload_workflow_assets(
         if total_size > MAX_TOTAL_SIZE:
             raise HTTPException(
                 status_code=400,
-                detail=f"Total file size exceeds maximum of 50MB"
+                detail=f"Total file size exceeds maximum of 500MB"
             )
         
         return {

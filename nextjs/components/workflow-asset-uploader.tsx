@@ -39,7 +39,7 @@ export function WorkflowAssetUploader({
         storageFolder: knowledgeBaseId ? `knowledge-bases/${knowledgeBaseId}` : 'assets',
         storageBucket: 'amaruai-dev',
         restrictions: {
-          maxFileSize: 10 * 1024 * 1024, // 10MB
+          maxFileSize: 100 * 1024 * 1024, // 100MB
           allowedFileTypes: [
             'image/*',
             'application/pdf',
