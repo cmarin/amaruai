@@ -29,7 +29,7 @@ export function AssetUploader({ onUploadComplete, onUploadError, knowledgeBaseId
         storageFolder: knowledgeBaseId ? `knowledge-bases/${knowledgeBaseId}` : 'assets',
         storageBucket: 'amaruai-dev',
         restrictions: {
-          maxFileSize: 10 * 1024 * 1024, // 10MB
+          maxFileSize: 100 * 1024 * 1024, // 100MB
           allowedFileTypes: [
             'image/*',
             'application/pdf',
@@ -78,7 +78,7 @@ export function AssetUploader({ onUploadComplete, onUploadError, knowledgeBaseId
         showSelectedFiles={true}
         showRemoveButtonAfterComplete={true}
         hideUploadButton={false}
-        note="Files up to 10MB"
+        note="Files up to 100MB"
         height={350}
       />
     </div>

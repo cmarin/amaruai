@@ -39,7 +39,7 @@ export class UploadService {
             id,
             autoProceed: true,  // Auto-upload when files are selected
             restrictions: {
-                maxFileSize: config.restrictions?.maxFileSize || 10 * 1024 * 1024,
+                maxFileSize: config.restrictions?.maxFileSize || 100 * 1024 * 1024,
                 maxNumberOfFiles: config.restrictions?.maxNumberOfFiles ?? config.maxFiles ?? 10,
                 allowedFileTypes: config.restrictions?.allowedFileTypes || [
                     'image/*',
