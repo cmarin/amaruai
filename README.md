@@ -19,12 +19,12 @@ Key capabilities:
 
 ## Screenshots
 
-![Content Fusion](../../screenshots/amaruai_screenshot_1.png)
-![Workflow Editor](../../screenshots/amaruai_screenshot_2.png)
-![Workflows](../../screenshots/amaruai_screenshot_3.png)
-![Persona Library](../../screenshots/amaruai_screenshot_4.png)
-![Prompt Templates](../../screenshots/amaruai_screenshot_5.png)
-![Chat](../../screenshots/amaruai_screenshot_6.png)
+![Content Fusion](screenshots/amaruai_screenshot_1.png)
+![Workflow Editor](screenshots/amaruai_screenshot_2.png)
+![Workflows](screenshots/amaruai_screenshot_3.png)
+![Persona Library](screenshots/amaruai_screenshot_4.png)
+![Prompt Templates](screenshots/amaruai_screenshot_5.png)
+![Chat](screenshots/amaruai_screenshot_6.png)
 
 ## Tech Stack
 
