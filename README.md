@@ -17,6 +17,15 @@ Key capabilities:
 - **Vector Search** — Semantic search over documents using LlamaIndex with Supabase vector store
 - **Real-time Streaming** — SSE-based streaming for live workflow execution updates
 
+## Screenshots
+
+![Content Fusion](../../screenshots/amaruai_screenshot_1.png)
+![Workflow Editor](../../screenshots/amaruai_screenshot_2.png)
+![Workflows](../../screenshots/amaruai_screenshot_3.png)
+![Persona Library](../../screenshots/amaruai_screenshot_4.png)
+![Prompt Templates](../../screenshots/amaruai_screenshot_5.png)
+![Chat](../../screenshots/amaruai_screenshot_6.png)
+
 ## Tech Stack
 
 | Layer | Technologies |
@@ -87,6 +96,12 @@ poetry install
 ```
 
 ### 4. Start local Supabase
+
+The database schema (tables, RLS policies, functions — no data) can be restored from `fastapi/amaruai_schema_backup.sql`:
+
+```bash
+psql "YOUR_DATABASE_CONNECTION_STRING" < fastapi/amaruai_schema_backup.sql
+```
 
 ```bash
 cd supabase
