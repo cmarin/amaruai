@@ -127,7 +127,7 @@ Create `nextjs/.env.local`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
-NEXT_PUBLIC_SUPABASE_BUCKET=amaruai-dev
+NEXT_PUBLIC_SUPABASE_BUCKET=your-bucket
 NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
@@ -139,7 +139,7 @@ DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
 ASYNC_DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:54322/postgres
 SUPABASE_URL=http://127.0.0.1:54321
 SUPABASE_ANON_KEY=<your-supabase-anon-key>
-SUPABASE_BUCKET=amaruai-dev
+SUPABASE_BUCKET=your-bucket
 OPENAI_API_KEY=<your-openai-api-key>
 ENVIRONMENT=development
 ```

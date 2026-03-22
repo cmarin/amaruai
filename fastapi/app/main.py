@@ -53,18 +53,17 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Get environment
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
-# Update origins list to include all possible variations
-origins = [
+# Default origins for local development
+default_origins = [
     "http://localhost:3000",
     "https://localhost:3000",
     "http://localhost:8000",
     "https://localhost:8000",
-    "http://amaruai.vercel.app",
-    "https://amaruai.vercel.app",
-    "https://amaruai.com",
-    "https://www.amaruai.com",
-    "https://accurate-courtesy-production.up.railway.app"
 ]
+
+# Additional origins from environment variable (comma-separated)
+extra_origins = os.getenv("CORS_ORIGINS", "")
+origins = default_origins + [o.strip() for o in extra_origins.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
