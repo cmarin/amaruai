@@ -19,12 +19,22 @@ Key capabilities:
 
 ## Screenshots
 
-![Content Fusion](screenshots/amaruai_screenshot_1.png)
-![Workflow Editor](screenshots/amaruai_screenshot_2.png)
-![Workflows](screenshots/amaruai_screenshot_3.png)
-![Persona Library](screenshots/amaruai_screenshot_4.png)
-![Prompt Templates](screenshots/amaruai_screenshot_5.png)
-![Chat](screenshots/amaruai_screenshot_6.png)
+<details>
+<summary>Click to view screenshots</summary>
+<br>
+<table>
+  <tr>
+    <td align="center"><a href="screenshots/amaruai_screenshot_1.png"><img src="screenshots/amaruai_screenshot_1.png" width="280" alt="Content Fusion"></a><br><sub>Content Fusion</sub></td>
+    <td align="center"><a href="screenshots/amaruai_screenshot_2.png"><img src="screenshots/amaruai_screenshot_2.png" width="280" alt="Workflow Editor"></a><br><sub>Workflow Editor</sub></td>
+    <td align="center"><a href="screenshots/amaruai_screenshot_3.png"><img src="screenshots/amaruai_screenshot_3.png" width="280" alt="Workflows"></a><br><sub>Workflows</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="screenshots/amaruai_screenshot_4.png"><img src="screenshots/amaruai_screenshot_4.png" width="280" alt="Persona Library"></a><br><sub>Persona Library</sub></td>
+    <td align="center"><a href="screenshots/amaruai_screenshot_5.png"><img src="screenshots/amaruai_screenshot_5.png" width="280" alt="Prompt Templates"></a><br><sub>Prompt Templates</sub></td>
+    <td align="center"><a href="screenshots/amaruai_screenshot_6.png"><img src="screenshots/amaruai_screenshot_6.png" width="280" alt="Chat"></a><br><sub>Chat</sub></td>
+  </tr>
+</table>
+</details>
 
 ## Tech Stack
 
